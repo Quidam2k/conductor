@@ -12,6 +12,8 @@ const userRoutes = require('./routes/users');
 const networkUtils = require('./utils/network');
 const qrGenerator = require('./utils/qr');
 const User = require('./models/User');
+const logger = require('./utils/logger');
+const { apiLoggingMiddleware, securityLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/logging');
 
 const app = express();
 
@@ -22,6 +24,10 @@ app.use(cors({
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Logging middleware
+app.use(apiLoggingMiddleware);
+app.use(securityLoggingMiddleware);
 
 // Rate limiting (basic implementation)
 const requestCounts = new Map();
@@ -91,9 +97,8 @@ app.get('/qr', async (req, res) => {
 });
 
 // Error handling middleware
+app.use(errorLoggingMiddleware);
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    
     const errorResponse = {
         error: {
             code: err.code || 'SERVER_ERROR',
@@ -122,10 +127,13 @@ app.use('*', (req, res) => {
 async function startServer() {
     try {
         // Initialize database
+        logger.info('Starting Conductor server...');
         await database.connect();
+        logger.info('Database connected successfully');
         
         // Create admin user if it doesn't exist
         await User.createAdminUser();
+        logger.info('Admin user initialized');
         
         // Get available port and network info
         const serverInfo = await networkUtils.getServerInfo();

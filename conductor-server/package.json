@@ -4,9 +4,16 @@
   "description": "Conductor flash mob organization server",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/start.js",
     "dev": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "setup": "node scripts/setup.js",
+    "logs": "tail -f logs/app.log",
+    "logs:error": "tail -f logs/error.log",
+    "logs:clear": "rm -rf logs/*.log",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:api": "node tests/api-test.js",
+    "build": "echo \"No build step required for Node.js\"",
+    "healthcheck": "curl -f http://localhost:3000/api/health || exit 1"
   },
   "keywords": ["conductor", "flash mob", "coordination", "server"],
   "author": "",
