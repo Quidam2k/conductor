@@ -13,7 +13,11 @@ const networkUtils = require('./utils/network');
 const qrGenerator = require('./utils/qr');
 const User = require('./models/User');
 const logger = require('./utils/logger');
+const security = require('./utils/security');
+const errorHandler = require('./utils/error_handler');
+const responseFormatter = require('./utils/response_formatter');
 const { apiLoggingMiddleware, securityLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/logging');
+const { sanitizeInputs, detectSuspiciousInput } = require('./middleware/sanitization');
 
 const app = express();
 
@@ -25,7 +29,10 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Logging middleware
+// Security and logging middleware
+app.use(detectSuspiciousInput);
+app.use(sanitizeInputs);
+app.use(responseFormatter.middleware());
 app.use(apiLoggingMiddleware);
 app.use(securityLoggingMiddleware);
 
@@ -72,11 +79,12 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.json({
+    res.success({
         status: 'ok',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
+        version: '1.0.0',
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+    }, 'Server is healthy');
 });
 
 // API routes
@@ -98,29 +106,13 @@ app.get('/qr', async (req, res) => {
 
 // Error handling middleware
 app.use(errorLoggingMiddleware);
-app.use((err, req, res, next) => {
-    const errorResponse = {
-        error: {
-            code: err.code || 'SERVER_ERROR',
-            message: err.message || 'Internal server error',
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id'] || 'unknown'
-        }
-    };
-    
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json(errorResponse);
-});
+app.use(errorHandler.expressErrorHandler());
 
 // 404 handler
 app.use('*', (req, res) => {
-    res.status(404).json({
-        error: {
-            code: 'NOT_FOUND',
-            message: 'Endpoint not found',
-            path: req.originalUrl
-        }
-    });
+    const error = errorHandler.createError('NOT_FOUND', 'Endpoint not found', 404);
+    const sanitizedError = errorHandler.sanitizeError(error, req);
+    res.status(404).json(sanitizedError);
 });
 
 // Server initialization
@@ -128,6 +120,10 @@ async function startServer() {
     try {
         // Initialize database
         logger.info('Starting Conductor server...');
+        
+        // Validate security configuration before starting
+        security.validateEnvironmentSecurity();
+        
         await database.connect();
         logger.info('Database connected successfully');
         
