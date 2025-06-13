@@ -5,9 +5,10 @@ const User = require('../models/User');
 const authConfig = require('../config/auth');
 const { authenticate } = require('../middleware/auth');
 const { validateUser } = require('../middleware/validation');
+const { sanitizeAuthInputs } = require('../middleware/sanitization');
 
 // Register new user
-router.post('/register', validateUser, async (req, res) => {
+router.post('/register', sanitizeAuthInputs, validateUser, async (req, res) => {
     try {
         const { username, password, email } = req.body;
         
@@ -46,7 +47,7 @@ router.post('/register', validateUser, async (req, res) => {
 });
 
 // Login user
-router.post('/login', validateUser, async (req, res) => {
+router.post('/login', sanitizeAuthInputs, validateUser, async (req, res) => {
     try {
         const { username, password } = req.body;
         

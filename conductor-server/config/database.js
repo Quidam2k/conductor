@@ -26,7 +26,7 @@ class Database {
 
     initializeTables() {
         return new Promise((resolve, reject) => {
-            const queries = [
+            const tableQueries = [
                 `CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
@@ -75,9 +75,35 @@ class Database {
                 )`
             ];
 
+            // Index queries for performance optimization
+            const indexQueries = [
+                // User indexes
+                `CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+                `CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)`,
+                `CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login)`,
+                
+                // Event indexes
+                `CREATE INDEX IF NOT EXISTS idx_events_creator_id ON events(creator_id)`,
+                `CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)`,
+                `CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time)`,
+                `CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at)`,
+                `CREATE INDEX IF NOT EXISTS idx_events_updated_at ON events(updated_at)`,
+                
+                // Event participants indexes
+                `CREATE INDEX IF NOT EXISTS idx_event_participants_event_id ON event_participants(event_id)`,
+                `CREATE INDEX IF NOT EXISTS idx_event_participants_user_id ON event_participants(user_id)`,
+                `CREATE INDEX IF NOT EXISTS idx_event_participants_joined_at ON event_participants(joined_at)`,
+                
+                // Device indexes
+                `CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id)`,
+                `CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen)`,
+                `CREATE INDEX IF NOT EXISTS idx_devices_trusted ON devices(trusted)`
+            ];
+
+            const allQueries = [...tableQueries, ...indexQueries];
             let completedQueries = 0;
             
-            queries.forEach((query) => {
+            allQueries.forEach((query) => {
                 this.db.run(query, (err) => {
                     if (err) {
                         console.error('Error creating table:', err.message);
@@ -86,8 +112,8 @@ class Database {
                     }
                     
                     completedQueries++;
-                    if (completedQueries === queries.length) {
-                        console.log('Database tables initialized');
+                    if (completedQueries === allQueries.length) {
+                        console.log('Database tables and indexes initialized');
                         resolve();
                     }
                 });

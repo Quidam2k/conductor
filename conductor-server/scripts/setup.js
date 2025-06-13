@@ -23,13 +23,27 @@ function generateSecureSecret() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-function generateRandomPassword(length = 12) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+function generateRandomPassword(length = 16) {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    
+    // Ensure at least one character from each required category
+    password += getRandomChar('ABCDEFGHIJKLMNOPQRSTUVWXYZ'); // Uppercase
+    password += getRandomChar('abcdefghijklmnopqrstuvwxyz'); // Lowercase
+    password += getRandomChar('0123456789'); // Number
+    password += getRandomChar('!@#$%^&*'); // Symbol
+    
+    // Fill the rest randomly
+    for (let i = password.length; i < length; i++) {
+        password += getRandomChar(charset);
     }
-    return password;
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+function getRandomChar(charset) {
+    return charset.charAt(Math.floor(Math.random() * charset.length));
 }
 
 async function setupEnvironment() {

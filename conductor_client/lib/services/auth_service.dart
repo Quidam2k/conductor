@@ -10,6 +10,7 @@ class AuthService extends ChangeNotifier {
   String? _authToken;
   String? _serverUrl;
   bool _isLoading = false;
+  bool _disposed = false;
 
   User? get currentUser => _currentUser;
   String? get authToken => _authToken;
@@ -18,9 +19,23 @@ class AuthService extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null && _authToken != null;
   bool get hasServerConnection => _serverUrl != null;
 
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
   Future<void> initializeAuth() async {
+    if (_disposed) return;
+    
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Load server connection
@@ -48,13 +63,13 @@ class AuthService extends ChangeNotifier {
       debugPrint('Error initializing auth: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<bool> connectToServer(String serverUrl) async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Ensure URL format is correct
@@ -77,7 +92,7 @@ class AuthService extends ChangeNotifier {
           'connectedAt': DateTime.now().toIso8601String(),
         });
 
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       } else {
         throw Exception('Server returned status ${response.statusCode}');
@@ -87,7 +102,7 @@ class AuthService extends ChangeNotifier {
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -116,7 +131,7 @@ class AuthService extends ChangeNotifier {
     }
 
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final response = await http.post(
@@ -140,7 +155,7 @@ class AuthService extends ChangeNotifier {
         await StorageService.saveAuthToken(_authToken!);
         await StorageService.saveCurrentUser(_currentUser!);
 
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       } else {
         throw Exception(data['error']['message'] ?? 'Registration failed');
@@ -150,7 +165,7 @@ class AuthService extends ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -163,7 +178,7 @@ class AuthService extends ChangeNotifier {
     }
 
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final response = await http.post(
@@ -185,7 +200,7 @@ class AuthService extends ChangeNotifier {
         await StorageService.saveAuthToken(_authToken!);
         await StorageService.saveCurrentUser(_currentUser!);
 
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       } else {
         throw Exception(data['error']['message'] ?? 'Login failed');
@@ -195,13 +210,13 @@ class AuthService extends ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<void> logout() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Call server logout if we have a token
@@ -226,10 +241,10 @@ class AuthService extends ChangeNotifier {
       await StorageService.clearAuthToken();
       await StorageService.clearCurrentUser();
 
-      notifyListeners();
+      _safeNotifyListeners();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -253,7 +268,7 @@ class AuthService extends ChangeNotifier {
     final data = jsonDecode(response.body);
     _currentUser = User.fromJson(data['user']);
     await StorageService.saveCurrentUser(_currentUser!);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   Future<bool> refreshToken() async {
@@ -274,7 +289,7 @@ class AuthService extends ChangeNotifier {
         final data = jsonDecode(response.body);
         _authToken = data['token'];
         await StorageService.saveAuthToken(_authToken!);
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       } else {
         await logout();
@@ -300,7 +315,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> clearAllData() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _authToken = null;
@@ -309,10 +324,10 @@ class AuthService extends ChangeNotifier {
 
       await StorageService.clearAllData();
 
-      notifyListeners();
+      _safeNotifyListeners();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 }

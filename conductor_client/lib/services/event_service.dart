@@ -11,8 +11,21 @@ class EventService extends ChangeNotifier {
   List<Event> _events = [];
   bool _isLoading = false;
   String? _error;
+  bool _disposed = false;
 
   EventService({AuthService? authService}) : _authService = authService ?? AuthService();
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   List<Event> get events => _events;
   bool get isLoading => _isLoading;
@@ -21,7 +34,7 @@ class EventService extends ChangeNotifier {
   Future<void> loadEvents({bool forceRefresh = false}) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Load from local storage first
@@ -29,7 +42,7 @@ class EventService extends ChangeNotifier {
         final localEvents = StorageService.getEventsAsList();
         if (localEvents.isNotEmpty) {
           _events = localEvents;
-          notifyListeners();
+          _safeNotifyListeners();
         }
       }
 
@@ -42,7 +55,7 @@ class EventService extends ChangeNotifier {
       debugPrint('Error loading events: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -61,7 +74,7 @@ class EventService extends ChangeNotifier {
 
       _events = eventList;
       await StorageService.saveEvents(eventList);
-      notifyListeners();
+      _safeNotifyListeners();
     } else if (response.statusCode == 401) {
       // Token expired, try to refresh
       final refreshed = await _authService.refreshToken();
@@ -106,7 +119,7 @@ class EventService extends ChangeNotifier {
           } else {
             _events.add(event);
           }
-          notifyListeners();
+          _safeNotifyListeners();
           
           return event;
         } else if (response.statusCode == 401) {
@@ -143,7 +156,7 @@ class EventService extends ChangeNotifier {
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final headers = await _authService.getAuthHeaders();
@@ -170,7 +183,7 @@ class EventService extends ChangeNotifier {
         
         _events.add(event);
         await StorageService.saveEvent(event);
-        notifyListeners();
+        _safeNotifyListeners();
         
         return event;
       } else if (response.statusCode == 401) {
@@ -197,7 +210,7 @@ class EventService extends ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -208,7 +221,7 @@ class EventService extends ChangeNotifier {
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final headers = await _authService.getAuthHeaders();
@@ -228,7 +241,7 @@ class EventService extends ChangeNotifier {
         }
         
         await StorageService.saveEvent(event);
-        notifyListeners();
+        _safeNotifyListeners();
         
         return event;
       } else if (response.statusCode == 401) {
@@ -248,7 +261,7 @@ class EventService extends ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -259,7 +272,7 @@ class EventService extends ChangeNotifier {
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final headers = await _authService.getAuthHeaders();
@@ -271,7 +284,7 @@ class EventService extends ChangeNotifier {
       if (response.statusCode == 200) {
         _events.removeWhere((e) => e.id == eventId);
         await StorageService.deleteEvent(eventId);
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _authService.refreshToken();
@@ -290,7 +303,7 @@ class EventService extends ChangeNotifier {
       rethrow;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -397,6 +410,6 @@ class EventService extends ChangeNotifier {
 
   void clearError() {
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 }

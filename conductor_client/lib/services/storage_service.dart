@@ -170,18 +170,38 @@ class StorageService {
     }
   }
 
+  // Pending actions management
+  static const String _pendingActionsKey = 'pending_actions';
+  
+  static Future<void> savePendingActions(List<Map<String, dynamic>> actions) async {
+    await _box.put(_pendingActionsKey, actions);
+  }
+  
+  static List<Map<String, dynamic>> getPendingActions() {
+    final data = _box.get(_pendingActionsKey);
+    if (data == null) return [];
+    
+    return List<Map<String, dynamic>>.from(data);
+  }
+  
+  static Future<void> clearPendingActions() async {
+    await _box.delete(_pendingActionsKey);
+  }
+
   // Storage statistics
   static Map<String, dynamic> getStorageStats() {
     final events = getAllEvents();
     final serverConnection = getServerConnection();
     final currentUser = getCurrentUser();
     final lastSync = getLastSyncTime();
+    final pendingActions = getPendingActions();
     
     return {
       'eventsCount': events.length,
       'hasServerConnection': serverConnection != null,
       'hasCurrentUser': currentUser != null,
       'lastSyncTime': lastSync?.toIso8601String(),
+      'pendingActionsCount': pendingActions.length,
       'storageSize': _box.length,
     };
   }
