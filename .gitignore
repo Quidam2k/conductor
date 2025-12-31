@@ -1,0 +1,58 @@
+# Archived/deprecated code (kept locally for reference)
+_archive/
+
+# Internal development handoff/session notes
+*HANDOFF*.md
+*SPRINT_*_HANDOFF*.md
+WHERE_WE_ARE.md
+
+# Claude Code settings (local)
+.claude/
+
+# MCP configuration (local)
+.mcp/
+
+# Windows artifacts
+nul
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build outputs (covered by conductor-mobile/.gitignore too)
+build/
+.gradle/
+*.apk
+*.aab
+*.ipa
+
+# Secrets and credentials
+.env
+*.env
+*.jks
+*.keystore
+google-services.json
+
+# Logs
+*.log
+logs/
+
+# Node modules (if any tooling uses npm)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

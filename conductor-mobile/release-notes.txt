@@ -1,0 +1,16 @@
+Conductor Mobile - Initial Alpha Release
+
+Features:
+- QR code scanning for event loading
+- Event list with cached events
+- Event detail view with timeline preview
+- Practice mode with variable speed (1x-5x)
+- Live mode with system alarms
+- Circular timeline visualization
+- Audio announcements (TTS with beep fallback)
+- Haptic feedback patterns
+- Deep linking support (conductor:// and popupprotest://)
+- Offline-first: events embedded in URLs, no server required
+
+Known Issues:
+- First alpha release - please report bugs!

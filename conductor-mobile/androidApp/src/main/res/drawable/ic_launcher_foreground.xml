@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Conductor baton icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24 L54,84 M34,44 L74,64 M34,64 L74,44"
+        android:strokeWidth="6"
+        android:strokeColor="#FFFFFF"/>
+    <!-- Circle around it -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,54m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF"/>
+</vector>
