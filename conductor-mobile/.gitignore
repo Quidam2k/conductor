@@ -1,0 +1,41 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Android Studio
+.idea/
+*.iml
+.DS_Store
+local.properties
+
+# Keystore (NEVER commit!)
+*.jks
+*.keystore
+keystore.properties
+
+# Firebase
+google-services.json
+firebase-app-distribution.json
+
+# Secrets
+gradle.properties
+*.env
+
+# APK/Bundle outputs (optional - uncomment if you don't want to track builds)
+# *.apk
+# *.aab
+
+# Kotlin
+*.kotlin_module
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Release notes (edit before each release)
+# release-notes.txt
