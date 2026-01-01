@@ -275,6 +275,41 @@ class TimingEngine {
     }
 
     /**
+     * Calculate optimal zoom window (windowSeconds) based on action density
+     *
+     * @param upcoming List of upcoming timeline actions
+     * @param defaultWindow The base window size (default 60s)
+     * @param minWindow Minimum zoom level (default 15s)
+     * @return Recommended windowSeconds for display
+     */
+    fun calculateOptimalZoom(
+        upcoming: List<TimelineAction>,
+        defaultWindow: Int = 60,
+        minWindow: Int = 15
+    ): Int {
+        if (upcoming.size < 2) return defaultWindow
+
+        // Find the smallest gap between any two upcoming actions
+        var minGap = Double.MAX_VALUE
+        
+        for (i in 0 until upcoming.size - 1) {
+            val time1 = Instant.parse(upcoming[i].time).toEpochMilliseconds()
+            val time2 = Instant.parse(upcoming[i+1].time).toEpochMilliseconds()
+            val gap = (time2 - time1) / 1000.0
+            
+            if (gap < minGap) minGap = gap
+        }
+
+        // If actions are very close together (e.g. < 5s gap), zoom in
+        return if (minGap < 5.0) {
+            // Zoom in proportional to density, but clamped to minWindow
+            maxOf(minWindow, (minGap * 4).toInt())
+        } else {
+            defaultWindow
+        }
+    }
+
+    /**
      * Get current time as ISO 8601 string
      */
     fun nowIso(): String {

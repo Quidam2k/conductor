@@ -4,6 +4,9 @@ import com.conductor.models.EmbeddedEvent
 import com.conductor.models.Event
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+// import com.ensarsarajcic.kotlinx.serialization.msgpack.MsgPack
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -20,48 +23,62 @@ object EventEncoder {
         encodeDefaults = true
     }
 
+    // private val msgPack = MsgPack.Default
+
     /**
      * Encode event data into URL-safe compressed string
+     * Default to v1 (JSON) encoding as it benchmarks better than v2 (MsgPack) for this data shape
      */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun encodeEvent(event: Event): String {
-        return encodeEventInternal(
-            EmbeddedEvent(
-                title = event.title,
-                description = event.description,
-                startTime = event.startTime,
-                timezone = event.timezone,
-                timeline = event.timeline,
-                defaultNoticeSeconds = if (event.defaultNoticeSeconds != 5) event.defaultNoticeSeconds else null,
-                timeWindowSeconds = if (event.timeWindowSeconds != 60) event.timeWindowSeconds else null,
-                visualMode = if (event.visualMode != "circular") event.visualMode else null
-            )
+        return encodeEventV1(event)
+    }
+
+    /**
+     * Encode event using v1 (JSON) format
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun encodeEventV1(event: Event): String {
+        val embeddedData = EmbeddedEvent(
+            title = event.title,
+            description = event.description,
+            startTime = event.startTime,
+            timezone = event.timezone,
+            timeline = event.timeline,
+            defaultNoticeSeconds = if (event.defaultNoticeSeconds != 5) event.defaultNoticeSeconds else null,
+            timeWindowSeconds = if (event.timeWindowSeconds != 60) event.timeWindowSeconds else null,
+            visualMode = if (event.visualMode != "circular") event.visualMode else null
         )
-    }
-
-    /**
-     * Encode embedded event data
-     */
-    @OptIn(ExperimentalEncodingApi::class)
-    suspend fun encodeEvent(event: EmbeddedEvent): String {
-        return encodeEventInternal(event)
-    }
-
-    /**
-     * Internal encoding logic
-     */
-    @OptIn(ExperimentalEncodingApi::class)
-    private fun encodeEventInternal(embeddedData: EmbeddedEvent): String {
-        // Convert to JSON
+        
         val jsonString = json.encodeToString(embeddedData)
         val jsonBytes = jsonString.encodeToByteArray()
-
-        // Compress with gzip using platform-specific implementation
         val compressedBytes = GzipCompression.compress(jsonBytes)
+        return "v1_" + toUrlSafeBase64(Base64.Default.encode(compressedBytes))
+    }
 
-        // Convert to base64url
-        val base64 = Base64.Default.encode(compressedBytes)
-        return toUrlSafeBase64(base64)
+    /**
+     * Encode event using v2 (Binary/MsgPack) format
+     * DISABLED: MsgPack library caused build issues and v1 compression was better.
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun encodeEventV2(event: Event): String {
+        throw NotImplementedError("v2 encoding is disabled. Use v1.")
+        /*
+        val embeddedData = EmbeddedEvent(
+            title = event.title,
+            description = event.description,
+            startTime = event.startTime,
+            timezone = event.timezone,
+            timeline = event.timeline,
+            defaultNoticeSeconds = if (event.defaultNoticeSeconds != 5) event.defaultNoticeSeconds else null,
+            timeWindowSeconds = if (event.timeWindowSeconds != 60) event.timeWindowSeconds else null,
+            visualMode = if (event.visualMode != "circular") event.visualMode else null
+        )
+        
+        val msgPackBytes = msgPack.encodeToByteArray(embeddedData)
+        val compressedBytes = GzipCompression.compress(msgPackBytes)
+        return "v2_" + toUrlSafeBase64(Base64.Default.encode(compressedBytes))
+        */
     }
 
     /**
@@ -69,37 +86,59 @@ object EventEncoder {
      */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun decodeEvent(encodedString: String): EmbeddedEvent {
-        return try {
-            // Convert from URL-safe base64
-            val base64 = fromUrlSafeBase64(encodedString)
-
-            // Decode base64 to bytes
-            val compressedBytes = Base64.Default.decode(base64)
-
-            // Decompress using platform-specific implementation
-            val decompressedBytes = GzipCompression.decompress(compressedBytes)
-
-            // Convert bytes to JSON string
-            val jsonString = decompressedBytes.decodeToString()
-
-            // Parse JSON
-            val eventData = json.decodeFromString<EmbeddedEvent>(jsonString)
-
-            // Validate required fields
-            if (eventData.title.isEmpty() || eventData.startTime.isEmpty() ||
-                eventData.timezone.isEmpty() || eventData.timeline.isEmpty()) {
-                throw IllegalArgumentException("Invalid event data: missing required fields")
-            }
-
-            // Apply defaults for optional fields
-            eventData.copy(
-                defaultNoticeSeconds = eventData.defaultNoticeSeconds ?: 5,
-                timeWindowSeconds = eventData.timeWindowSeconds ?: 60,
-                visualMode = eventData.visualMode ?: "circular"
-            )
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Failed to decode event: ${e.message}", e)
+        return if (encodedString.startsWith("v2_")) {
+            decodeEventV2(encodedString.substring(3))
+        } else if (encodedString.startsWith("v1_")) {
+            decodeEventV1(encodedString.substring(3))
+        } else {
+            // Default to v1 if no prefix (legacy)
+            decodeEventV1(encodedString)
         }
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private suspend fun decodeEventV1(encodedString: String): EmbeddedEvent {
+        return try {
+            val base64 = fromUrlSafeBase64(encodedString)
+            val compressedBytes = Base64.Default.decode(base64)
+            val decompressedBytes = GzipCompression.decompress(compressedBytes)
+            val jsonString = decompressedBytes.decodeToString()
+            
+            val eventData = json.decodeFromString<EmbeddedEvent>(jsonString)
+            validateAndComplete(eventData)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Failed to decode v1 event: ${e.message}", e)
+        }
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private suspend fun decodeEventV2(encodedString: String): EmbeddedEvent {
+        throw NotImplementedError("v2 decoding is disabled.")
+        /*
+        return try {
+            val base64 = fromUrlSafeBase64(encodedString)
+            val compressedBytes = Base64.Default.decode(base64)
+            val decompressedBytes = GzipCompression.decompress(compressedBytes)
+            
+            val eventData = msgPack.decodeFromByteArray<EmbeddedEvent>(decompressedBytes)
+            validateAndComplete(eventData)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Failed to decode v2 event: ${e.message}", e)
+        }
+        */
+    }
+
+    private fun validateAndComplete(eventData: EmbeddedEvent): EmbeddedEvent {
+        if (eventData.title.isEmpty() || eventData.startTime.isEmpty() ||
+            eventData.timezone.isEmpty() || eventData.timeline.isEmpty()) {
+            throw IllegalArgumentException("Invalid event data: missing required fields")
+        }
+
+        return eventData.copy(
+            defaultNoticeSeconds = eventData.defaultNoticeSeconds ?: 5,
+            timeWindowSeconds = eventData.timeWindowSeconds ?: 60,
+            visualMode = eventData.visualMode ?: "circular"
+        )
     }
 
     /**
