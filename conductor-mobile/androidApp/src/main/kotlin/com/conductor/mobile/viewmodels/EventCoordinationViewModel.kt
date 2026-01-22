@@ -83,11 +83,20 @@ class EventCoordinationViewModel(
     private val hapticService = com.conductor.mobile.services.HapticService(applicationContext)
     private val alarmScheduler = com.conductor.mobile.services.AlarmScheduler(applicationContext)
 
+    init {
+        // Initialize audio service for TTS
+        audioService.initialize { mode ->
+            _audioFallbackMode.value = mode
+        }
+    }
+
     // ========== JOBS ==========
 
     private var tickerJob: Job? = null
     private var practiceStartTime: Instant? = null
     private var practiceElapsedSeconds: Double = 0.0
+    private var lastFrameNanos: Long = 0L  // Wall-clock time for delta calculation
+    private var frameCount: Long = 0
 
     // ========== PUBLIC METHODS ==========
 
@@ -101,6 +110,7 @@ class EventCoordinationViewModel(
         // Initialize practice timing
         practiceStartTime = Instant.parse(event.startTime)
         practiceElapsedSeconds = 0.0
+        lastFrameNanos = System.nanoTime()  // Initialize wall-clock reference
         _currentTime.value = practiceStartTime!!
 
         startTicker()
@@ -162,6 +172,7 @@ class EventCoordinationViewModel(
     fun resumeTicker() {
         if (executionMode.value == EventExecutionMode.PRACTICE && !_isAnimating.value) {
             _isAnimating.value = true
+            lastFrameNanos = System.nanoTime()  // Reset to avoid large delta after pause
             startTicker()
         } else if (executionMode.value == EventExecutionMode.LIVE) {
             _isAnimating.value = true
@@ -209,7 +220,7 @@ class EventCoordinationViewModel(
     }
 
     /**
-     * Update timeline state (called every 16ms)
+     * Update timeline state (called every ~16ms)
      */
     private suspend fun updateTimeline() {
         val speedFactor = if (executionMode.value == EventExecutionMode.PRACTICE) {
@@ -220,8 +231,12 @@ class EventCoordinationViewModel(
 
         // Update current time
         val now = if (executionMode.value == EventExecutionMode.PRACTICE) {
-            // Practice mode: simulated time with speed multiplier
-            practiceElapsedSeconds += 0.016 * speedFactor // 16ms frame time
+            // Practice mode: use actual elapsed wall-clock time for accuracy
+            val currentNanos = System.nanoTime()
+            val deltaNanos = currentNanos - lastFrameNanos
+            lastFrameNanos = currentNanos
+            val deltaSeconds = deltaNanos / 1_000_000_000.0
+            practiceElapsedSeconds += deltaSeconds * speedFactor
             practiceStartTime!!.plus((practiceElapsedSeconds * 1_000_000_000).toLong().nanoseconds)
         } else {
             // Live mode: real-time
@@ -244,28 +259,27 @@ class EventCoordinationViewModel(
         // Update upcoming actions (60 second window)
         _upcomingActions.value = timingEngine.getUpcomingActions(event.timeline, now, 60)
 
-        // Check for audio announcements
-        if (audioEnabled.value) {
+        // Check for audio announcements every ~100ms (6 frames) to reduce coroutine overhead
+        // AudioService.announcedActions set prevents duplicate announcements
+        frameCount++
+        if (audioEnabled.value && frameCount % 6 == 0L) {
             upcomingActions.value.forEach { action ->
                 val secondsUntil = timingEngine.calculateTimeUntilPrecise(action, now)
-                viewModelScope.launch {
-                    audioService.announceAction(
-                        action,
-                        secondsUntil,
-                        event.defaultNoticeSeconds ?: 5,
-                        speedFactor
-                    )
-                }
+                // Call directly without launching new coroutine - announceAction is already on Main dispatcher
+                audioService.announceAction(
+                    action,
+                    secondsUntil,
+                    event.defaultNoticeSeconds ?: 5,
+                    speedFactor
+                )
             }
         }
 
         // Check if event completed
-        if (event.endTime != null) {
-            val endTime = Instant.parse(event.endTime!!)
-            if (now >= endTime && executionMode.value != EventExecutionMode.COMPLETED) {
-                _executionMode.value = EventExecutionMode.COMPLETED
-                stop()
-            }
+        val endTime = Instant.parse(event.endTime)
+        if (now >= endTime && executionMode.value != EventExecutionMode.COMPLETED) {
+            _executionMode.value = EventExecutionMode.COMPLETED
+            stop()
         }
     }
 

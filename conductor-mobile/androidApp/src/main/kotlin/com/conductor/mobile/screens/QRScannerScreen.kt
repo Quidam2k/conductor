@@ -22,8 +22,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,19 +52,19 @@ fun QRScannerScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val cameraPermissionGranted = remember {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
+    var cameraPermissionGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) {
-            // Permission granted, camera will start
-        }
+        cameraPermissionGranted = isGranted
     }
 
     LaunchedEffect(Unit) {
@@ -137,6 +141,13 @@ fun QRCameraPreview(
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
+    // Shutdown executor when leaving screen to prevent thread leak
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraExecutor.shutdown()
+        }
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -178,6 +189,9 @@ fun QRCameraPreview(
                                         .addOnCompleteListener {
                                             imageProxy.close()
                                         }
+                                } else {
+                                    // Must close imageProxy even when image is null to prevent memory leak
+                                    imageProxy.close()
                                 }
                             }
                         }

@@ -35,6 +35,13 @@ fun EventCoordinationScreen(
         EventCoordinationViewModel(event, eventCache, context.applicationContext)
     }
 
+    // Clean up ViewModel resources when leaving screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stop()
+        }
+    }
+
     val executionMode by viewModel.executionMode.collectAsState()
     val currentTime by viewModel.currentTime.collectAsState()
     val currentAction by viewModel.currentAction.collectAsState()

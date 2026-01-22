@@ -66,7 +66,7 @@ data class Event(
 @Serializable
 data class EmbeddedEvent(
     val title: String,
-    val description: String,
+    val description: String? = null,              // Nullable to handle missing/null in QR data
     val startTime: String,                         // ISO 8601 UTC
     val timezone: String,                          // IANA timezone
     val timeline: List<TimelineAction>,
@@ -134,10 +134,13 @@ fun embeddedEventToEvent(embedded: EmbeddedEvent): Event {
 
     val now = Clock.System.now().toString()
 
+    // Generate unique ID from event content to prevent overwrites in database
+    val uniqueId = "${embedded.title}_${embedded.startTime}_${embedded.timeline.size}".hashCode().toString()
+
     return Event(
-        id = "embedded",
+        id = uniqueId,
         title = embedded.title,
-        description = embedded.description,
+        description = embedded.description ?: "",
         startTime = embedded.startTime,
         endTime = endTime,
         timezone = embedded.timezone,
