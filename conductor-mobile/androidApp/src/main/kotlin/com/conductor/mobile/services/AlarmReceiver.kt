@@ -33,12 +33,16 @@ class AlarmReceiver : BroadcastReceiver() {
         val eventId = intent.getStringExtra("eventId") ?: return
         val actionName = intent.getStringExtra("actionName") ?: return
         val actionTime = intent.getStringExtra("actionTime") ?: return
+        val actionId = intent.getStringExtra("actionId")
+
+        // Generate unique notification ID for each action to prevent overwrites
+        val notificationId = actionId?.hashCode() ?: System.currentTimeMillis().toInt()
 
         // 1. Trigger haptic feedback (vibration)
         triggerHaptic(context)
 
         // 2. Show full-screen notification
-        showFullScreenNotification(context, eventId, actionName)
+        showFullScreenNotification(context, eventId, actionName, notificationId)
 
         // 3. Launch app if not running
         launchApp(context, eventId)
@@ -66,7 +70,7 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showFullScreenNotification(context: Context, eventId: String, actionName: String) {
+    private fun showFullScreenNotification(context: Context, eventId: String, actionName: String, notificationId: Int) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Create notification channel (Android O+)
@@ -95,7 +99,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
-            NOTIFICATION_ID,
+            notificationId,
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -113,8 +117,8 @@ class AlarmReceiver : BroadcastReceiver() {
             .setContentIntent(fullScreenPendingIntent)
             .build()
 
-        // Show notification
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        // Show notification with unique ID for each action
+        notificationManager.notify(notificationId, notification)
     }
 
     private fun launchApp(context: Context, eventId: String) {

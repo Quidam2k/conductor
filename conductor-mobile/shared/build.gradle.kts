@@ -2,6 +2,7 @@ plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("com.android.library")
+    id("com.google.devtools.ksp")
 }
 
 kotlin {
@@ -75,4 +76,8 @@ android {
     }
 
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
+}
+
+dependencies {
+    add("kspAndroid", "androidx.room:room-compiler:2.6.1")
 }

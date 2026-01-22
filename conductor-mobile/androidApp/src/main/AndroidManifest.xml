@@ -46,8 +46,7 @@
         <!-- Alarm receiver for system alarms -->
         <receiver
             android:name=".services.AlarmReceiver"
-            android:exported="true"
-            android:permission="android.permission.SCHEDULE_EXACT_ALARM">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.conductor.ALARM_ACTION" />
             </intent-filter>

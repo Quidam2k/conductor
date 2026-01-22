@@ -3,6 +3,7 @@ package com.conductor.mobile
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import android.widget.Toast
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -10,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import com.conductor.database.AppContextHolder
 import com.conductor.database.createEventCache
 import com.conductor.models.Event
@@ -33,9 +35,13 @@ class MainActivity : ComponentActivity() {
         AppContextHolder.initialize(this)
 
         val deepLinkData = intent.data?.toString()?.let { uri ->
-            uri.removePrefix("conductor://event/")
-                .removePrefix("popupprotest://event/")
-                .takeIf { it.isNotEmpty() }
+            // Case-insensitive deep link parsing
+            val lowerUri = uri.lowercase()
+            when {
+                lowerUri.startsWith("conductor://event/") -> uri.substring(20)
+                lowerUri.startsWith("popupprotest://event/") -> uri.substring(23)
+                else -> null
+            }?.takeIf { it.isNotEmpty() }
         }
 
         setContent {
@@ -54,6 +60,7 @@ enum class Screen {
 
 @Composable
 fun ConductorNavigation(initialDeepLinkData: String? = null) {
+    val context = LocalContext.current
     val currentScreen = remember { mutableStateOf(Screen.LIST) }
     val selectedEvent = remember { mutableStateOf<Event?>(null) }
     val eventCache = remember { createEventCache() }
@@ -113,7 +120,12 @@ fun ConductorNavigation(initialDeepLinkData: String? = null) {
                             selectedEvent.value = event
                             currentScreen.value = Screen.DETAIL
                         } catch (e: Exception) {
-                            // Invalid QR code
+                            // Show error for invalid QR code
+                            Toast.makeText(
+                                context,
+                                "Invalid QR code - not a Conductor event",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 },
