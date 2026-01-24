@@ -38,8 +38,8 @@ class MainActivity : ComponentActivity() {
             // Case-insensitive deep link parsing
             val lowerUri = uri.lowercase()
             when {
-                lowerUri.startsWith("conductor://event/") -> uri.substring(20)
-                lowerUri.startsWith("popupprotest://event/") -> uri.substring(23)
+                lowerUri.startsWith("conductor://event/") -> uri.substring(18)  // "conductor://event/" is 18 chars
+                lowerUri.startsWith("popupprotest://event/") -> uri.substring(21)  // "popupprotest://event/" is 21 chars
                 else -> null
             }?.takeIf { it.isNotEmpty() }
         }
