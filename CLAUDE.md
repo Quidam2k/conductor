@@ -4,7 +4,36 @@
 
 **Purpose**: A serverless PWA for coordinating synchronized real-world actions (flash mobs, protests, art performances). Events are embedded in URLs - no server, no app store, no accounts.
 
-**Current Focus**: PWA (Progressive Web App) served as static files from GitHub Pages. The KMM Android app code is preserved in the repo as reference for porting.
+**Current Focus**: PWA (Progressive Web App). The app is a single HTML file ("the record player") that users download once and open locally. Event data ("the LP") lives in URL fragments and can be shared via SMS, QR, AirDrop, or any other means. GitHub Pages is just one distribution mirror - the app is designed to work with no hosted dependencies.
+
+---
+
+## Team
+
+- **Todd (Quidam)** - Creator, lead developer
+- **Teafaerie** - Contributing member. Helped validate iOS audio feasibility (Feb 2026 testing). May participate in future testing and design discussions.
+
+---
+
+## Core Design Vision
+
+**"Viral distribution"** - The goal is literal virality. Two phones next to each other should be able to transmit everything needed to participate in an event, and the recipient should be able to pass that ability on.
+
+### The Record Player & LP Analogy
+- **The record player** = `conductor.html` — a single HTML file, the app itself. Download it once, open it locally in any browser, never need a server again.
+- **The LP** = event data — compressed into a URL fragment, QR code, or text string. Contains all actions, timing, and descriptions. Just data, shareable via any channel.
+
+### Sharing Model
+Users have full control over what they share:
+- **Share just the event** (the LP) — QR code, text string, SMS
+- **Share just the app** (the record player) — AirDrop, Nearby Share, file transfer
+- **Share both bundled** — a copy of conductor.html with a specific event baked in. One file, one share, recipient opens it and they're immediately in the event AND they have the player for future events.
+
+### No Hosted Dependencies
+- GitHub Pages (`docs/` on main) is one of many possible distribution mirrors
+- The HTML file works from `file://` — opened locally with no server
+- Events created on one host work on any other — the data is in the URL
+- The app can be posted in many places so it can't be taken down
 
 ---
 
@@ -13,28 +42,47 @@
 ### How It Works
 1. **Organizer** creates an event in-browser → actions, timing, description
 2. **App compresses** event to URL fragment (`#v1_<base64-gzip-json>`)
-3. **Participants** open the URL → app decodes event → runs entirely in-browser
-4. **Coordination** uses browser APIs: Web Speech (TTS), Web Audio, Vibration, Wake Lock
-5. **Offline**: Service Worker caches app forever after first load
+3. **Participants** receive event via QR/SMS/paste/file and open in the app
+4. **Coordination** uses browser APIs: Web Speech (TTS), Vibration, Wake Lock
+5. **Offline**: works from local file, or Service Worker caches hosted version forever
 
-### Why PWA?
-The KMM native app (in `conductor-mobile/`) works on Android but can't reach iPhones without Apple App Store approval. A PWA:
-- Works on any device with a browser
-- No app store gatekeepers
-- Can't be taken down (static file, self-hostable)
-- URL-embedded events = censorship-resistant
+### Event Input Methods
+- URL fragment (`conductor.html#v1_data`) — auto-loads
+- Paste field ("Got an event code? Paste it here")
+- QR scanner (camera → scan from another phone's screen)
+- File picker (open a saved event file)
 
 ### Tech Stack (PWA)
 - Single HTML file (or minimal file set) served from `docs/`
 - Vanilla TypeScript/JavaScript (no framework)
 - `pako.js` for gzip compression (~25KB)
 - HTML Canvas for circular timeline
-- Browser APIs: Web Speech, Web Audio, Vibration, Wake Lock, Service Worker
+- Browser APIs: Web Speech, Vibration, Wake Lock, Web Share
 
 ### Tech Stack (KMM - reference, not active development)
 - Kotlin Multiplatform in `conductor-mobile/`
 - Shared core: TimingEngine, EventEncoder, data models
 - Android UI: Jetpack Compose
+
+---
+
+## iOS Audio Test Results (February 10, 2026)
+
+Tested by Teafaerie on iPhone with earbuds, Safari, screen locked.
+
+| Audio Method | Screen On | Screen Locked |
+|---|---|---|
+| **TTS (Web Speech API)** | Works | **WORKS** |
+| **Beeps (Web Audio API tones)** | Works | **DOES NOT WORK** |
+| **Silent `<audio>` keepalive** | Works | Presumed working (TTS kept firing) |
+
+**Key findings:**
+- Web Speech API (TTS) is our reliable audio channel — survives screen lock
+- Web Audio API gets *suspended* by iOS, not killed — beeps queue up and dump when screen unlocks
+- Safari exposes only low-quality TTS voices (`getVoices()` hides good system voices)
+- Future voice quality options: Piper TTS via WASM (~15-30MB), pre-recorded clips for common cues, or hybrid approach
+
+**Architecture decision:** Use Web Speech API for all coordination cues. Web Audio is OK for on-screen UI feedback only.
 
 ---
 
@@ -63,13 +111,13 @@ The KMM native app (in `conductor-mobile/`) works on Android but can't reach iPh
 
 Events are compressed and embedded directly in URL fragments:
 ```
-https://quidam2k.github.io/conductor/#v1_<base64-gzip-json>
+conductor.html#v1_<base64-gzip-json>
 ```
 
 This means:
 - No server required (fragment never sent to server)
-- Events shared via QR codes, text, social media
-- Works offline after first load
+- Events shared via QR codes, text, social media, file transfer
+- Works offline — the app is a local file
 - Censorship-resistant (event data travels with the link)
 
 See `URL_EMBEDDED_EVENTS.md` for format details.
@@ -80,12 +128,12 @@ See `URL_EMBEDDED_EVENTS.md` for format details.
 
 ### Serving locally
 ```bash
-# Any static file server works
+# Any static file server works, or just open the HTML file directly
 cd docs
 python -m http.server 8000
 ```
 
-### GitHub Pages
+### GitHub Pages (one distribution mirror)
 The app is served from `docs/` on the `main` branch:
 - App: `https://quidam2k.github.io/conductor/`
 - iOS test: `https://quidam2k.github.io/conductor/ios-audio-test/`
@@ -102,19 +150,34 @@ cd conductor-mobile
 
 ## Current Status (February 10, 2026)
 
-### Phase 0: Housekeeping - IN PROGRESS
+### Phase 0: Housekeeping — COMPLETE
 - [x] KMM Android app complete (Sprint 13 - coordination, sharing, themes, settings)
-- [x] iOS audio background test page created
+- [x] iOS audio background test page created and deployed
 - [x] Moved ios-audio-test to docs/ for GitHub Pages
-- [ ] Push to GitHub, enable GitHub Pages
-- [ ] Waiting: iOS audio test results from Todd's friend
+- [x] Pushed to GitHub, enabled GitHub Pages from docs/ on main
+- [x] Updated CLAUDE.md and README.md for PWA pivot
+
+### Phase 1: iOS Audio Feasibility — COMPLETE
+- [x] Teafaerie tested on iPhone with earbuds, screen locked
+- [x] TTS (Web Speech API) confirmed working through screen lock
+- [x] Web Audio API confirmed NOT working through screen lock
+- [x] Architecture decision: Web Speech API for coordination cues
+
+### Next: Phase 2 — PWA Core
+Port KMM logic to TypeScript, build single-file web app with:
+- URL-embedded event decoding
+- Circular timeline (Canvas)
+- TTS coordination cues (Web Speech API)
+- Haptic feedback (Vibration API, Android only)
+- Screen wake lock
+- Practice mode (variable speed)
+- Share interface (event, app, or both)
 
 ### Roadmap
-- **Phase 1**: iOS Audio Feasibility (wait for test results)
-- **Phase 2**: PWA Core (port KMM logic to TypeScript, build single-file web app)
+- **Phase 2**: PWA Core (port KMM logic, build single-file web app)
 - **Phase 3**: Event Creator (in-browser event builder + QR generation)
-- **Phase 4**: Polish & Distribution (PWA manifest, multi-mirror hosting)
-- **Phase 5**: Mesh & Resilience (future - Bluetooth, QR relay)
+- **Phase 4**: Polish & Distribution (PWA manifest, multi-mirror hosting, voice quality)
+- **Phase 5**: Mesh & Resilience (future - Bluetooth, QR relay, WiFi Direct)
 
 ---
 
@@ -125,7 +188,9 @@ cd conductor-mobile
 | 2025-10 (original plan) | Phase 1.5 web → Phase 2 native → Phase 3 mesh |
 | 2025-10 (actual) | Skipped to native (KMM) |
 | 2026-01 | KMM Android working, iOS not started |
-| 2026-02 | Native can't reach iPhones without App Store. Returning to PWA-first. KMM code preserved as porting reference. |
+| 2026-02-10 | Native can't reach iPhones without App Store. Returning to PWA-first. KMM code preserved as porting reference. |
+| 2026-02-10 | iOS audio tested: TTS survives screen lock, Web Audio does not. Use Web Speech API for coordination. |
+| 2026-02-10 | Design vision confirmed: single HTML file ("record player"), viral distribution, share app+event+both via QR/AirDrop/SMS. |
 
 ---
 
@@ -142,6 +207,8 @@ cd conductor-mobile
 - Android SDK at `C:\Users\Todd\AppData\Local\Android\Sdk`
 - Java 17 at `C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot`
 - GitHub repo: https://github.com/Quidam2k/conductor
-- GitHub Pages serves from `docs/` on `main`
-- User is Todd. Prefers direct communication and tested solutions.
+- GitHub Pages serves from `docs/` on `main` (one distribution mirror, not a dependency)
+- Todd prefers direct communication and tested solutions
+- Teafaerie is a contributing team member — treat her as known to the project
 - Focus is now **PWA** (web). Native app code is reference only.
+- The app must work with NO hosted dependencies — local file, peer-to-peer sharing
