@@ -225,7 +225,7 @@ With Plans 1-7 complete, Phase 2 is done. The next phases are:
 |------|--------|--------|
 | 1. Data Model + Encoder | COMPLETE | Plan 1: Event data model + encoder/decoder |
 | 2. Timing Engine | COMPLETE | Plan 2: Timing engine ported from KMM |
-| 3. Audio System | NOT STARTED | — |
+| 3. Audio System | COMPLETE | Plan 3: Audio system with TTS + resource pack fallback chain |
 | 4. Circular Timeline | NOT STARTED | — |
 | 5. App Shell + Coordination | NOT STARTED | — |
 | 6. Event Editor + Sharing | NOT STARTED | — |
