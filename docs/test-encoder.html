@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Encoder/Decoder Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        .stats { background: #16213e; padding: 12px; border-radius: 6px; margin: 10px 0; }
+        .stats dt { color: #888; float: left; width: 200px; }
+        .stats dd { margin-left: 210px; color: #00d4ff; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; max-height: 300px; overflow-y: auto; }
+        .encoded-str { word-break: break-all; color: #7ee787; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Encoder/Decoder Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="lib/pako.min.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/eventEncoder.js"></script>
+    <script>
+    (function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) {
+            results.innerHTML += html;
+        }
+
+        function assert(testName, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${testName}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${testName}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        function esc(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function deepEqual(a, b) {
+            if (a === b) return true;
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            if (typeof a !== typeof b) return false;
+            if (Array.isArray(a)) {
+                if (!Array.isArray(b) || a.length !== b.length) return false;
+                return a.every((v, i) => deepEqual(v, b[i]));
+            }
+            if (typeof a === 'object') {
+                const keysA = Object.keys(a).filter(k => a[k] !== null && a[k] !== undefined);
+                const keysB = Object.keys(b).filter(k => b[k] !== null && b[k] !== undefined);
+                if (keysA.length !== keysB.length) return false;
+                return keysA.every(k => deepEqual(a[k], b[k]));
+            }
+            return false;
+        }
+
+        // ─── Create sample event ────────────────────────────────────
+
+        const now = new Date();
+        const startTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+
+        function makeAction(offsetSeconds, actionText, extras = {}) {
+            const t = new Date(new Date(startTime).getTime() + offsetSeconds * 1000);
+            return createTimelineAction({
+                action: actionText,
+                time: t.toISOString(),
+                relativeTime: offsetSeconds,
+                ...extras,
+            });
+        }
+
+        const sampleActions = [
+            makeAction(0, 'Everyone gather at the fountain', {
+                style: 'emphasis',
+                noticeSeconds: 10,
+                countdownSeconds: [5, 4, 3, 2, 1],
+                color: '#FFD700',
+                icon: '📍',
+            }),
+            makeAction(30, 'Start humming in unison', {
+                cue: 'hum-start',
+                fallbackText: 'Start humming now',
+                pack: 'flash-mob-v1',
+            }),
+            makeAction(60, 'Raise your hands slowly', {
+                style: 'alert',
+                hapticPattern: 'triple',
+            }),
+            makeAction(90, 'Play random harmony part', {
+                randomCues: ['harmony-a', 'harmony-b', 'harmony-c'],
+                fallbackText: 'Hum your favorite note',
+                pack: 'flash-mob-v1',
+            }),
+            makeAction(120, 'Freeze!', {
+                style: 'alert',
+                noticeSeconds: 5,
+                countdownSeconds: [3, 2, 1],
+            }),
+        ];
+
+        const sampleEvent = embeddedEventToEvent({
+            title: 'Flash Mob at Central Park',
+            description: 'A synchronized flash mob event with music and harmony.',
+            startTime: startTime,
+            timezone: 'America/New_York',
+            timeline: sampleActions,
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 1: Basic round-trip
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>1. Basic Round-Trip Encode/Decode</h2>');
+
+        let encoded;
+        try {
+            encoded = encodeEvent(sampleEvent);
+            assert('encodeEvent() returns a string', typeof encoded === 'string');
+            assert('Encoded string starts with "v1_"', encoded.startsWith('v1_'));
+            assert('Encoded string is URL-safe (no +, /, =)', !/[+/=]/.test(encoded));
+            log(`<pre class="encoded-str">${esc(encoded)}</pre>`);
+        } catch (e) {
+            assert('encodeEvent() did not throw', false, e.message);
+        }
+
+        let decoded;
+        try {
+            decoded = decodeEvent(encoded);
+            assert('decodeEvent() returns an object', typeof decoded === 'object' && decoded !== null);
+            assert('Title matches', decoded.title === sampleEvent.title);
+            assert('Description matches', decoded.description === sampleEvent.description);
+            assert('Start time matches', decoded.startTime === sampleEvent.startTime);
+            assert('Timezone matches', decoded.timezone === sampleEvent.timezone);
+            assert('Timeline length matches', decoded.timeline.length === sampleEvent.timeline.length);
+        } catch (e) {
+            assert('decodeEvent() did not throw', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 2: Field-by-field comparison
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>2. Field-by-Field Action Comparison</h2>');
+
+        if (decoded && decoded.timeline) {
+            for (let i = 0; i < sampleActions.length; i++) {
+                const orig = sampleActions[i];
+                const dec = decoded.timeline[i];
+
+                assert(`Action[${i}] action text`, orig.action === dec.action,
+                    `Expected "${orig.action}", got "${dec.action}"`);
+                assert(`Action[${i}] time`, orig.time === dec.time,
+                    `Expected "${orig.time}", got "${dec.time}"`);
+                assert(`Action[${i}] relativeTime`, orig.relativeTime === dec.relativeTime);
+                assert(`Action[${i}] style`, orig.style === dec.style);
+                assert(`Action[${i}] audioAnnounce`, orig.audioAnnounce === dec.audioAnnounce);
+                assert(`Action[${i}] hapticPattern`, orig.hapticPattern === dec.hapticPattern);
+
+                // Nullable fields
+                if (orig.noticeSeconds != null)
+                    assert(`Action[${i}] noticeSeconds`, orig.noticeSeconds === dec.noticeSeconds);
+                if (orig.countdownSeconds != null)
+                    assert(`Action[${i}] countdownSeconds`, deepEqual(orig.countdownSeconds, dec.countdownSeconds),
+                        `Expected [${orig.countdownSeconds}], got [${dec.countdownSeconds}]`);
+                if (orig.color != null)
+                    assert(`Action[${i}] color`, orig.color === dec.color);
+                if (orig.icon != null)
+                    assert(`Action[${i}] icon`, orig.icon === dec.icon);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 3: Resource pack fields survive encoding
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>3. Resource Pack Fields</h2>');
+
+        if (decoded && decoded.timeline) {
+            // Action[1] has cue, fallbackText, pack
+            const a1 = decoded.timeline[1];
+            assert('cue survives encoding', a1.cue === 'hum-start',
+                `Expected "hum-start", got "${a1.cue}"`);
+            assert('fallbackText survives encoding', a1.fallbackText === 'Start humming now',
+                `Expected "Start humming now", got "${a1.fallbackText}"`);
+            assert('pack survives encoding', a1.pack === 'flash-mob-v1',
+                `Expected "flash-mob-v1", got "${a1.pack}"`);
+
+            // Action[3] has randomCues
+            const a3 = decoded.timeline[3];
+            assert('randomCues survives encoding', deepEqual(a3.randomCues, ['harmony-a', 'harmony-b', 'harmony-c']),
+                `Expected ["harmony-a","harmony-b","harmony-c"], got ${JSON.stringify(a3.randomCues)}`);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 4: Default values omitted in encoded data
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>4. Default Value Omission</h2>');
+
+        try {
+            const defaultEvent = embeddedEventToEvent({
+                title: 'Defaults Test',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: [makeAction(0, 'Test action')],
+            });
+            const defaultEncoded = encodeEvent(defaultEvent);
+            // Decode the raw JSON to check what's actually in the payload
+            const rawData = defaultEncoded.substring(3); // strip v1_
+            const rawBase64 = fromUrlSafeBase64(rawData);
+            const rawBytes = base64ToBytes(rawBase64);
+            const rawJson = new TextDecoder().decode(pako.ungzip(rawBytes));
+            const rawObj = JSON.parse(rawJson);
+
+            assert('defaultNoticeSeconds omitted when 5', !('defaultNoticeSeconds' in rawObj),
+                `Found defaultNoticeSeconds=${rawObj.defaultNoticeSeconds} in encoded JSON`);
+            assert('timeWindowSeconds omitted when 60', !('timeWindowSeconds' in rawObj),
+                `Found timeWindowSeconds=${rawObj.timeWindowSeconds} in encoded JSON`);
+            assert('visualMode omitted when "circular"', !('visualMode' in rawObj),
+                `Found visualMode="${rawObj.visualMode}" in encoded JSON`);
+
+            log(`<pre>Raw encoded JSON (defaults stripped):\n${esc(JSON.stringify(rawObj, null, 2))}</pre>`);
+        } catch (e) {
+            assert('Default omission test did not throw', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 5: Compression stats
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>5. Compression Stats</h2>');
+
+        try {
+            const stats = getCompressionStats(sampleEvent);
+            assert('Stats has originalSize', typeof stats.originalSize === 'number' && stats.originalSize > 0);
+            assert('Stats has compressedSize', typeof stats.compressedSize === 'number' && stats.compressedSize > 0);
+            assert('Compression ratio > 1 (compressed is smaller)', stats.ratio > 1,
+                `Ratio was ${stats.ratio.toFixed(2)}`);
+
+            log(`<dl class="stats">
+                <dt>Original JSON (bytes):</dt><dd>${stats.originalSize}</dd>
+                <dt>Encoded string length:</dt><dd>${stats.compressedSize}</dd>
+                <dt>Compression ratio:</dt><dd>${stats.ratio.toFixed(2)}x</dd>
+                <dt>URL-safe:</dt><dd>${!/[+/=]/.test(encoded) ? 'Yes' : 'NO'}</dd>
+            </dl>`);
+        } catch (e) {
+            assert('getCompressionStats() did not throw', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 6: URL fragment round-trip
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>6. URL Fragment Round-Trip</h2>');
+
+        try {
+            // Set location hash
+            const hashData = encoded;
+            window.location.hash = hashData;
+            const readBack = window.location.hash.substring(1); // strip leading #
+            assert('location.hash round-trip preserves data', readBack === hashData,
+                `Written: ${hashData.substring(0, 50)}...\nRead: ${readBack.substring(0, 50)}...`);
+
+            // Decode from hash
+            const fromHash = decodeEvent(readBack);
+            assert('Decode from location.hash works', fromHash.title === sampleEvent.title);
+
+            // Clean up
+            history.replaceState(null, '', window.location.pathname);
+        } catch (e) {
+            assert('URL fragment test did not throw', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 7: Edge cases
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>7. Edge Cases</h2>');
+
+        // Empty description
+        try {
+            const noDesc = embeddedEventToEvent({
+                title: 'No Description',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: [makeAction(0, 'Go')],
+            });
+            const enc = encodeEvent(noDesc);
+            const dec = decodeEvent(enc);
+            assert('Empty description round-trips', (dec.description ?? '') === '' || dec.description === null);
+        } catch (e) {
+            assert('Empty description test', false, e.message);
+        }
+
+        // Minimal event (1 action)
+        try {
+            const minimal = embeddedEventToEvent({
+                title: 'Min',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: [makeAction(0, 'X')],
+            });
+            const enc = encodeEvent(minimal);
+            const dec = decodeEvent(enc);
+            assert('Minimal event (1 action) round-trips', dec.title === 'Min' && dec.timeline.length === 1);
+            log(`<pre>Minimal encoded length: ${enc.length} chars</pre>`);
+        } catch (e) {
+            assert('Minimal event test', false, e.message);
+        }
+
+        // Unicode text
+        try {
+            const unicode = embeddedEventToEvent({
+                title: 'Flash Mob 🎵 日本語テスト',
+                description: 'Événement avec des caractères spéciaux: àéîõü ñ 中文',
+                startTime: startTime,
+                timezone: 'Asia/Tokyo',
+                timeline: [makeAction(0, '开始! 🎉 Début')],
+            });
+            const enc = encodeEvent(unicode);
+            const dec = decodeEvent(enc);
+            assert('Unicode title survives', dec.title === 'Flash Mob 🎵 日本語テスト',
+                `Got: "${dec.title}"`);
+            assert('Unicode description survives', dec.description === 'Événement avec des caractères spéciaux: àéîõü ñ 中文',
+                `Got: "${dec.description}"`);
+            assert('Unicode action survives', dec.timeline[0].action === '开始! 🎉 Début',
+                `Got: "${dec.timeline[0].action}"`);
+        } catch (e) {
+            assert('Unicode test', false, e.message);
+        }
+
+        // Many actions
+        try {
+            const manyActions = [];
+            for (let i = 0; i < 50; i++) {
+                manyActions.push(makeAction(i * 10, `Action ${i + 1}`));
+            }
+            const bigEvent = embeddedEventToEvent({
+                title: 'Big Event',
+                description: 'An event with 50 actions',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: manyActions,
+            });
+            const enc = encodeEvent(bigEvent);
+            const dec = decodeEvent(enc);
+            assert('50 actions round-trip', dec.timeline.length === 50);
+            const bigStats = getCompressionStats(bigEvent);
+            log(`<pre>50-action event: ${bigStats.originalSize} bytes → ${bigStats.compressedSize} chars (${bigStats.ratio.toFixed(2)}x ratio)</pre>`);
+        } catch (e) {
+            assert('Many actions test', false, e.message);
+        }
+
+        // Non-default settings
+        try {
+            const custom = embeddedEventToEvent({
+                title: 'Custom Settings',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: [makeAction(0, 'Go')],
+                defaultNoticeSeconds: 15,
+                timeWindowSeconds: 120,
+                visualMode: 'vertical',
+            });
+            const enc = encodeEvent(custom);
+            const dec = decodeEvent(enc);
+            assert('Non-default defaultNoticeSeconds survives', dec.defaultNoticeSeconds === 15,
+                `Expected 15, got ${dec.defaultNoticeSeconds}`);
+            assert('Non-default timeWindowSeconds survives', dec.timeWindowSeconds === 120,
+                `Expected 120, got ${dec.timeWindowSeconds}`);
+            assert('Non-default visualMode survives', dec.visualMode === 'vertical',
+                `Expected "vertical", got "${dec.visualMode}"`);
+        } catch (e) {
+            assert('Non-default settings test', false, e.message);
+        }
+
+        // Invalid data
+        try {
+            decodeEvent('v1_' + toUrlSafeBase64(btoa('not valid gzip')));
+            assert('Invalid gzip throws', false, 'Should have thrown');
+        } catch (e) {
+            assert('Invalid gzip throws', true);
+        }
+
+        // Legacy (no prefix) decoding
+        try {
+            // Encode, strip prefix, decode
+            const legacyEncoded = encoded.substring(3); // strip "v1_"
+            const legacyDecoded = decodeEvent(legacyEncoded);
+            assert('Legacy (no prefix) decoding works', legacyDecoded.title === sampleEvent.title);
+        } catch (e) {
+            assert('Legacy decoding test', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 8: embeddedEventToEvent / eventToEmbeddedEvent
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>8. Model Conversion Helpers</h2>');
+
+        try {
+            const embedded = {
+                title: 'Conversion Test',
+                description: 'Testing conversion helpers',
+                startTime: startTime,
+                timezone: 'America/Chicago',
+                timeline: sampleActions,
+                defaultNoticeSeconds: 10,
+                timeWindowSeconds: 90,
+                visualMode: 'vertical',
+            };
+
+            const event = embeddedEventToEvent(embedded);
+            assert('embeddedEventToEvent: has id', typeof event.id === 'string' && event.id.length > 0);
+            assert('embeddedEventToEvent: has endTime', typeof event.endTime === 'string');
+            assert('embeddedEventToEvent: status is "published"', event.status === 'published');
+            assert('embeddedEventToEvent: creatorId is "embedded"', event.creatorId === 'embedded');
+            assert('embeddedEventToEvent: preserves custom defaults', event.defaultNoticeSeconds === 10);
+            assert('embeddedEventToEvent: endTime > last action',
+                new Date(event.endTime).getTime() > new Date(sampleActions[sampleActions.length - 1].time).getTime());
+
+            const backToEmbedded = eventToEmbeddedEvent(event);
+            assert('eventToEmbeddedEvent: title preserved', backToEmbedded.title === 'Conversion Test');
+            assert('eventToEmbeddedEvent: non-default notice kept', backToEmbedded.defaultNoticeSeconds === 10);
+            assert('eventToEmbeddedEvent: non-default window kept', backToEmbedded.timeWindowSeconds === 90);
+            assert('eventToEmbeddedEvent: non-default visualMode kept', backToEmbedded.visualMode === 'vertical');
+        } catch (e) {
+            assert('Model conversion test', false, e.message);
+        }
+
+        // Default stripping
+        try {
+            const defaultEvent = embeddedEventToEvent({
+                title: 'Default Strip Test',
+                startTime: startTime,
+                timezone: 'UTC',
+                timeline: [makeAction(0, 'Go')],
+            });
+            const stripped = eventToEmbeddedEvent(defaultEvent);
+            assert('eventToEmbeddedEvent: default notice stripped to null', stripped.defaultNoticeSeconds === null);
+            assert('eventToEmbeddedEvent: default window stripped to null', stripped.timeWindowSeconds === null);
+            assert('eventToEmbeddedEvent: default visualMode stripped to null', stripped.visualMode === null);
+        } catch (e) {
+            assert('Default stripping test', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═══════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+
+    })();
+    </script>
+</body>
+</html>
