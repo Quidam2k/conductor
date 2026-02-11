@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Circular Timeline Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+        button { background: #16213e; color: #00d4ff; border: 1px solid #00d4ff; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: monospace; margin: 4px; }
+        button:hover { background: #1a3a5c; }
+        button:active { background: #00d4ff; color: #1a1a2e; }
+        button.active { background: #00d4ff; color: #1a1a2e; }
+        .demo-section { background: #16213e; padding: 16px; border-radius: 8px; margin: 12px 0; }
+        .canvas-wrap { width: 100%; max-width: 500px; margin: 0 auto; }
+        canvas { width: 100%; aspect-ratio: 1; display: block; background: #1a1a2e; border-radius: 8px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin: 12px 0; }
+        .status-bar { text-align: center; color: #888; font-size: 12px; margin: 8px 0; }
+        label { color: #888; font-size: 12px; }
+        input[type=range] { width: 120px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Circular Timeline Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="js/models.js"></script>
+    <script src="js/timingEngine.js"></script>
+    <script src="js/circularTimeline.js"></script>
+    <script>
+    (function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 1. API surface
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>1. API Surface</h2>');
+
+        const testCanvas = document.createElement('canvas');
+        testCanvas.width = 400;
+        testCanvas.height = 400;
+        const tl = createCircularTimeline(testCanvas);
+
+        assert('createCircularTimeline returns object', typeof tl === 'object');
+        assert('Has setEvent method', typeof tl.setEvent === 'function');
+        assert('Has setNowMs method', typeof tl.setNowMs === 'function');
+        assert('Has setWindowSeconds method', typeof tl.setWindowSeconds === 'function');
+        assert('Has getWindowSeconds method', typeof tl.getWindowSeconds === 'function');
+        assert('Has resize method', typeof tl.resize === 'function');
+        assert('Has render method', typeof tl.render === 'function');
+        assert('Has start method', typeof tl.start === 'function');
+        assert('Has stop method', typeof tl.stop === 'function');
+        assert('Has isRunning method', typeof tl.isRunning === 'function');
+
+        // ═════════════════════════════════════════════════════════════
+        // 2. State management
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>2. State Management</h2>');
+
+        assert('Not running initially', !tl.isRunning());
+        assert('Default window is 60s', tl.getWindowSeconds() === 60);
+
+        tl.setWindowSeconds(90);
+        assert('setWindowSeconds updates value', tl.getWindowSeconds() === 90);
+        tl.setWindowSeconds(60);
+
+        // ═════════════════════════════════════════════════════════════
+        // 3. Render without event (placeholder)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>3. Render Without Event</h2>');
+
+        let renderOk = true;
+        try {
+            tl.render();
+        } catch (e) {
+            renderOk = false;
+            assert('Render without event does not throw', false, e.message);
+        }
+        if (renderOk) assert('Render without event does not throw', true);
+
+        // ═════════════════════════════════════════════════════════════
+        // 4. Render with event
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>4. Render With Event</h2>');
+
+        const BASE = new Date('2026-06-15T12:00:00.000Z').getTime();
+
+        function actionAt(offsetSec, text, extras = {}) {
+            return createTimelineAction({
+                action: text,
+                time: new Date(BASE + offsetSec * 1000).toISOString(),
+                relativeTime: offsetSec,
+                ...extras,
+            });
+        }
+
+        const demoEvent = embeddedEventToEvent({
+            title: 'Timeline Test Event',
+            description: 'Testing circular timeline rendering',
+            startTime: new Date(BASE).toISOString(),
+            timezone: 'UTC',
+            timeline: [
+                actionAt(0,   'Gather',        { style: 'emphasis' }),
+                actionAt(15,  'Start humming', { style: 'normal' }),
+                actionAt(30,  'Raise hands',   { style: 'alert' }),
+                actionAt(45,  'Freeze',        { style: 'normal' }),
+                actionAt(60,  'Disperse',      { style: 'emphasis' }),
+            ],
+        });
+
+        tl.setEvent(demoEvent);
+        tl.setNowMs(BASE);
+
+        renderOk = true;
+        try {
+            tl.render();
+        } catch (e) {
+            renderOk = false;
+            assert('Render with event does not throw', false, e.message);
+        }
+        if (renderOk) assert('Render with event does not throw', true);
+
+        // Render at various times
+        const times = [BASE - 10000, BASE, BASE + 15000, BASE + 30000, BASE + 45000, BASE + 60000, BASE + 70000];
+        let allOk = true;
+        for (const t of times) {
+            try {
+                tl.setNowMs(t);
+                tl.render();
+            } catch (e) {
+                allOk = false;
+                assert(`Render at offset ${(t - BASE)/1000}s`, false, e.message);
+            }
+        }
+        if (allOk) assert('Render at 7 different timestamps succeeds', true);
+
+        // ═════════════════════════════════════════════════════════════
+        // 5. Render with trigger (currentAction present)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>5. Trigger State Rendering</h2>');
+
+        try {
+            // At exact action time → getCurrentAction should return something
+            tl.setNowMs(BASE);
+            tl.render();
+            assert('Render at trigger time (t=0) succeeds', true);
+
+            tl.setNowMs(BASE + 30000);
+            tl.render();
+            assert('Render at trigger time (t=30s) succeeds', true);
+        } catch (e) {
+            assert('Trigger rendering', false, e.message);
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 6. Auto-zoom
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>6. Auto-Zoom</h2>');
+
+        const denseEvent = embeddedEventToEvent({
+            title: 'Dense Event',
+            startTime: new Date(BASE).toISOString(),
+            timezone: 'UTC',
+            timeline: [
+                actionAt(0, 'A'),
+                actionAt(2, 'B'),
+                actionAt(4, 'C'),
+                actionAt(6, 'D'),
+            ],
+        });
+
+        const tl2 = createCircularTimeline(document.createElement('canvas'));
+        tl2.setNowMs(BASE);
+        tl2.setEvent(denseEvent);
+        assert('Dense event triggers zoom < 60s', tl2.getWindowSeconds() < 60,
+            `Got ${tl2.getWindowSeconds()}s`);
+
+        const sparseEvent = embeddedEventToEvent({
+            title: 'Sparse Event',
+            startTime: new Date(BASE).toISOString(),
+            timezone: 'UTC',
+            timeline: [
+                actionAt(0, 'A'),
+                actionAt(30, 'B'),
+                actionAt(60, 'C'),
+            ],
+        });
+
+        const tl3 = createCircularTimeline(document.createElement('canvas'));
+        tl3.setNowMs(BASE);
+        tl3.setEvent(sparseEvent);
+        assert('Sparse event keeps default zoom', tl3.getWindowSeconds() === 60,
+            `Got ${tl3.getWindowSeconds()}s`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 7. Start / stop animation
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>7. Animation Control</h2>');
+
+        // We need a canvas in the DOM for resize to work
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.style.width = '100px';
+        tempCanvas.style.height = '100px';
+        document.body.appendChild(tempCanvas);
+
+        const tl4 = createCircularTimeline(tempCanvas);
+        tl4.setEvent(demoEvent);
+        tl4.start();
+        assert('isRunning after start()', tl4.isRunning());
+
+        tl4.stop();
+        assert('Not running after stop()', !tl4.isRunning());
+
+        // Double start should not error
+        tl4.start();
+        tl4.start();
+        assert('Double start does not throw', tl4.isRunning());
+        tl4.stop();
+
+        document.body.removeChild(tempCanvas);
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // LIVE DEMO
+        // ═════════════════════════════════════════════════════════════
+        log(`
+            <h2>Live Demo</h2>
+            <div class="demo-section">
+                <div class="controls">
+                    <button id="btn-start" onclick="demoStart()">Start Live</button>
+                    <button id="btn-practice" onclick="demoPractice()">Practice 3x</button>
+                    <button id="btn-stop" onclick="demoStopAnim()">Stop</button>
+                    <button id="btn-restart" onclick="demoRestart()">Restart</button>
+                </div>
+                <div class="controls">
+                    <label>Window: <span id="win-val">60</span>s
+                        <input type="range" id="win-slider" min="15" max="120" value="60"
+                               oninput="demoSetWindow(this.value)">
+                    </label>
+                    <label>Speed: <span id="spd-val">1</span>x
+                        <input type="range" id="spd-slider" min="1" max="5" value="1" step="0.5"
+                               oninput="demoSetSpeed(this.value)">
+                    </label>
+                </div>
+                <div class="canvas-wrap">
+                    <canvas id="demo-canvas"></canvas>
+                </div>
+                <div id="demo-status" class="status-bar">Ready</div>
+            </div>
+        `);
+
+        // ─── Set up live demo ───────────────────────────────────
+        window.demoTL = null;
+        window.demoSpeed = 1;
+        window.demoPracticeStartReal = 0;
+        window.demoPracticeStartEvent = 0;
+        window.demoEventObj = null;
+
+        setTimeout(() => {
+            const c = document.getElementById('demo-canvas');
+            if (!c) return;
+            window.demoTL = createCircularTimeline(c);
+
+            // Create a demo event starting 5 seconds from now
+            buildDemoEvent();
+            window.demoTL.resize();
+            window.demoTL.render();
+
+            window.addEventListener('resize', () => {
+                if (window.demoTL) window.demoTL.resize();
+            });
+        }, 100);
+    })();
+
+    function buildDemoEvent() {
+        const now = Date.now();
+        const start = now + 5000;
+
+        const actions = [
+            { offset: 0,  text: 'Gather at fountain',  style: 'emphasis' },
+            { offset: 10, text: 'Start humming',        style: 'normal' },
+            { offset: 20, text: 'Raise hands slowly',   style: 'normal' },
+            { offset: 30, text: 'FREEZE!',              style: 'alert' },
+            { offset: 40, text: 'Slow spin',            style: 'normal' },
+            { offset: 50, text: 'Hands down',           style: 'emphasis' },
+            { offset: 60, text: 'Walk away casually',   style: 'normal' },
+        ];
+
+        const timeline = actions.map(a => createTimelineAction({
+            action: a.text,
+            time: new Date(start + a.offset * 1000).toISOString(),
+            relativeTime: a.offset,
+            style: a.style,
+            noticeSeconds: 8,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        }));
+
+        window.demoEventObj = embeddedEventToEvent({
+            title: 'Flash Mob Demo',
+            description: 'A 60-second flash mob demonstration',
+            startTime: new Date(start).toISOString(),
+            timezone: 'UTC',
+            timeline: timeline,
+        });
+
+        if (window.demoTL) {
+            window.demoTL.setEvent(window.demoEventObj);
+        }
+    }
+
+    function demoStart() {
+        if (!window.demoTL) return;
+        buildDemoEvent();
+        window.demoSpeed = 1;
+        document.getElementById('spd-slider').value = 1;
+        document.getElementById('spd-val').textContent = '1';
+        window.demoTL.start();
+        updateStatus('Live — real-time');
+    }
+
+    function demoPractice() {
+        if (!window.demoTL) return;
+        buildDemoEvent();
+        window.demoSpeed = 3;
+        document.getElementById('spd-slider').value = 3;
+        document.getElementById('spd-val').textContent = '3';
+
+        window.demoPracticeStartReal = Date.now();
+        window.demoPracticeStartEvent = new Date(window.demoEventObj.startTime).getTime() - 5000;
+
+        window.demoTL.stop();
+
+        function practiceTick() {
+            if (!window.demoTL) return;
+            const virtualNow = getPracticeNow(
+                Date.now(),
+                window.demoPracticeStartReal,
+                window.demoPracticeStartEvent,
+                window.demoSpeed
+            );
+            window.demoTL.setNowMs(virtualNow);
+            window.demoTL.render();
+            window.demoPracticeRAF = requestAnimationFrame(practiceTick);
+        }
+        practiceTick();
+        updateStatus(`Practice — ${window.demoSpeed}x speed`);
+    }
+
+    function demoStopAnim() {
+        if (window.demoTL) window.demoTL.stop();
+        if (window.demoPracticeRAF) {
+            cancelAnimationFrame(window.demoPracticeRAF);
+            window.demoPracticeRAF = null;
+        }
+        updateStatus('Stopped');
+    }
+
+    function demoRestart() {
+        demoStopAnim();
+        buildDemoEvent();
+        if (window.demoTL) {
+            window.demoTL.resize();
+            window.demoTL.render();
+        }
+        updateStatus('Ready — new event built');
+    }
+
+    function demoSetWindow(val) {
+        document.getElementById('win-val').textContent = val;
+        if (window.demoTL) window.demoTL.setWindowSeconds(parseInt(val));
+    }
+
+    function demoSetSpeed(val) {
+        document.getElementById('spd-val').textContent = val;
+        window.demoSpeed = parseFloat(val);
+    }
+
+    function updateStatus(text) {
+        const el = document.getElementById('demo-status');
+        if (el) el.textContent = text;
+    }
+    </script>
+</body>
+</html>
