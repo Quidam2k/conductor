@@ -40,11 +40,14 @@ Users have full control over what they share:
 ## Architecture
 
 ### How It Works
-1. **Organizer** creates an event in-browser → actions, timing, description
+The record player is also the record press — one file creates, plays, and shares events.
+
+1. **Organizer** creates an event in the same app participants use → form + timeline editor with live preview
 2. **App compresses** event to URL fragment (`#v1_<base64-gzip-json>`)
-3. **Participants** receive event via QR/SMS/paste/file and open in the app
-4. **Coordination** uses browser APIs: Web Speech (TTS), Vibration, Wake Lock
+3. **Sharing**: organizer shares event (QR/SMS/paste), app (AirDrop/file), or both bundled (HTML file with event baked in)
+4. **Participants** receive and open → coordination runs with TTS, vibration, wake lock
 5. **Offline**: works from local file, or Service Worker caches hosted version forever
+6. **Optional**: import resource packs (zip files) for higher-quality audio cues instead of robot TTS
 
 ### Event Input Methods
 - URL fragment (`conductor.html#v1_data`) — auto-loads
@@ -163,21 +166,67 @@ cd conductor-mobile
 - [x] Web Audio API confirmed NOT working through screen lock
 - [x] Architecture decision: Web Speech API for coordination cues
 
-### Next: Phase 2 — PWA Core
-Port KMM logic to TypeScript, build single-file web app with:
-- URL-embedded event decoding
-- Circular timeline (Canvas)
-- TTS coordination cues (Web Speech API)
-- Haptic feedback (Vibration API, Android only)
-- Screen wake lock
-- Practice mode (variable speed)
-- Share interface (event, app, or both)
+### Next: Phase 2 — The Record Player (create + play + share)
+One HTML file that does everything — the player IS the editor IS the sharing tool:
 
-### Roadmap
-- **Phase 2**: PWA Core (port KMM logic, build single-file web app)
-- **Phase 3**: Event Creator (in-browser event builder + QR generation)
-- **Phase 4**: Polish & Distribution (PWA manifest, multi-mirror hosting, voice quality)
-- **Phase 5**: Mesh & Resilience (future - Bluetooth, QR relay, WiFi Direct)
+**Create & Edit:**
+- Event creation form (title, description, start time, timezone)
+- Timeline editor (add actions with relative timing)
+- Live preview on circular timeline as you build
+
+**Play & Coordinate:**
+- URL-embedded event decoding
+- Circular timeline (Canvas, 60 FPS, Guitar Hero style)
+- TTS coordination cues (Web Speech API)
+- Haptic feedback (Vibration API, Android only, graceful skip on iOS)
+- Screen wake lock
+- Practice mode (variable speed 1x-5x)
+
+**Share:**
+- Share just the event — QR code on screen, copyable text string
+- Share just the app — Web Share API (AirDrop, Nearby Share, etc.)
+- Share both bundled — generate a copy of conductor.html with event baked in
+- QR scanner (camera) to receive events from another phone
+
+**Port from KMM:**
+- `EventEncoder.kt` → event encoding/decoding (JSON → pako gzip → base64url)
+- `TimingEngine.kt` → timing, positions, countdowns
+- `Event.kt` models → TypeScript interfaces
+- `CircularTimeline.kt` → HTML Canvas rendering
+
+### Phase 3 — Polish & Distribution
+- Mobile-responsive design (thumb-friendly, portrait-optimized)
+- PWA manifest (Add to Home Screen)
+- Loading states, error handling, graceful degradation
+- Multi-mirror hosting strategy (GitHub Pages + IPFS + self-hosting instructions)
+- Save event drafts in IndexedDB
+
+### Phase 4 — Resource Packs (power user extras)
+Optional zip files that enhance the experience. Not required — the app works fine without them (falls back to TTS). Power users can download packs from Google Drive, a thumb drive, wherever.
+
+**Resource pack format:**
+```
+my-event-pack.zip
+├── manifest.json          # pack metadata, version, contents listing
+├── audio/                 # audio cues, music, sound effects
+│   ├── countdown.mp3
+│   ├── dramatic-horn.mp3
+│   └── move-now.mp3
+└── voices/                # pre-recorded vocal cues (better than robot TTS)
+    ├── position-a.mp3
+    └── position-b.mp3
+```
+
+- Events reference cues by ID — if the resource pack has that cue, play the good audio; if not, fall back to TTS
+- Packs loaded client-side (JSZip), stored in IndexedDB, persist across sessions
+- No server involved — grab the zip from wherever and import it
+
+### Phase 5 — Mesh & Resilience (future)
+- Web Bluetooth for nearby device discovery (Android Chrome only)
+- QR-code relay (show QR → scan → chain)
+- WiFi Direct exploration (limited browser support)
+- App bundle sharing (the HTML file itself via AirDrop/share)
+- Piper TTS via WASM for high-quality offline voices
 
 ---
 
@@ -191,6 +240,8 @@ Port KMM logic to TypeScript, build single-file web app with:
 | 2026-02-10 | Native can't reach iPhones without App Store. Returning to PWA-first. KMM code preserved as porting reference. |
 | 2026-02-10 | iOS audio tested: TTS survives screen lock, Web Audio does not. Use Web Speech API for coordination. |
 | 2026-02-10 | Design vision confirmed: single HTML file ("record player"), viral distribution, share app+event+both via QR/AirDrop/SMS. |
+| 2026-02-10 | Merged Phase 2+3: editor/creator built into the player itself. One file does everything. |
+| 2026-02-10 | Resource packs: optional zip files with better audio/voices for power users. Published format, no server, falls back to TTS. |
 
 ---
 
