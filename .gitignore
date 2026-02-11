@@ -56,3 +56,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Screenshots (local scratch)
+screengrab/

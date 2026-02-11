@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Conductor - iOS Audio Test</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  .subtitle { color: #aaa; font-size: 14px; margin-bottom: 24px; text-align: center; }
+  .log {
+    width: 100%;
+    max-width: 400px;
+    background: #0d0d1a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    min-height: 200px;
+    max-height: 40vh;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .log-entry { padding: 2px 0; }
+  .log-entry.tts { color: #4fc3f7; }
+  .log-entry.audio { color: #81c784; }
+  .log-entry.beep { color: #ffb74d; }
+  .log-entry.error { color: #ef5350; }
+  .log-entry.info { color: #aaa; }
+  .status {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .status.idle { background: #333; }
+  .status.running { background: #1b5e20; }
+  .status.stopped { background: #b71c1c; }
+  button {
+    font-size: 18px;
+    padding: 16px 40px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    margin: 8px;
+    font-weight: bold;
+  }
+  .btn-start { background: #4caf50; color: white; }
+  .btn-stop { background: #f44336; color: white; }
+  .btn-start:disabled, .btn-stop:disabled { opacity: 0.4; }
+  .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
+  .instructions {
+    width: 100%;
+    max-width: 400px;
+    background: #16213e;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .instructions h2 { font-size: 16px; margin-bottom: 8px; color: #4fc3f7; }
+  .instructions ol { padding-left: 20px; }
+  .instructions li { margin-bottom: 6px; }
+  .counter {
+    font-size: 48px;
+    font-weight: bold;
+    margin: 16px 0;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<h1>Conductor iOS Audio Test</h1>
+<p class="subtitle">Testing background audio survival on iOS Safari</p>
+
+<div class="status idle" id="status">IDLE</div>
+<div class="counter" id="counter">--:--</div>
+
+<div class="buttons">
+  <button class="btn-start" id="startBtn" onclick="startTest()">Start Test</button>
+  <button class="btn-stop" id="stopBtn" onclick="stopTest()" disabled>Stop</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="instructions">
+  <h2>How to test</h2>
+  <ol>
+    <li>Connect earbuds/headphones</li>
+    <li>Tap <b>Start Test</b> (you must tap - iOS requires user gesture for audio)</li>
+    <li>Wait for the first announcement to confirm audio works</li>
+    <li><b>Lock the phone</b> and put it in your pocket</li>
+    <li>Listen for announcements every 15 seconds</li>
+    <li>After 2-3 minutes, unlock and check the log</li>
+  </ol>
+  <h2>What we're testing</h2>
+  <p>Three audio methods fire every 15 seconds:</p>
+  <ol>
+    <li><b style="color:#4fc3f7">TTS</b> - Web Speech API ("Action in 5... 4... 3...")</li>
+    <li><b style="color:#81c784">Audio clip</b> - Web Audio API generated speech-like tone</li>
+    <li><b style="color:#ffb74d">Beep</b> - Web Audio API beep pattern</li>
+  </ol>
+  <p>A silent audio loop runs continuously to keep iOS from suspending the page.</p>
+</div>
+
+<script>
+let running = false;
+let intervalId = null;
+let tickCount = 0;
+let audioCtx = null;
+let silentSource = null;
+let silentAudio = null;
+let startTime = null;
+
+const logEl = document.getElementById('log');
+const statusEl = document.getElementById('status');
+const counterEl = document.getElementById('counter');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+
+function log(msg, cls = 'info') {
+  const now = new Date();
+  const ts = now.toLocaleTimeString('en-US', { hour12: false });
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${cls}`;
+  entry.textContent = `[${ts}] ${msg}`;
+  logEl.appendChild(entry);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function updateCounter() {
+  if (!startTime) { counterEl.textContent = '--:--'; return; }
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const sec = String(elapsed % 60).padStart(2, '0');
+  counterEl.textContent = `${min}:${sec}`;
+}
+
+// === METHOD 1: Silent audio loop (keepalive) ===
+function startSilentAudioLoop() {
+  // Use an <audio> element with a generated silent WAV
+  // This is the most reliable iOS background audio keepalive
+  try {
+    const sampleRate = 22050;
+    const seconds = 10;
+    const numSamples = sampleRate * seconds;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    // WAV header
+    const writeString = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+    // samples are all 0 (silence)
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+
+    silentAudio = new Audio(url);
+    silentAudio.loop = true;
+    silentAudio.volume = 0.01; // near-silent but not zero (iOS may ignore zero)
+    silentAudio.play().then(() => {
+      log('Silent audio loop started (keepalive)', 'info');
+    }).catch(e => {
+      log('Silent audio FAILED: ' + e.message, 'error');
+    });
+  } catch (e) {
+    log('Silent audio setup error: ' + e.message, 'error');
+  }
+}
+
+// === METHOD 2: Web Audio API context ===
+function initAudioContext() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    log('Web Audio API initialized (state: ' + audioCtx.state + ')', 'info');
+  } catch (e) {
+    log('Web Audio API FAILED: ' + e.message, 'error');
+  }
+}
+
+// === ANNOUNCEMENT: Web Speech API TTS ===
+function announceTTS(text) {
+  try {
+    if (!('speechSynthesis' in window)) {
+      log('TTS: speechSynthesis not available', 'error');
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.1;
+    utterance.volume = 1.0;
+    utterance.onstart = () => log('TTS playing: "' + text + '"', 'tts');
+    utterance.onerror = (e) => log('TTS error: ' + e.error, 'error');
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    log('TTS exception: ' + e.message, 'error');
+  }
+}
+
+// === ANNOUNCEMENT: Web Audio API beep pattern ===
+function playBeeps(count) {
+  if (!audioCtx) return;
+  try {
+    for (let i = 0; i < count; i++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      const t = audioCtx.currentTime + i * 0.25;
+      osc.start(t);
+      osc.stop(t + 0.15);
+    }
+    log('Beep x' + count + ' scheduled', 'beep');
+  } catch (e) {
+    log('Beep error: ' + e.message, 'error');
+  }
+}
+
+// === ANNOUNCEMENT: Web Audio API tone (speech-substitute) ===
+function playTone(frequency, duration) {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = frequency;
+    osc.type = 'triangle';
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+    log('Audio tone ' + frequency + 'Hz for ' + duration + 's', 'audio');
+  } catch (e) {
+    log('Tone error: ' + e.message, 'error');
+  }
+}
+
+// === MAIN TICK (fires every 15 seconds) ===
+function tick() {
+  tickCount++;
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+  log('--- Tick #' + tickCount + ' (elapsed: ' + elapsed + 's) ---', 'info');
+
+  // Simulate a countdown announcement
+  const phrases = [
+    'Action in 5 seconds',
+    'Hold signs up now',
+    'Three, two, one, go',
+    'Turn left and march',
+    'Stop and hold position',
+    'Raise your lights',
+    'Begin chanting now',
+    'Regroup at checkpoint',
+  ];
+  const phrase = phrases[(tickCount - 1) % phrases.length];
+
+  // Method 1: TTS
+  announceTTS(phrase);
+
+  // Method 2: Distinctive tone (so tester can distinguish from TTS)
+  setTimeout(() => playTone(440 + tickCount * 50, 0.5), 3000);
+
+  // Method 3: Beep pattern
+  setTimeout(() => playBeeps(Math.min(tickCount, 3)), 6000);
+
+  // Resume audio context if suspended (iOS sometimes suspends it)
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().then(() => log('AudioContext resumed from suspended', 'info'));
+  }
+}
+
+function startTest() {
+  if (running) return;
+  running = true;
+  tickCount = 0;
+  startTime = Date.now();
+
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  statusEl.textContent = 'RUNNING';
+  statusEl.className = 'status running';
+
+  logEl.innerHTML = '';
+  log('Test started - announcements every 15 seconds', 'info');
+  log('Lock your phone after the first announcement plays', 'info');
+
+  // Initialize audio systems (must happen in user gesture handler)
+  initAudioContext();
+  startSilentAudioLoop();
+
+  // Fire first tick immediately
+  tick();
+
+  // Then every 15 seconds
+  intervalId = setInterval(tick, 15000);
+
+  // Update counter every second
+  setInterval(updateCounter, 1000);
+}
+
+function stopTest() {
+  running = false;
+
+  if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  if (silentAudio) { silentAudio.pause(); silentAudio = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  window.speechSynthesis?.cancel();
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  statusEl.textContent = 'STOPPED';
+  statusEl.className = 'status stopped';
+
+  log('Test stopped after ' + tickCount + ' ticks', 'info');
+  log('Check log above: any gaps = iOS killed the audio', 'info');
+}
+
+// Prevent iOS from pausing audio on page visibility change
+document.addEventListener('visibilitychange', () => {
+  if (running) {
+    log('Visibility changed to: ' + document.visibilityState, 'info');
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+});
+</script>
+
+</body>
+</html>

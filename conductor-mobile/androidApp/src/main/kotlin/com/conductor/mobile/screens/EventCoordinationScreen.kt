@@ -1,5 +1,14 @@
 package com.conductor.mobile.screens
 
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.conductor.database.EventCache
@@ -18,6 +28,7 @@ import com.conductor.mobile.viewmodels.EventCoordinationViewModel
 import com.conductor.mobile.viewmodels.EventExecutionMode
 import com.conductor.mobile.components.CircularTimeline
 import com.conductor.mobile.components.CountdownDisplay
+import com.conductor.mobile.theme.ConductorColors
 
 /**
  * Main coordination screen for events
@@ -42,6 +53,115 @@ fun EventCoordinationScreen(
         }
     }
 
+    // Permission handling for LIVE mode
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var pendingGoLive by remember { mutableStateOf(false) }
+    var permissionMessage by remember { mutableStateOf("") }
+
+    // Check notification permission (Android 13+)
+    fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Not needed before Android 13
+        }
+    }
+
+    // Check exact alarm permission (Android 12+)
+    fun hasExactAlarmPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true // Not needed before Android 12
+        }
+    }
+
+    // Notification permission launcher
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingGoLive) {
+            // Check exact alarm permission next
+            if (hasExactAlarmPermission()) {
+                viewModel.startLiveMode()
+                pendingGoLive = false
+            } else {
+                permissionMessage = "LIVE mode requires exact alarm permission to ensure notifications fire on time, even when the app is closed.\n\nTap 'Open Settings' and enable 'Alarms & reminders' for Conductor."
+                showPermissionDialog = true
+            }
+        } else if (!granted && pendingGoLive) {
+            permissionMessage = "Notification permission is required for LIVE mode alerts. Without it, you won't see action notifications when the app is in the background.\n\nYou can still use Practice mode."
+            showPermissionDialog = true
+            pendingGoLive = false
+        }
+    }
+
+    // Function to handle Go Live with permission checks
+    fun handleGoLive() {
+        val needsNotificationPermission = !hasNotificationPermission()
+        val needsExactAlarmPermission = !hasExactAlarmPermission()
+
+        when {
+            needsNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                pendingGoLive = true
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            needsExactAlarmPermission -> {
+                pendingGoLive = true
+                permissionMessage = "LIVE mode requires exact alarm permission to ensure notifications fire on time, even when the app is closed.\n\nTap 'Open Settings' and enable 'Alarms & reminders' for Conductor."
+                showPermissionDialog = true
+            }
+            else -> {
+                viewModel.startLiveMode()
+            }
+        }
+    }
+
+    // Permission dialog
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPermissionDialog = false
+                pendingGoLive = false
+            },
+            title = { Text("Permission Required") },
+            text = { Text(permissionMessage) },
+            confirmButton = {
+                if (permissionMessage.contains("exact alarm", ignoreCase = true)) {
+                    TextButton(onClick = {
+                        showPermissionDialog = false
+                        // Open exact alarm settings
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                            context.startActivity(intent)
+                        }
+                    }) {
+                        Text("Open Settings")
+                    }
+                } else {
+                    TextButton(onClick = {
+                        showPermissionDialog = false
+                        pendingGoLive = false
+                    }) {
+                        Text("OK")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    pendingGoLive = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     val executionMode by viewModel.executionMode.collectAsState()
     val currentTime by viewModel.currentTime.collectAsState()
     val currentAction by viewModel.currentAction.collectAsState()
@@ -51,13 +171,20 @@ fun EventCoordinationScreen(
     val audioFallbackMode by viewModel.audioFallbackMode.collectAsState()
     val isAnimating by viewModel.isAnimating.collectAsState()
 
-    // Lifecycle awareness - pause/resume ticker
+    // Lifecycle awareness - pause/resume ticker AND check permissions when returning from settings
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
+    DisposableEffect(lifecycle, pendingGoLive) {
         val observer = LifecycleEventObserver { _, lifecycleEvent ->
             when (lifecycleEvent) {
                 Lifecycle.Event.ON_PAUSE -> viewModel.pauseTicker()
-                Lifecycle.Event.ON_RESUME -> viewModel.resumeTicker()
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.resumeTicker()
+                    // Check if user returned from settings with pending Go Live
+                    if (pendingGoLive && hasExactAlarmPermission() && hasNotificationPermission()) {
+                        viewModel.startLiveMode()
+                        pendingGoLive = false
+                    }
+                }
                 else -> {}
             }
         }
@@ -82,8 +209,8 @@ fun EventCoordinationScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = when (executionMode) {
                         EventExecutionMode.PREVIEW -> MaterialTheme.colorScheme.primary
-                        EventExecutionMode.PRACTICE -> Color(0xFF4CAF50) // Green
-                        EventExecutionMode.LIVE -> Color(0xFFF44336) // Red
+                        EventExecutionMode.PRACTICE -> ConductorColors.practiceGreen
+                        EventExecutionMode.LIVE -> ConductorColors.liveRed
                         EventExecutionMode.COMPLETED -> Color.Gray
                     }
                 )
@@ -118,7 +245,7 @@ fun EventCoordinationScreen(
                     audioEnabled = audioEnabled,
                     onSpeedChange = { viewModel.setPracticeSpeed(it) },
                     onToggleAudio = { viewModel.toggleAudio() },
-                    onGoLive = { viewModel.startLiveMode() },
+                    onGoLive = { handleGoLive() },
                     onStop = { viewModel.stop() }
                 )
                 EventExecutionMode.LIVE -> LiveContent(
@@ -148,11 +275,11 @@ private fun AudioFallbackBanner() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp),
-        color = Color(0xFFFFA000), // Orange
+        color = ConductorColors.alertOrange,
         shadowElevation = 2.dp
     ) {
         Text(
-            text = "🔊 Audio: Beep mode (1=notice, 2=countdown, 3=now)",
+            text = "Audio: Beep mode (1=notice, 2=countdown, 3=now)",
             modifier = Modifier.padding(8.dp),
             style = MaterialTheme.typography.labelSmall,
             color = Color.White
@@ -224,9 +351,9 @@ private fun PracticeContent(
     ) {
         // Mode indicator
         Text(
-            text = "🎸 Practice Mode",
+            text = "Practice Mode",
             style = MaterialTheme.typography.headlineSmall,
-            color = Color(0xFF4CAF50),
+            color = ConductorColors.practiceGreen,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -285,17 +412,17 @@ private fun PracticeContent(
             Button(
                 onClick = onToggleAudio,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (audioEnabled) Color(0xFF4CAF50) else Color.Gray
+                    containerColor = if (audioEnabled) ConductorColors.practiceGreen else Color.Gray
                 )
             ) {
-                Text(if (audioEnabled) "🔊 Audio ON" else "🔇 Audio OFF")
+                Text(if (audioEnabled) "Audio ON" else "Audio OFF")
             }
 
             Button(
                 onClick = onStop,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
             ) {
-                Text("⏸ Stop")
+                Text("Stop")
             }
         }
 
@@ -306,9 +433,9 @@ private fun PracticeContent(
                 .fillMaxWidth()
                 .height(56.dp)
                 .padding(top = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+            colors = ButtonDefaults.buttonColors(containerColor = ConductorColors.liveRed)
         ) {
-            Text("🔴 GO LIVE", color = Color.White)
+            Text("GO LIVE", color = Color.White)
         }
     }
 }
@@ -332,9 +459,9 @@ private fun LiveContent(
     ) {
         // Mode indicator
         Text(
-            text = "🔴 LIVE MODE",
+            text = "LIVE MODE",
             style = MaterialTheme.typography.headlineSmall,
-            color = Color(0xFFF44336),
+            color = ConductorColors.liveRed,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -358,14 +485,14 @@ private fun LiveContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            color = Color(0xFFF44336).copy(alpha = 0.1f),
+            color = ConductorColors.liveRed.copy(alpha = 0.1f),
             shadowElevation = 2.dp
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = if (currentAction != null) "NOW: ${currentAction.action}" else "Waiting for first action...",
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color(0xFFF44336)
+                    color = ConductorColors.liveRed
                 )
                 Text(
                     text = "Upcoming: ${upcomingActions.size} actions",
@@ -385,11 +512,11 @@ private fun LiveContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            color = Color(0xFFFFA000).copy(alpha = 0.2f),
+            color = ConductorColors.alertOrange.copy(alpha = 0.2f),
             shadowElevation = 1.dp
         ) {
             Text(
-                text = "⚠️ System alarms active. Notifications will fire even if app is closed.",
+                text = "System alarms active. Notifications will fire even if app is closed.",
                 modifier = Modifier.padding(8.dp),
                 style = MaterialTheme.typography.labelSmall
             )
@@ -403,17 +530,17 @@ private fun LiveContent(
             Button(
                 onClick = onToggleAudio,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (audioEnabled) Color(0xFF4CAF50) else Color.Gray
+                    containerColor = if (audioEnabled) ConductorColors.practiceGreen else Color.Gray
                 )
             ) {
-                Text(if (audioEnabled) "🔊 Audio ON" else "🔇 Audio OFF")
+                Text(if (audioEnabled) "Audio ON" else "Audio OFF")
             }
 
             Button(
                 onClick = onStop,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                colors = ButtonDefaults.buttonColors(containerColor = ConductorColors.liveRed)
             ) {
-                Text("⏹ Stop & Cancel Alarms")
+                Text("Stop & Cancel Alarms")
             }
         }
     }

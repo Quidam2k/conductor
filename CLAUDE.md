@@ -1,195 +1,147 @@
 # CLAUDE.md
 
-## Project: Conductor Mobile
+## Project: Conductor
 
-**Purpose**: A self-contained mobile app for coordinating synchronized real-world actions (flash mobs, protests, etc.). Works completely offline - events are embedded in QR codes/URLs.
+**Purpose**: A serverless PWA for coordinating synchronized real-world actions (flash mobs, protests, art performances). Events are embedded in URLs - no server, no app store, no accounts.
 
-**Current Focus**: Android app via Kotlin Multiplatform (KMM). iOS will share the same core code.
-
----
-
-## Quick Start
-
-```bash
-cd H:\Development\conductor\conductor\conductor-mobile
-./gradlew.bat assembleDebug
-```
-
-**SDK Location**: `C:\Users\Todd\AppData\Local\Android\Sdk`
+**Current Focus**: PWA (Progressive Web App) served as static files from GitHub Pages. The KMM Android app code is preserved in the repo as reference for porting.
 
 ---
 
 ## Architecture
 
 ### How It Works
-1. **Event Creator** generates a QR code/URL containing the entire event (compressed JSON)
-2. **Participant** scans QR → app decodes event → stores locally
-3. **Coordination** runs entirely on-device (no server needed)
-4. **Alarms** fire even if app is killed (Android AlarmManager)
+1. **Organizer** creates an event in-browser → actions, timing, description
+2. **App compresses** event to URL fragment (`#v1_<base64-gzip-json>`)
+3. **Participants** open the URL → app decodes event → runs entirely in-browser
+4. **Coordination** uses browser APIs: Web Speech (TTS), Web Audio, Vibration, Wake Lock
+5. **Offline**: Service Worker caches app forever after first load
 
-### Tech Stack
-- **Shared Code** (conductor-mobile/shared/): Kotlin Multiplatform
-  - `TimingEngine` - calculates positions, countdowns, announcements
-  - `EventEncoder` - compresses/decompresses events for URL embedding
-  - `Event/TimelineAction` - data models
+### Why PWA?
+The KMM native app (in `conductor-mobile/`) works on Android but can't reach iPhones without Apple App Store approval. A PWA:
+- Works on any device with a browser
+- No app store gatekeepers
+- Can't be taken down (static file, self-hostable)
+- URL-embedded events = censorship-resistant
 
-- **Android App** (conductor-mobile/androidApp/): Jetpack Compose
-  - `EventCoordinationScreen` - main UI with circular timeline
-  - `AudioService` - TTS announcements with beep fallback
-  - `HapticService` - vibration patterns
-  - `AlarmScheduler/AlarmReceiver` - background notifications
+### Tech Stack (PWA)
+- Single HTML file (or minimal file set) served from `docs/`
+- Vanilla TypeScript/JavaScript (no framework)
+- `pako.js` for gzip compression (~25KB)
+- HTML Canvas for circular timeline
+- Browser APIs: Web Speech, Web Audio, Vibration, Wake Lock, Service Worker
 
-### Event Flow
-```
-QR Code → EventEncoder.decode() → Event saved to SQLite
-         → User taps "Practice" → variable speed rehearsal
-         → User taps "Go Live" → real-time + system alarms scheduled
-         → App backgrounded → Alarms still fire!
-```
+### Tech Stack (KMM - reference, not active development)
+- Kotlin Multiplatform in `conductor-mobile/`
+- Shared core: TimingEngine, EventEncoder, data models
+- Android UI: Jetpack Compose
 
 ---
 
 ## Key Files
 
+### PWA (active development - `docs/`)
 | File | Purpose |
 |------|---------|
-| `shared/src/commonMain/.../TimingEngine.kt` | Core timing logic (multiplatform) |
-| `shared/src/commonMain/.../EventEncoder.kt` | URL compression (multiplatform) |
-| `shared/src/commonMain/.../Event.kt` | Data models |
-| `androidApp/.../EventCoordinationScreen.kt` | Main coordination UI |
-| `androidApp/.../CircularTimeline.kt` | Guitar Hero-style timeline |
-| `androidApp/.../AudioService.kt` | TTS + beep fallback |
-| `androidApp/.../AlarmScheduler.kt` | System alarm scheduling |
+| `docs/index.html` | Main PWA entry point (to be created) |
+| `docs/sw.js` | Service Worker for offline (to be created) |
+| `docs/app.js` | App logic (to be created) |
+| `docs/ios-audio-test/index.html` | iOS Safari audio background test page |
 
----
-
-## Build & Deploy
-
-### Local Build
-```bash
-cd conductor-mobile
-./gradlew.bat assembleDebug
-# APK at: androidApp/build/outputs/apk/debug/
-```
-
-### Firebase OTA (no USB needed)
-See `FIREBASE_SETUP.md` - lets you distribute builds via QR code.
-
----
-
-## Current Status (Nov 27, 2025)
-
-### Done
-- ✅ KMM project structure
-- ✅ Multiplatform TimingEngine, EventEncoder, models
-- ✅ Android UI: event list, detail, QR scanner, coordination screen
-- ✅ Circular timeline visualization
-- ✅ Audio (TTS + beep fallback)
-- ✅ Haptic patterns
-- ✅ Background alarms
-- ✅ Firebase OTA scripts ready
-- ✅ **BUILD WORKING** - Debug and Release APKs compile successfully
-- ✅ **Java 17 installed** - Required for AGP 8.1.0
-- ✅ **Local OTA server** - Install via WiFi without USB
-- ✅ **Keystore generated** - For release signing
-
-### Ready for Testing
-- ⏳ Install on Pixel 8 via `scripts\serve-apk.bat`
-- ⏳ QR code scanning flow
-- ⏳ Practice mode (variable speed)
-- ⏳ Live mode with alarms
-- ⏳ Background alarm reliability
-
-### Future (iOS)
-- 📅 Test build on Mac
-- 📅 Port platform-specific code to Swift/SwiftUI
-- 📅 UserNotifications for alarms
-- 📅 AVSpeechSynthesizer for audio
+### KMM Reference (for porting to TypeScript)
+| File | Purpose |
+|------|---------|
+| `conductor-mobile/shared/.../EventEncoder.kt` | URL compression (v1: JSON → gzip → base64url) |
+| `conductor-mobile/shared/.../TimingEngine.kt` | Timing, positions, countdowns |
+| `conductor-mobile/shared/.../Event.kt` | Data models (Event, TimelineAction, EmbeddedEvent) |
+| `conductor-mobile/androidApp/.../CircularTimeline.kt` | Canvas-based circular timeline |
+| `conductor-mobile/androidApp/.../AudioService.kt` | TTS + beep fallback |
 
 ---
 
 ## URL-Embedded Events
 
-Events are compressed and embedded directly in URLs:
+Events are compressed and embedded directly in URL fragments:
 ```
-conductor://event/<base64-gzip-json>
+https://quidam2k.github.io/conductor/#v1_<base64-gzip-json>
 ```
 
 This means:
-- No server required
-- Events can be shared via QR codes, text, social media
-- Works offline after initial scan
+- No server required (fragment never sent to server)
+- Events shared via QR codes, text, social media
+- Works offline after first load
 - Censorship-resistant (event data travels with the link)
 
 See `URL_EMBEDDED_EVENTS.md` for format details.
 
 ---
 
-## Commands Reference
+## Development
 
+### Serving locally
 ```bash
-# Build debug APK
-./gradlew.bat assembleDebug
-
-# Build release APK
-./gradlew.bat assembleRelease
-
-# Run tests
-./gradlew.bat test
-
-# Clean build
-./gradlew.bat clean
+# Any static file server works
+cd docs
+python -m http.server 8000
 ```
+
+### GitHub Pages
+The app is served from `docs/` on the `main` branch:
+- App: `https://quidam2k.github.io/conductor/`
+- iOS test: `https://quidam2k.github.io/conductor/ios-audio-test/`
+
+### Android (legacy, reference only)
+```bash
+cd conductor-mobile
+./gradlew.bat assembleDebug
+```
+- Android SDK: `C:\Users\Todd\AppData\Local\Android\Sdk`
+- Java 17: `C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot`
+
+---
+
+## Current Status (February 10, 2026)
+
+### Phase 0: Housekeeping - IN PROGRESS
+- [x] KMM Android app complete (Sprint 13 - coordination, sharing, themes, settings)
+- [x] iOS audio background test page created
+- [x] Moved ios-audio-test to docs/ for GitHub Pages
+- [ ] Push to GitHub, enable GitHub Pages
+- [ ] Waiting: iOS audio test results from Todd's friend
+
+### Roadmap
+- **Phase 1**: iOS Audio Feasibility (wait for test results)
+- **Phase 2**: PWA Core (port KMM logic to TypeScript, build single-file web app)
+- **Phase 3**: Event Creator (in-browser event builder + QR generation)
+- **Phase 4**: Polish & Distribution (PWA manifest, multi-mirror hosting)
+- **Phase 5**: Mesh & Resilience (future - Bluetooth, QR relay)
+
+---
+
+## Decision Log
+
+| Date | Decision |
+|------|----------|
+| 2025-10 (original plan) | Phase 1.5 web → Phase 2 native → Phase 3 mesh |
+| 2025-10 (actual) | Skipped to native (KMM) |
+| 2026-01 | KMM Android working, iOS not started |
+| 2026-02 | Native can't reach iPhones without App Store. Returning to PWA-first. KMM code preserved as porting reference. |
 
 ---
 
 ## Archived Code
 
-Old/unused code is in `_archive/`:
-- `conductor-web/` - Web platform (not current focus)
-- `conductor-server/` - Server code (app is self-contained)
-- `conductor_client/` - Old Flutter attempt
-- Various old docs and plans
+- `_archive/` - Old server/client code from before KMM pivot
+- `conductor-mobile/` - KMM Android app (working, preserved as reference for PWA port)
 
 ---
 
 ## Notes for Claude
 
 - This is Windows, not Linux
-- Android SDK is at `C:\Users\Todd\AppData\Local\Android\Sdk`
-- **Java 17** is at `C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot`
-- iOS targets won't build on Windows (need Mac) - that's expected
-- Focus is mobile-only. No web platform work.
-- User is Todd. He prefers direct communication and tested solutions.
-
----
-
-## Session Log
-
-### November 27, 2025
-**Goal**: Get Android build working and create OTA installation system
-
-**Completed**:
-1. Installed Java 17 (Temurin) - required for AGP 8.1.0
-2. Fixed KMM cross-platform issues:
-   - Replaced all `java.time` with `kotlinx.datetime`
-   - Created expect/actual `GzipCompression` for iOS compatibility
-3. Migrated Android UI from Material to Material3
-4. Fixed all Kotlin compilation errors
-5. Generated signing keystore
-6. Built release APK (30.1 MB)
-7. Created local WiFi server for OTA installation
-8. Installed Firebase CLI (not fully configured yet)
-
-**Key Files Changed**:
-- `gradle.properties` - Java 17 path, KMM settings
-- Multiple Kotlin files - kotlinx.datetime migration, Material3 migration
-- New: `scripts/serve-apk.py`, `scripts/serve-apk.bat`, `INSTALL.md`
-
-**Next Steps**:
-1. Todd to install APK via `scripts\serve-apk.bat`
-2. Test on Pixel 8
-3. Create test event QR code
-4. Debug any runtime issues
-
-See `HANDOFF_SESSION_NOV_27.md` for full details.
+- Android SDK at `C:\Users\Todd\AppData\Local\Android\Sdk`
+- Java 17 at `C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot`
+- GitHub repo: https://github.com/Quidam2k/conductor
+- GitHub Pages serves from `docs/` on `main`
+- User is Todd. Prefers direct communication and tested solutions.
+- Focus is now **PWA** (web). Native app code is reference only.

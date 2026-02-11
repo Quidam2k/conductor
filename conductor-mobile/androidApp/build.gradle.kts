@@ -110,6 +110,12 @@ dependencies {
     implementation("com.google.mlkit:vision-common:17.3.0")
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
+    // Embedded HTTP server for P2P APK sharing (30KB, no dependencies)
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+
+    // QR code generation
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
