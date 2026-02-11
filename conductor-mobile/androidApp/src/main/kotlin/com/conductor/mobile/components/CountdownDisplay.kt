@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.conductor.models.TimelineAction
 import com.conductor.services.TimingEngine
+import com.conductor.mobile.theme.ConductorColors
 import kotlinx.datetime.Instant
 import kotlin.math.abs
 
@@ -80,10 +81,10 @@ private fun formatCountdown(seconds: Double): String {
  */
 private fun getCountdownColor(seconds: Double): Color {
     return when {
-        seconds < 0.5 -> Color.Red
-        seconds < 5.0 -> Color(0xFFF44336) // Red
-        seconds < 10.0 -> Color(0xFFFF9800) // Orange
-        seconds < 30.0 -> Color(0xFFFFC107) // Amber
-        else -> Color(0xFF4CAF50) // Green
+        seconds < 0.5 -> ConductorColors.urgencyNow
+        seconds < 5.0 -> ConductorColors.urgencyNow
+        seconds < 10.0 -> ConductorColors.urgencySoon
+        seconds < 30.0 -> ConductorColors.urgencyWarning
+        else -> ConductorColors.urgencyNormal
     }
 }

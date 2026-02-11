@@ -4,10 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.widget.Toast
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -21,6 +22,9 @@ import com.conductor.mobile.screens.EventDetailScreen
 import com.conductor.mobile.screens.EventListScreen
 import com.conductor.mobile.screens.QRScannerScreen
 import com.conductor.mobile.screens.EventCoordinationScreen
+import com.conductor.mobile.screens.ShareAppScreen
+import com.conductor.mobile.settings.SettingsManager
+import com.conductor.mobile.theme.ConductorTheme
 import kotlinx.coroutines.launch
 
 /**
@@ -44,10 +48,16 @@ class MainActivity : ComponentActivity() {
             }?.takeIf { it.isNotEmpty() }
         }
 
+        val settingsManager = SettingsManager(this)
+
         setContent {
-            MaterialTheme {
+            val darkMode by settingsManager.darkModeFlow.collectAsState(initial = settingsManager.darkModeEnabled)
+            ConductorTheme(darkTheme = darkMode) {
                 Surface {
-                    ConductorNavigation(initialDeepLinkData = deepLinkData)
+                    ConductorNavigation(
+                        initialDeepLinkData = deepLinkData,
+                        settingsManager = settingsManager
+                    )
                 }
             }
         }
@@ -55,11 +65,14 @@ class MainActivity : ComponentActivity() {
 }
 
 enum class Screen {
-    LIST, DETAIL, QR_SCANNER, COORDINATION
+    LIST, DETAIL, QR_SCANNER, COORDINATION, SHARE_APP
 }
 
 @Composable
-fun ConductorNavigation(initialDeepLinkData: String? = null) {
+fun ConductorNavigation(
+    initialDeepLinkData: String? = null,
+    settingsManager: SettingsManager
+) {
     val context = LocalContext.current
     val currentScreen = remember { mutableStateOf(Screen.LIST) }
     val selectedEvent = remember { mutableStateOf<Event?>(null) }
@@ -84,12 +97,16 @@ fun ConductorNavigation(initialDeepLinkData: String? = null) {
         Screen.LIST -> {
             EventListScreen(
                 eventCache = eventCache,
+                settingsManager = settingsManager,
                 onEventSelected = { event ->
                     selectedEvent.value = event
                     currentScreen.value = Screen.DETAIL
                 },
                 onScanQRCode = {
                     currentScreen.value = Screen.QR_SCANNER
+                },
+                onShareApp = {
+                    currentScreen.value = Screen.SHARE_APP
                 }
             )
         }
@@ -145,6 +162,14 @@ fun ConductorNavigation(initialDeepLinkData: String? = null) {
                     }
                 )
             }
+        }
+
+        Screen.SHARE_APP -> {
+            ShareAppScreen(
+                onBack = {
+                    currentScreen.value = Screen.LIST
+                }
+            )
         }
     }
 }

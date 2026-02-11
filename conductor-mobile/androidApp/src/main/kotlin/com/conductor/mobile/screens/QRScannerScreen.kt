@@ -40,6 +40,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -141,6 +142,9 @@ fun QRCameraPreview(
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
+    // Prevent multiple detections of the same QR code (thread-safe)
+    val hasDetected = remember { AtomicBoolean(false) }
+
     // Shutdown executor when leaving screen to prevent thread leak
     DisposableEffect(Unit) {
         onDispose {
@@ -181,9 +185,14 @@ fun QRCameraPreview(
 
                                     barcodeScanner.process(image)
                                         .addOnSuccessListener { barcodes ->
-                                            // Only process the first QR code detected
-                                            barcodes.firstOrNull()?.rawValue?.let { qrData ->
-                                                onQRCodeDetected(qrData)
+                                            // Only process the first QR code detected AND only once
+                                            if (!hasDetected.get()) {
+                                                barcodes.firstOrNull()?.rawValue?.let { qrData ->
+                                                    // Use compareAndSet for thread-safe single execution
+                                                    if (hasDetected.compareAndSet(false, true)) {
+                                                        onQRCodeDetected(qrData)
+                                                    }
+                                                }
                                             }
                                         }
                                         .addOnCompleteListener {

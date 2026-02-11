@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.conductor.models.Event
 import com.conductor.models.TimelineAction
 import com.conductor.services.TimingEngine
+import com.conductor.mobile.theme.ConductorColors
 import kotlinx.datetime.Instant
 import kotlin.math.cos
 import kotlin.math.sin
@@ -101,7 +103,7 @@ private fun DrawScope.drawTriggerIndicator(center: Offset, radius: Float) {
 
     drawPath(
         path = path,
-        color = Color.Red
+        color = ConductorColors.liveRed
     )
 
     // Draw "TRIGGER" text above triangle
@@ -160,9 +162,9 @@ private fun DrawScope.drawAction(
 
     // Determine color based on action style
     val color = when (action.style) {
-        "alert" -> Color.Red
-        "emphasis" -> Color(0xFFFFAA00) // Orange
-        else -> Color(0xFF4A90E2) // Blue
+        "alert" -> ConductorColors.liveRed
+        "emphasis" -> ConductorColors.alertOrange
+        else -> ConductorColors.actionBlue
     }
 
     // Size grows as action approaches trigger
@@ -209,7 +211,7 @@ private fun DrawScope.drawCurrentAction(
         val alpha = 0.3f - (i * 0.1f)
 
         drawCircle(
-            color = Color.Red.copy(alpha = alpha),
+            color = ConductorColors.liveRed.copy(alpha = alpha),
             radius = pulseRadius,
             center = triggerCenter,
             style = Stroke(width = 3.dp.toPx())
@@ -218,7 +220,7 @@ private fun DrawScope.drawCurrentAction(
 
     // Draw solid center circle
     drawCircle(
-        color = Color.Red,
+        color = ConductorColors.liveRed,
         radius = 15.dp.toPx(),
         center = triggerCenter
     )
@@ -241,7 +243,7 @@ private fun DrawScope.drawCenterText(
 ) {
     drawIntoCanvas { canvas ->
         val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.RED
+            color = ConductorColors.liveRed.toArgb()
             textSize = 36.sp.toPx()
             textAlign = android.graphics.Paint.Align.CENTER
             isFakeBoldText = true

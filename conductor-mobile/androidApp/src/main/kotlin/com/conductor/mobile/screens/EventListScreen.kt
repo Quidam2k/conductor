@@ -15,20 +15,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.conductor.database.EventCache
 import com.conductor.models.Event
+import com.conductor.mobile.settings.SettingsManager
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -45,12 +50,15 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun EventListScreen(
     eventCache: EventCache,
+    settingsManager: SettingsManager,
     onEventSelected: (Event) -> Unit,
-    onScanQRCode: () -> Unit
+    onScanQRCode: () -> Unit,
+    onShareApp: () -> Unit
 ) {
     val events = remember { mutableStateOf<List<Event>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
+    val isDarkMode by settingsManager.darkModeFlow.collectAsState(initial = settingsManager.darkModeEnabled)
 
     LaunchedEffect(Unit) {
         val result = eventCache.getAllEvents()
@@ -67,7 +75,20 @@ fun EventListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("🎸 Conductor Events") }
+                title = { Text("Conductor Events") },
+                actions = {
+                    // Share App button
+                    IconButton(onClick = onShareApp) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share App")
+                    }
+                    // Dark mode toggle
+                    IconButton(onClick = { settingsManager.darkModeEnabled = !isDarkMode }) {
+                        Icon(
+                            imageVector = if (isDarkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                            contentDescription = if (isDarkMode) "Switch to Light Mode" else "Switch to Dark Mode"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {

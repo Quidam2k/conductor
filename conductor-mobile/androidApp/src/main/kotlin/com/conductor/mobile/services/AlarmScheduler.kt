@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import com.conductor.models.Event
 import com.conductor.models.TimelineAction
 import kotlinx.datetime.Instant
@@ -70,6 +69,7 @@ class AlarmScheduler(private val context: Context) {
         )
 
         // Schedule exact alarm
+        // Note: UI should have checked canScheduleExactAlarms() before calling scheduleEvent()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(
@@ -78,8 +78,14 @@ class AlarmScheduler(private val context: Context) {
                     pendingIntent
                 )
             } else {
-                // Need to request permission
-                requestExactAlarmPermission()
+                // Permission not granted - UI should have handled this before entering LIVE mode
+                // Fall back to inexact alarm (will be slightly delayed but better than nothing)
+                android.util.Log.w("AlarmScheduler", "Exact alarm permission not granted, using inexact alarm for action: ${action.action}")
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    actionTime,
+                    pendingIntent
+                )
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(
@@ -132,17 +138,6 @@ class AlarmScheduler(private val context: Context) {
         )
 
         alarmManager.cancel(pendingIntent)
-    }
-
-    /**
-     * Request exact alarm permission (Android 13+)
-     */
-    private fun requestExactAlarmPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
     }
 
     /**
