@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Audio Service Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+        button { background: #16213e; color: #00d4ff; border: 1px solid #00d4ff; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: monospace; margin: 4px; }
+        button:hover { background: #1a3a5c; }
+        button:active { background: #00d4ff; color: #1a1a2e; }
+        .demo-section { background: #16213e; padding: 16px; border-radius: 8px; margin: 12px 0; }
+        .log-output { background: #0d1117; padding: 10px; border-radius: 4px; min-height: 100px; max-height: 300px; overflow-y: auto; margin: 8px 0; font-size: 0.85em; }
+        .log-entry { padding: 2px 0; }
+        .log-entry.announce { color: #7ee787; }
+        .log-entry.skip { color: #666; }
+        .log-entry.info { color: #00d4ff; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Audio Service Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="js/models.js"></script>
+    <script src="js/timingEngine.js"></script>
+    <script src="js/audioService.js"></script>
+    <script>
+    (function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // ─── Fixed test data ────────────────────────────────────────
+        const BASE = new Date('2026-06-15T12:00:00.000Z').getTime();
+
+        function actionAt(offsetSec, text, extras = {}) {
+            return createTimelineAction({
+                action: text,
+                time: new Date(BASE + offsetSec * 1000).toISOString(),
+                relativeTime: offsetSec,
+                ...extras,
+            });
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 1. Service creation and initialization
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>1. Service Creation & Initialization</h2>');
+
+        const svc = createAudioService();
+        assert('createAudioService returns object', typeof svc === 'object');
+        assert('Has initialize method', typeof svc.initialize === 'function');
+        assert('Has speak method', typeof svc.speak === 'function');
+        assert('Has announceAction method', typeof svc.announceAction === 'function');
+        assert('Has haptic method', typeof svc.haptic === 'function');
+        assert('Has reset method', typeof svc.reset === 'function');
+        assert('Has shutdown method', typeof svc.shutdown === 'function');
+        assert('Has setMuted method', typeof svc.setMuted === 'function');
+        assert('Has setResourcePackResolver method', typeof svc.setResourcePackResolver === 'function');
+        assert('Not initialized before init call', !svc.isInitialized());
+
+        let initMode = null;
+        svc.initialize((m) => { initMode = m; });
+
+        assert('Initialize calls back', initMode !== null, `initMode was ${initMode}`);
+        assert('Is initialized after init', svc.isInitialized());
+
+        const hasSpeechSynth = !!window.speechSynthesis;
+        if (hasSpeechSynth) {
+            assert('Mode is TTS when Speech API available', svc.getMode() === AudioMode.TTS);
+        } else {
+            assert('Mode is VISUAL_ONLY when no Speech API', svc.getMode() === AudioMode.VISUAL_ONLY);
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 2. Announcement logic & deduplication
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>2. Announcement Logic & Deduplication</h2>');
+
+        // Use a fresh service to test logic (muted so no actual speech)
+        const testSvc = createAudioService();
+        testSvc.initialize(() => {});
+        testSvc.setMuted(true); // Mute so we don't hear anything
+
+        const action1 = actionAt(0, 'Gather at fountain', {
+            noticeSeconds: 10,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        // Notice at 10s before
+        let result = testSvc.announceAction(action1, 10, 5);
+        assert('Notice fires at noticeSeconds', result !== null && result.startsWith('notice:'),
+            `Got: ${result}`);
+
+        // Duplicate notice should not fire
+        let dup = testSvc.announceAction(action1, 10, 5);
+        assert('Duplicate notice is suppressed', dup === null);
+
+        // Countdown at 5s
+        result = testSvc.announceAction(action1, 5, 5);
+        assert('Countdown fires at 5s', result === 'countdown: 5', `Got: ${result}`);
+
+        // Countdown at 4s
+        result = testSvc.announceAction(action1, 4, 5);
+        assert('Countdown fires at 4s', result === 'countdown: 4', `Got: ${result}`);
+
+        // Countdown at 3s
+        result = testSvc.announceAction(action1, 3, 5);
+        assert('Countdown fires at 3s', result === 'countdown: 3', `Got: ${result}`);
+
+        // Duplicate countdown suppressed
+        dup = testSvc.announceAction(action1, 3, 5);
+        assert('Duplicate countdown suppressed', dup === null);
+
+        // Countdown 2, 1
+        testSvc.announceAction(action1, 2, 5);
+        testSvc.announceAction(action1, 1, 5);
+
+        // Trigger at 0
+        result = testSvc.announceAction(action1, 0, 5);
+        assert('Trigger fires at 0', result === 'trigger: "Now!"', `Got: ${result}`);
+
+        // Duplicate trigger suppressed
+        dup = testSvc.announceAction(action1, 0, 5);
+        assert('Duplicate trigger suppressed', dup === null);
+
+        // Check announced set size: notice + cd-5 + cd-4 + cd-3 + cd-2 + cd-1 + trigger = 7
+        const announcedSet = testSvc.getAnnouncedSet();
+        assert('Announced set has 7 entries (notice + 5 countdown + trigger)',
+            announcedSet.size === 7,
+            `Got ${announcedSet.size}: ${[...announcedSet].join(', ')}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 3. audioAnnounce=false suppresses all
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>3. audioAnnounce=false</h2>');
+
+        const silentSvc = createAudioService();
+        silentSvc.initialize(() => {});
+        silentSvc.setMuted(true);
+
+        const silentAction = actionAt(0, 'Silent action', { audioAnnounce: false });
+        result = silentSvc.announceAction(silentAction, 5, 5);
+        assert('audioAnnounce=false → no notice', result === null);
+        result = silentSvc.announceAction(silentAction, 0, 5);
+        assert('audioAnnounce=false → no trigger', result === null);
+        assert('Announced set empty', silentSvc.getAnnouncedSet().size === 0);
+
+        // ═════════════════════════════════════════════════════════════
+        // 4. Default countdown (when action has none specified)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>4. Default Countdown</h2>');
+
+        const defaultSvc = createAudioService();
+        defaultSvc.initialize(() => {});
+        defaultSvc.setMuted(true);
+
+        const noCountdownAction = actionAt(0, 'Default countdown action');
+        // At 5s with defaultNotice=5, notice fires first (adjustedSeconds === noticeSeconds)
+        result = defaultSvc.announceAction(noCountdownAction, 5, 5);
+        assert('Default notice fires at 5s (noticeSeconds=5)', result !== null && result.startsWith('notice:'), `Got: ${result}`);
+        result = defaultSvc.announceAction(noCountdownAction, 3, 5);
+        assert('Default countdown fires at 3', result === 'countdown: 3', `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 5. Default noticeSeconds from event
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>5. Default Notice from Event</h2>');
+
+        const noticeSvc = createAudioService();
+        noticeSvc.initialize(() => {});
+        noticeSvc.setMuted(true);
+
+        const noNoticeAction = actionAt(0, 'Uses event default');
+        // Action has no noticeSeconds, event default is 8
+        result = noticeSvc.announceAction(noNoticeAction, 8, 8);
+        assert('Uses event defaultNoticeSeconds (8)', result !== null && result.startsWith('notice:'),
+            `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 6. Practice mode speed multiplier
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>6. Practice Mode Speed</h2>');
+
+        const speedSvc = createAudioService();
+        speedSvc.initialize(() => {});
+        speedSvc.setMuted(true);
+
+        const speedAction = actionAt(0, 'Speed test', {
+            noticeSeconds: 10,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        // At 2x speed, secondsUntil=20 → adjustedSeconds = round(20/2) = 10 → notice fires
+        result = speedSvc.announceAction(speedAction, 20, 5, 2);
+        assert('2x speed: notice at 20s real (=10s adjusted)', result !== null && result.startsWith('notice:'),
+            `Got: ${result}`);
+
+        // At 2x speed, secondsUntil=10 → adjustedSeconds = round(10/2) = 5 → countdown fires
+        result = speedSvc.announceAction(speedAction, 10, 5, 2);
+        assert('2x speed: countdown-5 at 10s real', result === 'countdown: 5', `Got: ${result}`);
+
+        // At 5x speed, secondsUntil=0 → trigger
+        result = speedSvc.announceAction(speedAction, 0, 5, 5);
+        assert('5x speed: trigger at 0', result === 'trigger: "Now!"', `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 7. Resource pack fallback chain
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>7. Resource Pack Fallback Chain</h2>');
+
+        const rpSvc = createAudioService();
+        rpSvc.initialize(() => {});
+        rpSvc.setMuted(true);
+
+        // Action with cue + fallbackText + pack
+        const rpAction = actionAt(0, 'Flash mob start', {
+            cue: 'start-horn',
+            fallbackText: 'Start now!',
+            pack: 'flash-mob-v1',
+            noticeSeconds: 5,
+        });
+
+        // Without resource pack resolver → falls back to fallbackText
+        let text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        assert('No resolver → fallbackText', text === 'Start now!', `Got: "${text}"`);
+
+        // With resolver that returns false (pack not installed)
+        rpSvc.setResourcePackResolver((cue, pack) => false);
+        text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        assert('Resolver returns false → fallbackText', text === 'Start now!', `Got: "${text}"`);
+
+        // With resolver that returns true (pack played it)
+        rpSvc.setResourcePackResolver((cue, pack) => {
+            return cue === 'start-horn' && pack === 'flash-mob-v1';
+        });
+        text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        assert('Resolver returns true → null (resource pack handled it)', text === null);
+
+        // Action with no cue, no fallbackText → action text
+        const plainAction = actionAt(0, 'Just plain text');
+        text = rpSvc.resolveAudioCue(plainAction, 'notice');
+        assert('No cue, no fallback → action text', text === 'Just plain text', `Got: "${text}"`);
+
+        // Action with fallbackText but no cue → fallbackText
+        const fbAction = actionAt(0, 'Action text', { fallbackText: 'Better text' });
+        text = rpSvc.resolveAudioCue(fbAction, 'notice');
+        assert('fallbackText without cue → fallbackText', text === 'Better text', `Got: "${text}"`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 8. Random cues
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>8. Random Cues</h2>');
+
+        const rndSvc = createAudioService();
+        rndSvc.initialize(() => {});
+
+        const rndAction = actionAt(0, 'Harmony', {
+            randomCues: ['part-a', 'part-b', 'part-c'],
+            fallbackText: 'Hum a note',
+            pack: 'harmony-pack',
+        });
+
+        // Without resolver → fallbackText
+        text = rndSvc.resolveAudioCue(rndAction, 'notice');
+        assert('Random cues, no resolver → fallbackText', text === 'Hum a note', `Got: "${text}"`);
+
+        // With resolver that handles any of the cues
+        let playedCues = [];
+        rndSvc.setResourcePackResolver((cue, pack) => {
+            playedCues.push(cue);
+            return pack === 'harmony-pack';
+        });
+
+        text = rndSvc.resolveAudioCue(rndAction, 'notice');
+        assert('Random cues, resolver plays it → null', text === null);
+        assert('Resolver received one of the random cues',
+            ['part-a', 'part-b', 'part-c'].includes(playedCues[0]),
+            `Got cue: "${playedCues[0]}"`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 9. Mute / unmute
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>9. Mute Control</h2>');
+
+        const muteSvc = createAudioService();
+        muteSvc.initialize(() => {});
+
+        assert('Not muted by default', !muteSvc.isMuted());
+        muteSvc.setMuted(true);
+        assert('Muted after setMuted(true)', muteSvc.isMuted());
+        muteSvc.setMuted(false);
+        assert('Unmuted after setMuted(false)', !muteSvc.isMuted());
+
+        // ═════════════════════════════════════════════════════════════
+        // 10. Reset clears deduplication
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>10. Reset</h2>');
+
+        const resetSvc = createAudioService();
+        resetSvc.initialize(() => {});
+        resetSvc.setMuted(true);
+
+        const resetAction = actionAt(0, 'Reset test', { noticeSeconds: 5 });
+        resetSvc.announceAction(resetAction, 5, 5);
+        assert('Announced set not empty before reset', resetSvc.getAnnouncedSet().size > 0);
+
+        resetSvc.reset();
+        assert('Announced set empty after reset', resetSvc.getAnnouncedSet().size === 0);
+
+        // Same announcement fires again after reset
+        result = resetSvc.announceAction(resetAction, 5, 5);
+        assert('Announcement fires again after reset', result !== null);
+
+        // ═════════════════════════════════════════════════════════════
+        // 11. Shutdown
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>11. Shutdown</h2>');
+
+        const shutSvc = createAudioService();
+        shutSvc.initialize(() => {});
+        assert('Initialized before shutdown', shutSvc.isInitialized());
+
+        shutSvc.shutdown();
+        assert('Not initialized after shutdown', !shutSvc.isInitialized());
+        assert('Mode is VISUAL_ONLY after shutdown', shutSvc.getMode() === AudioMode.VISUAL_ONLY);
+
+        // ═════════════════════════════════════════════════════════════
+        // 12. Multiple independent services
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>12. Independent Instances</h2>');
+
+        const svcA = createAudioService();
+        const svcB = createAudioService();
+        svcA.initialize(() => {});
+        svcB.initialize(() => {});
+        svcA.setMuted(true);
+        svcB.setMuted(true);
+
+        const indAction = actionAt(0, 'Independent', { noticeSeconds: 5 });
+        svcA.announceAction(indAction, 5, 5);
+
+        assert('Service A has 1 announced', svcA.getAnnouncedSet().size === 1);
+        assert('Service B has 0 announced', svcB.getAnnouncedSet().size === 0);
+
+        result = svcB.announceAction(indAction, 5, 5);
+        assert('Service B can announce independently', result !== null);
+
+        // ═════════════════════════════════════════════════════════════
+        // 13. Haptic patterns (logic only — can't test hardware)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>13. Haptic Feedback</h2>');
+
+        const hapSvc = createAudioService();
+        assert('haptic() does not throw for "single"', (() => { hapSvc.haptic('single'); return true; })());
+        assert('haptic() does not throw for "double"', (() => { hapSvc.haptic('double'); return true; })());
+        assert('haptic() does not throw for "triple"', (() => { hapSvc.haptic('triple'); return true; })());
+        assert('haptic() does not throw for unknown pattern', (() => { hapSvc.haptic('unknown'); return true; })());
+
+        const hasVibration = !!navigator.vibrate;
+        log(`<pre>Vibration API available: ${hasVibration} (${hasVibration ? 'Android' : 'iOS/desktop — silent skip'})</pre>`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 14. Integration with timing engine
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>14. Timing Engine Integration</h2>');
+
+        const intSvc = createAudioService();
+        intSvc.initialize(() => {});
+        intSvc.setMuted(true);
+
+        const intAction = actionAt(30, 'Wave your hands', {
+            noticeSeconds: 10,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        // Simulate timing engine calls at different points
+        const announcements = [];
+
+        // At t=20s (10s before action at 30s)
+        const secUntil20 = calculateTimeUntilPrecise(intAction, BASE + 20000);
+        let r = intSvc.announceAction(intAction, secUntil20, 5);
+        if (r) announcements.push({ time: 20, result: r });
+
+        // At t=25s (5s before)
+        const secUntil25 = calculateTimeUntilPrecise(intAction, BASE + 25000);
+        r = intSvc.announceAction(intAction, secUntil25, 5);
+        if (r) announcements.push({ time: 25, result: r });
+
+        // At t=26s (4s before)
+        const secUntil26 = calculateTimeUntilPrecise(intAction, BASE + 26000);
+        r = intSvc.announceAction(intAction, secUntil26, 5);
+        if (r) announcements.push({ time: 26, result: r });
+
+        // At t=27s (3s before)
+        const secUntil27 = calculateTimeUntilPrecise(intAction, BASE + 27000);
+        r = intSvc.announceAction(intAction, secUntil27, 5);
+        if (r) announcements.push({ time: 27, result: r });
+
+        // At t=28s (2s before)
+        const secUntil28 = calculateTimeUntilPrecise(intAction, BASE + 28000);
+        r = intSvc.announceAction(intAction, secUntil28, 5);
+        if (r) announcements.push({ time: 28, result: r });
+
+        // At t=29s (1s before)
+        const secUntil29 = calculateTimeUntilPrecise(intAction, BASE + 29000);
+        r = intSvc.announceAction(intAction, secUntil29, 5);
+        if (r) announcements.push({ time: 29, result: r });
+
+        // At t=30s (trigger)
+        const secUntil30 = calculateTimeUntilPrecise(intAction, BASE + 30000);
+        r = intSvc.announceAction(intAction, secUntil30, 5);
+        if (r) announcements.push({ time: 30, result: r });
+
+        assert('Integration: 7 announcements fired (notice + 5 countdown + trigger)',
+            announcements.length === 7,
+            `Got ${announcements.length}: ${announcements.map(a => `t=${a.time}s: ${a.result}`).join('\n')}`);
+
+        assert('First is notice', announcements[0].result.startsWith('notice:'));
+        assert('Last is trigger', announcements[6].result.startsWith('trigger:'));
+        assert('Middle are countdown', announcements[1].result === 'countdown: 5');
+
+        log(`<pre>Integration timeline:\n${announcements.map(a => `  t=${a.time}s → ${a.result}`).join('\n')}</pre>`);
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // INTERACTIVE DEMO (below test results)
+        // ═════════════════════════════════════════════════════════════
+        log(`
+            <h2>Interactive Demo</h2>
+            <p style="color:#888; margin-bottom:8px;">Click buttons below to hear TTS and feel haptics. Requires user gesture to unlock audio.</p>
+            <div class="demo-section">
+                <button onclick="demoSpeak('Hello, this is Conductor')">Speak: "Hello"</button>
+                <button onclick="demoSpeak('5')">Speak: "5"</button>
+                <button onclick="demoSpeak('4')">Speak: "4"</button>
+                <button onclick="demoSpeak('3')">Speak: "3"</button>
+                <button onclick="demoSpeak('2')">Speak: "2"</button>
+                <button onclick="demoSpeak('1')">Speak: "1"</button>
+                <button onclick="demoSpeak('Now!', 1.5)">Speak: "Now!"</button>
+                <br><br>
+                <button onclick="demoHaptic('single')">Haptic: single</button>
+                <button onclick="demoHaptic('double')">Haptic: double</button>
+                <button onclick="demoHaptic('triple')">Haptic: triple</button>
+                <br><br>
+                <button onclick="demoRunEvent()">Run Demo Event (10s)</button>
+                <button onclick="demoStop()">Stop</button>
+                <div id="demo-log" class="log-output"></div>
+            </div>
+        `);
+    })();
+
+    // ─── Interactive demo functions (global scope) ──────────────
+    const demoSvc = createAudioService();
+    demoSvc.initialize((mode) => {
+        const logEl = document.getElementById('demo-log');
+        if (logEl) logEl.innerHTML += `<div class="log-entry info">Audio initialized: ${mode}</div>`;
+    });
+
+    function demoSpeak(text, rate) {
+        demoSvc.speak(text, rate);
+        demoLog(`Spoke: "${text}"`, 'announce');
+    }
+
+    function demoHaptic(pattern) {
+        demoSvc.haptic(pattern);
+        demoLog(`Haptic: ${pattern}`, 'info');
+    }
+
+    let demoInterval = null;
+    function demoRunEvent() {
+        demoStop();
+        demoSvc.reset();
+        const logEl = document.getElementById('demo-log');
+        if (logEl) logEl.innerHTML = '';
+
+        const now = Date.now();
+        const action = createTimelineAction({
+            action: 'Wave your hands',
+            time: new Date(now + 10000).toISOString(),
+            noticeSeconds: 8,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        demoLog('Demo event started — action in 10 seconds', 'info');
+
+        demoInterval = setInterval(() => {
+            const secUntil = calculateTimeUntilPrecise(action, Date.now());
+
+            if (secUntil < -2) {
+                demoStop();
+                demoLog('Demo complete', 'info');
+                return;
+            }
+
+            const result = demoSvc.announceAction(action, secUntil, 5);
+            if (result) {
+                demoLog(`t-${secUntil.toFixed(1)}s → ${result}`, 'announce');
+                if (result.startsWith('trigger:')) {
+                    demoSvc.haptic('triple');
+                }
+            }
+        }, 100);
+    }
+
+    function demoStop() {
+        if (demoInterval) {
+            clearInterval(demoInterval);
+            demoInterval = null;
+        }
+        if (window.speechSynthesis) speechSynthesis.cancel();
+    }
+
+    function demoLog(text, cls) {
+        const logEl = document.getElementById('demo-log');
+        if (logEl) {
+            logEl.innerHTML += `<div class="log-entry ${cls || ''}">${text}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+    }
+    </script>
+</body>
+</html>
