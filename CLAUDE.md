@@ -11,7 +11,7 @@
 ## Team
 
 - **Todd (Quidam)** - Creator, lead developer
-- **Teafaerie** - Contributing member. Helped validate iOS audio feasibility (Feb 2026 testing). May participate in future testing and design discussions.
+- **Teafaerie** - Contributing member. Helped validate iOS audio feasibility (Feb 2026 testing). Active design collaborator — key contributor to the resource pack vision and coordinated audio concepts. May participate in future testing and design discussions.
 
 ---
 
@@ -123,6 +123,29 @@ This means:
 - Works offline — the app is a local file
 - Censorship-resistant (event data travels with the link)
 
+### Event Data Model (design notes)
+
+Timeline actions must support resource pack references from v1, even before resource packs are implemented. This way events created now will automatically benefit from resource packs later.
+
+**Action types a timeline entry can trigger:**
+- `tts` — speak text via Web Speech API (always works, the fallback for everything)
+- `audio` — play a named audio cue from a resource pack (falls back to `tts` with `fallbackText`)
+- `random` — play one of N named audio cues at random (emergent harmony with many participants)
+- `haptic` — vibration pattern (Android only, silent skip on iOS)
+
+**Example timeline action (conceptual):**
+```json
+{
+  "time": 120,
+  "type": "audio",
+  "cue": "countdown-5",
+  "fallbackText": "5",
+  "pack": "my-flash-mob-pack"
+}
+```
+
+If the participant has `my-flash-mob-pack` installed and it contains `countdown-5`, play the audio file. If not, TTS says "5". Graceful degradation is core to the design — the event always works, resource packs just make it better.
+
 See `URL_EMBEDDED_EVENTS.md` for format details.
 
 ---
@@ -204,21 +227,40 @@ One HTML file that does everything — the player IS the editor IS the sharing t
 ### Phase 4 — Resource Packs (power user extras)
 Optional zip files that enhance the experience. Not required — the app works fine without them (falls back to TTS). Power users can download packs from Google Drive, a thumb drive, wherever.
 
+**Like emoji packs on Discord** — you can have several installed at once. Different groups, different events, different packs. A protest org has their pack. A flash mob crew has theirs. A music collective has one full of audio clips.
+
+**What goes in a resource pack:**
+- **Voice replacements** — pre-rendered vocal cues instead of robot TTS. Use modern voice cloners to make Morgan Freeman count down "5, 4, 3, 2, 1" or any character/voice you want.
+- **Common cues** — countdown numbers, "go!", "move to position", etc. The stuff that's said in every event.
+- **Music & sound effects** — background music, dramatic horns, ambient soundscapes, synchronized audio. Everyone's got a Bluetooth speaker in their backpack and then BOOM.
+- **Coordinated audio** — timeline actions can trigger music playback, layer audio, time songs to overlap.
+
+**Emergent harmony** — a timeline action can specify "play one of [A, B, C] at random." With enough participants, all three play simultaneously. The app is literally conducting an orchestra of phones.
+
 **Resource pack format:**
 ```
-my-event-pack.zip
-├── manifest.json          # pack metadata, version, contents listing
-├── audio/                 # audio cues, music, sound effects
+my-pack.zip
+├── manifest.json          # pack ID, name, version, contents listing
+├── audio/                 # music, sound effects
 │   ├── countdown.mp3
 │   ├── dramatic-horn.mp3
-│   └── move-now.mp3
-└── voices/                # pre-recorded vocal cues (better than robot TTS)
-    ├── position-a.mp3
-    └── position-b.mp3
+│   ├── harmony-part-a.mp3
+│   ├── harmony-part-b.mp3
+│   ├── harmony-part-c.mp3
+│   └── finale-music.mp3
+└── voices/                # vocal cue replacements
+    ├── 5.mp3
+    ├── 4.mp3
+    ├── 3.mp3
+    ├── 2.mp3
+    ├── 1.mp3
+    ├── go.mp3
+    └── move-to-position-b.mp3
 ```
 
-- Events reference cues by ID — if the resource pack has that cue, play the good audio; if not, fall back to TTS
-- Packs loaded client-side (JSZip), stored in IndexedDB, persist across sessions
+- Events reference cues by ID — if the resource pack has it, play the good audio; if not, fall back to TTS
+- Multiple packs can be installed simultaneously (stored in IndexedDB)
+- Packs loaded client-side (JSZip), persist across sessions
 - No server involved — grab the zip from wherever and import it
 
 ### Phase 5 — Mesh & Resilience (future)
@@ -242,6 +284,9 @@ my-event-pack.zip
 | 2026-02-10 | Design vision confirmed: single HTML file ("record player"), viral distribution, share app+event+both via QR/AirDrop/SMS. |
 | 2026-02-10 | Merged Phase 2+3: editor/creator built into the player itself. One file does everything. |
 | 2026-02-10 | Resource packs: optional zip files with better audio/voices for power users. Published format, no server, falls back to TTS. |
+| 2026-02-10 | Event data model must reference resource pack cues from v1. Graceful degradation: audio cue → TTS fallback. Actions: tts, audio, random, haptic. |
+| 2026-02-10 | Resource packs work like emoji packs — multiple installed simultaneously, different groups use different packs. |
+| 2026-02-10 | "Random" action type enables emergent harmony — each participant plays one of N audio files, creating layered music with enough people. |
 
 ---
 
