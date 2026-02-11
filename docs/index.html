@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Conductor</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #1a1a2e;
+            --bg-surface: #16213e;
+            --bg-input: #0f1626;
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.45);
+            --accent-blue: #4A9EFF;
+            --accent-green: #34d399;
+            --accent-red: #FF3B3B;
+            --accent-gold: #FFD700;
+            --radius: 10px;
+        }
+
+        html, body {
+            height: 100vh;
+            height: 100dvh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ─── Screen containers ─── */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+            padding: 0;
+        }
+        .screen.active { display: flex; }
+
+        /* ─── Header bar ─── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            min-height: 52px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .header-input   { background: #0d1b3e; }
+        .header-preview { background: #0d1b3e; }
+        .header-practice { background: #0a2e1a; }
+        .header-live     { background: #3b0a0a; }
+        .header-done     { background: #0d1b3e; }
+
+        .header .badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+        .badge-practice { background: var(--accent-green); color: #000; }
+        .badge-live     { background: var(--accent-red); color: #fff; animation: pulse-badge 1.2s ease-in-out infinite; }
+
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* ─── Content area ─── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── Buttons ─── */
+        button {
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            min-height: 48px;
+            padding: 12px 24px;
+            transition: opacity 0.15s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active { transform: scale(0.97); }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #fff;
+            width: 100%;
+        }
+        .btn-green {
+            background: var(--accent-green);
+            color: #000;
+            width: 100%;
+        }
+        .btn-red {
+            background: var(--accent-red);
+            color: #fff;
+            width: 100%;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 100%;
+        }
+        .btn-small {
+            min-height: 40px;
+            font-size: 14px;
+            padding: 8px 16px;
+            width: auto;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .btn-row button { flex: 1; }
+
+        /* ─── Input screen ─── */
+        .app-logo {
+            text-align: center;
+            margin: 24px 0 8px;
+        }
+        .app-logo h2 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        .app-logo p {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            background: var(--bg-input);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: var(--radius);
+            padding: 12px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            margin: 12px 0;
+        }
+        textarea::placeholder { color: var(--text-dim); }
+        textarea:focus { outline: none; border-color: var(--accent-blue); }
+
+        .error-msg {
+            color: var(--accent-red);
+            font-size: 13px;
+            margin: 6px 0;
+            min-height: 20px;
+        }
+
+        .separator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+        .separator::before, .separator::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ─── Preview screen ─── */
+        .event-info {
+            background: var(--bg-surface);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .event-info h2 {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+        .event-info .desc {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .event-meta {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+            font-size: 13px;
+        }
+        .event-meta dt { color: var(--text-dim); }
+        .event-meta dd { color: var(--text); }
+
+        .action-list {
+            list-style: none;
+            margin-top: 12px;
+        }
+        .action-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 14px;
+        }
+        .action-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .action-dot.normal   { background: var(--accent-blue); }
+        .action-dot.emphasis { background: var(--accent-gold); }
+        .action-dot.alert    { background: var(--accent-red); }
+        .action-time {
+            color: var(--text-dim);
+            font-size: 12px;
+            font-family: monospace;
+            flex-shrink: 0;
+            min-width: 48px;
+        }
+
+        /* ─── Practice / Live screens ─── */
+        .canvas-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            padding: 8px;
+        }
+        .canvas-wrap canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls {
+            flex-shrink: 0;
+            padding: 12px 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .speed-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .speed-row label {
+            font-size: 13px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+        .speed-row input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent-green);
+            height: 28px;
+        }
+        .speed-val {
+            font-size: 15px;
+            font-weight: 700;
+            font-family: monospace;
+            min-width: 36px;
+            text-align: right;
+        }
+
+        .icon-btn {
+            min-height: 40px;
+            min-width: 40px;
+            padding: 6px;
+            font-size: 20px;
+            background: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--text);
+            border-radius: 8px;
+        }
+        .icon-btn.muted { opacity: 0.4; }
+
+        /* ─── Completed screen ─── */
+        .done-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 12px;
+        }
+        .done-wrap .check {
+            font-size: 64px;
+            line-height: 1;
+        }
+        .done-wrap h2 {
+            font-size: 24px;
+        }
+        .done-wrap p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* ─── Footer spacer for safe area ─── */
+        .safe-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: INPUT                                                          -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-input" class="screen active">
+    <div class="header header-input">
+        <h1>Conductor</h1>
+    </div>
+    <div class="content">
+        <div class="app-logo">
+            <h2>CONDUCTOR</h2>
+            <p>Synchronized coordination for real-world actions</p>
+        </div>
+
+        <textarea id="input-paste" placeholder="Got an event code? Paste it here..."></textarea>
+        <div id="input-error" class="error-msg"></div>
+        <button id="btn-load" class="btn-primary">Load Event</button>
+
+        <div class="separator">or</div>
+
+        <button id="btn-demo" class="btn-outline">Load Demo Event</button>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: PREVIEW                                                        -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-preview" class="screen">
+    <div class="header header-preview">
+        <h1>Event Preview</h1>
+    </div>
+    <div class="content">
+        <div class="event-info">
+            <h2 id="preview-title"></h2>
+            <div id="preview-desc" class="desc"></div>
+            <dl class="event-meta">
+                <dt>Starts</dt>  <dd id="preview-start"></dd>
+                <dt>Actions</dt> <dd id="preview-count"></dd>
+                <dt>Duration</dt><dd id="preview-duration"></dd>
+            </dl>
+        </div>
+
+        <ul id="preview-actions" class="action-list"></ul>
+
+        <div style="flex:1"></div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+            <button id="btn-start-practice" class="btn-green">Start Practice</button>
+            <button id="btn-preview-back" class="btn-outline">Back</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: PRACTICE                                                       -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-practice" class="screen">
+    <div class="header header-practice">
+        <h1 id="practice-title">Practice</h1>
+        <span class="badge badge-practice">PRACTICE</span>
+    </div>
+    <div class="canvas-wrap">
+        <canvas id="canvas-practice"></canvas>
+    </div>
+    <div class="controls">
+        <div class="speed-row">
+            <label>Speed</label>
+            <input type="range" id="speed-slider" min="1" max="5" step="0.5" value="1">
+            <span id="speed-val" class="speed-val">1x</span>
+        </div>
+        <div class="btn-row">
+            <button id="btn-audio-toggle" class="icon-btn" title="Toggle audio">&#x1f50a;</button>
+            <button id="btn-go-live" class="btn-red btn-small" style="flex:3">Go Live</button>
+            <button id="btn-practice-stop" class="btn-outline btn-small">Stop</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: LIVE                                                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-live" class="screen">
+    <div class="header header-live">
+        <h1 id="live-title">Live</h1>
+        <span class="badge badge-live">LIVE</span>
+    </div>
+    <div class="canvas-wrap">
+        <canvas id="canvas-live"></canvas>
+    </div>
+    <div class="controls">
+        <div class="btn-row">
+            <button id="btn-audio-toggle-live" class="icon-btn" title="Toggle audio">&#x1f50a;</button>
+            <button id="btn-live-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: COMPLETED                                                      -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-completed" class="screen">
+    <div class="header header-done">
+        <h1>Conductor</h1>
+    </div>
+    <div class="content">
+        <div class="done-wrap">
+            <div class="check">&#x2705;</div>
+            <h2>Event Completed</h2>
+            <p id="done-summary"></p>
+        </div>
+        <button id="btn-return" class="btn-primary" style="margin-top:auto;">Return to Start</button>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- Scripts                                                                 -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<script src="lib/pako.min.js"></script>
+<script src="js/models.js"></script>
+<script src="js/eventEncoder.js"></script>
+<script src="js/timingEngine.js"></script>
+<script src="js/audioService.js"></script>
+<script src="js/circularTimeline.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// App State
+// ═══════════════════════════════════════════════════════════════════════════
+
+const state = {
+    mode: 'input',              // 'input' | 'preview' | 'practice' | 'live' | 'completed'
+    event: null,                // Full Event object
+    speedMultiplier: 1,         // 1-5x (practice only)
+    audioMuted: false,
+    practiceStartRealMs: 0,     // Wall clock when practice started
+    practiceStartEventMs: 0,    // Event time practice started from
+    wakeLock: null,             // Wake Lock sentinel
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Services (created once)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const audio = createAudioService();
+let timelinePractice = null;    // CircularTimeline for practice canvas
+let timelineLive = null;        // CircularTimeline for live canvas
+
+// Loop handles
+let rafId = null;
+let audioIntervalId = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOM references
+// ═══════════════════════════════════════════════════════════════════════════
+
+const $ = (id) => document.getElementById(id);
+const screens = {
+    input:     $('screen-input'),
+    preview:   $('screen-preview'),
+    practice:  $('screen-practice'),
+    live:      $('screen-live'),
+    completed: $('screen-completed'),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Screen transitions
+// ═══════════════════════════════════════════════════════════════════════════
+
+function transitionTo(newMode) {
+    // 1. Stop any running loops
+    stopLoops();
+
+    // 2. Release wake lock if leaving practice/live
+    if (state.mode === 'practice' || state.mode === 'live') {
+        releaseWakeLock();
+    }
+
+    // 3. Hide all screens
+    for (const s of Object.values(screens)) {
+        s.classList.remove('active');
+    }
+
+    // 4. Show target
+    screens[newMode].classList.add('active');
+    state.mode = newMode;
+
+    // 5. Initialize mode-specific state
+    switch (newMode) {
+        case 'input':
+            $('input-paste').value = '';
+            $('input-error').textContent = '';
+            break;
+
+        case 'preview':
+            renderPreview();
+            break;
+
+        case 'practice':
+            enterPractice();
+            break;
+
+        case 'live':
+            enterLive();
+            break;
+
+        case 'completed':
+            renderCompleted();
+            break;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INPUT screen logic
+// ═══════════════════════════════════════════════════════════════════════════
+
+function loadFromString(encoded) {
+    const trimmed = encoded.trim();
+    if (!trimmed) {
+        $('input-error').textContent = 'Please paste an event code.';
+        return false;
+    }
+    try {
+        const embedded = decodeEvent(trimmed);
+        state.event = embeddedEventToEvent(embedded);
+        return true;
+    } catch (e) {
+        $('input-error').textContent = e.message;
+        return false;
+    }
+}
+
+function loadFromHash() {
+    const hash = location.hash.substring(1); // strip '#'
+    if (!hash) return false;
+    try {
+        const embedded = decodeEvent(hash);
+        state.event = embeddedEventToEvent(embedded);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function createDemoEvent() {
+    const now = Date.now();
+    const startMs = now + 10 * 1000; // 10 seconds from now
+    const startTime = new Date(startMs).toISOString();
+
+    const actions = [
+        { offset: 0,   action: 'Get ready',        style: 'normal',   hapticPattern: 'single' },
+        { offset: 15,  action: 'Wave left',         style: 'normal',   hapticPattern: 'double' },
+        { offset: 30,  action: 'Wave right',        style: 'emphasis', hapticPattern: 'double' },
+        { offset: 60,  action: 'Jump!',             style: 'alert',    hapticPattern: 'triple',
+          countdownSeconds: [5, 4, 3, 2, 1] },
+        { offset: 90,  action: 'Freeze in place',   style: 'emphasis', hapticPattern: 'double' },
+    ];
+
+    const timeline = actions.map(a => createTimelineAction({
+        time: new Date(startMs + a.offset * 1000).toISOString(),
+        action: a.action,
+        style: a.style,
+        hapticPattern: a.hapticPattern,
+        countdownSeconds: a.countdownSeconds || null,
+        noticeSeconds: 5,
+    }));
+
+    const embedded = {
+        title: 'Demo Flash Mob',
+        description: 'A quick demo event to test Conductor. Actions start in ~10 seconds.',
+        startTime: startTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timeline: timeline,
+    };
+
+    state.event = embeddedEventToEvent(embedded);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PREVIEW screen logic
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderPreview() {
+    const evt = state.event;
+    if (!evt) return;
+
+    $('preview-title').textContent = evt.title;
+    $('preview-desc').textContent = evt.description || '';
+    $('preview-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
+    $('preview-count').textContent = evt.timeline.length + ' actions';
+
+    // Duration
+    if (evt.timeline.length > 0) {
+        const sorted = [...evt.timeline].sort((a, b) =>
+            new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        const firstMs = new Date(sorted[0].time).getTime();
+        const lastMs = new Date(sorted[sorted.length - 1].time).getTime();
+        const durationSec = Math.round((lastMs - firstMs) / 1000);
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        $('preview-duration').textContent = mins > 0
+            ? `${mins}m ${secs}s`
+            : `${secs}s`;
+    } else {
+        $('preview-duration').textContent = '0s';
+    }
+
+    // Action list
+    const list = $('preview-actions');
+    list.innerHTML = '';
+    const startMs = new Date(evt.startTime).getTime();
+
+    for (const action of evt.timeline) {
+        const actionMs = new Date(action.time).getTime();
+        const offsetSec = Math.round((actionMs - startMs) / 1000);
+        const mins = Math.floor(offsetSec / 60);
+        const secs = offsetSec % 60;
+
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span class="action-dot ${action.style || 'normal'}"></span>
+            <span class="action-time">${mins > 0 ? mins + ':' + String(secs).padStart(2,'0') : secs + 's'}</span>
+            <span>${escapeHtml(action.action)}</span>
+        `;
+        list.appendChild(li);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRACTICE mode
+// ═══════════════════════════════════════════════════════════════════════════
+
+function enterPractice() {
+    const evt = state.event;
+    if (!evt) return;
+
+    $('practice-title').textContent = evt.title;
+
+    // Initialize audio on first user gesture
+    if (!audio.isInitialized()) {
+        audio.initialize();
+    }
+    audio.reset();
+    audio.setMuted(state.audioMuted);
+
+    // Set practice start: begin 15s before first action
+    const sorted = [...evt.timeline].sort((a, b) =>
+        new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+    const firstActionMs = new Date(sorted[0].time).getTime();
+    state.practiceStartRealMs = Date.now();
+    state.practiceStartEventMs = firstActionMs - 15000;
+    state.speedMultiplier = parseFloat($('speed-slider').value);
+
+    // Create timeline renderer
+    const canvas = $('canvas-practice');
+    timelinePractice = createCircularTimeline(canvas);
+    timelinePractice.setEvent(evt);
+    timelinePractice.resize();
+
+    // Start loops
+    startPracticeLoop();
+    startAudioLoop('practice');
+    requestWakeLock();
+}
+
+function startPracticeLoop() {
+    function frame() {
+        if (state.mode !== 'practice') return;
+        const virtualNow = getPracticeNow(
+            Date.now(),
+            state.practiceStartRealMs,
+            state.practiceStartEventMs,
+            state.speedMultiplier
+        );
+        timelinePractice.setNowMs(virtualNow);
+        timelinePractice.render();
+        rafId = requestAnimationFrame(frame);
+    }
+    rafId = requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LIVE mode
+// ═══════════════════════════════════════════════════════════════════════════
+
+function enterLive() {
+    const evt = state.event;
+    if (!evt) return;
+
+    $('live-title').textContent = evt.title;
+
+    // Initialize audio on first user gesture
+    if (!audio.isInitialized()) {
+        audio.initialize();
+    }
+    audio.reset();
+    audio.setMuted(state.audioMuted);
+
+    // Create timeline renderer
+    const canvas = $('canvas-live');
+    timelineLive = createCircularTimeline(canvas);
+    timelineLive.setEvent(evt);
+    timelineLive.resize();
+
+    // Start loops
+    startLiveLoop();
+    startAudioLoop('live');
+    requestWakeLock();
+}
+
+function startLiveLoop() {
+    function frame() {
+        if (state.mode !== 'live') return;
+        const now = Date.now();
+        timelineLive.setNowMs(now);
+        timelineLive.render();
+
+        // Auto-complete: check if all actions are past
+        checkCompletion(now);
+
+        rafId = requestAnimationFrame(frame);
+    }
+    rafId = requestAnimationFrame(frame);
+}
+
+function checkCompletion(nowMs) {
+    const evt = state.event;
+    if (!evt) return;
+    const endMs = new Date(evt.endTime).getTime();
+    if (nowMs > endMs) {
+        transitionTo('completed');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Audio loop (shared by practice + live)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function startAudioLoop(mode) {
+    audioIntervalId = setInterval(() => {
+        if (state.mode !== mode) return;
+
+        const evt = state.event;
+        if (!evt) return;
+
+        const nowMs = (mode === 'practice')
+            ? getPracticeNow(Date.now(), state.practiceStartRealMs,
+                             state.practiceStartEventMs, state.speedMultiplier)
+            : Date.now();
+
+        const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
+
+        for (const action of evt.timeline) {
+            const secUntil = calculateTimeUntilPrecise(action, nowMs);
+
+            // Only process actions within announcement range
+            if (secUntil < -2 || secUntil > evt.defaultNoticeSeconds + 2) continue;
+
+            const result = audio.announceAction(
+                action, secUntil, evt.defaultNoticeSeconds, speedMult
+            );
+
+            // Haptic on trigger
+            if (result && result.startsWith('trigger')) {
+                audio.haptic(action.hapticPattern || 'double');
+            }
+        }
+    }, 100); // 10Hz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPLETED screen
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderCompleted() {
+    const evt = state.event;
+    if (!evt) return;
+    $('done-summary').textContent = `"${evt.title}" — ${evt.timeline.length} actions completed.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Loop management
+// ═══════════════════════════════════════════════════════════════════════════
+
+function stopLoops() {
+    if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+    }
+    if (audioIntervalId) {
+        clearInterval(audioIntervalId);
+        audioIntervalId = null;
+    }
+    // Stop any speech in progress
+    if (window.speechSynthesis) {
+        speechSynthesis.cancel();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Wake Lock
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            state.wakeLock = await navigator.wakeLock.request('screen');
+        }
+    } catch (e) {
+        // Wake lock can fail (e.g. low battery, not visible)
+    }
+}
+
+function releaseWakeLock() {
+    if (state.wakeLock) {
+        state.wakeLock.release().catch(() => {});
+        state.wakeLock = null;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Page Visibility (re-acquire wake lock, pause/resume audio)
+// ═══════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // Re-request wake lock (released on page hide)
+        if (state.mode === 'practice' || state.mode === 'live') {
+            requestWakeLock();
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Resize handling
+// ═══════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('resize', () => {
+    if (state.mode === 'practice' && timelinePractice) {
+        timelinePractice.resize();
+    }
+    if (state.mode === 'live' && timelineLive) {
+        timelineLive.resize();
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Audio mute toggle
+// ═══════════════════════════════════════════════════════════════════════════
+
+function updateMuteButtons() {
+    const icon = state.audioMuted ? '\u{1F507}' : '\u{1F50A}';
+    const cls = state.audioMuted ? 'icon-btn muted' : 'icon-btn';
+    $('btn-audio-toggle').textContent = icon;
+    $('btn-audio-toggle').className = cls;
+    $('btn-audio-toggle-live').textContent = icon;
+    $('btn-audio-toggle-live').className = cls;
+}
+
+function toggleMute() {
+    state.audioMuted = !state.audioMuted;
+    audio.setMuted(state.audioMuted);
+    updateMuteButtons();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Utility
+// ═══════════════════════════════════════════════════════════════════════════
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Event Bindings
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Input screen
+$('btn-load').addEventListener('click', () => {
+    if (loadFromString($('input-paste').value)) {
+        transitionTo('preview');
+    }
+});
+
+$('btn-demo').addEventListener('click', () => {
+    createDemoEvent();
+    transitionTo('preview');
+});
+
+// Preview screen
+$('btn-start-practice').addEventListener('click', () => {
+    transitionTo('practice');
+});
+
+$('btn-preview-back').addEventListener('click', () => {
+    transitionTo('input');
+});
+
+// Practice screen
+$('speed-slider').addEventListener('input', (e) => {
+    state.speedMultiplier = parseFloat(e.target.value);
+    $('speed-val').textContent = state.speedMultiplier + 'x';
+});
+
+$('btn-audio-toggle').addEventListener('click', toggleMute);
+
+$('btn-go-live').addEventListener('click', () => {
+    transitionTo('live');
+});
+
+$('btn-practice-stop').addEventListener('click', () => {
+    transitionTo('preview');
+});
+
+// Live screen
+$('btn-audio-toggle-live').addEventListener('click', toggleMute);
+
+$('btn-live-stop').addEventListener('click', () => {
+    transitionTo('preview');
+});
+
+// Completed screen
+$('btn-return').addEventListener('click', () => {
+    state.event = null;
+    transitionTo('input');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Init: check URL hash on load
+// ═══════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('hashchange', () => {
+    if (loadFromHash()) {
+        transitionTo('preview');
+    }
+});
+
+// On page load
+if (loadFromHash()) {
+    transitionTo('preview');
+}
+
+</script>
+</body>
+</html>
