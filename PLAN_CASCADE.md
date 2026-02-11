@@ -223,7 +223,7 @@ With Plans 1-7 complete, Phase 2 is done. The next phases are:
 
 | Plan | Status | Commit |
 |------|--------|--------|
-| 1. Data Model + Encoder | NOT STARTED | — |
+| 1. Data Model + Encoder | COMPLETE | Plan 1: Event data model + encoder/decoder |
 | 2. Timing Engine | NOT STARTED | — |
 | 3. Audio System | NOT STARTED | — |
 | 4. Circular Timeline | NOT STARTED | — |
