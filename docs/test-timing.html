@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Timing Engine Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Timing Engine Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="js/models.js"></script>
+    <script src="js/timingEngine.js"></script>
+    <script>
+    (function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        function approx(a, b, tolerance = 0.01) {
+            return Math.abs(a - b) < tolerance;
+        }
+
+        // ─── Fixed test timeline ────────────────────────────────────
+        // Use a fixed base time so tests are deterministic
+        const BASE = new Date('2026-06-15T12:00:00.000Z').getTime();
+
+        function actionAt(offsetSec, text, extras = {}) {
+            return createTimelineAction({
+                action: text,
+                time: new Date(BASE + offsetSec * 1000).toISOString(),
+                relativeTime: offsetSec,
+                ...extras,
+            });
+        }
+
+        const timeline = [
+            actionAt(0,   'Start gathering',   { style: 'emphasis', noticeSeconds: 10, countdownSeconds: [5,4,3,2,1] }),
+            actionAt(30,  'Begin humming'),
+            actionAt(60,  'Raise hands',       { style: 'alert' }),
+            actionAt(90,  'Freeze'),
+            actionAt(120, 'Disperse',          { style: 'emphasis', noticeSeconds: 15, countdownSeconds: [10,5,3,2,1] }),
+        ];
+
+        // ═════════════════════════════════════════════════════════════
+        // 1. getCurrentAction
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>1. getCurrentAction</h2>');
+
+        assert('Exact match at action time',
+            getCurrentAction(timeline, BASE)?.action === 'Start gathering');
+
+        assert('Match within +500ms',
+            getCurrentAction(timeline, BASE + 500)?.action === 'Start gathering');
+
+        assert('Match within -500ms',
+            getCurrentAction(timeline, BASE - 500)?.action === 'Start gathering');
+
+        assert('Match within +999ms',
+            getCurrentAction(timeline, BASE + 999)?.action === 'Start gathering');
+
+        assert('No match at +1500ms (outside window)',
+            getCurrentAction(timeline, BASE + 1500) === null);
+
+        assert('Match second action at t=30s',
+            getCurrentAction(timeline, BASE + 30000)?.action === 'Begin humming');
+
+        assert('No match between actions (t=15s)',
+            getCurrentAction(timeline, BASE + 15000) === null);
+
+        // ═════════════════════════════════════════════════════════════
+        // 2. getUpcomingActions
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>2. getUpcomingActions</h2>');
+
+        const upcoming60 = getUpcomingActions(timeline, BASE, 60);
+        assert('60s window from t=0: 3 actions (0s, 30s, 60s)',
+            upcoming60.length === 3,
+            `Got ${upcoming60.length}: ${upcoming60.map(a => a.action).join(', ')}`);
+
+        const upcoming120 = getUpcomingActions(timeline, BASE, 120);
+        assert('120s window from t=0: all 5 actions (0-120s)',
+            upcoming120.length === 5,
+            `Got ${upcoming120.length}: ${upcoming120.map(a => a.action).join(', ')}`);
+
+        const upcoming_all = getUpcomingActions(timeline, BASE, 121);
+        assert('121s window from t=0: all 5 actions',
+            upcoming_all.length === 5,
+            `Got ${upcoming_all.length}`);
+
+        const upcoming_mid = getUpcomingActions(timeline, BASE + 31000, 60);
+        assert('60s window from t=31s: 2 actions (60s, 90s)',
+            upcoming_mid.length === 2,
+            `Got ${upcoming_mid.length}: ${upcoming_mid.map(a => a.action).join(', ')}`);
+
+        const upcoming_past = getUpcomingActions(timeline, BASE + 200000, 60);
+        assert('Window past all actions: 0 results',
+            upcoming_past.length === 0);
+
+        assert('Results are sorted by time',
+            upcoming_all[0].action === 'Start gathering' && upcoming_all[4].action === 'Disperse');
+
+        // ═════════════════════════════════════════════════════════════
+        // 3. shouldAnnounce
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>3. shouldAnnounce</h2>');
+
+        const action0 = timeline[0]; // at t=0, noticeSeconds=10
+        assert('Should announce at notice boundary (10s before)',
+            shouldAnnounce(action0, BASE - 10000, 10));
+        assert('Should announce at 5s before with notice=10',
+            shouldAnnounce(action0, BASE - 5000, 10));
+        assert('Should announce at exact action time',
+            shouldAnnounce(action0, BASE, 10));
+        assert('Should NOT announce 11s before (outside notice)',
+            !shouldAnnounce(action0, BASE - 11000, 10));
+        assert('Should NOT announce after action (t+1s)',
+            !shouldAnnounce(action0, BASE + 1000, 10));
+
+        // Default 5s notice
+        assert('Default 5s notice: announce at -3s',
+            shouldAnnounce(action0, BASE - 3000));
+        assert('Default 5s notice: no announce at -6s',
+            !shouldAnnounce(action0, BASE - 6000));
+
+        // ═════════════════════════════════════════════════════════════
+        // 4. calculateTimeUntil / calculateTimeUntilPrecise
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>4. calculateTimeUntil / Precise</h2>');
+
+        assert('30s action at t=0: 30s until',
+            calculateTimeUntil(timeline[1], BASE) === 30);
+
+        assert('0s action at t=0: 0s until',
+            calculateTimeUntil(timeline[0], BASE) === 0);
+
+        assert('0s action at t=5s: -5s until (past)',
+            calculateTimeUntil(timeline[0], BASE + 5000) === -5);
+
+        assert('120s action at t=0: 120s until',
+            calculateTimeUntil(timeline[4], BASE) === 120);
+
+        // Precise
+        assert('Precise: 30s action at t=500ms → 29.5s',
+            approx(calculateTimeUntilPrecise(timeline[1], BASE + 500), 29.5));
+
+        assert('Precise: 60s action at t=59.75s → 0.25s',
+            approx(calculateTimeUntilPrecise(timeline[2], BASE + 59750), 0.25));
+
+        // ═════════════════════════════════════════════════════════════
+        // 5. calculatePosition
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>5. calculatePosition</h2>');
+
+        // At t=0, with 60s window:
+        // action at 0s: secondsFromNow=0, pos=(0+60)/60 = 1.0 → 360° → 0° (mod 360)
+        const pos0 = calculatePosition(timeline[0], BASE, 60);
+        assert('Action at t=0, now=0, window=60: pos ≈ 0° (trigger)',
+            approx(pos0 % 360, 0, 1),
+            `Got ${pos0.toFixed(1)}°`);
+
+        // action at 30s: secondsFromNow=30, pos=(30+60)/60 = 1.5 → 540° → 180°
+        const pos30 = calculatePosition(timeline[1], BASE, 60);
+        assert('Action at t=30s, now=0, window=60: pos ≈ 180°',
+            approx(pos30, 180, 1),
+            `Got ${pos30.toFixed(1)}°`);
+
+        // action at 60s: secondsFromNow=60, pos=(60+60)/60 = 2.0 → 720° → 0°
+        const pos60 = calculatePosition(timeline[2], BASE, 60);
+        assert('Action at t=60s, now=0, window=60: pos ≈ 0° (full circle)',
+            approx(pos60 % 360, 0, 1),
+            `Got ${pos60.toFixed(1)}°`);
+
+        // At t=15s, action at 30s: secondsFromNow=15, pos=(15+60)/60 = 1.25 → 450° → 90°
+        const pos30at15 = calculatePosition(timeline[1], BASE + 15000, 60);
+        assert('Action at t=30s, now=15s, window=60: pos ≈ 90° (3 o\'clock)',
+            approx(pos30at15, 90, 1),
+            `Got ${pos30at15.toFixed(1)}°`);
+
+        // At t=45s, action at 60s: secondsFromNow=15, same as above → 90°
+        const pos60at45 = calculatePosition(timeline[2], BASE + 45000, 60);
+        assert('Action at t=60s, now=45s, window=60: pos ≈ 90°',
+            approx(pos60at45, 90, 1),
+            `Got ${pos60at45.toFixed(1)}°`);
+
+        // Past action: t=5s, action at 0s: secondsFromNow=-5, pos=(-5+60)/60 = 0.9167 → 330°
+        const posPast = calculatePosition(timeline[0], BASE + 5000, 60);
+        assert('Past action: t=0s, now=5s → pos ≈ 330°',
+            approx(posPast, 330, 1),
+            `Got ${posPast.toFixed(1)}°`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 6. getActionStatus
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>6. getActionStatus</h2>');
+
+        assert('t=0, action at 30s → UPCOMING',
+            getActionStatus(timeline[1], BASE) === ActionStatus.UPCOMING);
+
+        assert('t=26s, action at 30s → IMMINENT (4s away)',
+            getActionStatus(timeline[1], BASE + 26000) === ActionStatus.IMMINENT);
+
+        assert('t=25s, action at 30s → IMMINENT (5s away)',
+            getActionStatus(timeline[1], BASE + 25000) === ActionStatus.IMMINENT);
+
+        assert('t=24s, action at 30s → UPCOMING (6s away)',
+            getActionStatus(timeline[1], BASE + 24000) === ActionStatus.UPCOMING);
+
+        assert('t=30s, action at 30s → IMMINENT (0s, still >=0)',
+            getActionStatus(timeline[1], BASE + 30000) === ActionStatus.IMMINENT);
+
+        assert('t=30.5s, action at 30s → TRIGGERING (-0.5s, rounds to 0)',
+            getActionStatus(timeline[1], BASE + 30500) === ActionStatus.TRIGGERING);
+
+        assert('t=31s, action at 30s → TRIGGERING (-1s)',
+            getActionStatus(timeline[1], BASE + 31000) === ActionStatus.TRIGGERING);
+
+        assert('t=32s, action at 30s → PAST (-2s)',
+            getActionStatus(timeline[1], BASE + 32000) === ActionStatus.PAST);
+
+        // ═════════════════════════════════════════════════════════════
+        // 7. getCountdownAnnouncements
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>7. getCountdownAnnouncements</h2>');
+
+        const cd = [5, 4, 3, 2, 1];
+        const action120 = timeline[0]; // at t=0
+
+        // At exactly 5s before → countdown-5 fires
+        const ann5 = getCountdownAnnouncements(cd, BASE - 5000, action120);
+        assert('At -5s: countdown-5 fires', ann5['countdown-5'] === true);
+        assert('At -5s: countdown-3 does NOT fire', ann5['countdown-3'] === false);
+        assert('At -5s: "now" does NOT fire', ann5['now'] === false);
+
+        // At exactly 3s before
+        const ann3 = getCountdownAnnouncements(cd, BASE - 3000, action120);
+        assert('At -3s: countdown-3 fires', ann3['countdown-3'] === true);
+        assert('At -3s: countdown-5 does NOT fire', ann3['countdown-5'] === false);
+
+        // At trigger (t=0)
+        const ann0 = getCountdownAnnouncements(cd, BASE, action120);
+        assert('At t=0: "now" fires', ann0['now'] === true);
+        assert('At t=0: countdown-1 does NOT fire (too close to 0, not 1)', ann0['countdown-1'] === false);
+
+        // At -4.7s → countdown-5 fires (within 0.5s tolerance)
+        const ann4_7 = getCountdownAnnouncements(cd, BASE - 4700, action120);
+        assert('At -4.7s: countdown-5 fires (within 0.5s)', ann4_7['countdown-5'] === true);
+
+        // At -5.6s → countdown-5 does NOT fire (outside 0.5s tolerance)
+        const ann5_6 = getCountdownAnnouncements(cd, BASE - 5600, action120);
+        assert('At -5.6s: countdown-5 does NOT fire', ann5_6['countdown-5'] === false);
+
+        // ═════════════════════════════════════════════════════════════
+        // 8. getTimingAccuracy
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>8. getTimingAccuracy</h2>');
+
+        assert('Tap at exact time → PERFECT',
+            getTimingAccuracy(timeline[0], BASE) === TimingAccuracy.PERFECT);
+        assert('Tap 500ms late → PERFECT',
+            getTimingAccuracy(timeline[0], BASE + 500) === TimingAccuracy.PERFECT);
+        assert('Tap 1000ms late → PERFECT (boundary)',
+            getTimingAccuracy(timeline[0], BASE + 1000) === TimingAccuracy.PERFECT);
+        assert('Tap 1500ms late → LATE',
+            getTimingAccuracy(timeline[0], BASE + 1500) === TimingAccuracy.LATE);
+        assert('Tap 2000ms early → EARLY',
+            getTimingAccuracy(timeline[0], BASE - 2000) === TimingAccuracy.EARLY);
+        assert('Tap 500ms early → PERFECT',
+            getTimingAccuracy(timeline[0], BASE - 500) === TimingAccuracy.PERFECT);
+
+        // Custom tolerance
+        assert('Custom tolerance 2s: tap 1.5s late → PERFECT',
+            getTimingAccuracy(timeline[0], BASE + 1500, 2) === TimingAccuracy.PERFECT);
+
+        // ═════════════════════════════════════════════════════════════
+        // 9. isEventActive / getSecondsUntilStart
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>9. isEventActive / getSecondsUntilStart</h2>');
+
+        const eventStart = new Date(BASE).toISOString();
+        const eventEnd = new Date(BASE + 130 * 1000).toISOString(); // 2m10s
+
+        assert('Before start → not active',
+            !isEventActive(eventStart, eventEnd, BASE - 1000));
+        assert('At start → active',
+            isEventActive(eventStart, eventEnd, BASE));
+        assert('During → active',
+            isEventActive(eventStart, eventEnd, BASE + 60000));
+        assert('At end → active',
+            isEventActive(eventStart, eventEnd, BASE + 130000));
+        assert('After end → not active',
+            !isEventActive(eventStart, eventEnd, BASE + 131000));
+
+        assert('10s before start → 10',
+            getSecondsUntilStart(eventStart, BASE - 10000) === 10);
+        assert('At start → 0',
+            getSecondsUntilStart(eventStart, BASE) === 0);
+        assert('5s after start → -5',
+            getSecondsUntilStart(eventStart, BASE + 5000) === -5);
+
+        // ═════════════════════════════════════════════════════════════
+        // 10. utcToLocalDisplay
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>10. utcToLocalDisplay</h2>');
+
+        const display = utcToLocalDisplay('2026-06-15T12:00:00.000Z', 'America/New_York');
+        assert('UTC noon → Eastern display contains "8:00"',
+            display.includes('8:00'),
+            `Got: "${display}"`);
+        assert('Display contains AM',
+            display.toUpperCase().includes('AM'),
+            `Got: "${display}"`);
+
+        const tokyoDisplay = utcToLocalDisplay('2026-06-15T12:00:00.000Z', 'Asia/Tokyo');
+        assert('UTC noon → Tokyo display contains "9:00"',
+            tokyoDisplay.includes('9:00'),
+            `Got: "${tokyoDisplay}"`);
+        assert('Tokyo display contains PM',
+            tokyoDisplay.toUpperCase().includes('PM'),
+            `Got: "${tokyoDisplay}"`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 11. calculateOptimalZoom
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>11. calculateOptimalZoom</h2>');
+
+        assert('< 2 actions → default window',
+            calculateOptimalZoom([timeline[0]]) === 60);
+
+        assert('Empty list → default window',
+            calculateOptimalZoom([]) === 60);
+
+        // Sparse actions (30s gaps) → default
+        assert('30s gaps → default 60s window',
+            calculateOptimalZoom(timeline) === 60);
+
+        // Dense actions (2s apart)
+        const dense = [
+            actionAt(0, 'A'),
+            actionAt(2, 'B'),
+            actionAt(4, 'C'),
+            actionAt(6, 'D'),
+        ];
+        const denseZoom = calculateOptimalZoom(dense);
+        assert('2s gaps → zooms in (< 60)',
+            denseZoom < 60,
+            `Got ${denseZoom}`);
+        assert('2s gaps → at least minWindow (15)',
+            denseZoom >= 15,
+            `Got ${denseZoom}`);
+
+        // Very dense (0.5s apart)
+        const veryDense = [
+            actionAt(0, 'X'),
+            actionAt(0.5, 'Y'),
+        ];
+        const veryDenseZoom = calculateOptimalZoom(veryDense);
+        assert('0.5s gap → clamps to minWindow 15',
+            veryDenseZoom === 15,
+            `Got ${veryDenseZoom}`);
+
+        // Custom min
+        assert('Custom minWindow=30 respected',
+            calculateOptimalZoom(dense, 60, 30) >= 30);
+
+        // ═════════════════════════════════════════════════════════════
+        // 12. Practice mode (getPracticeNow)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>12. Practice Mode (getPracticeNow)</h2>');
+
+        const practiceRealStart = 1000000; // arbitrary real start
+        const practiceEventStart = BASE;
+
+        // At 1x speed, 10 real seconds → 10 event seconds
+        const vt1x = getPracticeNow(practiceRealStart + 10000, practiceRealStart, practiceEventStart, 1);
+        assert('1x speed: 10 real seconds = 10 event seconds',
+            vt1x === practiceEventStart + 10000,
+            `Expected ${practiceEventStart + 10000}, got ${vt1x}`);
+
+        // At 2x speed, 10 real seconds → 20 event seconds
+        const vt2x = getPracticeNow(practiceRealStart + 10000, practiceRealStart, practiceEventStart, 2);
+        assert('2x speed: 10 real seconds = 20 event seconds',
+            vt2x === practiceEventStart + 20000,
+            `Expected ${practiceEventStart + 20000}, got ${vt2x}`);
+
+        // At 5x speed, 10 real seconds → 50 event seconds
+        const vt5x = getPracticeNow(practiceRealStart + 10000, practiceRealStart, practiceEventStart, 5);
+        assert('5x speed: 10 real seconds = 50 event seconds',
+            vt5x === practiceEventStart + 50000,
+            `Expected ${practiceEventStart + 50000}, got ${vt5x}`);
+
+        // At 3x, 0 real seconds → 0 elapsed
+        const vt0 = getPracticeNow(practiceRealStart, practiceRealStart, practiceEventStart, 3);
+        assert('0 elapsed at any speed = event start',
+            vt0 === practiceEventStart);
+
+        // Use practice now with timing engine
+        const vNow = getPracticeNow(practiceRealStart + 6000, practiceRealStart, practiceEventStart, 5);
+        // 6 real seconds * 5x = 30 event seconds → should hit "Begin humming"
+        const practiceAction = getCurrentAction(timeline, vNow);
+        assert('Practice mode: 6 real sec at 5x → finds action at 30s',
+            practiceAction?.action === 'Begin humming',
+            `Got: ${practiceAction?.action ?? 'null'}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 13. Edge cases
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>13. Edge Cases</h2>');
+
+        assert('Empty timeline → getCurrentAction returns null',
+            getCurrentAction([], BASE) === null);
+
+        assert('Empty timeline → getUpcomingActions returns []',
+            getUpcomingActions([], BASE).length === 0);
+
+        assert('Empty timeline → calculateOptimalZoom returns default',
+            calculateOptimalZoom([]) === 60);
+
+        // Negative window should return nothing
+        assert('0s window → only exact matches',
+            getUpcomingActions(timeline, BASE, 0).length === 1);
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+    })();
+    </script>
+</body>
+</html>
