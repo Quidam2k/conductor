@@ -94,19 +94,25 @@ Tested by Teafaerie on iPhone with earbuds, Safari, screen locked.
 ### PWA (active development - `docs/`)
 | File | Purpose |
 |------|---------|
-| `docs/index.html` | Main PWA entry point (to be created) |
-| `docs/sw.js` | Service Worker for offline (to be created) |
-| `docs/app.js` | App logic (to be created) |
+| `docs/index.html` | Main app — 8 screens (input, preview, practice, live, completed, 3 editor steps), sharing, bundled HTML download |
+| `docs/js/models.js` | Data models: TimelineAction, EmbeddedEvent, Event, conversion helpers |
+| `docs/js/eventEncoder.js` | URL encoder/decoder: JSON → gzip → base64url → `v1_` prefix |
+| `docs/js/timingEngine.js` | Timing: positions, countdowns, announcements, practice mode speed |
+| `docs/js/audioService.js` | TTS announcements, haptic feedback, resource pack fallback chain |
+| `docs/js/circularTimeline.js` | Canvas circular timeline renderer (60 FPS, Guitar Hero style) |
+| `docs/lib/pako.min.js` | Gzip compression library (~25KB) |
 | `docs/ios-audio-test/index.html` | iOS Safari audio background test page |
+| `docs/test-*.html` | Module-level test harnesses (encoder, timing, audio, timeline) |
+| `docs/sw.js` | Service Worker for offline (to be created) |
 
-### KMM Reference (for porting to TypeScript)
+### KMM Reference (porting complete, kept for reference)
 | File | Purpose |
 |------|---------|
-| `conductor-mobile/shared/.../EventEncoder.kt` | URL compression (v1: JSON → gzip → base64url) |
-| `conductor-mobile/shared/.../TimingEngine.kt` | Timing, positions, countdowns |
-| `conductor-mobile/shared/.../Event.kt` | Data models (Event, TimelineAction, EmbeddedEvent) |
-| `conductor-mobile/androidApp/.../CircularTimeline.kt` | Canvas-based circular timeline |
-| `conductor-mobile/androidApp/.../AudioService.kt` | TTS + beep fallback |
+| `conductor-mobile/shared/.../EventEncoder.kt` | URL compression (ported to eventEncoder.js) |
+| `conductor-mobile/shared/.../TimingEngine.kt` | Timing, positions, countdowns (ported to timingEngine.js) |
+| `conductor-mobile/shared/.../Event.kt` | Data models (ported to models.js) |
+| `conductor-mobile/androidApp/.../CircularTimeline.kt` | Canvas-based circular timeline (ported to circularTimeline.js) |
+| `conductor-mobile/androidApp/.../AudioService.kt` | TTS + beep fallback (ported to audioService.js) |
 
 ---
 
@@ -174,7 +180,7 @@ cd conductor-mobile
 
 ---
 
-## Current Status (February 10, 2026)
+## Current Status (February 11, 2026)
 
 ### Phase 0: Housekeeping — COMPLETE
 - [x] KMM Android app complete (Sprint 13 - coordination, sharing, themes, settings)
@@ -189,35 +195,32 @@ cd conductor-mobile
 - [x] Web Audio API confirmed NOT working through screen lock
 - [x] Architecture decision: Web Speech API for coordination cues
 
-### Next: Phase 2 — The Record Player (create + play + share)
-One HTML file that does everything — the player IS the editor IS the sharing tool:
+### Phase 2: The Record Player — COMPLETE (Plans 1-6)
+One HTML file that does everything — the player IS the editor IS the sharing tool.
 
-**Create & Edit:**
-- Event creation form (title, description, start time, timezone)
-- Timeline editor (add actions with relative timing)
-- Live preview on circular timeline as you build
+**Plans 1-4 (Feb 10):** Foundation modules ported from KMM
+- [x] Data models + event encoder/decoder (models.js, eventEncoder.js)
+- [x] Timing engine (timingEngine.js)
+- [x] Audio system with TTS + haptics (audioService.js)
+- [x] Circular timeline canvas renderer (circularTimeline.js)
 
-**Play & Coordinate:**
-- URL-embedded event decoding
-- Circular timeline (Canvas, 60 FPS, Guitar Hero style)
-- TTS coordination cues (Web Speech API)
-- Haptic feedback (Vibration API, Android only, graceful skip on iOS)
-- Screen wake lock
-- Practice mode (variable speed 1x-5x)
+**Plan 5 (Feb 10-11):** App shell with 5 screens
+- [x] Input screen (paste code, load from URL hash, demo event)
+- [x] Preview screen (event info + action list)
+- [x] Practice mode (circular timeline, variable speed 1-5x, audio toggle)
+- [x] Live mode (real-time coordination, auto-complete)
+- [x] Completed screen
+- [x] Wake lock, visibility handling, resize
 
-**Share:**
-- Share just the event — QR code on screen, copyable text string
-- Share just the app — Web Share API (AirDrop, Nearby Share, etc.)
-- Share both bundled — generate a copy of conductor.html with event baked in
-- QR scanner (camera) to receive events from another phone
+**Plan 6 (Feb 11):** Event editor + sharing
+- [x] 3-step editor wizard (event info → timeline builder → review & share)
+- [x] Inline action editing with style/haptic/countdown controls
+- [x] Copy event code, copy shareable link
+- [x] Web Share API integration
+- [x] Download bundled HTML (all scripts inlined + event baked in)
+- [x] Preview from editor with correct back-navigation
 
-**Port from KMM:**
-- `EventEncoder.kt` → event encoding/decoding (JSON → pako gzip → base64url)
-- `TimingEngine.kt` → timing, positions, countdowns
-- `Event.kt` models → TypeScript interfaces
-- `CircularTimeline.kt` → HTML Canvas rendering
-
-### Phase 3 — Polish & Distribution
+### Next: Plan 7 — Integration Testing + Polish
 - Mobile-responsive design (thumb-friendly, portrait-optimized)
 - PWA manifest (Add to Home Screen)
 - Loading states, error handling, graceful degradation
@@ -287,6 +290,9 @@ my-pack.zip
 | 2026-02-10 | Event data model must reference resource pack cues from v1. Graceful degradation: audio cue → TTS fallback. Actions: tts, audio, random, haptic. |
 | 2026-02-10 | Resource packs work like emoji packs — multiple installed simultaneously, different groups use different packs. |
 | 2026-02-10 | "Random" action type enables emergent harmony — each participant plays one of N audio files, creating layered music with enough people. |
+| 2026-02-10 | Plans 1-4 complete: data models, encoder, timing engine, audio system, circular timeline all ported from KMM to JS. |
+| 2026-02-11 | Plans 5-6 complete: app shell (5 screens) + event editor (3-step wizard) + sharing (copy, Web Share, bundled HTML download). Full create→share→play loop working. |
+| 2026-02-11 | Moved 11 KMM-era docs + test-data to _archive/. Root now has only active project docs. |
 
 ---
 

@@ -325,6 +325,118 @@
             font-size: 14px;
         }
 
+        /* ─── Editor screens ─── */
+        .header-editor { background: #1a0d3e; }
+
+        .field-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+            margin-top: 14px;
+        }
+        .field-label:first-of-type { margin-top: 0; }
+        .field-input, .field-textarea, .field-select {
+            width: 100%;
+            background: var(--bg-input);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 15px;
+        }
+        .field-textarea { min-height: 70px; resize: vertical; font-size: 14px; }
+        .field-input:focus, .field-textarea:focus, .field-select:focus {
+            outline: none; border-color: var(--accent-blue);
+        }
+        .field-select { appearance: auto; }
+
+        .ed-action-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .ed-action-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .ed-action-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+        .ed-action-header .action-time { font-size: 13px; }
+        .ed-action-header .action-name { flex: 1; font-size: 14px; }
+        .ed-action-header .ed-btn-icon {
+            background: none; border: none; color: var(--text-dim);
+            font-size: 16px; min-height: 28px; min-width: 28px; padding: 2px;
+            cursor: pointer;
+        }
+        .ed-action-header .ed-btn-icon:hover { color: var(--text); }
+
+        .ed-action-edit {
+            padding: 0 12px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .ed-offset-row {
+            display: flex; align-items: center; gap: 6px; margin-top: 4px;
+        }
+        .ed-offset-row input {
+            width: 60px; background: var(--bg-input); color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+            padding: 6px 8px; font-size: 14px; text-align: center;
+            font-family: inherit;
+        }
+        .ed-offset-row input:focus { outline: none; border-color: var(--accent-blue); }
+        .ed-offset-row span { color: var(--text-dim); font-size: 13px; }
+
+        .ed-toggle-group {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .ed-toggle-btn {
+            min-height: 34px; padding: 6px 12px; font-size: 13px; font-weight: 500;
+            background: var(--bg-input); color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+            cursor: pointer;
+        }
+        .ed-toggle-btn.selected {
+            border-color: var(--accent-blue); color: var(--accent-blue);
+            background: rgba(74,158,255,0.1);
+        }
+
+        .ed-form-actions {
+            display: flex; gap: 8px; margin-top: 4px;
+        }
+        .ed-form-actions button { flex: 1; min-height: 36px; font-size: 13px; }
+
+        .btn-add-action {
+            width: 100%; min-height: 44px; font-size: 14px;
+            background: transparent; color: var(--text-dim);
+            border: 2px dashed rgba(255,255,255,0.15); border-radius: var(--radius);
+            cursor: pointer; margin-top: 8px;
+        }
+        .btn-add-action:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+        .share-section {
+            display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
+        }
+        .share-feedback {
+            font-size: 13px; color: var(--accent-green);
+            min-height: 20px; text-align: center;
+            transition: opacity 0.3s;
+        }
+
+        .ed-checkbox-row {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ed-checkbox-row input[type="checkbox"] {
+            width: 18px; height: 18px; accent-color: var(--accent-blue);
+        }
+        .ed-checkbox-row label { font-size: 13px; color: var(--text-dim); }
+
         /* ─── Footer spacer for safe area ─── */
         .safe-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
     </style>
@@ -351,6 +463,10 @@
         <div class="separator">or</div>
 
         <button id="btn-demo" class="btn-outline">Load Demo Event</button>
+
+        <div class="separator">or</div>
+
+        <button id="btn-create" class="btn-green">Create New Event</button>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -450,6 +566,103 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: EDITOR — Event Info (Step 1)                                    -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-editor-info" class="screen">
+    <div class="header header-editor">
+        <h1>New Event</h1>
+        <span style="font-size:12px; color:var(--text-dim);">Step 1 of 3</span>
+    </div>
+    <div class="content">
+        <label class="field-label">Event Title *</label>
+        <input id="ed-title" class="field-input" type="text" placeholder="e.g. Flash Mob at Central Park" maxlength="80">
+
+        <label class="field-label">Description</label>
+        <textarea id="ed-description" class="field-textarea" placeholder="What is this event about?" maxlength="300"></textarea>
+
+        <label class="field-label">Start Date & Time *</label>
+        <input id="ed-datetime" class="field-input" type="datetime-local">
+
+        <label class="field-label">Timezone</label>
+        <select id="ed-timezone" class="field-select"></select>
+
+        <div id="ed-info-error" class="error-msg" style="margin-top:10px;"></div>
+
+        <div style="flex:1"></div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+            <button id="btn-ed-next1" class="btn-primary">Next: Timeline</button>
+            <button id="btn-ed-cancel" class="btn-outline">Cancel</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: EDITOR — Timeline Builder (Step 2)                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-editor-timeline" class="screen">
+    <div class="header header-editor">
+        <h1>Timeline</h1>
+        <span style="font-size:12px; color:var(--text-dim);">Step 2 of 3</span>
+    </div>
+    <div class="content">
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">
+            Add actions with timing relative to the event start.
+        </p>
+
+        <div id="ed-action-list" class="ed-action-list"></div>
+        <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
+
+        <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
+
+        <div style="flex:1"></div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+            <button id="btn-ed-next2" class="btn-primary">Next: Review & Share</button>
+            <button id="btn-ed-back1" class="btn-outline">Back</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: EDITOR — Review & Share (Step 3)                                -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-editor-review" class="screen">
+    <div class="header header-editor">
+        <h1>Review & Share</h1>
+        <span style="font-size:12px; color:var(--text-dim);">Step 3 of 3</span>
+    </div>
+    <div class="content">
+        <div class="event-info">
+            <h2 id="review-title"></h2>
+            <div id="review-desc" class="desc"></div>
+            <dl class="event-meta">
+                <dt>Starts</dt>  <dd id="review-start"></dd>
+                <dt>Actions</dt> <dd id="review-count"></dd>
+                <dt>Duration</dt><dd id="review-duration"></dd>
+            </dl>
+        </div>
+
+        <ul id="review-actions" class="action-list"></ul>
+
+        <div class="share-section">
+            <div id="share-feedback" class="share-feedback"></div>
+            <button id="btn-copy-code" class="btn-primary">Copy Event Code</button>
+            <button id="btn-copy-link" class="btn-primary">Copy Shareable Link</button>
+            <button id="btn-web-share" class="btn-primary" style="display:none;">Share via...</button>
+            <button id="btn-download-html" class="btn-outline">Download Bundled HTML</button>
+        </div>
+
+        <div style="flex:1"></div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+            <button id="btn-preview-from-editor" class="btn-green">Preview Event</button>
+            <button id="btn-ed-back2" class="btn-outline">Back</button>
+        </div>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <script src="lib/pako.min.js"></script>
@@ -465,13 +678,22 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const state = {
-    mode: 'input',              // 'input' | 'preview' | 'practice' | 'live' | 'completed'
+    mode: 'input',              // 'input' | 'preview' | 'practice' | 'live' | 'completed' | 'editor-info' | 'editor-timeline' | 'editor-review'
     event: null,                // Full Event object
     speedMultiplier: 1,         // 1-5x (practice only)
     audioMuted: false,
     practiceStartRealMs: 0,     // Wall clock when practice started
     practiceStartEventMs: 0,    // Event time practice started from
     wakeLock: null,             // Wake Lock sentinel
+    previewReturnTo: 'input',   // Where preview "Back" returns to
+    editor: {
+        title: '',
+        description: '',
+        startDateTime: '',      // "YYYY-MM-DDTHH:MM" for datetime-local input
+        timezone: '',           // IANA timezone string
+        actions: [],            // Array of { offsetSeconds, action, style, hapticPattern, countdown, audioAnnounce }
+        editingIndex: -1,       // Which action card has edit form open (-1 = none)
+    },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -492,11 +714,14 @@ let audioIntervalId = null;
 
 const $ = (id) => document.getElementById(id);
 const screens = {
-    input:     $('screen-input'),
-    preview:   $('screen-preview'),
-    practice:  $('screen-practice'),
-    live:      $('screen-live'),
-    completed: $('screen-completed'),
+    'input':           $('screen-input'),
+    'preview':         $('screen-preview'),
+    'practice':        $('screen-practice'),
+    'live':            $('screen-live'),
+    'completed':       $('screen-completed'),
+    'editor-info':     $('screen-editor-info'),
+    'editor-timeline': $('screen-editor-timeline'),
+    'editor-review':   $('screen-editor-review'),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -542,6 +767,19 @@ function transitionTo(newMode) {
 
         case 'completed':
             renderCompleted();
+            break;
+
+        case 'editor-info':
+            initEditorInfo();
+            break;
+
+        case 'editor-timeline':
+            renderEditorTimeline();
+            break;
+
+        case 'editor-review':
+            finalizeEditorEvent();
+            renderEditorReview();
             break;
     }
 }
@@ -912,19 +1150,508 @@ function escapeHtml(str) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// EDITOR — Event Info (Step 1)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const COMMON_TIMEZONES = [
+    'Pacific/Honolulu', 'America/Anchorage', 'America/Los_Angeles',
+    'America/Denver', 'America/Chicago', 'America/New_York',
+    'America/Sao_Paulo', 'Atlantic/Reykjavik', 'Europe/London',
+    'Europe/Paris', 'Europe/Berlin', 'Europe/Helsinki',
+    'Africa/Cairo', 'Asia/Dubai', 'Asia/Kolkata',
+    'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Tokyo',
+    'Australia/Sydney', 'Pacific/Auckland',
+];
+
+function resetEditorState() {
+    state.editor = {
+        title: '',
+        description: '',
+        startDateTime: '',
+        timezone: '',
+        actions: [],
+        editingIndex: -1,
+    };
+}
+
+function getDefaultDateTime() {
+    const now = new Date();
+    now.setMinutes(Math.ceil(now.getMinutes() / 5) * 5, 0, 0);
+    now.setHours(now.getHours() + 1);
+    // Format as YYYY-MM-DDTHH:MM in local time
+    const y = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    return `${y}-${mo}-${d}T${h}:${mi}`;
+}
+
+function populateTimezoneSelect(selected) {
+    const sel = $('ed-timezone');
+    sel.innerHTML = '';
+    for (const tz of COMMON_TIMEZONES) {
+        const opt = document.createElement('option');
+        opt.value = tz;
+        opt.textContent = tz.replace(/_/g, ' ');
+        if (tz === selected) opt.selected = true;
+        sel.appendChild(opt);
+    }
+    // If user's timezone isn't in the list, add it
+    if (selected && !COMMON_TIMEZONES.includes(selected)) {
+        const opt = document.createElement('option');
+        opt.value = selected;
+        opt.textContent = selected.replace(/_/g, ' ');
+        opt.selected = true;
+        sel.insertBefore(opt, sel.firstChild);
+    }
+}
+
+function initEditorInfo() {
+    const ed = state.editor;
+    $('ed-title').value = ed.title;
+    $('ed-description').value = ed.description;
+    $('ed-datetime').value = ed.startDateTime || getDefaultDateTime();
+    const tz = ed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    populateTimezoneSelect(tz);
+    $('ed-info-error').textContent = '';
+}
+
+function saveEditorInfo() {
+    const title = $('ed-title').value.trim();
+    const datetime = $('ed-datetime').value;
+    if (!title) {
+        $('ed-info-error').textContent = 'Title is required.';
+        return false;
+    }
+    if (!datetime) {
+        $('ed-info-error').textContent = 'Start date/time is required.';
+        return false;
+    }
+    state.editor.title = title;
+    state.editor.description = $('ed-description').value.trim();
+    state.editor.startDateTime = datetime;
+    state.editor.timezone = $('ed-timezone').value;
+    return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EDITOR — Timeline Builder (Step 2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderEditorTimeline() {
+    const list = $('ed-action-list');
+    list.innerHTML = '';
+    $('ed-timeline-error').textContent = '';
+
+    // Sort actions by offset
+    state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+
+    state.editor.actions.forEach((action, index) => {
+        const card = createActionCard(action, index);
+        list.appendChild(card);
+    });
+}
+
+function formatOffset(totalSec) {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
+}
+
+function createActionCard(action, index) {
+    const card = document.createElement('div');
+    card.className = 'ed-action-card';
+    card.dataset.index = index;
+
+    const header = document.createElement('div');
+    header.className = 'ed-action-header';
+    header.innerHTML = `
+        <span class="action-dot ${action.style || 'normal'}"></span>
+        <span class="action-time">${formatOffset(action.offsetSeconds)}</span>
+        <span class="action-name">${escapeHtml(action.action)}</span>
+        <button class="ed-btn-icon ed-btn-edit" title="Edit">&#9998;</button>
+        <button class="ed-btn-icon ed-btn-delete" title="Delete">&#10005;</button>
+    `;
+    card.appendChild(header);
+
+    // Show edit form if this card is being edited
+    if (state.editor.editingIndex === index) {
+        card.appendChild(createActionEditForm(action, index));
+    }
+
+    return card;
+}
+
+function createActionEditForm(action, index) {
+    const form = document.createElement('div');
+    form.className = 'ed-action-edit';
+
+    const mins = Math.floor(action.offsetSeconds / 60);
+    const secs = action.offsetSeconds % 60;
+
+    form.innerHTML = `
+        <label class="field-label" style="margin-top:8px;">Offset from start</label>
+        <div class="ed-offset-row">
+            <input type="number" class="ed-offset-min" value="${mins}" min="0" max="999" placeholder="0">
+            <span>min</span>
+            <input type="number" class="ed-offset-sec" value="${secs}" min="0" max="59" placeholder="0">
+            <span>sec</span>
+        </div>
+
+        <label class="field-label">Action text *</label>
+        <input type="text" class="field-input ed-action-text" value="${escapeHtml(action.action)}" placeholder="e.g. Wave left" maxlength="80">
+
+        <label class="field-label">Style</label>
+        <div class="ed-toggle-group ed-style-group">
+            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal">Normal</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis">Emphasis</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert">Alert</button>
+        </div>
+
+        <label class="field-label">Haptic</label>
+        <div class="ed-toggle-group ed-haptic-group">
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'single' ? ' selected' : ''}" data-val="single">Single</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'double' ? ' selected' : ''}" data-val="double">Double</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'triple' ? ' selected' : ''}" data-val="triple">Triple</button>
+        </div>
+
+        <div class="ed-checkbox-row">
+            <input type="checkbox" id="ed-countdown-${index}" class="ed-countdown-check" ${action.countdown ? 'checked' : ''}>
+            <label for="ed-countdown-${index}">5-second countdown</label>
+        </div>
+
+        <div class="ed-form-actions">
+            <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
+            <button type="button" class="btn-outline btn-small ed-btn-form-cancel">Cancel</button>
+        </div>
+    `;
+
+    return form;
+}
+
+// Event delegation for timeline editor actions
+$('ed-action-list').addEventListener('click', (e) => {
+    const card = e.target.closest('.ed-action-card');
+    if (!card) return;
+    const index = parseInt(card.dataset.index);
+
+    // Toggle buttons (style / haptic)
+    if (e.target.classList.contains('ed-toggle-btn')) {
+        const group = e.target.closest('.ed-toggle-group');
+        group.querySelectorAll('.ed-toggle-btn').forEach(b => b.classList.remove('selected'));
+        e.target.classList.add('selected');
+        return;
+    }
+
+    // Edit button
+    if (e.target.closest('.ed-btn-edit')) {
+        state.editor.editingIndex = (state.editor.editingIndex === index) ? -1 : index;
+        renderEditorTimeline();
+        return;
+    }
+
+    // Delete button
+    if (e.target.closest('.ed-btn-delete')) {
+        state.editor.actions.splice(index, 1);
+        if (state.editor.editingIndex === index) state.editor.editingIndex = -1;
+        else if (state.editor.editingIndex > index) state.editor.editingIndex--;
+        renderEditorTimeline();
+        return;
+    }
+
+    // Save action form
+    if (e.target.closest('.ed-btn-save')) {
+        const editForm = card.querySelector('.ed-action-edit');
+        const actionText = editForm.querySelector('.ed-action-text').value.trim();
+        if (!actionText) return; // silently refuse
+
+        const minVal = parseInt(editForm.querySelector('.ed-offset-min').value) || 0;
+        const secVal = parseInt(editForm.querySelector('.ed-offset-sec').value) || 0;
+        const offset = Math.max(0, minVal * 60 + secVal);
+
+        const styleBtn = editForm.querySelector('.ed-style-group .ed-toggle-btn.selected');
+        const hapticBtn = editForm.querySelector('.ed-haptic-group .ed-toggle-btn.selected');
+        const countdownCheck = editForm.querySelector('.ed-countdown-check');
+
+        state.editor.actions[index] = {
+            offsetSeconds: offset,
+            action: actionText,
+            style: styleBtn ? styleBtn.dataset.val : 'normal',
+            hapticPattern: hapticBtn ? hapticBtn.dataset.val : 'double',
+            countdown: countdownCheck.checked,
+            audioAnnounce: true,
+        };
+        state.editor.editingIndex = -1;
+        renderEditorTimeline();
+        return;
+    }
+
+    // Cancel edit form
+    if (e.target.closest('.ed-btn-form-cancel')) {
+        // If this was a new empty action, remove it
+        if (!state.editor.actions[index].action) {
+            state.editor.actions.splice(index, 1);
+        }
+        state.editor.editingIndex = -1;
+        renderEditorTimeline();
+        return;
+    }
+});
+
+function addNewAction() {
+    const lastOffset = state.editor.actions.length > 0
+        ? state.editor.actions[state.editor.actions.length - 1].offsetSeconds + 15
+        : 0;
+    state.editor.actions.push({
+        offsetSeconds: lastOffset,
+        action: '',
+        style: 'normal',
+        hapticPattern: 'double',
+        countdown: false,
+        audioAnnounce: true,
+    });
+    // Sort so the new action lands in the right spot
+    state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+    // Find the index of the newly added action (the one with empty text)
+    const newIndex = state.editor.actions.findIndex(a => a.action === '');
+    state.editor.editingIndex = newIndex >= 0 ? newIndex : state.editor.actions.length - 1;
+    renderEditorTimeline();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EDITOR — Review & Share (Step 3)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function localDateTimeToUTC(localStr, timezone) {
+    // localStr is "YYYY-MM-DDTHH:MM"
+    // We need to interpret this as a time in the given timezone and convert to UTC
+    const [datePart, timePart] = localStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+
+    // Initial guess: create a Date from UTC and adjust
+    let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+    // Use Intl to find what the local time would be at our guess
+    for (let i = 0; i < 3; i++) {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        });
+        const parts = {};
+        for (const p of fmt.formatToParts(guess)) {
+            parts[p.type] = parseInt(p.value);
+        }
+        // hour can be 24 in some locales meaning midnight
+        if (parts.hour === 24) parts.hour = 0;
+
+        const diffMin = (hour - parts.hour) * 60 + (minute - parts.minute);
+        const diffDay = day - parts.day;
+
+        if (diffMin === 0 && diffDay === 0) break;
+        guess = new Date(guess.getTime() + (diffMin + diffDay * 24 * 60) * 60000);
+    }
+
+    return guess.toISOString();
+}
+
+function finalizeEditorEvent() {
+    const ed = state.editor;
+    const startUTC = localDateTimeToUTC(ed.startDateTime, ed.timezone);
+    const startMs = new Date(startUTC).getTime();
+
+    const timeline = ed.actions.map(a => createTimelineAction({
+        time: new Date(startMs + a.offsetSeconds * 1000).toISOString(),
+        action: a.action,
+        style: a.style,
+        hapticPattern: a.hapticPattern,
+        countdownSeconds: a.countdown ? [5, 4, 3, 2, 1] : null,
+        audioAnnounce: a.audioAnnounce,
+        noticeSeconds: 5,
+    }));
+
+    const embedded = {
+        title: ed.title,
+        description: ed.description || null,
+        startTime: startUTC,
+        timezone: ed.timezone,
+        timeline: timeline,
+    };
+
+    state.event = embeddedEventToEvent(embedded);
+}
+
+function renderEditorReview() {
+    const evt = state.event;
+    if (!evt) return;
+
+    $('review-title').textContent = evt.title;
+    $('review-desc').textContent = evt.description || '';
+    $('review-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
+    $('review-count').textContent = evt.timeline.length + ' actions';
+
+    // Duration
+    if (evt.timeline.length > 0) {
+        const sorted = [...evt.timeline].sort((a, b) =>
+            new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        const firstMs = new Date(sorted[0].time).getTime();
+        const lastMs = new Date(sorted[sorted.length - 1].time).getTime();
+        const durationSec = Math.round((lastMs - firstMs) / 1000);
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        $('review-duration').textContent = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    } else {
+        $('review-duration').textContent = '0s';
+    }
+
+    // Action list
+    const list = $('review-actions');
+    list.innerHTML = '';
+    const startMs = new Date(evt.startTime).getTime();
+
+    for (const action of evt.timeline) {
+        const actionMs = new Date(action.time).getTime();
+        const offsetSec = Math.round((actionMs - startMs) / 1000);
+        const mins = Math.floor(offsetSec / 60);
+        const secs = offsetSec % 60;
+
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span class="action-dot ${action.style || 'normal'}"></span>
+            <span class="action-time">${mins > 0 ? mins + ':' + String(secs).padStart(2, '0') : secs + 's'}</span>
+            <span>${escapeHtml(action.action)}</span>
+        `;
+        list.appendChild(li);
+    }
+
+    // Show/hide Web Share button
+    if (navigator.share) {
+        $('btn-web-share').style.display = '';
+    }
+
+    $('share-feedback').textContent = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sharing Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+function showShareFeedback(msg) {
+    const el = $('share-feedback');
+    el.textContent = msg;
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.opacity = '0'; }, 2500);
+}
+
+function sanitizeFilename(name) {
+    return name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '-').substring(0, 50) || 'conductor-event';
+}
+
+async function copyEventCode() {
+    try {
+        const encoded = encodeEvent(state.event);
+        await navigator.clipboard.writeText(encoded);
+        showShareFeedback('Event code copied!');
+    } catch (e) {
+        showShareFeedback('Copy failed — try again.');
+    }
+}
+
+async function copyShareableLink() {
+    try {
+        const encoded = encodeEvent(state.event);
+        const url = location.origin + location.pathname + '#' + encoded;
+        await navigator.clipboard.writeText(url);
+        showShareFeedback('Link copied!');
+    } catch (e) {
+        showShareFeedback('Copy failed — try again.');
+    }
+}
+
+async function webShareEvent() {
+    try {
+        const encoded = encodeEvent(state.event);
+        const url = location.origin + location.pathname + '#' + encoded;
+        await navigator.share({
+            title: state.event.title,
+            text: state.event.description || 'Join this Conductor event!',
+            url: url,
+        });
+    } catch (e) {
+        // User cancelled or share failed — no feedback needed
+    }
+}
+
+async function downloadBundledHTML() {
+    try {
+        const encoded = encodeEvent(state.event);
+
+        // Fetch all script files
+        const scriptTags = document.querySelectorAll('script[src]');
+        const scriptContents = new Map();
+
+        for (const tag of scriptTags) {
+            const resp = await fetch(tag.getAttribute('src'));
+            if (!resp.ok) throw new Error('Could not fetch ' + tag.getAttribute('src'));
+            scriptContents.set(tag.getAttribute('src'), await resp.text());
+        }
+
+        // Get current page HTML
+        let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+        // Replace script src tags with inline content
+        const closeTag = '<' + '/script>';
+        for (const [src, content] of scriptContents) {
+            html = html.replace(
+                new RegExp('<script\\s+src=["\']' + src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']\\s*>' + closeTag, 'i'),
+                '<script>/* ' + src + ' */\n' + content + '\n' + closeTag
+            );
+        }
+
+        // Inject event auto-load before closing body tag
+        const closeBody = '<' + '/body>';
+        const autoLoadScript = '<script>if(!location.hash)location.hash=\'' + encoded + '\';<' + '/script>';
+        html = html.replace(closeBody, autoLoadScript + '\n' + closeBody);
+
+        // Offer as download
+        const blob = new Blob([html], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = sanitizeFilename(state.event.title) + '.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showShareFeedback('Download started!');
+    } catch (e) {
+        showShareFeedback('Download failed — only works from hosted version.');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Event Bindings
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Input screen
 $('btn-load').addEventListener('click', () => {
     if (loadFromString($('input-paste').value)) {
+        state.previewReturnTo = 'input';
         transitionTo('preview');
     }
 });
 
 $('btn-demo').addEventListener('click', () => {
     createDemoEvent();
+    state.previewReturnTo = 'input';
     transitionTo('preview');
+});
+
+$('btn-create').addEventListener('click', () => {
+    resetEditorState();
+    transitionTo('editor-info');
 });
 
 // Preview screen
@@ -933,7 +1660,7 @@ $('btn-start-practice').addEventListener('click', () => {
 });
 
 $('btn-preview-back').addEventListener('click', () => {
-    transitionTo('input');
+    transitionTo(state.previewReturnTo);
 });
 
 // Practice screen
@@ -965,18 +1692,56 @@ $('btn-return').addEventListener('click', () => {
     transitionTo('input');
 });
 
+// Editor — Step 1
+$('btn-ed-next1').addEventListener('click', () => {
+    if (saveEditorInfo()) {
+        transitionTo('editor-timeline');
+    }
+});
+$('btn-ed-cancel').addEventListener('click', () => {
+    transitionTo('input');
+});
+
+// Editor — Step 2
+$('btn-add-action').addEventListener('click', addNewAction);
+$('btn-ed-next2').addEventListener('click', () => {
+    if (state.editor.actions.length === 0 || state.editor.actions.some(a => !a.action)) {
+        $('ed-timeline-error').textContent = 'Add at least one action with text.';
+        return;
+    }
+    transitionTo('editor-review');
+});
+$('btn-ed-back1').addEventListener('click', () => {
+    transitionTo('editor-info');
+});
+
+// Editor — Step 3
+$('btn-copy-code').addEventListener('click', copyEventCode);
+$('btn-copy-link').addEventListener('click', copyShareableLink);
+$('btn-web-share').addEventListener('click', webShareEvent);
+$('btn-download-html').addEventListener('click', downloadBundledHTML);
+$('btn-preview-from-editor').addEventListener('click', () => {
+    state.previewReturnTo = 'editor-review';
+    transitionTo('preview');
+});
+$('btn-ed-back2').addEventListener('click', () => {
+    transitionTo('editor-timeline');
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Init: check URL hash on load
 // ═══════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('hashchange', () => {
     if (loadFromHash()) {
+        state.previewReturnTo = 'input';
         transitionTo('preview');
     }
 });
 
 // On page load
 if (loadFromHash()) {
+    state.previewReturnTo = 'input';
     transitionTo('preview');
 }
 

@@ -15,7 +15,7 @@ The event data lives in the URL itself. No server stores your plans, making Cond
 
 ## Try It
 
-- **App**: [quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/) *(coming soon)*
+- **App**: [quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/)
 - **iOS Audio Test**: [quidam2k.github.io/conductor/ios-audio-test/](https://quidam2k.github.io/conductor/ios-audio-test/)
 
 ## Features
@@ -23,10 +23,11 @@ The event data lives in the URL itself. No server stores your plans, making Cond
 - **No Server**: Events live in URLs - works on any static host or offline
 - **No Install**: Progressive Web App runs in any modern browser
 - **No Accounts**: No signup, no tracking, no data collection
-- **Offline**: Service Worker caches the app after first load
+- **Create Events**: Built-in editor with timeline builder - no separate tool needed
+- **Share Anything**: Copy event codes, shareable links, Web Share, or download bundled HTML files
 - **Cross-Platform**: Works on Android, iPhone, desktop - anything with a browser
-- **Audio & Haptics**: TTS announcements, tones, vibration patterns
-- **Practice Mode**: Rehearse at variable speed before the real event
+- **Audio & Haptics**: TTS announcements and vibration patterns
+- **Practice Mode**: Rehearse at variable speed (1-5x) before the real event
 - **Open Protocol**: Events are compressed JSON - build your own tools
 
 ## Architecture
@@ -52,15 +53,19 @@ Conductor is designed to be uncensorable. You can host your own copy:
 ```
 conductor/
 ├── docs/                          # PWA (served by GitHub Pages)
-│   ├── index.html                 # Main app (coming soon)
+│   ├── index.html                 # Main app: input, editor, preview, practice, live, sharing
+│   ├── js/                        # JS modules (models, encoder, timing, audio, canvas)
+│   ├── lib/                       # Third-party libs (pako.min.js for gzip)
 │   ├── ios-audio-test/            # iOS Safari audio background test
-│   └── sw.js                      # Service Worker (coming soon)
-├── conductor-mobile/              # KMM Android app (reference for porting)
+│   └── test-*.html               # Module test harnesses
+├── conductor-mobile/              # KMM Android app (reference, porting complete)
 │   ├── shared/                    # Multiplatform core (timing, encoding, models)
 │   └── androidApp/                # Android app (Jetpack Compose)
-├── _archive/                      # Old server/client code
+├── _archive/                      # Old server/client code + KMM-era docs
 ├── LICENSE                        # AGPL-3.0
-└── CLAUDE.md                      # Development documentation
+├── CLAUDE.md                      # Development documentation
+├── PLAN_CASCADE.md                # Build plan (Plans 1-6 complete)
+└── URL_EMBEDDED_EVENTS.md         # Event encoding format spec
 ```
 
 ## Development
