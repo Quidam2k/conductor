@@ -227,6 +227,6 @@ With Plans 1-7 complete, Phase 2 is done. The next phases are:
 | 2. Timing Engine | COMPLETE | Plan 2: Timing engine ported from KMM |
 | 3. Audio System | COMPLETE | Plan 3: Audio system with TTS + resource pack fallback chain |
 | 4. Circular Timeline | COMPLETE | Plan 4: Circular timeline canvas renderer |
-| 5. App Shell + Coordination | NOT STARTED | — |
-| 6. Event Editor + Sharing | NOT STARTED | — |
+| 5. App Shell + Coordination | COMPLETE | Plan 5: App shell + coordination screen |
+| 6. Event Editor + Sharing | COMPLETE | Plan 6: Event editor + sharing system |
 | 7. Integration + Polish | NOT STARTED | — |
