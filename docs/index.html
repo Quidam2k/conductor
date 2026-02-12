@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
+    <meta name="apple-mobile-web-app-title" content="Conductor">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <title>Conductor</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -674,6 +680,17 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
+// Global Error Handlers
+// ═══════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('error', (e) => {
+    console.error('Conductor error:', e.error);
+});
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Conductor unhandled promise:', e.reason);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // App State
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -907,7 +924,7 @@ function renderPreview() {
 
 function enterPractice() {
     const evt = state.event;
-    if (!evt) return;
+    if (!evt || evt.timeline.length === 0) return;
 
     $('practice-title').textContent = evt.title;
 
@@ -961,7 +978,15 @@ function startPracticeLoop() {
 
 function enterLive() {
     const evt = state.event;
-    if (!evt) return;
+    if (!evt || evt.timeline.length === 0) return;
+
+    // If all actions are >5 minutes past, go straight to completed
+    const now = Date.now();
+    const allPast = evt.timeline.every(a => (now - new Date(a.time).getTime()) > 5 * 60 * 1000);
+    if (allPast) {
+        transitionTo('completed');
+        return;
+    }
 
     $('live-title').textContent = evt.title;
 
@@ -1149,6 +1174,23 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        // Fallback for HTTP / older browsers / file:// context
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EDITOR — Event Info (Step 1)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1228,6 +1270,16 @@ function saveEditorInfo() {
         $('ed-info-error').textContent = 'Start date/time is required.';
         return false;
     }
+    // Warn (not block) if start time is in the past
+    try {
+        const tz = $('ed-timezone').value;
+        const utcStr = localDateTimeToUTC(datetime, tz);
+        if (new Date(utcStr).getTime() < Date.now()) {
+            $('ed-info-error').textContent = 'Note: start time is in the past.';
+            $('ed-info-error').style.color = 'var(--accent-gold)';
+        }
+    } catch { /* timezone conversion can fail on exotic timezones, proceed anyway */ }
+
     state.editor.title = title;
     state.editor.description = $('ed-description').value.trim();
     state.editor.startDateTime = datetime;
@@ -1532,6 +1584,18 @@ function renderEditorReview() {
         $('btn-web-share').style.display = '';
     }
 
+    // URL length warning
+    try {
+        const encoded = encodeEvent(evt);
+        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        if (fullUrl.length > 2000) {
+            $('share-feedback').textContent = 'Long URL — "Copy Event Code" recommended over link sharing.';
+            $('share-feedback').style.color = 'var(--accent-gold)';
+            $('share-feedback').style.opacity = '1';
+            return;
+        }
+    } catch { /* encoding can fail on edge cases */ }
+
     $('share-feedback').textContent = '';
 }
 
@@ -1551,24 +1615,16 @@ function sanitizeFilename(name) {
 }
 
 async function copyEventCode() {
-    try {
-        const encoded = encodeEvent(state.event);
-        await navigator.clipboard.writeText(encoded);
-        showShareFeedback('Event code copied!');
-    } catch (e) {
-        showShareFeedback('Copy failed — try again.');
-    }
+    const encoded = encodeEvent(state.event);
+    const ok = await copyToClipboard(encoded);
+    showShareFeedback(ok ? 'Event code copied!' : 'Copy failed — try again.');
 }
 
 async function copyShareableLink() {
-    try {
-        const encoded = encodeEvent(state.event);
-        const url = location.origin + location.pathname + '#' + encoded;
-        await navigator.clipboard.writeText(url);
-        showShareFeedback('Link copied!');
-    } catch (e) {
-        showShareFeedback('Copy failed — try again.');
-    }
+    const encoded = encodeEvent(state.event);
+    const url = location.origin + location.pathname + '#' + encoded;
+    const ok = await copyToClipboard(url);
+    showShareFeedback(ok ? 'Link copied!' : 'Copy failed — try again.');
 }
 
 async function webShareEvent() {
@@ -1586,6 +1642,10 @@ async function webShareEvent() {
 }
 
 async function downloadBundledHTML() {
+    const btn = $('btn-download-html');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparing...';
     try {
         const encoded = encodeEvent(state.event);
 
@@ -1611,6 +1671,12 @@ async function downloadBundledHTML() {
             );
         }
 
+        // Remove manifest link (separate file, not bundled)
+        html = html.replace(/<link[^>]*rel="manifest"[^>]*>\s*/i, '');
+
+        // Remove SW registration (doesn't work on file://)
+        html = html.replace(/\/\/ Register Service Worker[\s\S]*?navigator\.serviceWorker\.register\([^)]*\)[^}]*}\s*/g, '');
+
         // Inject event auto-load before closing body tag
         const closeBody = '<' + '/body>';
         const autoLoadScript = '<script>if(!location.hash)location.hash=\'' + encoded + '\';<' + '/script>';
@@ -1628,6 +1694,9 @@ async function downloadBundledHTML() {
         showShareFeedback('Download started!');
     } catch (e) {
         showShareFeedback('Download failed — only works from hosted version.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
     }
 }
 
@@ -1743,6 +1812,11 @@ window.addEventListener('hashchange', () => {
 if (loadFromHash()) {
     state.previewReturnTo = 'input';
     transitionTo('preview');
+}
+
+// Register Service Worker (only works on HTTPS/localhost, silently skips file://)
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 </script>
