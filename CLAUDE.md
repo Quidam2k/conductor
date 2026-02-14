@@ -57,10 +57,12 @@ The record player is also the record press — one file creates, plays, and shar
 
 ### Tech Stack (PWA)
 - Single HTML file (or minimal file set) served from `docs/`
-- Vanilla TypeScript/JavaScript (no framework)
-- `pako.js` for gzip compression (~25KB)
+- Vanilla JavaScript (no framework, no build step)
+- `pako.min.js` for gzip compression (~25KB)
+- `qr-creator.min.js` for QR code generation (~12KB)
 - HTML Canvas for circular timeline
-- Browser APIs: Web Speech, Vibration, Wake Lock, Web Share
+- Browser APIs: Web Speech, Vibration, Wake Lock, Web Share, IndexedDB
+- Playwright for integration + unit harness testing
 
 ### Tech Stack (KMM - reference, not active development)
 - Kotlin Multiplatform in `conductor-mobile/`
@@ -94,16 +96,22 @@ Tested by Teafaerie on iPhone with earbuds, Safari, screen locked.
 ### PWA (active development - `docs/`)
 | File | Purpose |
 |------|---------|
-| `docs/index.html` | Main app — 8 screens (input, preview, practice, live, completed, 3 editor steps), sharing, bundled HTML download |
+| `docs/index.html` | Main app — 9 screens (input, preview, practice, live, completed, 3 editor steps, pack manager), ~2100 lines |
 | `docs/js/models.js` | Data models: TimelineAction, EmbeddedEvent, Event, conversion helpers |
-| `docs/js/eventEncoder.js` | URL encoder/decoder: JSON → gzip → base64url → `v1_` prefix |
+| `docs/js/eventEncoder.js` | URL encoder/decoder: JSON → gzip → base64url → `v1_` prefix. Text/JSON parsers for multi-format input. |
 | `docs/js/timingEngine.js` | Timing: positions, countdowns, announcements, practice mode speed |
 | `docs/js/audioService.js` | TTS announcements, haptic feedback, resource pack fallback chain |
 | `docs/js/circularTimeline.js` | Canvas circular timeline renderer (60 FPS, Guitar Hero style) |
+| `docs/js/resourcePackManager.js` | Resource pack engine — IndexedDB storage, JSZip extraction, pack CRUD |
 | `docs/lib/pako.min.js` | Gzip compression library (~25KB) |
+| `docs/lib/qr-creator.min.js` | QR code generation (~12KB) |
+| `docs/sw.js` | Service Worker v4 — offline caching, versioned cache names |
+| `docs/manifest.json` | PWA manifest — app name, icons, theme, standalone display |
+| `docs/TEXT_FORMAT.md` | User guide for human-readable text event format |
 | `docs/ios-audio-test/index.html` | iOS Safari audio background test page |
-| `docs/test-*.html` | Module-level test harnesses (encoder, timing, audio, timeline) |
-| `docs/sw.js` | Service Worker for offline (to be created) |
+| `docs/test-*.html` | Module-level test harnesses (encoder, timing, audio, timeline, packs) |
+| `tests/integration.spec.js` | 21 Playwright integration tests — full app flow coverage |
+| `tests/unit-harnesses.spec.js` | 5 automated unit harness tests wrapping HTML test pages (~195 assertions) |
 
 ### KMM Reference (porting complete, kept for reference)
 | File | Purpose |
@@ -152,7 +160,7 @@ Timeline actions must support resource pack references from v1, even before reso
 
 If the participant has `my-flash-mob-pack` installed and it contains `countdown-5`, play the audio file. If not, TTS says "5". Graceful degradation is core to the design — the event always works, resource packs just make it better.
 
-See `URL_EMBEDDED_EVENTS.md` for format details.
+See `_archive/URL_EMBEDDED_EVENTS.md` for original format spec (superseded by actual implementation in `eventEncoder.js`).
 
 ---
 
@@ -180,98 +188,79 @@ cd conductor-mobile
 
 ---
 
-## Current Status (February 11, 2026)
+## Current Status (February 13, 2026)
 
 ### Phase 0: Housekeeping — COMPLETE
-- [x] KMM Android app complete (Sprint 13 - coordination, sharing, themes, settings)
-- [x] iOS audio background test page created and deployed
-- [x] Moved ios-audio-test to docs/ for GitHub Pages
-- [x] Pushed to GitHub, enabled GitHub Pages from docs/ on main
-- [x] Updated CLAUDE.md and README.md for PWA pivot
-
-### Phase 1: iOS Audio Feasibility — COMPLETE
-- [x] Teafaerie tested on iPhone with earbuds, screen locked
-- [x] TTS (Web Speech API) confirmed working through screen lock
-- [x] Web Audio API confirmed NOT working through screen lock
+- [x] KMM Android app complete, iOS audio feasibility confirmed
 - [x] Architecture decision: Web Speech API for coordination cues
 
 ### Phase 2: The Record Player — COMPLETE (Plans 1-6)
 One HTML file that does everything — the player IS the editor IS the sharing tool.
+- **Plans 1-4:** Foundation modules ported from KMM (models, encoder, timing, audio, canvas)
+- **Plan 5:** App shell — 5 screens (input, preview, practice, live, completed)
+- **Plan 6:** Event editor (3-step wizard) + sharing (copy, Web Share, bundled HTML download)
 
-**Plans 1-4 (Feb 10):** Foundation modules ported from KMM
-- [x] Data models + event encoder/decoder (models.js, eventEncoder.js)
-- [x] Timing engine (timingEngine.js)
-- [x] Audio system with TTS + haptics (audioService.js)
-- [x] Circular timeline canvas renderer (circularTimeline.js)
+### Phase 3: Integration Testing + PWA — COMPLETE (Plans 7-8)
+- **Plan 7:** 21 Playwright integration tests, mobile-responsive CSS, touch-friendly UI
+- **Plan 8:** PWA manifest, Service Worker v4, installable on all platforms
 
-**Plan 5 (Feb 10-11):** App shell with 5 screens
-- [x] Input screen (paste code, load from URL hash, demo event)
-- [x] Preview screen (event info + action list)
-- [x] Practice mode (circular timeline, variable speed 1-5x, audio toggle)
-- [x] Live mode (real-time coordination, auto-complete)
-- [x] Completed screen
-- [x] Wake lock, visibility handling, resize
+### Phase 4: Resource Packs + Polish — COMPLETE (Plans 9-14)
+- **Plan 9:** Pack Manager UI — import/delete zip packs, IndexedDB storage
+- **Plan 10:** Code cleanup — XSS fix, color bugs, dead IndexedDB transaction
+- **Plan 11:** Multi-format event input — text editor format, JSON, v1_ codes, file import
+- **Plan 12:** QR code generation for sharing (qr-creator.min.js, ~12KB)
+- **Plan 13:** Editor cue selection — resource pack audio preview in editor
+- **Plan 14:** Automated unit test runner — Playwright wrapping 5 HTML test harnesses (~195 assertions)
 
-**Plan 6 (Feb 11):** Event editor + sharing
-- [x] 3-step editor wizard (event info → timeline builder → review & share)
-- [x] Inline action editing with style/haptic/countdown controls
-- [x] Copy event code, copy shareable link
-- [x] Web Share API integration
-- [x] Download bundled HTML (all scripts inlined + event baked in)
-- [x] Preview from editor with correct back-navigation
-
-### Next: Plan 7 — Integration Testing + Polish
-- Mobile-responsive design (thumb-friendly, portrait-optimized)
-- PWA manifest (Add to Home Screen)
-- Loading states, error handling, graceful degradation
-- Multi-mirror hosting strategy (GitHub Pages + IPFS + self-hosting instructions)
+### Phase 5 — Next (future)
+- QR code scanning (camera → decode → load event)
 - Save event drafts in IndexedDB
+- Web Bluetooth for nearby device discovery
+- QR-code relay (show QR → scan → chain)
+- WiFi Direct exploration
+- App bundle sharing (HTML file via AirDrop/share)
+- Piper TTS via WASM for high-quality offline voices
 
-### Phase 4 — Resource Packs (power user extras)
-Optional zip files that enhance the experience. Not required — the app works fine without them (falls back to TTS). Power users can download packs from Google Drive, a thumb drive, wherever.
-
-**Like emoji packs on Discord** — you can have several installed at once. Different groups, different events, different packs. A protest org has their pack. A flash mob crew has theirs. A music collective has one full of audio clips.
+### Resource Packs (implemented in Phase 4)
+Optional zip files that enhance the experience. Not required — the app works fine without them (falls back to TTS). Like emoji packs on Discord — multiple installed simultaneously, different groups use different packs.
 
 **What goes in a resource pack:**
-- **Voice replacements** — pre-rendered vocal cues instead of robot TTS. Use modern voice cloners to make Morgan Freeman count down "5, 4, 3, 2, 1" or any character/voice you want.
-- **Common cues** — countdown numbers, "go!", "move to position", etc. The stuff that's said in every event.
-- **Music & sound effects** — background music, dramatic horns, ambient soundscapes, synchronized audio. Everyone's got a Bluetooth speaker in their backpack and then BOOM.
-- **Coordinated audio** — timeline actions can trigger music playback, layer audio, time songs to overlap.
+- **Voice replacements** — pre-rendered vocal cues instead of robot TTS
+- **Common cues** — countdown numbers, "go!", "move to position", etc.
+- **Music & sound effects** — background music, dramatic horns, ambient soundscapes
+- **Coordinated audio** — timeline actions trigger music playback, layer audio
 
-**Emergent harmony** — a timeline action can specify "play one of [A, B, C] at random." With enough participants, all three play simultaneously. The app is literally conducting an orchestra of phones.
+**Emergent harmony** — a timeline action can specify "play one of [A, B, C] at random." With enough participants, all three play simultaneously.
 
 **Resource pack format:**
 ```
 my-pack.zip
 ├── manifest.json          # pack ID, name, version, contents listing
 ├── audio/                 # music, sound effects
-│   ├── countdown.mp3
-│   ├── dramatic-horn.mp3
-│   ├── harmony-part-a.mp3
-│   ├── harmony-part-b.mp3
-│   ├── harmony-part-c.mp3
-│   └── finale-music.mp3
-└── voices/                # vocal cue replacements
-    ├── 5.mp3
-    ├── 4.mp3
-    ├── 3.mp3
-    ├── 2.mp3
-    ├── 1.mp3
-    ├── go.mp3
-    └── move-to-position-b.mp3
+└── voices/                # vocal cue replacements (5.mp3, go.mp3, etc.)
 ```
 
-- Events reference cues by ID — if the resource pack has it, play the good audio; if not, fall back to TTS
-- Multiple packs can be installed simultaneously (stored in IndexedDB)
-- Packs loaded client-side (JSZip), persist across sessions
-- No server involved — grab the zip from wherever and import it
+- Events reference cues by ID — resource pack audio if available, TTS fallback otherwise
+- Multiple packs stored in IndexedDB, persist across sessions
+- Packs loaded client-side (JSZip), no server involved
 
-### Phase 5 — Mesh & Resilience (future)
-- Web Bluetooth for nearby device discovery (Android Chrome only)
-- QR-code relay (show QR → scan → chain)
-- WiFi Direct exploration (limited browser support)
-- App bundle sharing (the HTML file itself via AirDrop/share)
+---
+
+## Next Steps / Outstanding TODOs
+
+### Features
+- QR code scanning (camera → decode → load event)
+- Save event drafts in IndexedDB
+- Phase 5: mesh/resilience (Bluetooth, WiFi Direct, QR relay)
 - Piper TTS via WASM for high-quality offline voices
+
+### Known Edge Cases (from Plan 10 code review — noted, not yet fixed)
+- `getCurrentAction()` ignores `speedMultiplier` param — cosmetic circular timeline issue
+- `announceAction()` rounding at fractional speeds — could miss exact matches at 1.5x/2.5x
+- `addNewAction()` finds new action by empty text string — fragile if multiple unsaved actions
+
+### Technical Debt
+- See `LESSONS_LEARNED.md` for technical discoveries from Plans 1-14
 
 ---
 
@@ -293,12 +282,21 @@ my-pack.zip
 | 2026-02-10 | Plans 1-4 complete: data models, encoder, timing engine, audio system, circular timeline all ported from KMM to JS. |
 | 2026-02-11 | Plans 5-6 complete: app shell (5 screens) + event editor (3-step wizard) + sharing (copy, Web Share, bundled HTML download). Full create→share→play loop working. |
 | 2026-02-11 | Moved 11 KMM-era docs + test-data to _archive/. Root now has only active project docs. |
+| 2026-02-11 | Plan 7: Integration testing with Playwright (21 tests), mobile-responsive CSS, thumb-friendly touch UI. |
+| 2026-02-11 | Plan 8: PWA — manifest.json, Service Worker v4, icons, installable on all platforms. |
+| 2026-02-12 | Plan 9: Pack Manager UI — import/delete resource packs via zip file picker, IndexedDB storage. |
+| 2026-02-12 | Plan 10: Code cleanup — XSS fix in attribute contexts, color cascade bugs, dead IndexedDB transaction removal. |
+| 2026-02-12 | Plan 11: Multi-format event input — text editor format with parser, JSON support, v1_ codes, .txt/.json file import. |
+| 2026-02-12 | Plan 12: QR code generation — qr-creator.min.js (~12KB), share events as scannable QR codes. |
+| 2026-02-13 | Plan 13: Editor cue selection — resource pack audio cues selectable in editor, preview playback. |
+| 2026-02-13 | Plan 14: Automated unit test runner — Playwright wraps 5 HTML test harnesses (~195 assertions) into CI-ready tests. |
+| 2026-02-13 | Plan 15: Project tidying — docs update, archive stale files, lessons learned, outstanding TODOs. |
 
 ---
 
 ## Archived Code
 
-- `_archive/` - Old server/client code from before KMM pivot
+- `_archive/` - Old server/client code, KMM-era docs, and superseded project docs (URL_EMBEDDED_EVENTS.md, CONTRIBUTING.md, PLAN_CASCADE.md)
 - `conductor-mobile/` - KMM Android app (working, preserved as reference for PWA port)
 
 ---
