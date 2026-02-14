@@ -16,7 +16,6 @@ The event data lives in the URL itself. No server stores your plans, making Cond
 ## Try It
 
 - **App**: [quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/)
-- **iOS Audio Test**: [quidam2k.github.io/conductor/ios-audio-test/](https://quidam2k.github.io/conductor/ios-audio-test/)
 
 ## Features
 
@@ -24,9 +23,12 @@ The event data lives in the URL itself. No server stores your plans, making Cond
 - **No Install**: Progressive Web App runs in any modern browser
 - **No Accounts**: No signup, no tracking, no data collection
 - **Create Events**: Built-in editor with timeline builder - no separate tool needed
-- **Share Anything**: Copy event codes, shareable links, Web Share, or download bundled HTML files
+- **Share Anything**: Copy event codes, shareable links, Web Share, QR codes, or download bundled HTML files
+- **Multi-Format Input**: Paste event codes, use the text editor format, import JSON, or open .txt/.json files
+- **Resource Packs**: Optional zip files with higher-quality audio cues — falls back to TTS gracefully
+- **QR Code Sharing**: Generate scannable QR codes for phone-to-phone event sharing
 - **Cross-Platform**: Works on Android, iPhone, desktop - anything with a browser
-- **Audio & Haptics**: TTS announcements and vibration patterns
+- **Audio & Haptics**: TTS announcements and vibration patterns, with resource pack audio fallback
 - **Practice Mode**: Rehearse at variable speed (1-5x) before the real event
 - **Open Protocol**: Events are compressed JSON - build your own tools
 
@@ -53,19 +55,25 @@ Conductor is designed to be uncensorable. You can host your own copy:
 ```
 conductor/
 ├── docs/                          # PWA (served by GitHub Pages)
-│   ├── index.html                 # Main app: input, editor, preview, practice, live, sharing
-│   ├── js/                        # JS modules (models, encoder, timing, audio, canvas)
-│   ├── lib/                       # Third-party libs (pako.min.js for gzip)
+│   ├── index.html                 # Main app: 9 screens, ~2100 lines
+│   ├── js/                        # JS modules (models, encoder, timing, audio, canvas, packs)
+│   ├── lib/                       # Third-party libs (pako.min.js, qr-creator.min.js)
+│   ├── sw.js                      # Service Worker v4 (offline caching)
+│   ├── manifest.json              # PWA manifest
+│   ├── TEXT_FORMAT.md             # Human-readable text event format guide
 │   ├── ios-audio-test/            # iOS Safari audio background test
-│   └── test-*.html               # Module test harnesses
+│   └── test-*.html               # Module test harnesses (5 pages)
+├── tests/                         # Playwright test specs
+│   ├── integration.spec.js        # 21 integration tests
+│   └── unit-harnesses.spec.js     # 5 unit harness tests (~195 assertions)
 ├── conductor-mobile/              # KMM Android app (reference, porting complete)
 │   ├── shared/                    # Multiplatform core (timing, encoding, models)
 │   └── androidApp/                # Android app (Jetpack Compose)
 ├── _archive/                      # Old server/client code + KMM-era docs
 ├── LICENSE                        # AGPL-3.0
 ├── CLAUDE.md                      # Development documentation
-├── PLAN_CASCADE.md                # Build plan (Plans 1-6 complete)
-└── URL_EMBEDDED_EVENTS.md         # Event encoding format spec
+├── LESSONS_LEARNED.md             # Technical discoveries from Plans 1-14
+└── TESTING_CHECKLIST.md           # Manual real-device testing checklist
 ```
 
 ## Development
@@ -91,7 +99,7 @@ The project started as a Kotlin Multiplatform native app. The Android app works 
 - **Can't be shut down**: Static files can be mirrored anywhere
 - **Works everywhere**: Any device with a modern browser
 
-The native app code is preserved in `conductor-mobile/` as reference. The core logic (timing engine, event encoding, data models) is being ported to TypeScript for the PWA.
+The native app code is preserved in `conductor-mobile/` as reference. The core logic (timing engine, event encoding, data models) has been ported to vanilla JavaScript for the PWA.
 
 ## License
 
