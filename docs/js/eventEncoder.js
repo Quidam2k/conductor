@@ -168,6 +168,159 @@ function validateAndComplete(eventData) {
     };
 }
 
+// ─── Multi-format input parsing ──────────────────────────────────────────────
+
+/**
+ * Parse a human-readable text format into an EmbeddedEvent-shaped object.
+ *
+ * Format:
+ *   Title: My Event
+ *   Description: Optional description
+ *   Start: 2026-03-15 2:00 PM
+ *   Timezone: America/New_York
+ *
+ *   0:00  Get ready
+ *   0:15  Wave left  [emphasis]
+ *   1:00  Jump!  [alert, countdown, haptic:triple]
+ *
+ * @param {string} text
+ * @returns {Object} EmbeddedEvent-shaped object (needs validateAndComplete)
+ */
+function parseTextFormat(text) {
+    const lines = text.split(/\r?\n/);
+    const headers = {};
+    const actions = [];
+    const warnings = [];
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+
+        // Skip blank lines and comments
+        if (!line || line.startsWith('#')) continue;
+
+        // Try header: Key: Value
+        const headerMatch = line.match(/^(title|description|start|timezone)\s*:\s*(.+)$/i);
+        if (headerMatch) {
+            headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
+            continue;
+        }
+
+        // Try timeline action: M:SS or H:MM:SS followed by 2+ spaces or tab then text
+        const actionMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s{2,}(.+)$/) ||
+                            line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\t(.+)$/);
+        if (actionMatch) {
+            const timeParts = actionMatch[1].split(':').map(Number);
+            let offsetSeconds;
+            if (timeParts.length === 3) {
+                offsetSeconds = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+            } else {
+                offsetSeconds = timeParts[0] * 60 + timeParts[1];
+            }
+
+            let actionText = actionMatch[2].trim();
+            let style = 'normal';
+            let hapticPattern = 'double';
+            let countdown = false;
+
+            // Parse optional [tags] at end
+            const tagMatch = actionText.match(/\[([^\]]+)\]\s*$/);
+            if (tagMatch) {
+                actionText = actionText.substring(0, tagMatch.index).trim();
+                const tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
+                for (const tag of tags) {
+                    if (tag === 'emphasis' || tag === 'alert' || tag === 'normal') style = tag;
+                    else if (tag === 'countdown') countdown = true;
+                    else if (tag.startsWith('haptic:')) hapticPattern = tag.split(':')[1];
+                }
+            }
+
+            actions.push({
+                time: null, // will be calculated from offset + startTime
+                _offsetSeconds: offsetSeconds,
+                action: actionText,
+                style,
+                hapticPattern,
+                countdownSeconds: countdown ? [5, 4, 3, 2, 1] : null,
+                audioAnnounce: true,
+                noticeSeconds: 5,
+            });
+            continue;
+        }
+
+        // Line didn't match anything — skip with warning
+        warnings.push('Skipped unrecognized line: ' + line.substring(0, 60));
+    }
+
+    if (!headers.title) throw new Error('Text format: missing required "Title:" header');
+    if (!headers.start) throw new Error('Text format: missing required "Start:" header');
+
+    // Parse start time flexibly
+    const startDate = new Date(headers.start);
+    if (isNaN(startDate.getTime())) {
+        throw new Error('Text format: could not parse start date "' + headers.start + '"');
+    }
+    const startTime = startDate.toISOString();
+    const startMs = startDate.getTime();
+
+    // Default timezone to browser's local timezone
+    const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Convert action offsets to absolute ISO times
+    const timeline = actions.map(a => {
+        const actionTime = new Date(startMs + a._offsetSeconds * 1000).toISOString();
+        const { _offsetSeconds, ...rest } = a;
+        return { ...rest, time: actionTime };
+    });
+
+    if (timeline.length === 0) {
+        throw new Error('Text format: no timeline actions found');
+    }
+
+    if (warnings.length > 0) {
+        console.warn('Text format parse warnings:', warnings);
+    }
+
+    return {
+        title: headers.title,
+        description: headers.description || null,
+        startTime,
+        timezone,
+        timeline,
+    };
+}
+
+/**
+ * Auto-detect input format and parse into an EmbeddedEvent.
+ * Supports: v1_ compressed strings, JSON, and human-readable text format.
+ *
+ * @param {string} input - Raw input string
+ * @returns {EmbeddedEvent} Validated and completed event
+ * @throws {Error} If parsing fails
+ */
+function parseEventInput(input) {
+    const trimmed = input.trim();
+    if (!trimmed) throw new Error('Empty input');
+
+    // v1_ compressed format or legacy base64
+    if (trimmed.startsWith('v1_') || /^[A-Za-z0-9+/=_-]{20,}$/.test(trimmed)) {
+        return decodeEvent(trimmed);
+    }
+
+    // JSON format
+    if (trimmed.startsWith('{')) {
+        try {
+            const eventData = JSON.parse(trimmed);
+            return validateAndComplete(eventData);
+        } catch (e) {
+            throw new Error('Invalid JSON: ' + e.message);
+        }
+    }
+
+    // Text format
+    const parsed = parseTextFormat(trimmed);
+    return validateAndComplete(parsed);
+}
+
 // ─── Compression stats ──────────────────────────────────────────────────────
 
 /**

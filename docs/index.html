@@ -443,6 +443,48 @@
         }
         .ed-checkbox-row label { font-size: 13px; color: var(--text-dim); }
 
+        /* ─── Pack Manager screen ─── */
+        .header-packs { background: #1a2e0d; }
+
+        .pack-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .pack-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pack-info { flex: 1; min-width: 0; }
+        .pack-name {
+            font-size: 15px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pack-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .pack-delete {
+            min-height: 34px; min-width: 34px; padding: 4px 10px;
+            font-size: 13px; font-weight: 500;
+            background: transparent; color: var(--accent-red);
+            border: 1px solid var(--accent-red); border-radius: 6px;
+            cursor: pointer; flex-shrink: 0;
+        }
+
+        .pack-empty {
+            text-align: center; padding: 32px 16px;
+            color: var(--text-dim); font-size: 14px; line-height: 1.6;
+        }
+
+        .import-status {
+            font-size: 13px; min-height: 20px; text-align: center;
+            margin-top: 8px; transition: opacity 0.3s;
+        }
+        .import-status.error { color: var(--accent-red); }
+        .import-status.success { color: var(--accent-green); }
+        .import-status.progress { color: var(--accent-blue); }
+
         /* ─── Footer spacer for safe area ─── */
         .safe-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
     </style>
@@ -472,7 +514,40 @@
 
         <div class="separator">or</div>
 
+        <input type="file" id="event-file-input" accept=".json,.txt,.conductor" style="display:none;">
+        <button id="btn-import-event" class="btn-outline">Import Event File</button>
+
+        <div class="separator">or</div>
+
         <button id="btn-create" class="btn-green">Create New Event</button>
+
+        <div style="flex:1"></div>
+        <button id="btn-manage-packs" class="btn-outline" style="margin-top:16px;">Manage Packs</button>
+    </div>
+    <div class="safe-bottom"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: PACK MANAGER                                                   -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="screen-packs" class="screen">
+    <div class="header header-packs">
+        <h1>Pack Manager</h1>
+    </div>
+    <div class="content">
+        <div id="pack-list" class="pack-list"></div>
+        <div id="pack-empty" class="pack-empty">
+            No packs installed.<br>
+            Import a .zip resource pack<br>for higher-quality audio.
+        </div>
+
+        <div style="flex:1"></div>
+
+        <input type="file" id="pack-file-input" accept=".zip" style="display:none;">
+        <button id="btn-import-pack" class="btn-primary" style="margin-top:16px;">Import Pack (.zip)</button>
+        <div id="import-status" class="import-status"></div>
+
+        <button id="btn-packs-back" class="btn-outline" style="margin-top:10px;">Back</button>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -653,6 +728,11 @@
 
         <div class="share-section">
             <div id="share-feedback" class="share-feedback"></div>
+            <div id="qr-container" style="display:none; text-align:center; margin:8px 0;">
+                <canvas id="qr-canvas" style="border-radius:8px;"></canvas>
+                <div id="qr-warning" style="font-size:12px; color:var(--accent-gold); margin-top:4px;"></div>
+            </div>
+            <button id="btn-show-qr" class="btn-outline">Show QR Code</button>
             <button id="btn-copy-code" class="btn-primary">Copy Event Code</button>
             <button id="btn-copy-link" class="btn-primary">Copy Shareable Link</button>
             <button id="btn-web-share" class="btn-primary" style="display:none;">Share via...</button>
@@ -672,10 +752,12 @@
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <script src="lib/pako.min.js"></script>
+<script src="lib/qr-creator.min.js"></script>
 <script src="js/models.js"></script>
 <script src="js/eventEncoder.js"></script>
 <script src="js/timingEngine.js"></script>
 <script src="js/audioService.js"></script>
+<script src="js/resourcePackManager.js"></script>
 <script src="js/circularTimeline.js"></script>
 
 <script>
@@ -695,7 +777,7 @@ window.addEventListener('unhandledrejection', (e) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const state = {
-    mode: 'input',              // 'input' | 'preview' | 'practice' | 'live' | 'completed' | 'editor-info' | 'editor-timeline' | 'editor-review'
+    mode: 'input',              // 'input' | 'preview' | 'practice' | 'live' | 'completed' | 'editor-info' | 'editor-timeline' | 'editor-review' | 'packs'
     event: null,                // Full Event object
     speedMultiplier: 1,         // 1-5x (practice only)
     audioMuted: false,
@@ -718,8 +800,20 @@ const state = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const audio = createAudioService();
+const packManager = createResourcePackManager();
 let timelinePractice = null;    // CircularTimeline for practice canvas
 let timelineLive = null;        // CircularTimeline for live canvas
+
+// Wire resource pack resolver into audio service
+audio.setResourcePackResolver(packManager.getResolver());
+
+// Dev hook for console testing: window.importPack(arrayBuffer)
+window.importPack = async (arrayBuffer) => {
+    const manifest = await packManager.importPack(arrayBuffer, console.log);
+    await packManager.ensurePackLoaded(manifest.id);
+    console.log('Pack imported and loaded:', manifest.name, '— cues:', Object.keys(manifest.cues));
+    return manifest;
+};
 
 // Loop handles
 let rafId = null;
@@ -739,6 +833,7 @@ const screens = {
     'editor-info':     $('screen-editor-info'),
     'editor-timeline': $('screen-editor-timeline'),
     'editor-review':   $('screen-editor-review'),
+    'packs':           $('screen-packs'),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -798,6 +893,10 @@ function transitionTo(newMode) {
             finalizeEditorEvent();
             renderEditorReview();
             break;
+
+        case 'packs':
+            renderPackManager();
+            break;
     }
 }
 
@@ -805,14 +904,14 @@ function transitionTo(newMode) {
 // INPUT screen logic
 // ═══════════════════════════════════════════════════════════════════════════
 
-function loadFromString(encoded) {
-    const trimmed = encoded.trim();
+function loadFromString(input) {
+    const trimmed = input.trim();
     if (!trimmed) {
-        $('input-error').textContent = 'Please paste an event code.';
+        $('input-error').textContent = 'Please paste an event code, JSON, or text-format event.';
         return false;
     }
     try {
-        const embedded = decodeEvent(trimmed);
+        const embedded = parseEventInput(trimmed);
         state.event = embeddedEventToEvent(embedded);
         return true;
     } catch (e) {
@@ -825,7 +924,7 @@ function loadFromHash() {
     const hash = location.hash.substring(1); // strip '#'
     if (!hash) return false;
     try {
-        const embedded = decodeEvent(hash);
+        const embedded = parseEventInput(hash);
         state.event = embeddedEventToEvent(embedded);
         return true;
     } catch (e) {
@@ -935,6 +1034,9 @@ function enterPractice() {
     audio.reset();
     audio.setMuted(state.audioMuted);
 
+    // Pre-load resource packs referenced by event actions
+    preloadEventPacks(evt);
+
     // Set practice start: begin 15s before first action
     const sorted = [...evt.timeline].sort((a, b) =>
         new Date(a.time).getTime() - new Date(b.time).getTime()
@@ -996,6 +1098,9 @@ function enterLive() {
     }
     audio.reset();
     audio.setMuted(state.audioMuted);
+
+    // Pre-load resource packs referenced by event actions
+    preloadEventPacks(evt);
 
     // Create timeline renderer
     const canvas = $('canvas-live');
@@ -1168,10 +1273,24 @@ function toggleMute() {
 // Utility
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Pre-load resource packs referenced by event actions.
+ * Fires async — doesn't block mode entry; audio falls back to TTS if not ready.
+ */
+function preloadEventPacks(evt) {
+    const packIds = new Set();
+    for (const action of evt.timeline) {
+        if (action.pack) packIds.add(action.pack);
+    }
+    for (const packId of packIds) {
+        packManager.ensurePackLoaded(packId).catch(() => {});
+    }
+}
+
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 async function copyToClipboard(text) {
@@ -1262,6 +1381,9 @@ function initEditorInfo() {
 function saveEditorInfo() {
     const title = $('ed-title').value.trim();
     const datetime = $('ed-datetime').value;
+    // Reset error state (fixes gold color getting stuck from past-time warning)
+    $('ed-info-error').textContent = '';
+    $('ed-info-error').style.color = '';
     if (!title) {
         $('ed-info-error').textContent = 'Title is required.';
         return false;
@@ -1373,13 +1495,75 @@ function createActionEditForm(action, index) {
             <label for="ed-countdown-${index}">5-second countdown</label>
         </div>
 
+        <label class="field-label">Resource Pack</label>
+        <select class="field-select ed-pack-select">
+            <option value="">None (TTS only)</option>
+        </select>
+        <select class="field-select ed-cue-select" style="display:none; margin-top:6px;">
+            <option value="">Select a cue...</option>
+        </select>
+        <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
+
         <div class="ed-form-actions">
             <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
             <button type="button" class="btn-outline btn-small ed-btn-form-cancel">Cancel</button>
         </div>
     `;
 
+    // Populate pack dropdown async
+    populatePackDropdown(form, action);
+
     return form;
+}
+
+async function populatePackDropdown(form, action) {
+    const packSelect = form.querySelector('.ed-pack-select');
+    const cueSelect = form.querySelector('.ed-cue-select');
+    const fallbackInput = form.querySelector('.ed-fallback-text');
+
+    try {
+        const packs = await packManager.listPacks();
+        for (const pack of packs) {
+            const opt = document.createElement('option');
+            opt.value = pack.id;
+            opt.textContent = pack.name;
+            if (action.pack === pack.id) opt.selected = true;
+            packSelect.appendChild(opt);
+        }
+
+        // If action already has a pack, show cue dropdown
+        if (action.pack) {
+            await populateCueDropdown(cueSelect, action.pack, action.cue);
+            cueSelect.style.display = '';
+            fallbackInput.style.display = '';
+        }
+    } catch { /* IDB not available — leave default */ }
+
+    // Wire pack change → populate cues
+    packSelect.addEventListener('change', async () => {
+        const packId = packSelect.value;
+        if (!packId) {
+            cueSelect.style.display = 'none';
+            fallbackInput.style.display = 'none';
+            cueSelect.innerHTML = '<option value="">Select a cue...</option>';
+            return;
+        }
+        await populateCueDropdown(cueSelect, packId, null);
+        cueSelect.style.display = '';
+        fallbackInput.style.display = '';
+    });
+}
+
+async function populateCueDropdown(cueSelect, packId, selectedCue) {
+    cueSelect.innerHTML = '<option value="">Select a cue...</option>';
+    const cues = await packManager.getCueList(packId);
+    for (const cueId of cues) {
+        const opt = document.createElement('option');
+        opt.value = cueId;
+        opt.textContent = cueId;
+        if (cueId === selectedCue) opt.selected = true;
+        cueSelect.appendChild(opt);
+    }
 }
 
 // Event delegation for timeline editor actions
@@ -1426,6 +1610,14 @@ $('ed-action-list').addEventListener('click', (e) => {
         const hapticBtn = editForm.querySelector('.ed-haptic-group .ed-toggle-btn.selected');
         const countdownCheck = editForm.querySelector('.ed-countdown-check');
 
+        const packSelect = editForm.querySelector('.ed-pack-select');
+        const cueSelect = editForm.querySelector('.ed-cue-select');
+        const fallbackInput = editForm.querySelector('.ed-fallback-text');
+
+        const packId = packSelect ? packSelect.value : '';
+        const cueId = cueSelect ? cueSelect.value : '';
+        const fallbackText = fallbackInput ? fallbackInput.value.trim() : '';
+
         state.editor.actions[index] = {
             offsetSeconds: offset,
             action: actionText,
@@ -1433,6 +1625,9 @@ $('ed-action-list').addEventListener('click', (e) => {
             hapticPattern: hapticBtn ? hapticBtn.dataset.val : 'double',
             countdown: countdownCheck.checked,
             audioAnnounce: true,
+            pack: packId || null,
+            cue: cueId || null,
+            fallbackText: (packId && cueId && fallbackText) ? fallbackText : null,
         };
         state.editor.editingIndex = -1;
         renderEditorTimeline();
@@ -1522,6 +1717,9 @@ function finalizeEditorEvent() {
         countdownSeconds: a.countdown ? [5, 4, 3, 2, 1] : null,
         audioAnnounce: a.audioAnnounce,
         noticeSeconds: 5,
+        pack: a.pack || null,
+        cue: a.cue || null,
+        fallbackText: a.fallbackText || null,
     }));
 
     const embedded = {
@@ -1605,6 +1803,7 @@ function renderEditorReview() {
 
 function showShareFeedback(msg) {
     const el = $('share-feedback');
+    el.style.color = '';
     el.textContent = msg;
     el.style.opacity = '1';
     setTimeout(() => { el.style.opacity = '0'; }, 2500);
@@ -1701,6 +1900,76 @@ async function downloadBundledHTML() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PACK MANAGER screen
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function renderPackManager() {
+    const listEl = $('pack-list');
+    const emptyEl = $('pack-empty');
+    const statusEl = $('import-status');
+    statusEl.textContent = '';
+    statusEl.className = 'import-status';
+
+    listEl.innerHTML = '';
+
+    const packs = await packManager.listPacks();
+
+    if (packs.length === 0) {
+        emptyEl.style.display = '';
+        return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    for (const manifest of packs) {
+        const cueCount = manifest.cues ? Object.keys(manifest.cues).length : 0;
+        const card = document.createElement('div');
+        card.className = 'pack-card';
+        card.innerHTML = `
+            <div class="pack-info">
+                <div class="pack-name">${escapeHtml(manifest.name)}</div>
+                <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}</div>
+            </div>
+            <button class="pack-delete" data-pack-id="${escapeHtml(manifest.id)}">Delete</button>
+        `;
+        listEl.appendChild(card);
+    }
+}
+
+async function importPackFromFile(file) {
+    const statusEl = $('import-status');
+    statusEl.className = 'import-status progress';
+    statusEl.textContent = 'Reading file...';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const manifest = await packManager.importPack(arrayBuffer, (msg) => {
+            statusEl.textContent = msg;
+        });
+        await packManager.ensurePackLoaded(manifest.id);
+        statusEl.className = 'import-status success';
+        statusEl.textContent = `Imported "${manifest.name}" (${Object.keys(manifest.cues).length} cues)`;
+        renderPackManager();
+    } catch (e) {
+        statusEl.className = 'import-status error';
+        statusEl.textContent = e.message || 'Import failed.';
+    }
+}
+
+async function deletePackUI(packId) {
+    if (!confirm('Delete this resource pack?')) return;
+
+    try {
+        await packManager.deletePack(packId);
+        renderPackManager();
+    } catch (e) {
+        const statusEl = $('import-status');
+        statusEl.className = 'import-status error';
+        statusEl.textContent = 'Delete failed: ' + (e.message || 'unknown error');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Event Bindings
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1716,6 +1985,24 @@ $('btn-demo').addEventListener('click', () => {
     createDemoEvent();
     state.previewReturnTo = 'input';
     transitionTo('preview');
+});
+
+$('btn-import-event').addEventListener('click', () => {
+    $('event-file-input').click();
+});
+$('event-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        file.text().then(text => {
+            if (loadFromString(text)) {
+                state.previewReturnTo = 'input';
+                transitionTo('preview');
+            }
+        }).catch(err => {
+            $('input-error').textContent = 'Could not read file: ' + err.message;
+        });
+        e.target.value = '';
+    }
 });
 
 $('btn-create').addEventListener('click', () => {
@@ -1784,7 +2071,53 @@ $('btn-ed-back1').addEventListener('click', () => {
     transitionTo('editor-info');
 });
 
-// Editor — Step 3
+// Editor — Step 3 QR Code
+function showQRCode() {
+    const container = $('qr-container');
+    const warning = $('qr-warning');
+    const btn = $('btn-show-qr');
+
+    // Toggle visibility
+    if (container.style.display !== 'none') {
+        container.style.display = 'none';
+        btn.textContent = 'Show QR Code';
+        return;
+    }
+
+    try {
+        const encoded = encodeEvent(state.event);
+        const fullUrl = location.origin + location.pathname + '#' + encoded;
+
+        if (fullUrl.length > 2953) {
+            warning.textContent = 'Event too large for QR code — use Copy or Share instead.';
+            container.style.display = 'block';
+            $('qr-canvas').style.display = 'none';
+            btn.textContent = 'Hide QR Code';
+            return;
+        }
+
+        warning.textContent = '';
+        $('qr-canvas').style.display = '';
+        QrCreator.render({
+            text: fullUrl,
+            radius: 0.4,
+            ecLevel: 'M',
+            fill: '#e0e0e0',
+            background: '#1a1a2e',
+            size: 220,
+        }, $('qr-canvas'));
+
+        container.style.display = 'block';
+        btn.textContent = 'Hide QR Code';
+    } catch (e) {
+        warning.textContent = 'Could not generate QR code.';
+        container.style.display = 'block';
+        $('qr-canvas').style.display = 'none';
+        btn.textContent = 'Hide QR Code';
+    }
+}
+
+$('btn-show-qr').addEventListener('click', showQRCode);
 $('btn-copy-code').addEventListener('click', copyEventCode);
 $('btn-copy-link').addEventListener('click', copyShareableLink);
 $('btn-web-share').addEventListener('click', webShareEvent);
@@ -1795,6 +2128,30 @@ $('btn-preview-from-editor').addEventListener('click', () => {
 });
 $('btn-ed-back2').addEventListener('click', () => {
     transitionTo('editor-timeline');
+});
+
+// Pack Manager
+$('btn-manage-packs').addEventListener('click', () => {
+    transitionTo('packs');
+});
+$('btn-import-pack').addEventListener('click', () => {
+    $('pack-file-input').click();
+});
+$('pack-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        importPackFromFile(file);
+        e.target.value = ''; // reset so same file can be re-imported
+    }
+});
+$('pack-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pack-delete');
+    if (btn) {
+        deletePackUI(btn.dataset.packId);
+    }
+});
+$('btn-packs-back').addEventListener('click', () => {
+    transitionTo('input');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

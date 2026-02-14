@@ -155,7 +155,11 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                const text = resolveAudioCue(action, 'notice') || action.action;
+                const text = resolveAudioCue(action, 'notice');
+                if (text === null) {
+                    // Resource pack handled it
+                    return `notice-pack: "${action.cue || 'random'}"`;
+                }
                 speak(text);
                 return `notice: "${text}"`;
             }
@@ -166,6 +170,11 @@ function createAudioService() {
             const key = `${action.id}-countdown-${adjustedSeconds}`;
             if (!announced.has(key)) {
                 announced.add(key);
+                // Try resource pack first
+                const countdownCueId = 'countdown-' + adjustedSeconds;
+                if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
+                    return `countdown-pack: ${adjustedSeconds}`;
+                }
                 const text = String(adjustedSeconds);
                 speak(text, 1.3 * speedMultiplier);
                 return `countdown: ${text}`;
@@ -177,6 +186,10 @@ function createAudioService() {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
                 announced.add(key);
+                // Try resource pack first
+                if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack)) {
+                    return 'trigger-pack: "Go!"';
+                }
                 speak('Now!', 1.5);
                 return 'trigger: "Now!"';
             }

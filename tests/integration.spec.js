@@ -328,6 +328,159 @@ test('completed screen: shows summary and return button', async ({ page }) => {
 // 12. Meta tags are present
 // ═════════════════════════════════════════════════════════════════════
 
+// ═════════════════════════════════════════════════════════════════════
+// 13. Pack Manager: reachable from input, back returns, empty state
+// ═════════════════════════════════════════════════════════════════════
+
+test('pack manager: reachable from input screen', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    await page.click('#btn-manage-packs');
+    await waitForScreen(page, 'screen-packs');
+
+    // Header should say Pack Manager
+    await expect(page.locator('#screen-packs .header h1')).toHaveText('Pack Manager');
+});
+
+test('pack manager: back button returns to input', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-manage-packs');
+    await waitForScreen(page, 'screen-packs');
+
+    await page.click('#btn-packs-back');
+    await waitForScreen(page, 'screen-input');
+});
+
+test('pack manager: shows empty state when no packs installed', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-manage-packs');
+    await waitForScreen(page, 'screen-packs');
+
+    // Empty state message should be visible
+    await expect(page.locator('#pack-empty')).toBeVisible();
+    await expect(page.locator('#pack-empty')).toContainText('No packs installed');
+
+    // Pack list should be empty
+    const cards = await page.locator('.pack-card').count();
+    expect(cards).toBe(0);
+
+    // Import button should be visible
+    await expect(page.locator('#btn-import-pack')).toBeVisible();
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 14. Meta tags
+// ═════════════════════════════════════════════════════════════════════
+
+// ═════════════════════════════════════════════════════════════════════
+// 15. Multi-format input: JSON
+// ═════════════════════════════════════════════════════════════════════
+
+test('multi-format: paste JSON event into input → loads correctly', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const json = JSON.stringify({
+        title: 'JSON Test Event',
+        description: 'From JSON',
+        startTime: new Date(Date.now() + 60000).toISOString(),
+        timezone: 'America/New_York',
+        timeline: [
+            { time: new Date(Date.now() + 60000).toISOString(), action: 'Go!' }
+        ]
+    });
+
+    await page.fill('#input-paste', json);
+    await page.click('#btn-load');
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('JSON Test Event');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 16. Multi-format input: text format
+// ═════════════════════════════════════════════════════════════════════
+
+test('multi-format: paste text format event → loads correctly', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const futureDate = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
+    const textEvent = `Title: Text Format Test
+Start: ${futureDate}
+Timezone: America/Chicago
+
+0:00  Get ready
+0:15  Wave left  [emphasis]
+0:30  Jump!  [alert, countdown, haptic:triple]`;
+
+    await page.fill('#input-paste', textEvent);
+    await page.click('#btn-load');
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Text Format Test');
+    await expect(page.locator('#preview-count')).toHaveText('3 actions');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 17. File import button exists
+// ═════════════════════════════════════════════════════════════════════
+
+test('file import: button is visible on input screen', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await expect(page.locator('#btn-import-event')).toBeVisible();
+    await expect(page.locator('#btn-import-event')).toHaveText('Import Event File');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 18. QR code: button visible on review screen
+// ═════════════════════════════════════════════════════════════════════
+
+test('QR code: button visible on review screen', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-create');
+    await page.fill('#ed-title', 'QR Test');
+    await page.click('#btn-ed-next1');
+    await page.click('#btn-add-action');
+    await page.locator('.ed-action-text').fill('Test action');
+    await page.locator('.ed-btn-save').click();
+    await page.click('#btn-ed-next2');
+    await waitForScreen(page, 'screen-editor-review');
+
+    await expect(page.locator('#btn-show-qr')).toBeVisible();
+    await expect(page.locator('#btn-show-qr')).toHaveText('Show QR Code');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 19. QR code: generation works for demo event
+// ═════════════════════════════════════════════════════════════════════
+
+test('QR code: generation works for demo event', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-create');
+    await page.fill('#ed-title', 'QR Gen Test');
+    await page.click('#btn-ed-next1');
+    await page.click('#btn-add-action');
+    await page.locator('.ed-action-text').fill('Action one');
+    await page.locator('.ed-btn-save').click();
+    await page.click('#btn-ed-next2');
+    await waitForScreen(page, 'screen-editor-review');
+
+    // Click show QR
+    await page.click('#btn-show-qr');
+    await expect(page.locator('#qr-container')).toBeVisible();
+    await expect(page.locator('#qr-canvas')).toBeVisible();
+    await expect(page.locator('#btn-show-qr')).toHaveText('Hide QR Code');
+
+    // Toggle back off
+    await page.click('#btn-show-qr');
+    await expect(page.locator('#qr-container')).toBeHidden();
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 20. Meta tags
+// ═════════════════════════════════════════════════════════════════════
+
 test('meta tags: theme-color, description, icons present', async ({ page }) => {
     await page.goto('/');
 

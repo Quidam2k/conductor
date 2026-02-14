@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Resource Pack Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .summary.running { background: #3d3d0a; border: 1px solid #ff0; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+        button { background: #16213e; color: #00d4ff; border: 1px solid #00d4ff; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: monospace; margin: 4px; }
+        button:hover { background: #1a3a5c; }
+        button:active { background: #00d4ff; color: #1a1a2e; }
+        .demo-section { background: #16213e; padding: 16px; border-radius: 8px; margin: 12px 0; }
+        .log-output { background: #0d1117; padding: 10px; border-radius: 4px; min-height: 60px; max-height: 300px; overflow-y: auto; margin: 8px 0; font-size: 0.85em; }
+        .log-entry { padding: 2px 0; }
+        .log-entry.success { color: #7ee787; }
+        .log-entry.error { color: #f77; }
+        .log-entry.info { color: #00d4ff; }
+        input[type="file"] { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Resource Pack Tests</h1>
+    <div id="summary" class="summary running">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="lib/pako.min.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/timingEngine.js"></script>
+    <script src="js/audioService.js"></script>
+    <script src="js/resourcePackManager.js"></script>
+    <script>
+    (async function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // ─── Test zip builder utility ──────────────────────────────
+        // Builds a minimal valid zip file in memory for testing
+
+        function buildTestZip(files) {
+            // files: [{name: string, data: Uint8Array}]
+            // Builds a zip with stored (no compression) entries
+            const localHeaders = [];
+            const centralHeaders = [];
+            let offset = 0;
+
+            for (const file of files) {
+                const nameBytes = new TextEncoder().encode(file.name);
+
+                // Local file header (30 + nameLen + dataLen)
+                const localHeader = new Uint8Array(30 + nameBytes.length + file.data.length);
+                const lhView = new DataView(localHeader.buffer);
+                lhView.setUint32(0, 0x04034b50, true);  // signature
+                lhView.setUint16(4, 20, true);            // version needed
+                lhView.setUint16(6, 0, true);             // flags
+                lhView.setUint16(8, 0, true);             // compression: stored
+                lhView.setUint16(10, 0, true);            // mod time
+                lhView.setUint16(12, 0, true);            // mod date
+                lhView.setUint32(14, 0, true);            // crc32 (0 for simplicity)
+                lhView.setUint32(18, file.data.length, true);  // compressed size
+                lhView.setUint32(22, file.data.length, true);  // uncompressed size
+                lhView.setUint16(26, nameBytes.length, true);  // name length
+                lhView.setUint16(28, 0, true);            // extra length
+                localHeader.set(nameBytes, 30);
+                localHeader.set(file.data, 30 + nameBytes.length);
+
+                localHeaders.push(localHeader);
+
+                // Central directory entry (46 + nameLen)
+                const centralEntry = new Uint8Array(46 + nameBytes.length);
+                const ceView = new DataView(centralEntry.buffer);
+                ceView.setUint32(0, 0x02014b50, true);   // signature
+                ceView.setUint16(4, 20, true);            // version made by
+                ceView.setUint16(6, 20, true);            // version needed
+                ceView.setUint16(8, 0, true);             // flags
+                ceView.setUint16(10, 0, true);            // compression: stored
+                ceView.setUint16(12, 0, true);            // mod time
+                ceView.setUint16(14, 0, true);            // mod date
+                ceView.setUint32(16, 0, true);            // crc32
+                ceView.setUint32(20, file.data.length, true);  // compressed
+                ceView.setUint32(24, file.data.length, true);  // uncompressed
+                ceView.setUint16(28, nameBytes.length, true);  // name length
+                ceView.setUint16(30, 0, true);            // extra length
+                ceView.setUint16(32, 0, true);            // comment length
+                ceView.setUint16(34, 0, true);            // disk start
+                ceView.setUint16(36, 0, true);            // internal attrs
+                ceView.setUint32(38, 0, true);            // external attrs
+                ceView.setUint32(42, offset, true);       // local header offset
+                centralEntry.set(nameBytes, 46);
+
+                centralHeaders.push(centralEntry);
+                offset += localHeader.length;
+            }
+
+            const centralDirOffset = offset;
+            let centralDirSize = 0;
+            for (const ch of centralHeaders) centralDirSize += ch.length;
+
+            // End of central directory (22 bytes)
+            const eocd = new Uint8Array(22);
+            const eocdView = new DataView(eocd.buffer);
+            eocdView.setUint32(0, 0x06054b50, true);     // signature
+            eocdView.setUint16(4, 0, true);               // disk number
+            eocdView.setUint16(6, 0, true);               // central dir disk
+            eocdView.setUint16(8, files.length, true);    // entries on disk
+            eocdView.setUint16(10, files.length, true);   // total entries
+            eocdView.setUint32(12, centralDirSize, true); // central dir size
+            eocdView.setUint32(16, centralDirOffset, true); // central dir offset
+            eocdView.setUint16(20, 0, true);              // comment length
+
+            // Concatenate everything
+            const totalSize = offset + centralDirSize + 22;
+            const result = new Uint8Array(totalSize);
+            let pos = 0;
+            for (const lh of localHeaders) { result.set(lh, pos); pos += lh.length; }
+            for (const ch of centralHeaders) { result.set(ch, pos); pos += ch.length; }
+            result.set(eocd, pos);
+
+            return result.buffer;
+        }
+
+        // Build a minimal WAV file (silence) for audio testing
+        function buildSilentWav(durationMs) {
+            const sampleRate = 8000;
+            const numSamples = Math.floor(sampleRate * durationMs / 1000);
+            const dataSize = numSamples * 2; // 16-bit mono
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            // RIFF header
+            const writeStr = (offset, str) => {
+                for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+            };
+            writeStr(0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeStr(8, 'WAVE');
+
+            // fmt chunk
+            writeStr(12, 'fmt ');
+            view.setUint32(16, 16, true);         // chunk size
+            view.setUint16(20, 1, true);           // PCM
+            view.setUint16(22, 1, true);           // mono
+            view.setUint32(24, sampleRate, true);  // sample rate
+            view.setUint32(28, sampleRate * 2, true); // byte rate
+            view.setUint16(32, 2, true);           // block align
+            view.setUint16(34, 16, true);          // bits per sample
+
+            // data chunk
+            writeStr(36, 'data');
+            view.setUint32(40, dataSize, true);
+            // Data is already zeroed (silence)
+
+            return new Uint8Array(buffer);
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 1. Zip parsing
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>1. Zip Parsing</h2>');
+
+        const manifestJson = JSON.stringify({
+            id: 'test-pack',
+            name: 'Test Pack',
+            version: '1.0.0',
+            cues: {
+                'countdown-5': 'voices/5.wav',
+                'countdown-4': 'voices/4.wav',
+                'trigger': 'voices/go.wav',
+            }
+        });
+
+        const silentWav = buildSilentWav(100);
+
+        const testZip = buildTestZip([
+            { name: 'manifest.json', data: new TextEncoder().encode(manifestJson) },
+            { name: 'voices/5.wav', data: silentWav },
+            { name: 'voices/4.wav', data: silentWav },
+            { name: 'voices/go.wav', data: silentWav },
+        ]);
+
+        const entries = parseZipCentralDirectory(testZip);
+        assert('Zip has 4 entries', entries.length === 4, `Got ${entries.length}`);
+        assert('First entry is manifest.json', entries[0].name === 'manifest.json');
+        assert('Entries have stored compression (method 0)', entries.every(e => e.compressionMethod === 0));
+
+        // Extract manifest
+        const manifestData = await extractZipFile(testZip, entries[0]);
+        const manifestText = new TextDecoder().decode(manifestData);
+        const parsedManifest = JSON.parse(manifestText);
+        assert('Extracted manifest has correct ID', parsedManifest.id === 'test-pack');
+        assert('Manifest has 3 cues', Object.keys(parsedManifest.cues).length === 3);
+
+        // Extract audio file
+        const audioEntry = entries.find(e => e.name === 'voices/5.wav');
+        const audioData = await extractZipFile(testZip, audioEntry);
+        assert('Audio file extracted with correct size', audioData.length === silentWav.length,
+            `Got ${audioData.length}, expected ${silentWav.length}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 2. Zip error handling
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>2. Zip Error Handling</h2>');
+
+        try {
+            parseZipCentralDirectory(new ArrayBuffer(10));
+            assert('Invalid zip throws error', false, 'Did not throw');
+        } catch (e) {
+            assert('Invalid zip throws error', e.message.includes('EOCD'));
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 3. Manager creation
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>3. Manager Creation</h2>');
+
+        const mgr = createResourcePackManager();
+        assert('createResourcePackManager returns object', typeof mgr === 'object');
+        assert('Has importPack method', typeof mgr.importPack === 'function');
+        assert('Has deletePack method', typeof mgr.deletePack === 'function');
+        assert('Has listPacks method', typeof mgr.listPacks === 'function');
+        assert('Has hasPack method', typeof mgr.hasPack === 'function');
+        assert('Has ensurePackLoaded method', typeof mgr.ensurePackLoaded === 'function');
+        assert('Has getResolver method', typeof mgr.getResolver === 'function');
+        assert('Has getAudioContext method', typeof mgr.getAudioContext === 'function');
+
+        // ═════════════════════════════════════════════════════════════
+        // 4. Import + IDB storage
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>4. Import & IDB Storage</h2>');
+
+        // Clean up any previous test data
+        try { await mgr.deletePack('test-pack'); } catch {}
+
+        const progressMessages = [];
+        const manifest = await mgr.importPack(testZip, (msg) => progressMessages.push(msg));
+
+        assert('Import returns manifest', manifest !== null && typeof manifest === 'object');
+        assert('Manifest ID is correct', manifest.id === 'test-pack');
+        assert('Manifest name is correct', manifest.name === 'Test Pack');
+        assert('Manifest version is correct', manifest.version === '1.0.0');
+        assert('Progress reported', progressMessages.length > 0,
+            `Messages: ${progressMessages.join(', ')}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 5. List & Has
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>5. List & Has</h2>');
+
+        const packs = await mgr.listPacks();
+        assert('listPacks returns array with our pack',
+            packs.some(p => p.id === 'test-pack'),
+            `Got: ${packs.map(p => p.id).join(', ')}`);
+
+        const has = await mgr.hasPack('test-pack');
+        assert('hasPack returns true for installed pack', has === true);
+
+        const hasNot = await mgr.hasPack('nonexistent-pack');
+        assert('hasPack returns false for missing pack', hasNot === false);
+
+        // ═════════════════════════════════════════════════════════════
+        // 6. Audio loading (ensurePackLoaded)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>6. Audio Loading</h2>');
+
+        await mgr.ensurePackLoaded('test-pack');
+        const cache = mgr.getBufferCache();
+        const loadedPacks = mgr.getLoadedPacks();
+
+        assert('Pack marked as loaded', loadedPacks.has('test-pack'));
+        assert('Buffer cache has countdown-5', cache.has('test-pack:countdown-5'));
+        assert('Buffer cache has countdown-4', cache.has('test-pack:countdown-4'));
+        assert('Buffer cache has trigger', cache.has('test-pack:trigger'));
+        assert('Cached entries are AudioBuffers', cache.get('test-pack:countdown-5') instanceof AudioBuffer);
+
+        // Loading again is a no-op
+        const cacheSize = cache.size;
+        await mgr.ensurePackLoaded('test-pack');
+        assert('Re-loading same pack is no-op', cache.size === cacheSize);
+
+        // ═════════════════════════════════════════════════════════════
+        // 7. Resolver
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>7. Resolver</h2>');
+
+        const resolver = mgr.getResolver();
+        assert('getResolver returns function', typeof resolver === 'function');
+
+        const played5 = resolver('countdown-5', 'test-pack');
+        assert('Resolver plays loaded cue (countdown-5)', played5 === true);
+
+        const playedTrigger = resolver('trigger', 'test-pack');
+        assert('Resolver plays loaded cue (trigger)', playedTrigger === true);
+
+        const playedMissing = resolver('nonexistent-cue', 'test-pack');
+        assert('Resolver returns false for missing cue', playedMissing === false);
+
+        const playedWrongPack = resolver('countdown-5', 'wrong-pack');
+        assert('Resolver returns false for wrong pack', playedWrongPack === false);
+
+        // ═════════════════════════════════════════════════════════════
+        // 8. audioService integration
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>8. AudioService Integration</h2>');
+
+        const audio = createAudioService();
+        audio.initialize(() => {});
+        audio.setMuted(true); // Mute TTS
+
+        // Wire up the resolver
+        audio.setResourcePackResolver(resolver);
+
+        // Action that references our test pack
+        const packAction = createTimelineAction({
+            action: 'Test action',
+            time: new Date(Date.now() + 60000).toISOString(),
+            pack: 'test-pack',
+            cue: 'countdown-5',
+            fallbackText: 'Five',
+            noticeSeconds: 10,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        // Notice with pack cue
+        const noticeResult = audio.resolveAudioCue(packAction, 'notice');
+        assert('resolveAudioCue returns null when pack plays it',
+            noticeResult === null,
+            `Got: "${noticeResult}"`);
+
+        // Remove resolver to test fallback
+        audio.setResourcePackResolver(null);
+        const fallbackResult = audio.resolveAudioCue(packAction, 'notice');
+        assert('resolveAudioCue returns fallbackText without resolver',
+            fallbackResult === 'Five',
+            `Got: "${fallbackResult}"`);
+
+        // Countdown with pack (need fresh service for dedup)
+        const cdAudio = createAudioService();
+        cdAudio.initialize(() => {});
+        cdAudio.setMuted(true);
+        cdAudio.setResourcePackResolver(resolver);
+
+        const cdResult = cdAudio.announceAction(packAction, 5, 10);
+        assert('Countdown at 5s uses pack resolver',
+            cdResult !== null && cdResult.includes('countdown'),
+            `Got: "${cdResult}"`);
+
+        // Trigger with pack
+        const tAudio = createAudioService();
+        tAudio.initialize(() => {});
+        tAudio.setMuted(true);
+        tAudio.setResourcePackResolver(resolver);
+
+        const tResult = tAudio.announceAction(packAction, 0, 10);
+        assert('Trigger uses pack resolver',
+            tResult !== null && tResult.includes('trigger'),
+            `Got: "${tResult}"`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 9. Manifest validation
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>9. Manifest Validation</h2>');
+
+        // Missing manifest
+        const noManifestZip = buildTestZip([
+            { name: 'readme.txt', data: new TextEncoder().encode('hello') }
+        ]);
+        try {
+            await mgr.importPack(noManifestZip);
+            assert('Zip without manifest throws', false);
+        } catch (e) {
+            assert('Zip without manifest throws', e.message.includes('missing manifest'));
+        }
+
+        // Invalid JSON manifest
+        const badJsonZip = buildTestZip([
+            { name: 'manifest.json', data: new TextEncoder().encode('not json') }
+        ]);
+        try {
+            await mgr.importPack(badJsonZip);
+            assert('Invalid JSON manifest throws', false);
+        } catch (e) {
+            assert('Invalid JSON manifest throws', e.message.includes('not valid JSON'));
+        }
+
+        // Missing ID
+        const noIdZip = buildTestZip([
+            { name: 'manifest.json', data: new TextEncoder().encode('{"name":"x","cues":{}}') }
+        ]);
+        try {
+            await mgr.importPack(noIdZip);
+            assert('Missing ID throws', false);
+        } catch (e) {
+            assert('Missing ID throws', e.message.includes('missing "id"'));
+        }
+
+        // Missing name
+        const noNameZip = buildTestZip([
+            { name: 'manifest.json', data: new TextEncoder().encode('{"id":"x","cues":{}}') }
+        ]);
+        try {
+            await mgr.importPack(noNameZip);
+            assert('Missing name throws', false);
+        } catch (e) {
+            assert('Missing name throws', e.message.includes('missing "name"'));
+        }
+
+        // Missing cues
+        const noCuesZip = buildTestZip([
+            { name: 'manifest.json', data: new TextEncoder().encode('{"id":"x","name":"y"}') }
+        ]);
+        try {
+            await mgr.importPack(noCuesZip);
+            assert('Missing cues throws', false);
+        } catch (e) {
+            assert('Missing cues throws', e.message.includes('missing "cues"'));
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // 10. Delete pack
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>10. Delete Pack</h2>');
+
+        await mgr.deletePack('test-pack');
+        const afterDelete = await mgr.hasPack('test-pack');
+        assert('Pack deleted from IDB', afterDelete === false);
+        assert('Cache cleared after delete', !mgr.getLoadedPacks().has('test-pack'));
+        assert('Buffer cache cleared', !mgr.getBufferCache().has('test-pack:countdown-5'));
+
+        // ═════════════════════════════════════════════════════════════
+        // 11. Re-import after delete
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>11. Re-import After Delete</h2>');
+
+        await mgr.importPack(testZip);
+        const afterReimport = await mgr.hasPack('test-pack');
+        assert('Re-import succeeds', afterReimport === true);
+
+        // Clean up
+        await mgr.deletePack('test-pack');
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // INTERACTIVE DEMO
+        // ═════════════════════════════════════════════════════════════
+        log(`
+            <h2>Interactive Demo — Import a Pack</h2>
+            <div class="demo-section">
+                <p style="color:#888; margin-bottom:8px;">Import a .zip resource pack to test the full pipeline.</p>
+                <input type="file" id="pack-file" accept=".zip">
+                <br>
+                <button onclick="demoImport()">Import Selected Pack</button>
+                <button onclick="demoList()">List Installed Packs</button>
+                <button onclick="demoDeleteAll()">Delete All Packs</button>
+                <div id="demo-log" class="log-output"></div>
+            </div>
+        `);
+    })();
+
+    // ─── Interactive demo functions ──────────────────────────────
+    const demoMgr = createResourcePackManager();
+
+    async function demoImport() {
+        const fileInput = document.getElementById('pack-file');
+        if (!fileInput.files.length) {
+            demoLog('No file selected', 'error');
+            return;
+        }
+        try {
+            const arrayBuffer = await fileInput.files[0].arrayBuffer();
+            demoLog('Importing...', 'info');
+            const manifest = await demoMgr.importPack(arrayBuffer, (msg) => demoLog(msg, 'info'));
+            demoLog(`Imported: ${manifest.name} (${manifest.id}) v${manifest.version}`, 'success');
+            demoLog(`Cues: ${Object.keys(manifest.cues).join(', ')}`, 'info');
+
+            // Try to load audio
+            await demoMgr.ensurePackLoaded(manifest.id);
+            const cache = demoMgr.getBufferCache();
+            const loaded = [...cache.keys()].filter(k => k.startsWith(manifest.id + ':'));
+            demoLog(`Audio buffers loaded: ${loaded.length}`, 'success');
+
+            // Test resolver
+            const resolver = demoMgr.getResolver();
+            for (const cueId of Object.keys(manifest.cues)) {
+                const played = resolver(cueId, manifest.id);
+                demoLog(`  Play "${cueId}": ${played ? 'OK' : 'FAILED'}`, played ? 'success' : 'error');
+            }
+        } catch (e) {
+            demoLog('Import failed: ' + e.message, 'error');
+        }
+    }
+
+    async function demoList() {
+        try {
+            const packs = await demoMgr.listPacks();
+            if (packs.length === 0) {
+                demoLog('No packs installed', 'info');
+            } else {
+                for (const p of packs) {
+                    demoLog(`${p.name} (${p.id}) v${p.version} — ${Object.keys(p.cues).length} cues`, 'info');
+                }
+            }
+        } catch (e) {
+            demoLog('List failed: ' + e.message, 'error');
+        }
+    }
+
+    async function demoDeleteAll() {
+        try {
+            const packs = await demoMgr.listPacks();
+            for (const p of packs) {
+                await demoMgr.deletePack(p.id);
+                demoLog(`Deleted: ${p.name}`, 'info');
+            }
+            demoLog('All packs deleted', 'success');
+        } catch (e) {
+            demoLog('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    function demoLog(text, cls) {
+        const logEl = document.getElementById('demo-log');
+        if (logEl) {
+            logEl.innerHTML += `<div class="log-entry ${cls || ''}">${text}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+    }
+    </script>
+</body>
+</html>
