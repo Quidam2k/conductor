@@ -7,6 +7,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
+    <meta property="og:title" content="Conductor">
+    <meta property="og:description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://quidam2k.github.io/conductor/">
+    <meta property="og:image" content="https://quidam2k.github.io/conductor/icon-512.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Conductor">
+    <meta name="twitter:description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
+    <meta name="twitter:image" content="https://quidam2k.github.io/conductor/icon-512.png">
     <meta name="apple-mobile-web-app-title" content="Conductor">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -157,6 +166,33 @@
             color: var(--text-dim);
             font-size: 13px;
             margin-top: 4px;
+        }
+        .app-about {
+            color: var(--text-dim);
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+            margin: 0 8px 4px;
+        }
+        .app-about summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--accent-blue);
+            list-style: none;
+            user-select: none;
+        }
+        .app-about summary::-webkit-details-marker { display: none; }
+        .app-about .about-body {
+            margin-top: 8px;
+            text-align: left;
+            padding: 0 4px;
+        }
+        .btn-hint {
+            display: block;
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-top: 2px;
+            text-align: center;
         }
 
         textarea {
@@ -501,8 +537,15 @@
     <div class="content">
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
-            <p>Synchronized coordination for real-world actions</p>
+            <p>Create timed action sequences and share them as links.<br>Everyone's device counts down together.</p>
         </div>
+
+        <details class="app-about">
+            <summary>What is this?</summary>
+            <div class="about-body">
+                Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of cues — spoken announcements, vibrations, or audio — and shares it as a link or QR code. Every participant's device plays the same cues at the same time. No accounts, no app store, no server required.
+            </div>
+        </details>
 
         <textarea id="input-paste" placeholder="Got an event code? Paste it here..."></textarea>
         <div id="input-error" class="error-msg"></div>
@@ -511,6 +554,7 @@
         <div class="separator">or</div>
 
         <button id="btn-demo" class="btn-outline">Load Demo Event</button>
+        <span class="btn-hint">Try a sample event to see how it works</span>
 
         <div class="separator">or</div>
 

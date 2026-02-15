@@ -8,6 +8,7 @@ WHERE_WE_ARE.md
 
 # Claude Code settings (local)
 .claude/
+CLAUDE.md
 
 # MCP configuration (local)
 .mcp/
