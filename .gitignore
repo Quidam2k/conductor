@@ -57,5 +57,8 @@ __pycache__/
 .venv/
 venv/
 
+# Test artifacts
+test-results/
+
 # Screenshots (local scratch)
 screengrab/
