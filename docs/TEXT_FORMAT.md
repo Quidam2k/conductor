@@ -10,12 +10,14 @@ Title: Flash Mob at Central Park
 Description: Meet by the fountain, east side
 Start: 2026-03-15 2:00 PM
 Timezone: America/New_York
+NotifyWindow: 10
+Countdown: true
 
 0:00  Get ready
-0:15  Wave left  [emphasis]
-0:30  Wave right  [emphasis, countdown]
-1:00  Jump!  [alert, countdown, haptic:triple]
-1:30  Freeze in place
+0:15  [emphasis] Wave left
+0:30  [emphasis, countdown] Wave right
+1:00  [alert, countdown:3, haptic:triple] Jump!
+1:30  [no-notify] Freeze in place
 ```
 
 ## Headers
@@ -35,6 +37,19 @@ If you leave out `Timezone`, it defaults to your browser's local timezone.
 - `2026-03-15 2:00 PM`
 - `March 15, 2026 14:00`
 - `2026-03-15T14:00`
+
+### Config Headers
+
+These optional headers set event-level defaults:
+
+| Header | What it does | Example |
+|--------|-------------|---------|
+| `NotifyWindow` | Default seconds before action to give notice (default: 5) | `NotifyWindow: 15` |
+| `CountdownWindow` | Default countdown duration in seconds | `CountdownWindow: 5` |
+| `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
+| `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
+
+Per-action tags (below) override these event-level defaults.
 
 ## Timeline Actions
 
@@ -56,23 +71,56 @@ The timestamp is the offset from the event start time — `0:00` means "right wh
 
 ## Tags (Optional)
 
-Add `[tags]` at the end of any action line to customize how it looks and feels:
+Add `[tags]` **before** the action text to customize how it looks and feels:
 
 ```
-0:30  Wave right  [emphasis, countdown, haptic:triple]
+0:30  [emphasis, countdown, haptic:triple] Wave right
 ```
+
+### Style Tags
 
 | Tag | What it does |
 |-----|-------------|
 | `normal` | Default blue style |
 | `emphasis` | Gold/highlighted style |
 | `alert` | Red/urgent style |
+
+### Countdown Tags
+
+| Tag | What it does |
+|-----|-------------|
 | `countdown` | Announces "5, 4, 3, 2, 1" before the action |
+| `countdown:N` | Custom countdown duration (e.g. `countdown:3` announces "3, 2, 1") |
+| `no-countdown` | Suppress countdown for this action |
+
+### Notification Tags
+
+| Tag | What it does |
+|-----|-------------|
+| `notify:N` | Override notice seconds for this action (e.g. `notify:10`) |
+| `no-notify` | Suppress audio notice entirely for this action |
+
+### Haptic Tags
+
+| Tag | What it does |
+|-----|-------------|
 | `haptic:single` | Single vibration pulse |
 | `haptic:double` | Double vibration pulse (default) |
 | `haptic:triple` | Triple vibration pulse |
 
-Combine multiple tags with commas: `[alert, countdown, haptic:triple]`
+Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]`
+
+## Backward Compatibility
+
+Tags placed **after** the action text still work but are deprecated:
+
+```
+# Old style (still works, but prefer the new style above)
+0:30  Wave right  [emphasis, countdown]
+
+# New style (preferred)
+0:30  [emphasis, countdown] Wave right
+```
 
 ## Comments and Blank Lines
 

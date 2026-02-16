@@ -84,6 +84,9 @@ function createTimelineAction(overrides = {}) {
  * @property {string} timezone - IANA timezone (e.g. "America/New_York")
  * @property {TimelineAction[]} timeline
  * @property {number|null} [defaultNoticeSeconds] - Default notice for actions (default 5)
+ * @property {number|null} [defaultCountdownSeconds] - Default countdown duration
+ * @property {boolean|null} [defaultCountdown] - Whether countdown is on by default
+ * @property {string|null} [defaultHapticMode] - 'action', 'countdown', or 'off'
  * @property {number|null} [timeWindowSeconds] - Window size in seconds (default 60)
  * @property {string|null} [visualMode] - "circular" or "vertical" (default "circular")
  */
@@ -152,6 +155,9 @@ function embeddedEventToEvent(embedded) {
         creatorId: 'embedded',
         timeline: timeline,
         defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 5,
+        defaultCountdownSeconds: embedded.defaultCountdownSeconds ?? null,
+        defaultCountdown: embedded.defaultCountdown ?? null,
+        defaultHapticMode: embedded.defaultHapticMode ?? null,
         timeWindowSeconds: embedded.timeWindowSeconds ?? 60,
         visualMode: embedded.visualMode ?? 'circular',
         emergencyMode: false,
@@ -176,6 +182,9 @@ function eventToEmbeddedEvent(event) {
         timezone: event.timezone,
         timeline: event.timeline,
         defaultNoticeSeconds: event.defaultNoticeSeconds !== 5 ? event.defaultNoticeSeconds : null,
+        defaultCountdownSeconds: event.defaultCountdownSeconds || null,
+        defaultCountdown: event.defaultCountdown != null ? event.defaultCountdown : null,
+        defaultHapticMode: event.defaultHapticMode || null,
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
     };
