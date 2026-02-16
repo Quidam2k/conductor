@@ -30,9 +30,13 @@ function encodeEvent(event) {
 function encodeEmbeddedEvent(embedded) {
     // Strip null/undefined values to minimize JSON size
     const cleaned = stripNulls(embedded);
-    // Also strip null fields from each timeline action
+    // Also strip null fields and computed fields from each timeline action
     if (cleaned.timeline) {
-        cleaned.timeline = cleaned.timeline.map(stripNulls);
+        cleaned.timeline = cleaned.timeline.map(a => {
+            const stripped = stripNulls(a);
+            delete stripped.timeMs; // Computed field, don't encode
+            return stripped;
+        });
     }
 
     const jsonString = JSON.stringify(cleaned);
