@@ -1214,12 +1214,22 @@ function startAudioLoop(mode) {
             if (secUntil < -2 || secUntil > evt.defaultNoticeSeconds + 2) continue;
 
             const result = audio.announceAction(
-                action, secUntil, evt.defaultNoticeSeconds, speedMult
+                action, secUntil, evt.defaultNoticeSeconds, speedMult,
+                {
+                    defaultCountdownSeconds: evt.defaultCountdownSeconds,
+                    defaultCountdown: evt.defaultCountdown,
+                    defaultHapticMode: evt.defaultHapticMode,
+                }
             );
 
-            // Haptic on trigger
-            if (result && result.startsWith('trigger')) {
-                audio.haptic(action.hapticPattern || 'double');
+            // Haptic feedback — respects event-level haptic mode
+            const hapticMode = evt.defaultHapticMode || 'action';
+            if (result && hapticMode !== 'off') {
+                if (result.startsWith('trigger')) {
+                    audio.haptic(action.hapticPattern || 'double');
+                } else if (result.startsWith('countdown') && hapticMode === 'countdown') {
+                    audio.haptic('single');
+                }
             }
         }
     }, 100); // 10Hz

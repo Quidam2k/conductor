@@ -144,13 +144,33 @@ function createAudioService() {
      * @param {number} secondsUntil - Precise seconds until action triggers
      * @param {number} defaultNoticeSeconds - Event-level default
      * @param {number} [speedMultiplier=1] - Practice mode speed
+     * @param {Object} [eventDefaults={}] - Event-level defaults
+     * @param {number|null} [eventDefaults.defaultCountdownSeconds] - Default countdown duration
+     * @param {boolean|null} [eventDefaults.defaultCountdown] - Whether countdown is on by default
+     * @param {string|null} [eventDefaults.defaultHapticMode] - 'action', 'countdown', or 'off'
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
-    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1) {
+    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}) {
         if (!action.audioAnnounce) return null;
 
+        // Smart clamp: don't announce actions that are already >2 seconds past trigger
+        if (secondsUntil < -2) return null;
+
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
-        const countdownSeconds = action.countdownSeconds ?? [5, 4, 3, 2, 1];
+
+        // Resolve countdown for this action
+        let countdownSeconds;
+        if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
+            // Action has explicit countdown — use it
+            countdownSeconds = action.countdownSeconds;
+        } else if (eventDefaults.defaultCountdown) {
+            // Event default says countdown is on
+            const duration = eventDefaults.defaultCountdownSeconds ?? 5;
+            countdownSeconds = Array.from({length: duration}, (_, i) => duration - i);
+        } else {
+            // No countdown
+            countdownSeconds = null;
+        }
         const adjustedSeconds = Math.round(secondsUntil / speedMultiplier);
 
         // Range-crossing detection: track last seen adjustedSeconds per action.
@@ -176,8 +196,9 @@ function createAudioService() {
                 if (text === null) {
                     return `notice-pack: "${action.cue || 'random'}"`;
                 }
-                speak(text);
-                return `notice: "${text}"`;
+                const noticeText = 'Get ready to ' + text.toLowerCase();
+                speak(noticeText);
+                return `notice: "${noticeText}"`;
             }
         }
 
@@ -187,8 +208,10 @@ function createAudioService() {
             if (!announced.has(key)) {
                 announced.add(key);
                 // Mark any skipped countdown numbers as announced
-                for (const cs of countdownSeconds) {
-                    announced.add(`${action.id}-countdown-${cs}`);
+                if (countdownSeconds) {
+                    for (const cs of countdownSeconds) {
+                        announced.add(`${action.id}-countdown-${cs}`);
+                    }
                 }
                 if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack)) {
                     return 'trigger-pack: "Go!"';
@@ -200,25 +223,34 @@ function createAudioService() {
 
         // 3. Countdown — fire the lowest crossed number (closest to now).
         //    Iterate ascending so the most relevant number fires first.
-        const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
-        for (const cs of sortedCountdown) {
-            if (crossed(cs)) {
-                const key = `${action.id}-countdown-${cs}`;
-                if (!announced.has(key)) {
-                    announced.add(key);
-                    // Mark higher crossed countdowns as skipped
-                    for (const cs2 of countdownSeconds) {
-                        if (cs2 > cs) {
-                            announced.add(`${action.id}-countdown-${cs2}`);
+        if (countdownSeconds && countdownSeconds.length > 0) {
+            const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
+            for (const cs of sortedCountdown) {
+                if (crossed(cs)) {
+                    const key = `${action.id}-countdown-${cs}`;
+                    if (!announced.has(key)) {
+                        announced.add(key);
+                        // Mark higher crossed countdowns as skipped
+                        for (const cs2 of countdownSeconds) {
+                            if (cs2 > cs) {
+                                announced.add(`${action.id}-countdown-${cs2}`);
+                            }
                         }
+                        const countdownCueId = 'countdown-' + cs;
+                        if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
+                            return `countdown-pack: ${cs}`;
+                        }
+                        // Formatted countdown: first number gets action name context
+                        const maxCountdown = Math.max(...countdownSeconds);
+                        let text;
+                        if (cs === maxCountdown) {
+                            text = action.action + ' in ' + cs;
+                        } else {
+                            text = String(cs);
+                        }
+                        speak(text, 1.3 * speedMultiplier);
+                        return `countdown: "${text}"`;
                     }
-                    const countdownCueId = 'countdown-' + cs;
-                    if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
-                        return `countdown-pack: ${cs}`;
-                    }
-                    const text = String(cs);
-                    speak(text, 1.3 * speedMultiplier);
-                    return `countdown: ${text}`;
                 }
             }
         }
