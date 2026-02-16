@@ -458,6 +458,244 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 9: Text Format Parsing
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>9. Text Format Parsing</h2>');
+
+        // 9.1 Basic text format parse
+        try {
+            const basicText = [
+                'Title: Test Event',
+                'Description: A test',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: America/New_York',
+                '',
+                '0:00  Get ready',
+                '0:30  Wave left',
+                '1:00  Jump',
+            ].join('\n');
+            const basicParsed = parseTextFormat(basicText);
+            assert('9.1 Basic parse: title', basicParsed.title === 'Test Event');
+            assert('9.1 Basic parse: description', basicParsed.description === 'A test');
+            assert('9.1 Basic parse: timezone', basicParsed.timezone === 'America/New_York');
+            assert('9.1 Basic parse: 3 actions', basicParsed.timeline.length === 3);
+            assert('9.1 Basic parse: action text', basicParsed.timeline[0].action === 'Get ready');
+            assert('9.1 Basic parse: default style', basicParsed.timeline[0].style === 'normal');
+        } catch (e) {
+            assert('9.1 Basic text format parse', false, e.message);
+        }
+
+        // 9.2 Brackets-before-command (new syntax)
+        try {
+            const bracketsBefore = [
+                'Title: Brackets Before',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:30  [emphasis] Wave right',
+                '1:00  [alert, countdown, haptic:triple] Jump!',
+            ].join('\n');
+            const bbParsed = parseTextFormat(bracketsBefore);
+            assert('9.2 Brackets before: action text extracted', bbParsed.timeline[0].action === 'Wave right');
+            assert('9.2 Brackets before: emphasis style', bbParsed.timeline[0].style === 'emphasis');
+            assert('9.2 Brackets before: alert style', bbParsed.timeline[1].style === 'alert');
+            assert('9.2 Brackets before: countdown on', deepEqual(bbParsed.timeline[1].countdownSeconds, [5, 4, 3, 2, 1]));
+            assert('9.2 Brackets before: haptic:triple', bbParsed.timeline[1].hapticPattern === 'triple');
+            assert('9.2 Brackets before: action text clean', bbParsed.timeline[1].action === 'Jump!');
+        } catch (e) {
+            assert('9.2 Brackets before command', false, e.message);
+        }
+
+        // 9.3 Brackets-after-command backward compat
+        try {
+            const bracketsAfter = [
+                'Title: Brackets After',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:30  Wave right  [emphasis]',
+                '1:00  Jump!  [alert, countdown]',
+            ].join('\n');
+            // Capture console.warn for deprecation check
+            const origWarn = console.warn;
+            let warnCalled = false;
+            console.warn = function() { warnCalled = true; };
+            const baParsed = parseTextFormat(bracketsAfter);
+            console.warn = origWarn;
+            assert('9.3 Brackets after: still works', baParsed.timeline[0].style === 'emphasis');
+            assert('9.3 Brackets after: action text clean', baParsed.timeline[0].action === 'Wave right');
+            assert('9.3 Brackets after: countdown works', deepEqual(baParsed.timeline[1].countdownSeconds, [5, 4, 3, 2, 1]));
+            assert('9.3 Brackets after: deprecation warning logged', warnCalled === true);
+        } catch (e) {
+            assert('9.3 Brackets after backward compat', false, e.message);
+        }
+
+        // 9.4 New config headers
+        try {
+            const configHeaders = [
+                'Title: Config Headers Test',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                'NotifyWindow: 15',
+                'CountdownWindow: 5',
+                'Countdown: true',
+                'Haptic: countdown',
+                '',
+                '0:00  Go',
+            ].join('\n');
+            const chParsed = parseTextFormat(configHeaders);
+            const chValidated = validateAndComplete(chParsed);
+            assert('9.4 Config: defaultNoticeSeconds = 15', chValidated.defaultNoticeSeconds === 15);
+            assert('9.4 Config: defaultCountdownSeconds = 5', chValidated.defaultCountdownSeconds === 5);
+            assert('9.4 Config: defaultCountdown = true', chValidated.defaultCountdown === true);
+            assert('9.4 Config: defaultHapticMode = countdown', chValidated.defaultHapticMode === 'countdown');
+        } catch (e) {
+            assert('9.4 New config headers', false, e.message);
+        }
+
+        // 9.5 New bracket tags
+        try {
+            const newTags = [
+                'Title: New Tags Test',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:00  [notify:10] Action with custom notice',
+                '0:30  [countdown:3] Three sec countdown',
+                '1:00  [no-notify] Silent action',
+                '1:30  [no-countdown] No countdown here',
+            ].join('\n');
+            const ntParsed = parseTextFormat(newTags);
+            // notify:10
+            assert('9.5 notify:10: noticeSeconds', ntParsed.timeline[0].noticeSeconds === 10);
+            assert('9.5 notify:10: action text', ntParsed.timeline[0].action === 'Action with custom notice');
+            // countdown:3
+            assert('9.5 countdown:3: array', deepEqual(ntParsed.timeline[1].countdownSeconds, [3, 2, 1]),
+                'Expected [3,2,1], got ' + JSON.stringify(ntParsed.timeline[1].countdownSeconds));
+            assert('9.5 countdown:3: action text', ntParsed.timeline[1].action === 'Three sec countdown');
+            // no-notify
+            assert('9.5 no-notify: audioAnnounce false', ntParsed.timeline[2].audioAnnounce === false);
+            assert('9.5 no-notify: noticeSeconds 0', ntParsed.timeline[2].noticeSeconds === 0);
+            // no-countdown
+            assert('9.5 no-countdown: null countdown', ntParsed.timeline[3].countdownSeconds === null);
+        } catch (e) {
+            assert('9.5 New bracket tags', false, e.message);
+        }
+
+        // 9.6 Combined: config header + per-action overrides
+        try {
+            const combined = [
+                'Title: Combined Test',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                'NotifyWindow: 20',
+                'Countdown: true',
+                '',
+                '0:00  [emphasis, notify:10] Custom notice action',
+                '0:30  [no-notify, alert] Silent alert',
+            ].join('\n');
+            const combParsed = parseTextFormat(combined);
+            const combValidated = validateAndComplete(combParsed);
+            // Event-level config
+            assert('9.6 Combined: event defaultNoticeSeconds', combValidated.defaultNoticeSeconds === 20);
+            assert('9.6 Combined: event defaultCountdown', combValidated.defaultCountdown === true);
+            // Per-action overrides
+            assert('9.6 Combined: action notify:10 override', combParsed.timeline[0].noticeSeconds === 10);
+            assert('9.6 Combined: action emphasis style', combParsed.timeline[0].style === 'emphasis');
+            assert('9.6 Combined: no-notify action', combParsed.timeline[1].audioAnnounce === false);
+            assert('9.6 Combined: alert style', combParsed.timeline[1].style === 'alert');
+        } catch (e) {
+            assert('9.6 Combined config + overrides', false, e.message);
+        }
+
+        // 9.7 Edge cases
+        try {
+            // Empty brackets — should not crash, no tags parsed
+            const emptyBrackets = [
+                'Title: Edge Cases',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:00  [] Action with empty brackets',
+            ].join('\n');
+            // Empty brackets: regex [^\]]+ requires 1+ chars, so [] won't match — action text includes []
+            const ebParsed = parseTextFormat(emptyBrackets);
+            assert('9.7 Empty brackets: no crash', ebParsed.timeline.length === 1);
+
+            // Unknown tags: should warn, not fail
+            const unknownTags = [
+                'Title: Unknown Tags',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:00  [emphasis, bogus] Action here',
+            ].join('\n');
+            const origWarn2 = console.warn;
+            let warnMessages = [];
+            console.warn = function(...args) { warnMessages.push(args); };
+            const utParsed = parseTextFormat(unknownTags);
+            console.warn = origWarn2;
+            assert('9.7 Unknown tag: no crash', utParsed.timeline.length === 1);
+            assert('9.7 Unknown tag: emphasis still applied', utParsed.timeline[0].style === 'emphasis');
+            // Warnings should include the unknown tag
+            const warningText = JSON.stringify(warnMessages);
+            assert('9.7 Unknown tag: warning generated', warningText.includes('bogus'),
+                'Warnings: ' + warningText);
+
+            // Tags with extra whitespace
+            const spaceyTags = [
+                'Title: Spacey Tags',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:00  [ emphasis , countdown ] Action here',
+            ].join('\n');
+            const stParsed = parseTextFormat(spaceyTags);
+            assert('9.7 Spacey tags: emphasis applied', stParsed.timeline[0].style === 'emphasis');
+            assert('9.7 Spacey tags: countdown applied', deepEqual(stParsed.timeline[0].countdownSeconds, [5, 4, 3, 2, 1]));
+        } catch (e) {
+            assert('9.7 Edge cases', false, e.message);
+        }
+
+        // 9.8 Round-trip: text format → parse → validate → encode → decode → verify
+        try {
+            const roundTrip = [
+                'Title: Round Trip Test',
+                'Description: Testing full pipeline',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: America/Chicago',
+                'NotifyWindow: 12',
+                'CountdownWindow: 7',
+                'Haptic: action',
+                '',
+                '0:00  [emphasis] Get ready everyone',
+                '0:30  [countdown:3, alert] Jump now!',
+                '1:00  [no-notify] Silent cue',
+            ].join('\n');
+            const rtParsed = parseTextFormat(roundTrip);
+            const rtValidated = validateAndComplete(rtParsed);
+            const rtEncoded = encodeEmbeddedEvent(rtValidated);
+            const rtDecoded = decodeEvent(rtEncoded);
+
+            assert('9.8 Round-trip: title survives', rtDecoded.title === 'Round Trip Test');
+            assert('9.8 Round-trip: description survives', rtDecoded.description === 'Testing full pipeline');
+            assert('9.8 Round-trip: timezone survives', rtDecoded.timezone === 'America/Chicago');
+            assert('9.8 Round-trip: 3 actions', rtDecoded.timeline.length === 3);
+            assert('9.8 Round-trip: defaultNoticeSeconds', rtDecoded.defaultNoticeSeconds === 12);
+            assert('9.8 Round-trip: defaultCountdownSeconds', rtDecoded.defaultCountdownSeconds === 7);
+            assert('9.8 Round-trip: defaultHapticMode', rtDecoded.defaultHapticMode === 'action');
+            // Action details
+            assert('9.8 Round-trip: action[0] emphasis', rtDecoded.timeline[0].style === 'emphasis');
+            assert('9.8 Round-trip: action[0] text', rtDecoded.timeline[0].action === 'Get ready everyone');
+            assert('9.8 Round-trip: action[1] countdown:3', deepEqual(rtDecoded.timeline[1].countdownSeconds, [3, 2, 1]),
+                'Got: ' + JSON.stringify(rtDecoded.timeline[1].countdownSeconds));
+            assert('9.8 Round-trip: action[1] alert', rtDecoded.timeline[1].style === 'alert');
+            assert('9.8 Round-trip: action[2] no-notify', rtDecoded.timeline[2].audioAnnounce === false);
+        } catch (e) {
+            assert('9.8 Round-trip', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // SUMMARY
         // ═══════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');

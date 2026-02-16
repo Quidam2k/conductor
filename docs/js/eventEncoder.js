@@ -170,6 +170,9 @@ function validateAndComplete(eventData) {
         timezone: eventData.timezone,
         timeline: eventData.timeline.map(action => createTimelineAction(action)),
         defaultNoticeSeconds: eventData.defaultNoticeSeconds ?? 5,
+        defaultCountdownSeconds: eventData.defaultCountdownSeconds ?? null,
+        defaultCountdown: eventData.defaultCountdown ?? null,
+        defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
         visualMode: eventData.visualMode ?? 'circular',
     };
@@ -206,7 +209,7 @@ function parseTextFormat(text) {
         if (!line || line.startsWith('#')) continue;
 
         // Try header: Key: Value
-        const headerMatch = line.match(/^(title|description|start|timezone)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -225,20 +228,51 @@ function parseTextFormat(text) {
             }
 
             let actionText = actionMatch[2].trim();
+            let tags = null;
+
+            // Parse optional [tags] — try start first, fallback to end (backward compat)
+            let tagMatch = actionText.match(/^\[([^\]]+)\]\s*/);
+            if (tagMatch) {
+                tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
+                actionText = actionText.substring(tagMatch[0].length).trim();
+            } else {
+                tagMatch = actionText.match(/\[([^\]]+)\]\s*$/);
+                if (tagMatch) {
+                    console.warn('Deprecated: [tags] after action text — move tags before the action text');
+                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
+                    actionText = actionText.substring(0, tagMatch.index).trim();
+                }
+            }
+
             let style = 'normal';
             let hapticPattern = 'double';
             let countdown = false;
+            let noCountdown = false;
+            let noNotify = false;
+            let noticeSeconds = null;
+            let countdownDuration = null;
 
-            // Parse optional [tags] at end
-            const tagMatch = actionText.match(/\[([^\]]+)\]\s*$/);
-            if (tagMatch) {
-                actionText = actionText.substring(0, tagMatch.index).trim();
-                const tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
+            if (tags) {
                 for (const tag of tags) {
                     if (tag === 'emphasis' || tag === 'alert' || tag === 'normal') style = tag;
                     else if (tag === 'countdown') countdown = true;
+                    else if (tag === 'no-countdown') noCountdown = true;
+                    else if (tag === 'no-notify') noNotify = true;
+                    else if (tag.startsWith('notify:')) noticeSeconds = parseInt(tag.split(':')[1]);
+                    else if (tag.startsWith('countdown:')) countdownDuration = parseInt(tag.split(':')[1]);
                     else if (tag.startsWith('haptic:')) hapticPattern = tag.split(':')[1];
+                    else if (tag !== '') warnings.push('Unknown tag: ' + tag);
                 }
+            }
+
+            // Determine countdownSeconds array
+            let countdownSeconds = null;
+            if (noCountdown) {
+                countdownSeconds = null;
+            } else if (countdownDuration != null) {
+                countdownSeconds = Array.from({length: countdownDuration}, (_, i) => countdownDuration - i);
+            } else if (countdown) {
+                countdownSeconds = [5, 4, 3, 2, 1];
             }
 
             actions.push({
@@ -247,9 +281,9 @@ function parseTextFormat(text) {
                 action: actionText,
                 style,
                 hapticPattern,
-                countdownSeconds: countdown ? [5, 4, 3, 2, 1] : null,
-                audioAnnounce: true,
-                noticeSeconds: 5,
+                countdownSeconds,
+                audioAnnounce: !noNotify,
+                noticeSeconds: noNotify ? 0 : (noticeSeconds ?? 5),
             });
             continue;
         }
@@ -293,6 +327,11 @@ function parseTextFormat(text) {
         startTime,
         timezone,
         timeline,
+        // Config headers (undefined so validateAndComplete applies defaults via ??)
+        defaultNoticeSeconds: headers.notifywindow ? parseInt(headers.notifywindow) : undefined,
+        defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow) : undefined,
+        defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
+        defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
     };
 }
 
