@@ -485,7 +485,7 @@ function createResourcePackManager() {
      * @param {string} cacheKey - "packId:cueId"
      * @returns {boolean} true if played
      */
-    function playBuffer(cacheKey) {
+    async function playBuffer(cacheKey) {
         const buffer = bufferCache.get(cacheKey);
         if (!buffer) return false;
 
@@ -493,7 +493,7 @@ function createResourcePackManager() {
             const ctx = getAudioContext();
             // Resume if suspended (iOS requires user gesture)
             if (ctx.state === 'suspended') {
-                ctx.resume();
+                await ctx.resume();
             }
             const source = ctx.createBufferSource();
             source.buffer = buffer;
@@ -517,7 +517,9 @@ function createResourcePackManager() {
     function getResolver() {
         return function resolvePackCue(cueId, packId) {
             const key = packId + ':' + cueId;
-            return playBuffer(key);
+            if (!bufferCache.has(key)) return false;
+            playBuffer(key); // fire-and-forget async playback
+            return true;
         };
     }
 
