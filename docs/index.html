@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a2e">
@@ -902,7 +902,14 @@ function transitionTo(newMode) {
     screens[newMode].classList.add('active');
     state.mode = newMode;
 
-    // 5. Initialize mode-specific state
+    // 5. Focus management — announce new screen to assistive tech
+    const heading = screens[newMode].querySelector('h1');
+    if (heading) {
+        heading.setAttribute('tabindex', '-1');
+        heading.focus();
+    }
+
+    // 6. Initialize mode-specific state
     switch (newMode) {
         case 'input':
             $('input-paste').value = '';

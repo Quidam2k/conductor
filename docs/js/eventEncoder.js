@@ -69,6 +69,9 @@ function decodeEvent(encodedString) {
         const base64 = fromUrlSafeBase64(data);
         const compressed = base64ToBytes(base64);
         const decompressed = pako.ungzip(compressed);
+        if (decompressed.length > 5 * 1024 * 1024) {
+            throw new Error('Event data too large (possible zip bomb)');
+        }
         const jsonString = new TextDecoder().decode(decompressed);
         const eventData = JSON.parse(jsonString);
         return validateAndComplete(eventData);
@@ -306,7 +309,7 @@ function parseEventInput(input) {
     if (!trimmed) throw new Error('Empty input');
 
     // v1_ compressed format or legacy base64
-    if (trimmed.startsWith('v1_') || /^[A-Za-z0-9+/=_-]{20,}$/.test(trimmed)) {
+    if (trimmed.startsWith('v1_') || (/^[A-Za-z0-9+/=_-]{30,}$/.test(trimmed) && /[+/=_-]/.test(trimmed))) {
         return decodeEvent(trimmed);
     }
 

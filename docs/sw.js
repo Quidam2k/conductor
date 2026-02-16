@@ -1,6 +1,5 @@
-const CACHE_NAME = 'conductor-v6';
+const CACHE_NAME = 'conductor-v7';
 const ASSETS = [
-    './',
     './index.html',
     './js/models.js',
     './js/eventEncoder.js',
