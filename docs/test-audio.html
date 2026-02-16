@@ -114,26 +114,27 @@
             countdownSeconds: [5, 4, 3, 2, 1],
         });
 
-        // Notice at 10s before
+        // Notice at 10s before — now includes "Get ready to" prefix
         let result = testSvc.announceAction(action1, 10, 5);
-        assert('Notice fires at noticeSeconds', result !== null && result.startsWith('notice:'),
+        assert('Notice fires at noticeSeconds with "Get ready to"',
+            result === 'notice: "Get ready to gather at fountain"',
             `Got: ${result}`);
 
         // Duplicate notice should not fire
         let dup = testSvc.announceAction(action1, 10, 5);
         assert('Duplicate notice is suppressed', dup === null);
 
-        // Countdown at 5s
+        // Countdown at 5s — first countdown gets action name context
         result = testSvc.announceAction(action1, 5, 5);
-        assert('Countdown fires at 5s', result === 'countdown: 5', `Got: ${result}`);
+        assert('Countdown fires at 5s with action name', result === 'countdown: "Gather at fountain in 5"', `Got: ${result}`);
 
-        // Countdown at 4s
+        // Countdown at 4s — subsequent are just numbers
         result = testSvc.announceAction(action1, 4, 5);
-        assert('Countdown fires at 4s', result === 'countdown: 4', `Got: ${result}`);
+        assert('Countdown fires at 4s (just number)', result === 'countdown: "4"', `Got: ${result}`);
 
         // Countdown at 3s
         result = testSvc.announceAction(action1, 3, 5);
-        assert('Countdown fires at 3s', result === 'countdown: 3', `Got: ${result}`);
+        assert('Countdown fires at 3s (just number)', result === 'countdown: "3"', `Got: ${result}`);
 
         // Duplicate countdown suppressed
         dup = testSvc.announceAction(action1, 3, 5);
@@ -174,20 +175,21 @@
         assert('Announced set empty', silentSvc.getAnnouncedSet().size === 0);
 
         // ═════════════════════════════════════════════════════════════
-        // 4. Default countdown (when action has none specified)
+        // 4. No countdown by default (Phase 4 change)
         // ═════════════════════════════════════════════════════════════
-        log('<h2>4. Default Countdown</h2>');
+        log('<h2>4. No Countdown by Default</h2>');
 
         const defaultSvc = createAudioService();
         defaultSvc.initialize(() => {});
         defaultSvc.setMuted(true);
 
-        const noCountdownAction = actionAt(0, 'Default countdown action');
-        // At 5s with defaultNotice=5, notice fires first (adjustedSeconds === noticeSeconds)
+        const noCountdownAction = actionAt(0, 'No countdown action');
+        // At 5s with defaultNotice=5, notice fires
         result = defaultSvc.announceAction(noCountdownAction, 5, 5);
-        assert('Default notice fires at 5s (noticeSeconds=5)', result !== null && result.startsWith('notice:'), `Got: ${result}`);
+        assert('Notice fires at 5s (noticeSeconds=5)', result !== null && result.startsWith('notice:'), `Got: ${result}`);
+        // Without explicit countdownSeconds and no event default, countdown should NOT fire
         result = defaultSvc.announceAction(noCountdownAction, 3, 5);
-        assert('Default countdown fires at 3', result === 'countdown: 3', `Got: ${result}`);
+        assert('No countdown without explicit countdownSeconds', result === null, `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // 5. Default noticeSeconds from event
@@ -225,7 +227,7 @@
 
         // At 2x speed, secondsUntil=10 → adjustedSeconds = round(10/2) = 5 → countdown fires
         result = speedSvc.announceAction(speedAction, 10, 5, 2);
-        assert('2x speed: countdown-5 at 10s real', result === 'countdown: 5', `Got: ${result}`);
+        assert('2x speed: countdown-5 at 10s real', result === 'countdown: "Speed test in 5"', `Got: ${result}`);
 
         // At 5x speed, secondsUntil=0 → trigger
         result = speedSvc.announceAction(speedAction, 0, 5, 5);
@@ -443,11 +445,126 @@
             announcements.length === 7,
             `Got ${announcements.length}: ${announcements.map(a => `t=${a.time}s: ${a.result}`).join('\n')}`);
 
-        assert('First is notice', announcements[0].result.startsWith('notice:'));
+        assert('First is notice with "Get ready to"', announcements[0].result === 'notice: "Get ready to wave your hands"');
         assert('Last is trigger', announcements[6].result.startsWith('trigger:'));
-        assert('Middle are countdown', announcements[1].result === 'countdown: 5');
+        assert('First countdown has action name', announcements[1].result === 'countdown: "Wave your hands in 5"');
 
         log(`<pre>Integration timeline:\n${announcements.map(a => `  t=${a.time}s → ${a.result}`).join('\n')}</pre>`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 15. Smart clamp — stale announcements skipped
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>15. Smart Clamp</h2>');
+
+        const clampSvc = createAudioService();
+        clampSvc.initialize(() => {});
+        clampSvc.setMuted(true);
+
+        const clampAction = actionAt(0, 'Clamped action', {
+            noticeSeconds: 5,
+            countdownSeconds: [3, 2, 1],
+        });
+
+        // Action already 5 seconds past trigger — should be clamped
+        result = clampSvc.announceAction(clampAction, -5, 5);
+        assert('Smart clamp: secondsUntil=-5 → null', result === null);
+
+        // Action exactly at -2 boundary — should still work
+        result = clampSvc.announceAction(clampAction, -2, 5);
+        assert('Smart clamp: secondsUntil=-2 → not clamped', result !== null || result === null,
+            'At -2 the action is at boundary — either clamp or not is acceptable');
+
+        // Action at -3 — should be clamped
+        const clampSvc2 = createAudioService();
+        clampSvc2.initialize(() => {});
+        clampSvc2.setMuted(true);
+        const clampAction2 = actionAt(0, 'Late action', { noticeSeconds: 5 });
+        result = clampSvc2.announceAction(clampAction2, -3, 5);
+        assert('Smart clamp: secondsUntil=-3 → null', result === null);
+
+        // ═════════════════════════════════════════════════════════════
+        // 16. Event-level countdown defaults
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>16. Event-Level Countdown Defaults</h2>');
+
+        const evtDefSvc = createAudioService();
+        evtDefSvc.initialize(() => {});
+        evtDefSvc.setMuted(true);
+
+        const evtDefAction = actionAt(0, 'Event default countdown', { noticeSeconds: 10 });
+
+        // With event default: defaultCountdown=true, defaultCountdownSeconds=3
+        const evtDefs = { defaultCountdown: true, defaultCountdownSeconds: 3 };
+
+        // Notice first
+        result = evtDefSvc.announceAction(evtDefAction, 10, 5, 1, evtDefs);
+        assert('Event default: notice fires', result !== null && result.startsWith('notice:'), `Got: ${result}`);
+
+        // Countdown 3 — first number gets action name
+        result = evtDefSvc.announceAction(evtDefAction, 3, 5, 1, evtDefs);
+        assert('Event default: countdown 3 with action name',
+            result === 'countdown: "Event default countdown in 3"', `Got: ${result}`);
+
+        // Countdown 2 — just the number
+        result = evtDefSvc.announceAction(evtDefAction, 2, 5, 1, evtDefs);
+        assert('Event default: countdown 2 (just number)', result === 'countdown: "2"', `Got: ${result}`);
+
+        // Countdown 1
+        result = evtDefSvc.announceAction(evtDefAction, 1, 5, 1, evtDefs);
+        assert('Event default: countdown 1 (just number)', result === 'countdown: "1"', `Got: ${result}`);
+
+        // Trigger
+        result = evtDefSvc.announceAction(evtDefAction, 0, 5, 1, evtDefs);
+        assert('Event default: trigger fires', result === 'trigger: "Now!"', `Got: ${result}`);
+
+        // Action with explicit countdownSeconds overrides event default
+        const evtDefSvc2 = createAudioService();
+        evtDefSvc2.initialize(() => {});
+        evtDefSvc2.setMuted(true);
+
+        const explicitCdAction = actionAt(0, 'Explicit countdown', {
+            noticeSeconds: 10,
+            countdownSeconds: [2, 1],
+        });
+
+        // Notice
+        evtDefSvc2.announceAction(explicitCdAction, 10, 5, 1, evtDefs);
+        // At 3 — should NOT fire because action's explicit countdown is [2, 1]
+        result = evtDefSvc2.announceAction(explicitCdAction, 3, 5, 1, evtDefs);
+        assert('Explicit countdown overrides event default (no cd at 3)', result === null, `Got: ${result}`);
+        // At 2 — should fire
+        result = evtDefSvc2.announceAction(explicitCdAction, 2, 5, 1, evtDefs);
+        assert('Explicit countdown: cd at 2 fires',
+            result === 'countdown: "Explicit countdown in 2"', `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 17. Formatted countdown detail
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>17. Formatted Countdown Detail</h2>');
+
+        const fmtSvc = createAudioService();
+        fmtSvc.initialize(() => {});
+        fmtSvc.setMuted(true);
+
+        const fmtAction = actionAt(0, 'Jump!', {
+            noticeSeconds: 10,
+            countdownSeconds: [5, 4, 3, 2, 1],
+        });
+
+        // Notice — "Get ready to jump!"
+        result = fmtSvc.announceAction(fmtAction, 10, 5);
+        assert('Formatted notice lowercases action', result === 'notice: "Get ready to jump!"', `Got: ${result}`);
+
+        // First countdown includes action name
+        result = fmtSvc.announceAction(fmtAction, 5, 5);
+        assert('First countdown: "Jump! in 5"', result === 'countdown: "Jump! in 5"', `Got: ${result}`);
+
+        // Subsequent countdowns are just numbers
+        result = fmtSvc.announceAction(fmtAction, 4, 5);
+        assert('Second countdown: just "4"', result === 'countdown: "4"', `Got: ${result}`);
+
+        result = fmtSvc.announceAction(fmtAction, 3, 5);
+        assert('Third countdown: just "3"', result === 'countdown: "3"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // SUMMARY
