@@ -42,9 +42,11 @@
  * @returns {TimelineAction}
  */
 function createTimelineAction(overrides = {}) {
+    const time = overrides.time ?? new Date().toISOString();
     return {
         id: overrides.id ?? generateId(),
-        time: overrides.time ?? new Date().toISOString(),
+        time: time,
+        timeMs: overrides.timeMs ?? new Date(time).getTime(),
         relativeTime: overrides.relativeTime ?? null,
         action: overrides.action ?? '',
 
@@ -122,11 +124,12 @@ function createTimelineAction(overrides = {}) {
 function embeddedEventToEvent(embedded) {
     // Calculate endTime from last action + 5 minute buffer
     let endTime;
-    if (embedded.timeline && embedded.timeline.length > 0) {
-        const sorted = [...embedded.timeline].sort((a, b) => {
-            return new Date(a.time).getTime() - new Date(b.time).getTime();
+    const timeline = embedded.timeline || [];
+    if (timeline.length > 0) {
+        const sorted = [...timeline].sort((a, b) => {
+            return (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime());
         });
-        const lastActionTime = new Date(sorted[sorted.length - 1].time).getTime();
+        const lastActionTime = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
         endTime = new Date(lastActionTime + 5 * 60 * 1000).toISOString();
     } else {
         endTime = embedded.startTime;
@@ -135,7 +138,7 @@ function embeddedEventToEvent(embedded) {
     const now = new Date().toISOString();
 
     // Generate unique ID from content hash (matches KMM approach)
-    const hashInput = `${embedded.title}_${embedded.startTime}_${embedded.timeline.length}`;
+    const hashInput = `${embedded.title}_${embedded.startTime}_${timeline.length}`;
     const uniqueId = String(simpleHash(hashInput));
 
     return {
@@ -147,7 +150,7 @@ function embeddedEventToEvent(embedded) {
         timezone: embedded.timezone,
         status: 'published',
         creatorId: 'embedded',
-        timeline: embedded.timeline,
+        timeline: timeline,
         defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 5,
         timeWindowSeconds: embedded.timeWindowSeconds ?? 60,
         visualMode: embedded.visualMode ?? 'circular',

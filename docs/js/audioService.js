@@ -31,6 +31,9 @@ function createAudioService() {
     /** @type {Set<string>} Tracks which announcements have already fired */
     const announced = new Set();
 
+    /** @type {Map<string, number>} Tracks last seen adjustedSeconds per action for range-crossing detection */
+    const lastAdjustedSecondsMap = new Map();
+
     /** @type {SpeechSynthesisVoice|null} */
     let selectedVoice = null;
 
@@ -150,14 +153,27 @@ function createAudioService() {
         const countdownSeconds = action.countdownSeconds ?? [5, 4, 3, 2, 1];
         const adjustedSeconds = Math.round(secondsUntil / speedMultiplier);
 
-        // 1. Notice announcement (say action name)
-        if (adjustedSeconds === noticeSeconds && action.announceActionName) {
+        // Range-crossing detection: track last seen adjustedSeconds per action.
+        // Instead of exact equality (which misses thresholds at high speed or during lag),
+        // detect when a threshold was crossed between the last tick and this one.
+        const lastAdj = lastAdjustedSecondsMap.get(action.id);
+        lastAdjustedSecondsMap.set(action.id, adjustedSeconds);
+
+        const crossed = (threshold) => {
+            if (lastAdj === undefined) {
+                // First tick for this action — exact match only
+                return adjustedSeconds === threshold;
+            }
+            return lastAdj > threshold && adjustedSeconds <= threshold;
+        };
+
+        // 1. Notice announcement (highest temporal threshold, fires first chronologically)
+        if (crossed(noticeSeconds) && action.announceActionName) {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
                 const text = resolveAudioCue(action, 'notice');
                 if (text === null) {
-                    // Resource pack handled it
                     return `notice-pack: "${action.cue || 'random'}"`;
                 }
                 speak(text);
@@ -165,33 +181,45 @@ function createAudioService() {
             }
         }
 
-        // 2. Countdown numbers
-        if (countdownSeconds.includes(adjustedSeconds)) {
-            const key = `${action.id}-countdown-${adjustedSeconds}`;
-            if (!announced.has(key)) {
-                announced.add(key);
-                // Try resource pack first
-                const countdownCueId = 'countdown-' + adjustedSeconds;
-                if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
-                    return `countdown-pack: ${adjustedSeconds}`;
-                }
-                const text = String(adjustedSeconds);
-                speak(text, 1.3 * speedMultiplier);
-                return `countdown: ${text}`;
-            }
-        }
-
-        // 3. "Now!" at trigger
-        if (adjustedSeconds === 0) {
+        // 2. Trigger — "Now!" (most urgent when in countdown zone)
+        if (crossed(0)) {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
                 announced.add(key);
-                // Try resource pack first
+                // Mark any skipped countdown numbers as announced
+                for (const cs of countdownSeconds) {
+                    announced.add(`${action.id}-countdown-${cs}`);
+                }
                 if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack)) {
                     return 'trigger-pack: "Go!"';
                 }
                 speak('Now!', 1.5);
                 return 'trigger: "Now!"';
+            }
+        }
+
+        // 3. Countdown — fire the lowest crossed number (closest to now).
+        //    Iterate ascending so the most relevant number fires first.
+        const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
+        for (const cs of sortedCountdown) {
+            if (crossed(cs)) {
+                const key = `${action.id}-countdown-${cs}`;
+                if (!announced.has(key)) {
+                    announced.add(key);
+                    // Mark higher crossed countdowns as skipped
+                    for (const cs2 of countdownSeconds) {
+                        if (cs2 > cs) {
+                            announced.add(`${action.id}-countdown-${cs2}`);
+                        }
+                    }
+                    const countdownCueId = 'countdown-' + cs;
+                    if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
+                        return `countdown-pack: ${cs}`;
+                    }
+                    const text = String(cs);
+                    speak(text, 1.3 * speedMultiplier);
+                    return `countdown: ${text}`;
+                }
             }
         }
 
@@ -263,6 +291,7 @@ function createAudioService() {
      */
     function reset() {
         announced.clear();
+        lastAdjustedSecondsMap.clear();
         if (window.speechSynthesis) speechSynthesis.cancel();
     }
 

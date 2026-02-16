@@ -1026,10 +1026,10 @@ function renderPreview() {
     // Duration
     if (evt.timeline.length > 0) {
         const sorted = [...evt.timeline].sort((a, b) =>
-            new Date(a.time).getTime() - new Date(b.time).getTime()
+            (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime())
         );
-        const firstMs = new Date(sorted[0].time).getTime();
-        const lastMs = new Date(sorted[sorted.length - 1].time).getTime();
+        const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
+        const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
         const durationSec = Math.round((lastMs - firstMs) / 1000);
         const mins = Math.floor(durationSec / 60);
         const secs = durationSec % 60;
@@ -1046,7 +1046,7 @@ function renderPreview() {
     const startMs = new Date(evt.startTime).getTime();
 
     for (const action of evt.timeline) {
-        const actionMs = new Date(action.time).getTime();
+        const actionMs = action.timeMs ?? new Date(action.time).getTime();
         const offsetSec = Math.round((actionMs - startMs) / 1000);
         const mins = Math.floor(offsetSec / 60);
         const secs = offsetSec % 60;
@@ -1083,9 +1083,9 @@ function enterPractice() {
 
     // Set practice start: begin 15s before first action
     const sorted = [...evt.timeline].sort((a, b) =>
-        new Date(a.time).getTime() - new Date(b.time).getTime()
+        (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime())
     );
-    const firstActionMs = new Date(sorted[0].time).getTime();
+    const firstActionMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
     state.practiceStartRealMs = Date.now();
     state.practiceStartEventMs = firstActionMs - 15000;
     state.speedMultiplier = parseFloat($('speed-slider').value);
@@ -1128,7 +1128,7 @@ function enterLive() {
 
     // If all actions are >5 minutes past, go straight to completed
     const now = Date.now();
-    const allPast = evt.timeline.every(a => (now - new Date(a.time).getTime()) > 5 * 60 * 1000);
+    const allPast = evt.timeline.every(a => (now - (a.timeMs ?? new Date(a.time).getTime())) > 5 * 60 * 1000);
     if (allPast) {
         transitionTo('completed');
         return;
@@ -1789,10 +1789,10 @@ function renderEditorReview() {
     // Duration
     if (evt.timeline.length > 0) {
         const sorted = [...evt.timeline].sort((a, b) =>
-            new Date(a.time).getTime() - new Date(b.time).getTime()
+            (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime())
         );
-        const firstMs = new Date(sorted[0].time).getTime();
-        const lastMs = new Date(sorted[sorted.length - 1].time).getTime();
+        const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
+        const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
         const durationSec = Math.round((lastMs - firstMs) / 1000);
         const mins = Math.floor(durationSec / 60);
         const secs = durationSec % 60;
@@ -1807,7 +1807,7 @@ function renderEditorReview() {
     const startMs = new Date(evt.startTime).getTime();
 
     for (const action of evt.timeline) {
-        const actionMs = new Date(action.time).getTime();
+        const actionMs = action.timeMs ?? new Date(action.time).getTime();
         const offsetSec = Math.round((actionMs - startMs) / 1000);
         const mins = Math.floor(offsetSec / 60);
         const secs = offsetSec % 60;
@@ -2065,6 +2065,11 @@ $('btn-preview-back').addEventListener('click', () => {
 
 // Practice screen
 $('speed-slider').addEventListener('input', (e) => {
+    // Re-anchor virtual time before changing speed to prevent time jumps
+    const virtualNow = getPracticeNow(Date.now(), state.practiceStartRealMs,
+        state.practiceStartEventMs, state.speedMultiplier);
+    state.practiceStartRealMs = Date.now();
+    state.practiceStartEventMs = virtualNow;
     state.speedMultiplier = parseFloat(e.target.value);
     $('speed-val').textContent = state.speedMultiplier + 'x';
 });

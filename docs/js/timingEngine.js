@@ -37,11 +37,11 @@ const TimingAccuracy = Object.freeze({
  * @returns {TimelineAction|null}
  */
 function getCurrentAction(timeline, nowMs, speedMultiplier) {
-    const window = 1000; // ±1 second
+    const windowMs = 1000 * (speedMultiplier || 1); // Scale window so highlight stays visible at high speed
     for (const action of timeline) {
-        const actionMs = new Date(action.time).getTime();
+        const actionMs = action.timeMs ?? new Date(action.time).getTime();
         const diff = Math.abs(nowMs - actionMs);
-        if (diff <= window) return action;
+        if (diff <= windowMs) return action;
     }
     return null;
 }
@@ -58,10 +58,10 @@ function getUpcomingActions(timeline, nowMs, windowSeconds = 60) {
     const windowMs = windowSeconds * 1000;
     return timeline
         .filter(action => {
-            const actionMs = new Date(action.time).getTime();
+            const actionMs = action.timeMs ?? new Date(action.time).getTime();
             return actionMs >= nowMs && actionMs <= (nowMs + windowMs);
         })
-        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        .sort((a, b) => (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
 }
 
 /**
@@ -73,7 +73,7 @@ function getUpcomingActions(timeline, nowMs, windowSeconds = 60) {
  * @returns {boolean}
  */
 function shouldAnnounce(action, nowMs, noticeSeconds = 5) {
-    const actionMs = new Date(action.time).getTime();
+    const actionMs = action.timeMs ?? new Date(action.time).getTime();
     const noticeMs = noticeSeconds * 1000;
     const timeBefore = actionMs - nowMs;
     return timeBefore >= 0 && timeBefore <= noticeMs;
@@ -87,7 +87,7 @@ function shouldAnnounce(action, nowMs, noticeSeconds = 5) {
  * @returns {number} Seconds (negative if past)
  */
 function calculateTimeUntil(action, nowMs) {
-    const actionMs = new Date(action.time).getTime();
+    const actionMs = action.timeMs ?? new Date(action.time).getTime();
     return Math.floor((actionMs - nowMs) / 1000);
 }
 
@@ -99,7 +99,7 @@ function calculateTimeUntil(action, nowMs) {
  * @returns {number} Seconds as decimal
  */
 function calculateTimeUntilPrecise(action, nowMs) {
-    const actionMs = new Date(action.time).getTime();
+    const actionMs = action.timeMs ?? new Date(action.time).getTime();
     return (actionMs - nowMs) / 1000;
 }
 
@@ -117,7 +117,7 @@ function calculateTimeUntilPrecise(action, nowMs) {
  * @returns {number} Degrees 0-360
  */
 function calculatePosition(action, nowMs, windowSeconds = 60) {
-    const actionMs = new Date(action.time).getTime();
+    const actionMs = action.timeMs ?? new Date(action.time).getTime();
     const secondsFromNow = (actionMs - nowMs) / 1000;
     const positionInWindow = (secondsFromNow + windowSeconds) / windowSeconds;
     return ((positionInWindow * 360) % 360 + 360) % 360; // Ensure positive
@@ -172,7 +172,7 @@ function getCountdownAnnouncements(countdownSeconds, nowMs, action) {
  * @returns {string} One of TimingAccuracy values
  */
 function getTimingAccuracy(action, tapMs, toleranceSeconds = 1) {
-    const actionMs = new Date(action.time).getTime();
+    const actionMs = action.timeMs ?? new Date(action.time).getTime();
     const diffMs = tapMs - actionMs;
 
     if (Math.abs(diffMs) <= toleranceSeconds * 1000) return TimingAccuracy.PERFECT;
@@ -244,8 +244,8 @@ function calculateOptimalZoom(upcoming, defaultWindow = 60, minWindow = 15) {
 
     let minGap = Infinity;
     for (let i = 0; i < upcoming.length - 1; i++) {
-        const t1 = new Date(upcoming[i].time).getTime();
-        const t2 = new Date(upcoming[i + 1].time).getTime();
+        const t1 = upcoming[i].timeMs ?? new Date(upcoming[i].time).getTime();
+        const t2 = upcoming[i + 1].timeMs ?? new Date(upcoming[i + 1].time).getTime();
         const gap = (t2 - t1) / 1000;
         if (gap < minGap) minGap = gap;
     }
