@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="theme-color" content="#0f0f23">
     <meta name="description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
     <meta property="og:title" content="Conductor">
     <meta property="og:description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
@@ -111,7 +111,7 @@
             border-radius: 4px;
         }
         .badge-practice { background: var(--accent-green); color: #000; }
-        .badge-live     { background: var(--accent-red); color: #fff; animation: pulse-badge 1.2s ease-in-out infinite; }
+        .badge-live     { background: var(--accent-red); color: #fff; animation: pulse-badge 1.5s ease-in-out infinite; }
 
         @keyframes pulse-badge {
             0%, 100% { opacity: 1; }
@@ -386,6 +386,7 @@
             color: var(--text);
             border-radius: 8px;
         }
+        .icon-btn:hover { box-shadow: var(--glow-blue); }
         .icon-btn.muted { opacity: 0.4; }
 
         /* ─── Completed screen ─── */
@@ -400,6 +401,7 @@
         }
         .done-wrap h2 {
             font-size: 24px;
+            font-weight: 700;
         }
         .done-wrap p {
             color: var(--text-dim);
@@ -513,6 +515,8 @@
 
         .share-section {
             display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
+            background: var(--bg-surface); border: 1px solid var(--border-subtle);
+            border-radius: var(--radius); padding: 16px;
         }
         .share-feedback {
             font-size: 13px; color: var(--accent-green);
@@ -607,11 +611,15 @@
         .qr-close-btn { min-height:40px; min-width:40px; font-size:24px; background:transparent; color:var(--text); border:none; cursor:pointer; }
         .qr-viewfinder { flex:1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#000; }
         .qr-viewfinder video { width:100%; height:100%; object-fit:cover; }
-        .qr-frame { position:absolute; width:240px; height:240px; border:2px solid var(--accent-blue); border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.4); pointer-events:none; }
+        .qr-frame { position:absolute; width:240px; height:240px; border:2px solid var(--accent-blue); border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.4), 0 0 20px rgba(91,163,255,0.3); pointer-events:none; animation: qr-frame-glow 2s ease-in-out infinite; }
+        @keyframes qr-frame-glow {
+            0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 15px rgba(91,163,255,0.2); }
+            50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 25px rgba(91,163,255,0.4); }
+        }
         .qr-scan-status { text-align:center; padding:12px 16px; font-size:14px; color:var(--text-dim); }
 
         /* ─── QR Display overlay ─── */
-        #qr-display-canvas { max-width:260px; max-height:260px; }
+        #qr-display-canvas { max-width:280px; max-height:280px; }
 
         /* ─── Screen transition animations ─── */
         @keyframes screen-slide-in {
@@ -660,8 +668,9 @@
         }
         .done-check::after { content: '\2713'; font-size: 40px; color: var(--accent-green); }
 
-        /* ─── Controls section top border ─── */
-        .controls { border-top: 1px solid var(--border-subtle); }
+        /* ─── Controls section top border (color-tinted per screen) ─── */
+        #screen-practice .controls { border-top: 1px solid rgba(52, 211, 153, 0.15); }
+        #screen-live .controls { border-top: 1px solid rgba(255, 71, 87, 0.2); }
 
         /* ─── Reduced motion ─── */
         @media (prefers-reduced-motion: reduce) {
@@ -854,7 +863,7 @@
 <div id="screen-editor-info" class="screen">
     <div class="header header-editor" role="banner">
         <h1>New Event</h1>
-        <span class="step-dots"><span class="step-dot active"></span><span class="step-dot"></span><span class="step-dot"></span></span>
+        <span class="step-dots"><span class="step-dot active" aria-current="step"></span><span class="step-dot"></span><span class="step-dot"></span></span>
     </div>
     <div class="content" role="main">
         <label class="field-label">Event Title *</label>
@@ -886,7 +895,7 @@
 <div id="screen-editor-timeline" class="screen">
     <div class="header header-editor" role="banner">
         <h1>Timeline</h1>
-        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot active"></span><span class="step-dot"></span></span>
+        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot active" aria-current="step"></span><span class="step-dot"></span></span>
     </div>
     <div class="content" role="main">
         <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">
@@ -916,7 +925,7 @@
 <div id="screen-editor-review" class="screen">
     <div class="header header-editor" role="banner">
         <h1>Review & Share</h1>
-        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot completed"></span><span class="step-dot active"></span></span>
+        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot completed"></span><span class="step-dot active" aria-current="step"></span></span>
     </div>
     <div class="content" role="main">
         <div class="event-info">
@@ -1059,6 +1068,49 @@ window.importPack = async (arrayBuffer) => {
 // Loop handles
 let rafId = null;
 let audioIntervalId = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Focus Trap (for modal overlays)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _focusTrapCleanup = null;
+
+function trapFocus(overlayEl) {
+    releaseFocus();  // Clean up any existing trap
+    const opener = document.activeElement;
+    const focusable = overlayEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first.focus();
+
+    function onKeyDown(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            // Find and click the close button
+            const closeBtn = overlayEl.querySelector('.qr-close-btn');
+            if (closeBtn) closeBtn.click();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+    }
+
+    overlayEl.addEventListener('keydown', onKeyDown);
+    _focusTrapCleanup = () => {
+        overlayEl.removeEventListener('keydown', onKeyDown);
+        if (opener && opener.focus) opener.focus();
+        _focusTrapCleanup = null;
+    };
+}
+
+function releaseFocus() {
+    if (_focusTrapCleanup) _focusTrapCleanup();
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DOM references
@@ -1232,12 +1284,14 @@ function openQRScanner() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         $('qr-error').textContent = 'Camera access requires HTTPS or localhost. Cannot scan from file:// URLs.';
         $('qr-overlay').style.display = 'flex';
+        trapFocus($('qr-overlay'));
         return;
     }
 
     $('qr-error').textContent = '';
     $('qr-scan-status').textContent = 'Point camera at a QR code';
     $('qr-overlay').style.display = 'flex';
+    trapFocus($('qr-overlay'));
 
     try {
         state.qrScanner = new QrScanner(
@@ -1272,6 +1326,7 @@ function closeQRScanner() {
         state.qrScanner = null;
     }
     $('qr-overlay').style.display = 'none';
+    releaseFocus();
 }
 
 function handleQRResult(data) {
@@ -2680,10 +2735,12 @@ function showQRDisplay() {
     }
 
     overlay.style.display = 'flex';
+    trapFocus(overlay);
 }
 
 function closeQRDisplay() {
     $('qr-display-overlay').style.display = 'none';
+    releaseFocus();
 }
 
 $('btn-show-qr').addEventListener('click', showQRDisplay);

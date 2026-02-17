@@ -489,7 +489,7 @@ test('meta tags: theme-color, description, icons present', async ({ page }) => {
     await page.goto('/');
 
     const themeColor = await page.locator('meta[name="theme-color"]').getAttribute('content');
-    expect(themeColor).toBe('#1a1a2e');
+    expect(themeColor).toBe('#0f0f23');
 
     const desc = await page.locator('meta[name="description"]').getAttribute('content');
     expect(desc).toContain('No server');
