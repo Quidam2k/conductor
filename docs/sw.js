@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conductor-v9';
+const CACHE_NAME = 'conductor-v13';
 const ASSETS = [
     './index.html',
     './js/models.js',
@@ -6,9 +6,11 @@ const ASSETS = [
     './js/timingEngine.js',
     './js/audioService.js',
     './js/resourcePackManager.js',
+    './js/draftManager.js',
     './js/circularTimeline.js',
     './lib/pako.min.js',
     './lib/qr-creator.min.js',
+    './lib/qr-scanner.legacy.min.js',
     './manifest.json',
     './icon.svg',
     './icon-192.png',

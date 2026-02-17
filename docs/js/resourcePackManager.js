@@ -539,6 +539,7 @@ function createResourcePackManager() {
             name: manifest.name,
             version: manifest.version || '1.0.0',
             cueCount: manifest.cues ? Object.keys(manifest.cues).length : 0,
+            url: manifest.url || null,
         };
     }
 
