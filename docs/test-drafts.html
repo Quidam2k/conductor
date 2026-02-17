@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Draft Manager Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .summary.running { background: #3d3d0a; border: 1px solid #ff0; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Draft Manager Tests</h1>
+    <div id="summary" class="summary running">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="js/draftManager.js"></script>
+    <script>
+    (async function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // Clean up any previous test data
+        try {
+            const delReq = indexedDB.deleteDatabase('conductor-drafts');
+            await new Promise((resolve) => {
+                delReq.onsuccess = resolve;
+                delReq.onerror = resolve;
+                delReq.onblocked = resolve;
+            });
+        } catch {}
+
+        // ═══════════════════════════════════════════════════════════
+        // 1. createDraftManager returns object with expected methods
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>1. Factory Function</h2>');
+
+        const mgr = createDraftManager();
+        assert('createDraftManager returns object', typeof mgr === 'object');
+        assert('Has saveDraft method', typeof mgr.saveDraft === 'function');
+        assert('Has listDrafts method', typeof mgr.listDrafts === 'function');
+        assert('Has getDraft method', typeof mgr.getDraft === 'function');
+        assert('Has deleteDraft method', typeof mgr.deleteDraft === 'function');
+
+        // ═══════════════════════════════════════════════════════════
+        // 2. saveDraft with new draft returns object with id, createdAt, lastModified
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>2. Save New Draft</h2>');
+
+        const saved = await mgr.saveDraft({
+            title: 'Test Event',
+            description: 'A test draft',
+            startDateTime: '2026-03-01T12:00',
+            timezone: 'America/New_York',
+            actions: [{ offsetSeconds: 0, action: 'Go!', style: 'normal', hapticPattern: 'single' }],
+        });
+
+        assert('saveDraft returns object', typeof saved === 'object');
+        assert('Saved draft has id', typeof saved.id === 'string' && saved.id.length > 0, `id: ${saved.id}`);
+        assert('Saved draft has createdAt', typeof saved.createdAt === 'string' && saved.createdAt.length > 0);
+        assert('Saved draft has lastModified', typeof saved.lastModified === 'string' && saved.lastModified.length > 0);
+        assert('Saved draft has title', saved.title === 'Test Event');
+
+        // ═══════════════════════════════════════════════════════════
+        // 3. saveDraft with existing id updates lastModified
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>3. Update Existing Draft</h2>');
+
+        // Small delay to ensure different timestamps
+        await new Promise(r => setTimeout(r, 50));
+
+        const updated = await mgr.saveDraft({
+            id: saved.id,
+            title: 'Updated Event',
+            description: 'Updated',
+            startDateTime: '2026-03-01T14:00',
+            timezone: 'America/Chicago',
+            actions: saved.actions,
+            createdAt: saved.createdAt,
+        });
+
+        assert('Update returns same id', updated.id === saved.id);
+        assert('Update changes title', updated.title === 'Updated Event');
+        assert('Update preserves createdAt', updated.createdAt === saved.createdAt);
+        assert('Update changes lastModified', updated.lastModified >= saved.lastModified);
+
+        // ═══════════════════════════════════════════════════════════
+        // 4. getDraft returns saved draft
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>4. Get Draft</h2>');
+
+        const fetched = await mgr.getDraft(saved.id);
+        assert('getDraft returns object', fetched !== null);
+        assert('getDraft returns correct id', fetched.id === saved.id);
+        assert('getDraft returns updated title', fetched.title === 'Updated Event');
+
+        // ═══════════════════════════════════════════════════════════
+        // 5. getDraft returns null for nonexistent id
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>5. Get Nonexistent Draft</h2>');
+
+        const missing = await mgr.getDraft('nonexistent-id-12345');
+        assert('getDraft returns null for missing id', missing === null, `Got: ${missing}`);
+
+        // ═══════════════════════════════════════════════════════════
+        // 6. listDrafts returns drafts sorted by lastModified desc
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>6. List Drafts (Sorted)</h2>');
+
+        // Save a second draft
+        await new Promise(r => setTimeout(r, 50));
+        const saved2 = await mgr.saveDraft({
+            title: 'Second Draft',
+            description: '',
+            startDateTime: '2026-04-01T10:00',
+            timezone: 'UTC',
+            actions: [],
+        });
+
+        const list = await mgr.listDrafts();
+        assert('listDrafts returns array', Array.isArray(list));
+        assert('listDrafts has 2 drafts', list.length === 2, `Got ${list.length}`);
+        assert('Newest draft first', list[0].id === saved2.id,
+            `First: ${list[0].title}, Second: ${list[1].title}`);
+
+        // ═══════════════════════════════════════════════════════════
+        // 7. deleteDraft removes draft
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>7. Delete Draft</h2>');
+
+        await mgr.deleteDraft(saved2.id);
+        const afterDelete = await mgr.getDraft(saved2.id);
+        assert('Deleted draft returns null', afterDelete === null);
+
+        const listAfterDelete = await mgr.listDrafts();
+        assert('List has 1 draft after delete', listAfterDelete.length === 1);
+
+        // ═══════════════════════════════════════════════════════════
+        // 8. deleteDraft on nonexistent id doesn't throw
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>8. Delete Nonexistent Draft</h2>');
+
+        let deleteError = null;
+        try {
+            await mgr.deleteDraft('nonexistent-id-99999');
+        } catch (e) {
+            deleteError = e;
+        }
+        assert('Delete nonexistent id does not throw', deleteError === null,
+            deleteError ? deleteError.message : '');
+
+        // ═══════════════════════════════════════════════════════════
+        // 9. Draft round-trip: save → get → fields match
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>9. Round-Trip</h2>');
+
+        const roundTripDraft = {
+            title: 'Round Trip',
+            description: 'Testing all fields',
+            startDateTime: '2026-06-15T09:30',
+            timezone: 'Asia/Tokyo',
+            actions: [
+                { offsetSeconds: 0, action: 'Start', style: 'normal', hapticPattern: 'single', countdown: false, audioAnnounce: true, pack: null, cue: null, fallbackText: null },
+                { offsetSeconds: 30, action: 'Jump!', style: 'alert', hapticPattern: 'triple', countdown: true, audioAnnounce: true, pack: 'test-pack', cue: 'countdown-5', fallbackText: 'Five' },
+            ],
+        };
+
+        const rtSaved = await mgr.saveDraft(roundTripDraft);
+        const rtFetched = await mgr.getDraft(rtSaved.id);
+
+        assert('Round-trip title matches', rtFetched.title === 'Round Trip');
+        assert('Round-trip description matches', rtFetched.description === 'Testing all fields');
+        assert('Round-trip startDateTime matches', rtFetched.startDateTime === '2026-06-15T09:30');
+        assert('Round-trip timezone matches', rtFetched.timezone === 'Asia/Tokyo');
+        assert('Round-trip has 2 actions', rtFetched.actions.length === 2);
+        assert('Round-trip action[1] pack matches', rtFetched.actions[1].pack === 'test-pack');
+        assert('Round-trip action[1] cue matches', rtFetched.actions[1].cue === 'countdown-5');
+        assert('Round-trip action[1] fallbackText matches', rtFetched.actions[1].fallbackText === 'Five');
+
+        // ═══════════════════════════════════════════════════════════
+        // 10. Multiple drafts: list returns all, ordered correctly
+        // ═══════════════════════════════════════════════════════════
+        log('<h2>10. Multiple Drafts Ordering</h2>');
+
+        // Clean up first
+        const remaining = await mgr.listDrafts();
+        for (const d of remaining) await mgr.deleteDraft(d.id);
+
+        // Save 3 drafts with increasing timestamps
+        const d1 = await mgr.saveDraft({ title: 'Draft A', actions: [] });
+        await new Promise(r => setTimeout(r, 50));
+        const d2 = await mgr.saveDraft({ title: 'Draft B', actions: [] });
+        await new Promise(r => setTimeout(r, 50));
+        const d3 = await mgr.saveDraft({ title: 'Draft C', actions: [] });
+
+        const multiList = await mgr.listDrafts();
+        assert('All 3 drafts listed', multiList.length === 3, `Got ${multiList.length}`);
+        assert('Newest (C) first', multiList[0].title === 'Draft C');
+        assert('Middle (B) second', multiList[1].title === 'Draft B');
+        assert('Oldest (A) last', multiList[2].title === 'Draft A');
+
+        // Now update A to be newest
+        await new Promise(r => setTimeout(r, 50));
+        await mgr.saveDraft({ id: d1.id, title: 'Draft A (updated)', actions: [], createdAt: d1.createdAt });
+        const reorderedList = await mgr.listDrafts();
+        assert('Updated A is now newest', reorderedList[0].title === 'Draft A (updated)');
+
+        // Clean up test data
+        for (const d of reorderedList) await mgr.deleteDraft(d.id);
+
+        // ═══════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═══════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+    })();
+    </script>
+</body>
+</html>

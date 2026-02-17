@@ -6,6 +6,7 @@ const harnesses = [
     { name: 'audio', url: '/test-audio.html' },
     { name: 'timeline', url: '/test-timeline.html' },
     { name: 'packs', url: '/test-packs.html' },
+    { name: 'drafts', url: '/test-drafts.html' },
 ];
 
 for (const harness of harnesses) {
