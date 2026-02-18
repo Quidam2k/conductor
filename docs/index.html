@@ -591,6 +591,7 @@
         .import-status.error { color: var(--accent-red); }
         .import-status.success { color: var(--accent-green); }
         .import-status.progress { color: var(--accent-blue); }
+        .import-status.warning { color: var(--accent-gold); }
 
         /* ─── Footer spacer for safe area ─── */
         .safe-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
@@ -2448,13 +2449,44 @@ async function importPackFromFile(file) {
 
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const manifest = await packManager.importPack(arrayBuffer, (msg) => {
+        const { manifest, validation } = await packManager.importPackWithValidation(arrayBuffer, (msg) => {
             statusEl.textContent = msg;
         });
         await packManager.ensurePackLoaded(manifest.id);
-        statusEl.className = 'import-status success';
-        statusEl.textContent = `Imported "${manifest.name}" (${Object.keys(manifest.cues).length} cues)`;
+
+        const cueCount = Object.keys(manifest.cues).length;
+        const grainCount = manifest.grains ? Object.keys(manifest.grains).length : 0;
+        let summary = `Imported "${manifest.name}" (${cueCount} cues`;
+        if (grainCount > 0) summary += `, ${grainCount} grains`;
+        if (manifest.events && manifest.events.length > 0) summary += `, ${manifest.events.length} events`;
+        summary += ')';
+
         renderPackManager();
+
+        if (validation && validation.uncovered.length > 0) {
+            statusEl.className = 'import-status warning';
+            const warns = validation.uncovered;
+            let msg = summary + '\n\n';
+            msg += `\u26A0 ${warns.length} action${warns.length === 1 ? '' : 's'} will fall back to TTS:\n`;
+            for (const w of warns.slice(0, 5)) {
+                msg += `  \u2022 "${w.action}" (${w.event} @ ${w.time})`;
+                if (w.missingGrains.length > 0) {
+                    msg += ` \u2014 missing grain${w.missingGrains.length === 1 ? '' : 's'}: ${w.missingGrains.join(', ')}`;
+                }
+                msg += '\n';
+            }
+            if (warns.length > 5) {
+                msg += `  ... and ${warns.length - 5} more`;
+            }
+            statusEl.textContent = msg;
+            statusEl.style.whiteSpace = 'pre-wrap';
+        } else {
+            statusEl.className = 'import-status success';
+            statusEl.textContent = summary;
+            if (validation) {
+                statusEl.textContent += ` \u2014 all ${validation.total} actions covered`;
+            }
+        }
     } catch (e) {
         statusEl.className = 'import-status error';
         statusEl.textContent = e.message || 'Import failed.';
