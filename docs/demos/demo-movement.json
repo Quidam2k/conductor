@@ -1,0 +1,150 @@
+{
+  "title": "Solidarity Rally — Movement",
+  "description": "Physical coordination — visual impact cues for fists, arms, and formation. Run alongside Chants and Rhythm scripts for full coordinated rally.",
+  "startTime": "2026-03-01T18:00:00Z",
+  "timezone": "America/Chicago",
+  "defaultNoticeSeconds": 5,
+  "timeline": [
+    {
+      "id": "movement-01",
+      "time": "2026-03-01T18:00:00Z",
+      "action": "Stand together",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "cue": "stand-together",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-02",
+      "time": "2026-03-01T18:00:35Z",
+      "action": "Raise your fists",
+      "cue": "raise-your-fists",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-03",
+      "time": "2026-03-01T18:00:50Z",
+      "action": "Hold fists high",
+      "audioAnnounce": false,
+      "noticeSeconds": 0,
+      "cue": "hold-fists-high",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-04",
+      "time": "2026-03-01T18:01:05Z",
+      "action": "Step forward together",
+      "countdownSeconds": [3, 2, 1],
+      "cue": "step-forward-together",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-05",
+      "time": "2026-03-01T18:01:20Z",
+      "action": "Link arms",
+      "cue": "link-arms",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-06",
+      "time": "2026-03-01T18:01:40Z",
+      "action": "Stand firm",
+      "audioAnnounce": false,
+      "noticeSeconds": 0,
+      "cue": "stand-firm",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-07",
+      "time": "2026-03-01T18:02:05Z",
+      "action": "Raise your fists",
+      "style": "alert",
+      "cue": "raise-your-fists",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-08",
+      "time": "2026-03-01T18:02:20Z",
+      "action": "Kneel together",
+      "style": "emphasis",
+      "cue": "kneel-together",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-09",
+      "time": "2026-03-01T18:02:40Z",
+      "action": "Stand your ground",
+      "style": "alert",
+      "countdownSeconds": [3, 2, 1],
+      "cue": "stand-your-ground",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-10",
+      "time": "2026-03-01T18:03:00Z",
+      "action": "Shut it down",
+      "style": "alert",
+      "hapticPattern": "triple",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "cue": "shut-it-down",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-11",
+      "time": "2026-03-01T18:03:20Z",
+      "action": "Turn and face outward",
+      "cue": "turn-and-face-outward",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-12",
+      "time": "2026-03-01T18:03:40Z",
+      "action": "Raise your fists",
+      "audioAnnounce": false,
+      "noticeSeconds": 0,
+      "cue": "raise-your-fists",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-13",
+      "time": "2026-03-01T18:03:55Z",
+      "action": "Link arms tight",
+      "style": "emphasis",
+      "cue": "link-arms-tight",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-14",
+      "time": "2026-03-01T18:04:10Z",
+      "action": "Raise your fists one last time",
+      "countdownSeconds": [3, 2, 1],
+      "cue": "raise-your-fists-one-last-time",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-15",
+      "time": "2026-03-01T18:04:25Z",
+      "action": "Hold",
+      "audioAnnounce": false,
+      "noticeSeconds": 0,
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-16",
+      "time": "2026-03-01T18:04:30Z",
+      "action": "We will be back",
+      "style": "alert",
+      "hapticPattern": "triple",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "cue": "we-will-be-back",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "movement-17",
+      "time": "2026-03-01T18:04:50Z",
+      "action": "Stand together",
+      "cue": "stand-together",
+      "pack": "conductor-demo"
+    }
+  ]
+}

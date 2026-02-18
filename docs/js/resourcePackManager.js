@@ -555,8 +555,137 @@ function createResourcePackManager() {
         return Object.keys(manifest.cues);
     }
 
+    // ─── Pack validation ────────────────────────────────────────
+
+    /**
+     * Validate event coverage against a pack manifest.
+     * Checks which actions have full cues, grain coverage, or no coverage.
+     *
+     * @param {Object} manifest - Pack manifest with cues and optional grains
+     * @param {Array<{name: string, event: Object}>} events - Parsed event objects
+     * @returns {{covered: number, grainCovered: number, uncovered: Array, total: number}}
+     */
+    function validatePackEvents(manifest, events) {
+        const cueSet = new Set(Object.keys(manifest.cues || {}));
+        const grainSet = new Set(Object.keys(manifest.grains || {}));
+        const hasGrains = grainSet.size > 0;
+
+        let covered = 0;
+        let grainCovered = 0;
+        const uncovered = [];
+        let total = 0;
+
+        for (const { name, event } of events) {
+            if (!event.timeline) continue;
+
+            for (const action of event.timeline) {
+                // Only check actions that reference this pack
+                if (action.pack !== manifest.id) continue;
+                total++;
+
+                const cueId = action.cue;
+                const actionText = action.action || '';
+
+                // 1. Full cue match
+                if (cueId && cueSet.has(cueId)) {
+                    covered++;
+                    continue;
+                }
+
+                // 2. Grain coverage — all words present?
+                if (hasGrains) {
+                    const words = actionText.toLowerCase().split(/\s+/).filter(Boolean);
+                    const allGrains = words.length > 0 && words.every(w => grainSet.has(w));
+                    if (allGrains) {
+                        grainCovered++;
+                        continue;
+                    }
+                }
+
+                // 3. Uncovered — will fall back to TTS
+                const words = actionText.toLowerCase().split(/\s+/).filter(Boolean);
+                const missingGrains = hasGrains
+                    ? words.filter(w => !grainSet.has(w))
+                    : [];
+
+                // Compute relative timestamp for display
+                let timeLabel = '';
+                if (action.time && event.startTime) {
+                    const offsetMs = new Date(action.time) - new Date(event.startTime);
+                    const secs = Math.round(offsetMs / 1000);
+                    const m = Math.floor(secs / 60);
+                    const s = secs % 60;
+                    timeLabel = m + ':' + String(s).padStart(2, '0');
+                }
+
+                uncovered.push({
+                    event: name,
+                    time: timeLabel,
+                    action: actionText,
+                    cue: cueId || '(none)',
+                    missingGrains,
+                });
+            }
+        }
+
+        return { covered, grainCovered, uncovered, total };
+    }
+
+    /**
+     * Import a pack and validate bundled events.
+     * Extends importPack by also extracting event files and running validation.
+     *
+     * @param {ArrayBuffer} arrayBuffer - The zip file contents
+     * @param {function(string): void} [onProgress]
+     * @returns {Promise<{manifest: Object, validation: Object|null}>}
+     */
+    async function importPackWithValidation(arrayBuffer, onProgress) {
+        const progress = onProgress || (() => {});
+
+        // Run the normal import first
+        const manifest = await importPack(arrayBuffer, onProgress);
+
+        // If no bundled events, skip validation
+        if (!manifest.events || manifest.events.length === 0) {
+            return { manifest, validation: null };
+        }
+
+        // Extract and parse event files from the zip
+        progress('Validating event coverage...');
+        const entries = parseZipCentralDirectory(arrayBuffer);
+        const entryMap = new Map();
+        for (const entry of entries) {
+            entryMap.set(entry.name, entry);
+        }
+
+        const events = [];
+        for (const eventRef of manifest.events) {
+            const entry = entryMap.get(eventRef.file);
+            if (!entry) {
+                console.warn(`Pack ${manifest.id}: event "${eventRef.name}" references missing file "${eventRef.file}"`);
+                continue;
+            }
+            try {
+                const fileData = await extractZipFile(arrayBuffer, entry);
+                const text = new TextDecoder().decode(fileData);
+                const event = JSON.parse(text);
+                events.push({ name: eventRef.name || eventRef.file, event });
+            } catch (e) {
+                console.warn(`Pack ${manifest.id}: failed to parse event "${eventRef.file}":`, e);
+            }
+        }
+
+        const validation = events.length > 0
+            ? validatePackEvents(manifest, events)
+            : null;
+
+        return { manifest, validation };
+    }
+
     return {
         importPack,
+        importPackWithValidation,
+        validatePackEvents,
         deletePack,
         listPacks,
         hasPack,
