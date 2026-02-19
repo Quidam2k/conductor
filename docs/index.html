@@ -230,6 +230,13 @@
             margin-top: 2px;
             text-align: center;
         }
+        .pack-hint-input {
+            font-size: 12px;
+            color: var(--accent-gold);
+            text-align: center;
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
 
         textarea {
             width: 100%;
@@ -726,6 +733,7 @@
         <input type="file" id="event-file-input" accept=".json,.txt,.conductor" style="display:none;">
         <button id="btn-import-event" class="btn-outline">Import Event File</button>
         <button id="btn-manage-packs" class="btn-outline">Manage Packs</button>
+        <div id="pack-hint-input" class="pack-hint-input" style="display:none;">Have a resource pack (.zip)? Tap above to import it.</div>
         <button id="btn-share-app" class="btn-outline">Share This App</button>
 
         <div style="flex:1"></div>
@@ -1173,6 +1181,7 @@ function transitionTo(newMode) {
             $('input-paste').value = '';
             $('input-error').textContent = '';
             renderDraftList();
+            updatePackHint();
             break;
 
         case 'preview':
@@ -2405,6 +2414,13 @@ async function downloadBundledHTML() {
 // PACK MANAGER screen
 // ═══════════════════════════════════════════════════════════════════════════
 
+async function updatePackHint() {
+    const hint = $('pack-hint-input');
+    if (!hint) return;
+    const packs = await packManager.listPacks();
+    hint.style.display = packs.length === 0 ? '' : 'none';
+}
+
 async function renderPackManager() {
     const listEl = $('pack-list');
     const emptyEl = $('pack-empty');
@@ -2867,8 +2883,9 @@ if (loadFromHash()) {
     state.previewReturnTo = 'input';
     transitionTo('preview');
 } else {
-    // On input screen by default — render draft list
+    // On input screen by default — render draft list + pack hint
     renderDraftList();
+    updatePackHint();
 }
 
 // Register Service Worker (only works on HTTPS/localhost, silently skips file://)
