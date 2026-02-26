@@ -1,0 +1,92 @@
+{
+  "title": "The Freeze",
+  "description": "Umbrella formation — open, hold, light, close, disperse. Night variant: flashlights under white umbrellas.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Freeze — umbrella group",
+    "exit": "Northeast corner, 5th and Main",
+    "exitCoords": "45.5231, -122.6765",
+    "rally": "Weston Park, picnic tables near fountain",
+    "rallyCoords": "45.5251, -122.6741",
+    "abort": "Close umbrella. Walk to exit. Do not run."
+  },
+  "timeline": [
+    {
+      "id": "freeze-01",
+      "time": "2026-03-15T17:00:00Z",
+      "action": "Stand by",
+      "cue": "stand-by",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Open your umbrella",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "open-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-04",
+      "time": "2026-03-15T17:01:05Z",
+      "action": "Hold your position",
+      "noticeSeconds": 0,
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-05",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Light your umbrella",
+      "cue": "light-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-06",
+      "time": "2026-03-15T17:02:45Z",
+      "action": "Umbrella lights off",
+      "cue": "dark-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-07",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Close your umbrella",
+      "cue": "close-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-08",
+      "time": "2026-03-15T17:03:10Z",
+      "action": "Your direction: north",
+      "noticeSeconds": 0,
+      "cue": "dir-north",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-09",
+      "time": "2026-03-15T17:03:15Z",
+      "action": "Walk",
+      "noticeSeconds": 0,
+      "cue": "walk",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "freeze-10",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

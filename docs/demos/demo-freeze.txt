@@ -1,0 +1,28 @@
+# The Freeze — Umbrella Formation
+# Stationary formation with umbrellas. Night variant: flashlights underneath.
+# Designed to run alongside "The Walk-Through" at the same event.
+
+Title: The Freeze
+Description: Umbrella formation — open, hold, light, close, disperse. Night variant: flashlights under white umbrellas.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Freeze — umbrella group
+exit:         Northeast corner, 5th and Main
+exit_coords:  45.5231, -122.6765
+rally:        Weston Park, picnic tables near fountain
+rally_coords: 45.5251, -122.6741
+abort:        Close umbrella. Walk to exit. Do not run.
+
+[TIMELINE]
+0:00  [no-countdown] Stand by
+0:30  [no-countdown] In position — act natural
+1:00  [countdown:5, haptic:triple] Open your umbrella
+1:05  [no-notify, no-countdown] Hold your position
+2:00  [no-countdown] Light your umbrella
+2:45  [no-countdown] Umbrella lights off
+3:00  [no-countdown] Close your umbrella
+3:10  [no-notify, no-countdown] Your direction: north
+3:15  [no-notify, no-countdown] Walk
+3:30  [no-notify, no-countdown] Done

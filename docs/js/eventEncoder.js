@@ -8,6 +8,10 @@
  *
  * Requires: pako (loaded globally via <script> before this file)
  * Requires: models.js (eventToEmbeddedEvent, embeddedEventToEvent)
+ *
+ * Encrypted pipeline (v1e_ prefix):
+ *   Encode: Event → JSON → gzip → AES-GCM encrypt → salt(16)+iv(12)+ciphertext → base64url → "v1e_"
+ *   Decode: strip "v1e_" → base64url decode → split salt/iv/ct → PBKDF2 derive → AES-GCM decrypt → gunzip → JSON
  */
 
 // ─── Encode ─────────────────────────────────────────────────────────────────
@@ -78,6 +82,114 @@ function decodeEvent(encodedString) {
     } catch (e) {
         throw new Error('Failed to decode event: ' + e.message);
     }
+}
+
+// ─── Encryption (AES-256-GCM) ────────────────────────────────────────────────
+
+/**
+ * Derive an AES-256-GCM key from a password and salt using PBKDF2.
+ * @param {string} password - User-provided password
+ * @param {Uint8Array} salt - 16-byte random salt
+ * @returns {Promise<CryptoKey>}
+ */
+async function deriveKey(password, salt) {
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(password),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+/**
+ * Encode an Event into an encrypted URL-safe string.
+ * @param {Event} event - Full event object
+ * @param {string} password - Encryption password
+ * @returns {Promise<string>} Encoded string with "v1e_" prefix
+ */
+async function encodeEventEncrypted(event, password) {
+    // Reuse existing encode pipeline up to compressed bytes
+    const embedded = eventToEmbeddedEvent(event);
+    const cleaned = stripNulls(embedded);
+    if (cleaned.timeline) {
+        cleaned.timeline = cleaned.timeline.map(a => {
+            const stripped = stripNulls(a);
+            delete stripped.timeMs;
+            return stripped;
+        });
+    }
+    const jsonString = JSON.stringify(cleaned);
+    const jsonBytes = new TextEncoder().encode(jsonString);
+    const compressed = pako.gzip(jsonBytes);
+
+    // Encrypt
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(password, salt);
+    const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        compressed
+    ));
+
+    // Concatenate: salt(16) + iv(12) + ciphertext
+    const combined = new Uint8Array(16 + 12 + ciphertext.length);
+    combined.set(salt, 0);
+    combined.set(iv, 16);
+    combined.set(ciphertext, 28);
+
+    const base64 = bytesToBase64(combined);
+    return 'v1e_' + toUrlSafeBase64(base64);
+}
+
+/**
+ * Decode an encrypted event string back into an EmbeddedEvent.
+ * @param {string} encoded - Encrypted string (with or without "v1e_" prefix)
+ * @param {string} password - Decryption password
+ * @returns {Promise<EmbeddedEvent>} Decoded and validated event
+ * @throws {Error} 'Wrong password' on auth tag failure
+ */
+async function decodeEventEncrypted(encoded, password) {
+    let data = encoded;
+    if (data.startsWith('v1e_')) {
+        data = data.substring(4);
+    }
+
+    const base64 = fromUrlSafeBase64(data);
+    const combined = base64ToBytes(base64);
+
+    const salt = combined.slice(0, 16);
+    const iv = combined.slice(16, 28);
+    const ciphertext = combined.slice(28);
+
+    const key = await deriveKey(password, salt);
+
+    let decrypted;
+    try {
+        decrypted = new Uint8Array(await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            ciphertext
+        ));
+    } catch (e) {
+        throw new Error('Wrong password');
+    }
+
+    const decompressed = pako.ungzip(decrypted);
+    if (decompressed.length > 5 * 1024 * 1024) {
+        throw new Error('Event data too large (possible zip bomb)');
+    }
+    const jsonString = new TextDecoder().decode(decompressed);
+    const eventData = JSON.parse(jsonString);
+    return validateAndComplete(eventData);
 }
 
 // ─── Base64 URL-safe conversion ─────────────────────────────────────────────
@@ -379,6 +491,13 @@ function parseTextFormat(text) {
 function parseEventInput(input) {
     const trimmed = input.trim();
     if (!trimmed) throw new Error('Empty input');
+
+    // v1e_ encrypted format — throw sentinel so callers can prompt for password
+    if (trimmed.startsWith('v1e_')) {
+        const err = new Error('ENCRYPTED_EVENT');
+        err.data = trimmed;
+        throw err;
+    }
 
     // v1_ compressed format or legacy base64
     if (trimmed.startsWith('v1_') || (/^[A-Za-z0-9+/=_-]{30,}$/.test(trimmed) && /[+/=_-]/.test(trimmed))) {

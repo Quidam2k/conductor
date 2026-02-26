@@ -1,0 +1,84 @@
+{
+  "title": "The Walk-Through",
+  "description": "Movement group — walk through the umbrella formation, lights on, lights off, stop, disperse. Night variant: colored lights.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Walk-Through — movement group",
+    "exit": "South gate, past the fountain",
+    "exitCoords": "45.5225, -122.6770",
+    "rally": "Coffee shop on 6th, outdoor tables",
+    "rallyCoords": "45.5241, -122.6752",
+    "abort": "Stop walking. Pocket your light. Walk to exit."
+  },
+  "timeline": [
+    {
+      "id": "walkthrough-01",
+      "time": "2026-03-15T17:00:00Z",
+      "action": "Stand by",
+      "cue": "stand-by",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-03",
+      "time": "2026-03-15T17:01:15Z",
+      "action": "Begin walking",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "begin-walking",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-04",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Turn on your light",
+      "cue": "light-on",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-05",
+      "time": "2026-03-15T17:02:45Z",
+      "action": "Turn off your light",
+      "cue": "light-off",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-06",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Stop where you are",
+      "cue": "stop",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-07",
+      "time": "2026-03-15T17:03:10Z",
+      "action": "Your direction: south",
+      "noticeSeconds": 0,
+      "cue": "dir-south",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-08",
+      "time": "2026-03-15T17:03:15Z",
+      "action": "Walk",
+      "noticeSeconds": 0,
+      "cue": "walk",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walkthrough-09",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

@@ -7,13 +7,8 @@ Resource packs are optional zip files that enhance Conductor events with pre-rec
 ```
 my-pack.zip
 ├── manifest.json              # Required: pack metadata + cue mappings
-├── audio/                     # System audio (countdowns, trigger)
-│   ├── countdown-5.wav
-│   ├── countdown-4.wav
-│   ├── countdown-3.wav
-│   ├── countdown-2.wav
-│   ├── countdown-1.wav
-│   └── trigger.wav
+├── audio/                     # System audio (countdown)
+│   └── countdown-voice.wav
 ├── voices/                    # Full-phrase action cues
 │   ├── stand-by.wav
 │   └── ...
@@ -21,7 +16,7 @@ my-pack.zip
 │   ├── notice-stand-by.wav
 │   └── ...
 └── events/                    # Bundled event scripts (optional)
-    ├── demo-reveal.json
+    ├── demo-freeze.json
     └── ...
 ```
 
@@ -40,21 +35,16 @@ Folder names are conventions, not requirements — the manifest maps cue IDs to 
   "url": "https://example.com/my-pack",
 
   "cues": {
-    "countdown-5": "audio/countdown-5.wav",
-    "countdown-4": "audio/countdown-4.wav",
-    "countdown-3": "audio/countdown-3.wav",
-    "countdown-2": "audio/countdown-2.wav",
-    "countdown-1": "audio/countdown-1.wav",
-    "trigger": "audio/trigger.wav",
+    "countdown-voice": "audio/countdown-voice.wav",
     "stand-by": "voices/stand-by.wav",
     "notice-stand-by": "notices/notice-stand-by.wav"
   },
 
   "events": [
     {
-      "file": "events/demo-reveal.json",
-      "name": "The Reveal",
-      "role": "Synchronized reveal — one group, one action"
+      "file": "events/demo-freeze.json",
+      "name": "The Freeze",
+      "role": "Umbrella formation — open, hold, light, close, disperse"
     }
   ]
 }
@@ -85,7 +75,8 @@ These have well-known IDs that the audio service looks for automatically:
 
 | Cue ID | When Played | TTS Fallback |
 |--------|-------------|--------------|
-| `countdown-5` through `countdown-1` | During countdown sequences | Speaks the number |
+| `countdown-voice` | At T-5 during countdown sequences | "Five. Four. Three." then haptic pulses at T-2, T-1 |
+| `countdown-5` through `countdown-1` | Individual countdown numbers (legacy) | Speaks the number |
 | `trigger` | At the exact moment an action fires | "Now!" |
 
 ### Action Cues
@@ -145,14 +136,14 @@ Event JSON files may include a `briefing` object with fields like `role`, `exit`
 ```json
 "events": [
   {
-    "file": "events/demo-reveal.json",
-    "name": "The Reveal",
-    "role": "Synchronized reveal — one group, one action"
+    "file": "events/demo-freeze.json",
+    "name": "The Freeze",
+    "role": "Umbrella formation — open, hold, light, close, disperse"
   },
   {
-    "file": "events/demo-wave-a.json",
-    "name": "The Wave — Group A",
-    "role": "Sign-raise at T+1:00. First of 4 staggered groups."
+    "file": "events/demo-walkthrough.json",
+    "name": "The Walk-Through",
+    "role": "Movement group — walk through the umbrella formation"
   }
 ]
 ```
@@ -191,7 +182,7 @@ The pack manager displays uncovered actions after import:
 
 ```
 Pack imported: Conductor Demo
-26 cues · 6 events
+79 cues · 2 events
 
 ⚠ 2 actions will fall back to TTS:
   • "Custom phrase" (reveal @ 1:30)

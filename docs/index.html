@@ -583,6 +583,24 @@
             transition: opacity 0.3s;
         }
 
+        /* ─── Password protection toggle ─── */
+        .pwd-toggle {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            font-size: 14px; color: var(--text-secondary);
+        }
+        .pwd-toggle input[type="checkbox"] {
+            width: 18px; height: 18px; accent-color: var(--accent-purple);
+        }
+        .pwd-fields {
+            display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+        }
+        .pwd-fields input {
+            width: 100%; padding: 10px 12px; font-size: 14px;
+            background: var(--bg-input); color: var(--text); border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm); outline: none;
+        }
+        .pwd-fields input:focus { border-color: var(--accent-purple); box-shadow: var(--glow-purple); }
+
         .ed-checkbox-row {
             display: flex; align-items: center; gap: 8px;
         }
@@ -732,6 +750,16 @@
         #screen-practice .controls { border-top: 1px solid rgba(52, 211, 153, 0.15); }
         #screen-live .controls { border-top: 1px solid rgba(255, 71, 87, 0.2); }
 
+        /* ─── Info banners (dismissible warnings/notices) ─── */
+        .info-banner {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; margin: 0 12px; border-radius: var(--radius-sm);
+            font-size: 13px; animation: fadeIn 0.3s;
+        }
+        .info-banner.warning { background: rgba(240,180,41,0.12); color: var(--accent-gold); }
+        .info-banner.info { background: rgba(91,163,255,0.12); color: var(--accent-blue); }
+        .info-banner .dismiss { background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; padding: 0 4px; }
+
         /* ─── Reduced motion ─── */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
@@ -761,6 +789,12 @@
             <summary>What is this?</summary>
             <div class="about-body">
                 Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of cues — spoken announcements, vibrations, or audio — and shares it as a link or QR code. Every participant's device plays the same cues at the same time. No accounts, no app store, no server required.
+                <br><br>
+                Events can be password-protected with AES-256 encryption. No data is ever sent to a server — everything stays on your device.
+                <br><br>
+                Designed for peaceful coordination — performances, community events, demonstrations. No telemetry, no tracking. By design.
+                <br><br>
+                <strong>Tip:</strong> For live events, disable battery saver and keep your screen on.
             </div>
         </details>
 
@@ -867,6 +901,7 @@
         <summary id="practice-briefing-summary">Briefing</summary>
         <div class="briefing-panel"></div>
     </details>
+    <div id="practice-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-practice"></canvas>
     </div>
@@ -898,6 +933,7 @@
         <summary id="live-briefing-summary">Briefing</summary>
         <div class="briefing-panel"></div>
     </details>
+    <div id="live-banner" class="info-banner" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-live"></canvas>
     </div>
@@ -1012,6 +1048,14 @@
         <ul id="review-actions" class="action-list"></ul>
 
         <div class="share-section">
+            <label class="pwd-toggle">
+                <input type="checkbox" id="chk-encrypt"> Password protect
+            </label>
+            <div id="pwd-fields" class="pwd-fields" style="display:none;">
+                <input type="password" id="ed-pwd" placeholder="Password" autocomplete="new-password">
+                <input type="password" id="ed-pwd-confirm" placeholder="Confirm password" autocomplete="new-password">
+                <div id="ed-pwd-error" style="color:var(--accent-red); font-size:13px; min-height:16px;"></div>
+            </div>
             <div id="share-feedback" class="share-feedback"></div>
             <button id="btn-show-qr" class="btn-outline">Share QR Code</button>
             <button id="btn-copy-code" class="btn-primary">Copy Event Code</button>
@@ -1066,6 +1110,26 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- OVERLAY: Password Prompt (encrypted events)                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="password-overlay" class="qr-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pwd-overlay-title">
+    <div class="qr-overlay-header">
+        <h2 id="pwd-overlay-title">Password Required</h2>
+        <button id="btn-pwd-close" class="qr-close-btn" aria-label="Cancel">&times;</button>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px;">
+        <p style="font-size:14px; color:var(--text-secondary); text-align:center;">This event is password protected.</p>
+        <input type="password" id="pwd-input" placeholder="Enter password" autocomplete="off"
+               style="width:100%; max-width:300px; padding:12px 14px; font-size:16px; background:var(--bg-input); color:var(--text); border:1px solid var(--border-medium); border-radius:var(--radius-sm); outline:none;">
+        <div id="pwd-error" style="color:var(--accent-red); font-size:13px; min-height:20px; text-align:center;"></div>
+        <div style="display:flex; gap:10px; width:100%; max-width:300px;">
+            <button id="btn-pwd-unlock" class="btn-primary" style="flex:1;">Unlock</button>
+            <button id="btn-pwd-cancel" class="btn-outline" style="flex:1;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <script src="lib/pako.min.js"></script>
@@ -1105,6 +1169,7 @@ const state = {
     wakeLock: null,             // Wake Lock sentinel
     previewReturnTo: 'input',   // Where preview "Back" returns to
     qrScanner: null,            // QrScanner instance when scanning
+    sharePassword: null,        // Set when password-protect checkbox is checked
     editor: {
         title: '',
         description: '',
@@ -1130,9 +1195,8 @@ audio.setResourcePackResolver(packManager.getResolver());
 
 // Dev hook for console testing: window.importPack(arrayBuffer)
 window.importPack = async (arrayBuffer) => {
-    const manifest = await packManager.importPack(arrayBuffer, console.log);
+    const manifest = await packManager.importPack(arrayBuffer);
     await packManager.ensurePackLoaded(manifest.id);
-    console.log('Pack imported and loaded:', manifest.name, '— cues:', Object.keys(manifest.cues));
     return manifest;
 };
 
@@ -1285,7 +1349,23 @@ function transitionTo(newMode) {
 // INPUT screen logic
 // ═══════════════════════════════════════════════════════════════════════════
 
-function loadFromString(input) {
+function friendlyError(msg) {
+    if (/incorrect header check|invalid stored block|buffer error/i.test(msg))
+        return 'Could not read this event code. It may be corrupted or incomplete.';
+    if (/Failed to decode event/i.test(msg))
+        return 'Could not read this event code. It may be corrupted or incomplete.';
+    if (/Invalid JSON/i.test(msg))
+        return 'This doesn\'t look like a valid event. Check the format and try again.';
+    if (/Text format: missing required/i.test(msg))
+        return msg; // Already clear
+    if (/Invalid event data: missing/i.test(msg))
+        return msg; // Already clear
+    if (/Empty input/i.test(msg))
+        return msg; // Already clear
+    return 'Something went wrong. Check that the event data is complete.';
+}
+
+function loadFromString(input, navigateOnSuccess) {
     const trimmed = input.trim();
     if (!trimmed) {
         $('input-error').textContent = 'Please paste an event code, JSON, or text-format event.';
@@ -1296,7 +1376,19 @@ function loadFromString(input) {
         state.event = embeddedEventToEvent(embedded);
         return true;
     } catch (e) {
-        $('input-error').textContent = e.message;
+        if (e.message === 'ENCRYPTED_EVENT') {
+            showPasswordPrompt(e.data, (embedded) => {
+                state.event = embeddedEventToEvent(embedded);
+                if (navigateOnSuccess !== false) {
+                    state.previewReturnTo = 'input';
+                    transitionTo('preview');
+                }
+            }, () => {
+                $('input-error').textContent = '';
+            });
+            return false; // Navigation handled in callback
+        }
+        $('input-error').textContent = friendlyError(e.message);
         return false;
     }
 }
@@ -1304,6 +1396,19 @@ function loadFromString(input) {
 function loadFromHash() {
     const hash = location.hash.substring(1); // strip '#'
     if (!hash) return false;
+
+    // Encrypted hash — show password prompt, handle async
+    if (hash.startsWith('v1e_')) {
+        showPasswordPrompt(hash, (embedded) => {
+            state.event = embeddedEventToEvent(embedded);
+            state.previewReturnTo = 'input';
+            transitionTo('preview');
+        }, () => {
+            // User cancelled — stay on input screen
+        });
+        return false; // Navigation handled in callback
+    }
+
     try {
         const embedded = parseEventInput(hash);
         state.event = embeddedEventToEvent(embedded);
@@ -1319,29 +1424,43 @@ function createDemoEvent() {
     const startTime = new Date(startMs).toISOString();
 
     const actions = [
-        { offset: 0,   action: 'Get ready',        style: 'normal',   hapticPattern: 'single' },
-        { offset: 15,  action: 'Wave left',         style: 'normal',   hapticPattern: 'double' },
-        { offset: 30,  action: 'Wave right',        style: 'emphasis', hapticPattern: 'double' },
-        { offset: 60,  action: 'Jump!',             style: 'alert',    hapticPattern: 'triple',
-          countdownSeconds: [5, 4, 3, 2, 1] },
-        { offset: 90,  action: 'Freeze in place',   style: 'emphasis', hapticPattern: 'double' },
+        { offset: 0,   action: 'Stand by',                 cue: 'stand-by' },
+        { offset: 30,  action: 'In position — act natural', cue: 'in-position' },
+        { offset: 60,  action: 'Open your umbrella',       cue: 'open-umbrella',
+          countdownSeconds: [5, 4, 3, 2, 1], hapticPattern: 'triple' },
+        { offset: 65,  action: 'Hold your position',       cue: 'hold',          noticeOff: true },
+        { offset: 120, action: 'Light your umbrella',      cue: 'light-umbrella' },
+        { offset: 165, action: 'Umbrella lights off',      cue: 'dark-umbrella' },
+        { offset: 180, action: 'Close your umbrella',      cue: 'close-umbrella' },
+        { offset: 190, action: 'Your direction: north',    cue: 'dir-north',     noticeOff: true },
+        { offset: 195, action: 'Walk',                     cue: 'walk',          noticeOff: true },
+        { offset: 210, action: 'Done',                     cue: 'done',          noticeOff: true },
     ];
 
     const timeline = actions.map(a => createTimelineAction({
         time: new Date(startMs + a.offset * 1000).toISOString(),
         action: a.action,
-        style: a.style,
-        hapticPattern: a.hapticPattern,
+        cue: a.cue,
+        pack: 'conductor-demo',
+        hapticPattern: a.hapticPattern || 'double',
         countdownSeconds: a.countdownSeconds || null,
-        noticeSeconds: 5,
+        noticeSeconds: a.noticeOff ? 0 : 5,
     }));
 
     const embedded = {
-        title: 'Demo Flash Mob',
-        description: 'A quick demo event to test Conductor. Actions start in ~10 seconds.',
+        title: 'The Freeze',
+        description: 'Umbrella formation — open, hold, light, close, disperse. Night variant: flashlights under white umbrellas.',
         startTime: startTime,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timeline: timeline,
+        briefing: {
+            role: 'The Freeze — umbrella group',
+            exit: 'Northeast corner, 5th and Main',
+            exitCoords: '45.5231, -122.6765',
+            rally: 'Weston Park, picnic tables near fountain',
+            rallyCoords: '45.5251, -122.6741',
+            abort: 'Close umbrella. Walk to exit. Do not run.',
+        },
     };
 
     state.event = embeddedEventToEvent(embedded);
@@ -1401,6 +1520,72 @@ function closeQRScanner() {
     releaseFocus();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Password Prompt (encrypted events)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function showPasswordPrompt(encryptedData, onSuccess, onCancel) {
+    const overlay = $('password-overlay');
+    const input = $('pwd-input');
+    const error = $('pwd-error');
+
+    input.value = '';
+    error.textContent = '';
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+    // Auto-focus after a tick so trapFocus doesn't override
+    setTimeout(() => input.focus(), 50);
+
+    async function tryUnlock() {
+        const password = input.value;
+        if (!password) {
+            error.textContent = 'Enter a password.';
+            input.focus();
+            return;
+        }
+        error.textContent = 'Decrypting...';
+        $('btn-pwd-unlock').disabled = true;
+        try {
+            const embedded = await decodeEventEncrypted(encryptedData, password);
+            overlay.style.display = 'none';
+            releaseFocus();
+            cleanup();
+            onSuccess(embedded);
+        } catch (e) {
+            error.textContent = e.message === 'Wrong password' ? 'Wrong password — try again.' : e.message;
+            input.value = '';
+            input.focus();
+        } finally {
+            $('btn-pwd-unlock').disabled = false;
+        }
+    }
+
+    function cancel() {
+        overlay.style.display = 'none';
+        releaseFocus();
+        cleanup();
+        if (onCancel) onCancel();
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); }
+    }
+
+    function cleanup() {
+        $('btn-pwd-unlock').removeEventListener('click', tryUnlock);
+        $('btn-pwd-cancel').removeEventListener('click', cancel);
+        $('btn-pwd-close').removeEventListener('click', cancel);
+        input.removeEventListener('keydown', onKeyDown);
+    }
+
+    // Clean up any previous listeners before adding new ones
+    cleanup();
+    $('btn-pwd-unlock').addEventListener('click', tryUnlock);
+    $('btn-pwd-cancel').addEventListener('click', cancel);
+    $('btn-pwd-close').addEventListener('click', cancel);
+    input.addEventListener('keydown', onKeyDown);
+}
+
 function handleQRResult(data) {
     let code = data;
 
@@ -1412,6 +1597,19 @@ function handleQRResult(data) {
         }
     } catch {
         // Not a URL — treat as raw code
+    }
+
+    // Encrypted event — close scanner, show password prompt
+    if (code.startsWith('v1e_')) {
+        closeQRScanner();
+        showPasswordPrompt(code, (embedded) => {
+            state.event = embeddedEventToEvent(embedded);
+            state.previewReturnTo = 'input';
+            transitionTo('preview');
+        }, () => {
+            // User cancelled — stay on input screen
+        });
+        return;
     }
 
     try {
@@ -1620,6 +1818,18 @@ async function renderPackHint(evt) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Info banners (dismissible warnings on practice/live screens)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function showBanner(id, text, variant) {
+    const el = $(id);
+    el.querySelector('span').textContent = text;
+    el.className = 'info-banner ' + (variant || 'info');
+    el.style.display = 'flex';
+}
+function hideBanner(id) { $(id).style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PRACTICE mode
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1636,6 +1846,13 @@ function enterPractice() {
     }
     audio.reset();
     audio.setMuted(state.audioMuted);
+
+    // Show warning if speech unavailable
+    if (audio.getMode() === 'VISUAL_ONLY') {
+        showBanner('practice-banner', 'Audio unavailable \u2014 visual cues only.', 'warning');
+    } else {
+        hideBanner('practice-banner');
+    }
 
     // Pre-load resource packs referenced by event actions
     preloadEventPacks(evt);
@@ -1702,6 +1919,20 @@ function enterLive() {
     }
     audio.reset();
     audio.setMuted(state.audioMuted);
+
+    // Show banners for speech unavailable / late joiner
+    const speechUnavailable = audio.getMode() === 'VISUAL_ONLY';
+    const pastCount = evt.timeline.filter(a => (a.timeMs ?? new Date(a.time).getTime()) < now).length;
+    const lateJoiner = pastCount > 0 && pastCount < evt.timeline.length;
+
+    if (speechUnavailable || lateJoiner) {
+        const lines = [];
+        if (speechUnavailable) lines.push('Audio unavailable \u2014 visual cues only.');
+        if (lateJoiner) lines.push('Event in progress \u2014 ' + pastCount + ' of ' + evt.timeline.length + ' cues already passed.');
+        showBanner('live-banner', lines.join(' '), speechUnavailable ? 'warning' : 'info');
+    } else {
+        hideBanner('live-banner');
+    }
 
     // Pre-load resource packs referenced by event actions
     preloadEventPacks(evt);
@@ -2362,6 +2593,14 @@ function renderEditorReview() {
     const evt = state.event;
     if (!evt) return;
 
+    // Reset password protection UI
+    $('chk-encrypt').checked = false;
+    $('pwd-fields').style.display = 'none';
+    $('ed-pwd').value = '';
+    $('ed-pwd-confirm').value = '';
+    $('ed-pwd-error').textContent = '';
+    state.sharePassword = null;
+
     $('review-title').textContent = evt.title;
     $('review-desc').textContent = evt.description || '';
     $('review-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
@@ -2440,22 +2679,65 @@ function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '-').substring(0, 50) || 'conductor-event';
 }
 
+/**
+ * Validate password fields if encryption checkbox is checked.
+ * Sets state.sharePassword on success.
+ * @returns {boolean} true if valid (or unchecked), false if validation error shown
+ */
+function validateSharePassword() {
+    const chk = $('chk-encrypt');
+    const err = $('ed-pwd-error');
+    if (!chk || !chk.checked) {
+        state.sharePassword = null;
+        return true;
+    }
+    const pwd = $('ed-pwd').value;
+    const confirm = $('ed-pwd-confirm').value;
+    if (!pwd) {
+        err.textContent = 'Password required.';
+        $('ed-pwd').focus();
+        return false;
+    }
+    if (pwd !== confirm) {
+        err.textContent = 'Passwords don\'t match.';
+        $('ed-pwd-confirm').focus();
+        return false;
+    }
+    err.textContent = '';
+    state.sharePassword = pwd;
+    return true;
+}
+
+/**
+ * Get the encoded event string, encrypted if password is set.
+ * @returns {Promise<string>} Encoded event string (v1_ or v1e_ prefix)
+ */
+async function getShareEncoded() {
+    if (state.sharePassword) {
+        return await encodeEventEncrypted(state.event, state.sharePassword);
+    }
+    return encodeEvent(state.event);
+}
+
 async function copyEventCode() {
-    const encoded = encodeEvent(state.event);
+    if (!validateSharePassword()) return;
+    const encoded = await getShareEncoded();
     const ok = await copyToClipboard(encoded);
     showShareFeedback(ok ? 'Event code copied!' : 'Copy failed — try again.');
 }
 
 async function copyShareableLink() {
-    const encoded = encodeEvent(state.event);
+    if (!validateSharePassword()) return;
+    const encoded = await getShareEncoded();
     const url = location.origin + location.pathname + '#' + encoded;
     const ok = await copyToClipboard(url);
     showShareFeedback(ok ? 'Link copied!' : 'Copy failed — try again.');
 }
 
 async function webShareEvent() {
+    if (!validateSharePassword()) return;
     try {
-        const encoded = encodeEvent(state.event);
+        const encoded = await getShareEncoded();
         const url = location.origin + location.pathname + '#' + encoded;
         await navigator.share({
             title: state.event.title,
@@ -2507,10 +2789,11 @@ async function buildBundledHTML(encoded) {
 }
 
 async function shareBundleFile(includeEvent, triggerBtn) {
+    if (includeEvent && !validateSharePassword()) return;
     const origText = triggerBtn ? triggerBtn.textContent : '';
     if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Preparing...'; }
     try {
-        const encoded = includeEvent ? encodeEvent(state.event) : null;
+        const encoded = includeEvent ? await getShareEncoded() : null;
         const html = await buildBundledHTML(encoded);
         const filename = includeEvent && state.event
             ? sanitizeFilename(state.event.title) + '.html'
@@ -2543,12 +2826,13 @@ async function shareBundleFile(includeEvent, triggerBtn) {
 }
 
 async function downloadBundledHTML() {
+    if (!validateSharePassword()) return;
     const btn = $('btn-download-html');
     const origText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Preparing...';
     try {
-        const encoded = encodeEvent(state.event);
+        const encoded = await getShareEncoded();
         const html = await buildBundledHTML(encoded);
 
         const blob = new Blob([html], { type: 'text/html' });
@@ -2789,7 +3073,7 @@ $('event-file-input').addEventListener('change', (e) => {
                 transitionTo('preview');
             }
         }).catch(err => {
-            $('input-error').textContent = 'Could not read file: ' + err.message;
+            $('input-error').textContent = 'Could not read file: ' + friendlyError(err.message);
         });
         e.target.value = '';
     }
@@ -2832,6 +3116,11 @@ $('btn-go-live').addEventListener('click', () => {
 
 $('btn-practice-stop').addEventListener('click', () => {
     transitionTo('preview');
+});
+
+// Dismiss buttons on info banners
+document.querySelectorAll('.info-banner .dismiss').forEach(btn => {
+    btn.addEventListener('click', () => { btn.parentElement.style.display = 'none'; });
 });
 
 // Live screen
@@ -2892,7 +3181,8 @@ $('draft-list').addEventListener('click', (e) => {
 });
 
 // QR Display Overlay
-function showQRDisplay() {
+async function showQRDisplay() {
+    if (!validateSharePassword()) return;
     const overlay = $('qr-display-overlay');
     const canvas = $('qr-display-canvas');
     const warning = $('qr-display-warning');
@@ -2909,7 +3199,7 @@ function showQRDisplay() {
     shareFileBtn.style.display = (navigator.share || navigator.canShare) ? '' : 'none';
 
     try {
-        const encoded = encodeEvent(state.event);
+        const encoded = await getShareEncoded();
         const fullUrl = location.origin + location.pathname + '#' + encoded;
 
         if (fullUrl.length > 2953) {
@@ -2948,7 +3238,7 @@ $('btn-share-qr-preview').addEventListener('click', showQRDisplay);
 $('btn-share-qr-practice').addEventListener('click', showQRDisplay);
 $('btn-qr-display-close').addEventListener('click', closeQRDisplay);
 $('btn-qr-display-copy-link').addEventListener('click', async () => {
-    const encoded = encodeEvent(state.event);
+    const encoded = await getShareEncoded();
     const url = location.origin + location.pathname + '#' + encoded;
     const ok = await copyToClipboard(url);
     const btn = $('btn-qr-display-copy-link');
@@ -2958,7 +3248,7 @@ $('btn-qr-display-copy-link').addEventListener('click', async () => {
 });
 $('btn-qr-display-web-share').addEventListener('click', async () => {
     try {
-        const encoded = encodeEvent(state.event);
+        const encoded = await getShareEncoded();
         const url = location.origin + location.pathname + '#' + encoded;
         await navigator.share({
             title: state.event.title,
@@ -2971,6 +3261,16 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
 });
 $('btn-qr-display-share-file').addEventListener('click', function() {
     shareBundleFile(true, this);
+});
+$('chk-encrypt').addEventListener('change', () => {
+    const show = $('chk-encrypt').checked;
+    $('pwd-fields').style.display = show ? '' : 'none';
+    if (!show) {
+        state.sharePassword = null;
+        $('ed-pwd').value = '';
+        $('ed-pwd-confirm').value = '';
+        $('ed-pwd-error').textContent = '';
+    }
 });
 $('btn-copy-code').addEventListener('click', copyEventCode);
 $('btn-copy-link').addEventListener('click', copyShareableLink);
