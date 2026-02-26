@@ -1,0 +1,69 @@
+{
+  "title": "The Reveal",
+  "description": "Synchronized reveal — open umbrella, flip sign, or uncover message at the same instant. One group, one action.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Reveal — all participants",
+    "exit": "Northeast corner, 5th and Main",
+    "exitCoords": "45.5231, -122.6765",
+    "rally": "Weston Park, picnic tables near fountain",
+    "rallyCoords": "45.5251, -122.6741",
+    "abort": "Open umbrella. Walk to exit. Do not run."
+  },
+  "timeline": [
+    {
+      "id": "reveal-01",
+      "time": "2026-03-15T17:00:00Z",
+      "action": "In position",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "reveal-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "Thirty seconds",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "thirty-seconds",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "reveal-03",
+      "time": "2026-03-15T17:00:50Z",
+      "action": "Ten seconds",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "ten-seconds",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "reveal-04",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Hold",
+      "noticeSeconds": 0,
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "reveal-05",
+      "time": "2026-03-15T17:02:30Z",
+      "action": "Walk different directions",
+      "cue": "walk-different",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "reveal-06",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Done",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

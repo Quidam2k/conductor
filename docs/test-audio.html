@@ -259,12 +259,23 @@
         text = rpSvc.resolveAudioCue(rpAction, 'notice');
         assert('Resolver returns false → fallbackText', text === 'Start now!', `Got: "${text}"`);
 
-        // With resolver that returns true (pack played it)
+        // With resolver that returns true (pack played it) — trigger context uses raw cue
         rpSvc.setResourcePackResolver((cue, pack) => {
             return cue === 'start-horn' && pack === 'flash-mob-v1';
         });
-        text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        text = rpSvc.resolveAudioCue(rpAction, 'trigger');
         assert('Resolver returns true → null (resource pack handled it)', text === null);
+
+        // Notice context: resolver receives notice-prefixed cue
+        let noticeCueReceived = null;
+        rpSvc.setResourcePackResolver((cue, pack) => {
+            noticeCueReceived = cue;
+            return cue === 'notice-start-horn' && pack === 'flash-mob-v1';
+        });
+        text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        assert('Notice context: resolver gets notice-prefixed cue', text === null);
+        assert('Notice cue ID is notice-start-horn', noticeCueReceived === 'notice-start-horn',
+            `Got: "${noticeCueReceived}"`);
 
         // Action with no cue, no fallbackText → action text
         const plainAction = actionAt(0, 'Just plain text');

@@ -1,0 +1,24 @@
+# The Reveal — Synchronized Surprise
+# One script, all participants
+# Synchronized umbrella open — the simplest Conductor demo
+
+Title: The Reveal
+Description: Synchronized reveal — open umbrella, flip sign, or uncover message at the same instant. One group, one action.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Reveal — all participants
+exit:         Northeast corner, 5th and Main
+exit_coords:  45.5231, -122.6765
+rally:        Weston Park, picnic tables near fountain
+rally_coords: 45.5251, -122.6741
+abort:        Open umbrella. Walk to exit. Do not run.
+
+[TIMELINE]
+0:00  [no-notify, no-countdown] In position
+0:30  [no-notify, no-countdown] Thirty seconds
+0:50  [no-notify, no-countdown] Ten seconds
+1:00  [countdown:5, no-notify, haptic:triple] Hold
+2:30  [no-countdown] Walk different directions
+3:00  [no-notify, no-countdown] Done

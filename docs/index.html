@@ -337,6 +337,58 @@
             min-width: 48px;
         }
 
+        /* ─── Briefing panel ─── */
+        .briefing-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .briefing-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+        .briefing-panel dt {
+            font-weight: 600;
+            color: var(--text-dim);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+        .briefing-panel dd { margin: 0; margin-top: 4px; }
+        .briefing-panel .briefing-role {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+        .briefing-nav-btn {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 4px 4px 0 0;
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            min-height: 44px;
+        }
+        .briefing-nav-btn:active { opacity: 0.8; }
+        .briefing-strip summary {
+            cursor: pointer;
+            padding: 8px 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            font-size: 13px;
+            list-style: none;
+            user-select: none;
+            color: var(--text-secondary);
+        }
+        .briefing-strip summary::-webkit-details-marker { display: none; }
+        .briefing-strip .briefing-panel { margin-top: 4px; }
+
         /* ─── Practice / Live screens ─── */
         .canvas-wrap {
             flex: 1;
@@ -784,6 +836,8 @@
             </dl>
         </div>
 
+        <div id="preview-briefing" class="briefing-panel" style="display:none"></div>
+
         <ul id="preview-actions" class="action-list"></ul>
 
         <div id="preview-pack-hint" class="pack-hint" style="display:none;"></div>
@@ -809,6 +863,10 @@
         <h1 id="practice-title">Practice</h1>
         <span class="badge badge-practice">PRACTICE</span>
     </div>
+    <details id="practice-briefing" class="briefing-strip" style="display:none">
+        <summary id="practice-briefing-summary">Briefing</summary>
+        <div class="briefing-panel"></div>
+    </details>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-practice"></canvas>
     </div>
@@ -836,6 +894,10 @@
         <h1 id="live-title">Live</h1>
         <span class="badge badge-live">LIVE</span>
     </div>
+    <details id="live-briefing" class="briefing-strip" style="display:none">
+        <summary id="live-briefing-summary">Briefing</summary>
+        <div class="briefing-panel"></div>
+    </details>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-live"></canvas>
     </div>
@@ -1370,6 +1432,97 @@ function handleQRResult(data) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// BRIEFING panel
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Render briefing info into a container.
+ * @param {Object|null} briefing - Briefing data object
+ * @param {string} containerId - ID of the container element
+ * @param {boolean} collapsible - If true, container is a <details> element
+ */
+function renderBriefing(briefing, containerId, collapsible) {
+    const container = $(containerId);
+    if (!container) return;
+
+    if (!briefing || Object.keys(briefing).length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    const panel = collapsible ? container.querySelector('.briefing-panel') : container;
+    let html = '<dl>';
+
+    if (briefing.role) {
+        html += '<dt>Role</dt><dd class="briefing-role">' + escapeHtml(briefing.role) + '</dd>';
+    }
+    if (briefing.event) {
+        html += '<dt>Event</dt><dd>' + escapeHtml(briefing.event) + '</dd>';
+    }
+    if (briefing.exit) {
+        html += '<dt>Exit</dt><dd>' + escapeHtml(briefing.exit);
+        if (briefing.exitCoords) {
+            html += ' <button class="briefing-nav-btn" onclick="openNavigation(\'' +
+                escapeHtml(briefing.exitCoords) + '\', \'' + escapeHtml(briefing.exit) + '\')">Navigate</button>';
+        }
+        html += '</dd>';
+    }
+    if (briefing.rally) {
+        html += '<dt>Rally</dt><dd>' + escapeHtml(briefing.rally);
+        if (briefing.rallyCoords) {
+            html += ' <button class="briefing-nav-btn" onclick="openNavigation(\'' +
+                escapeHtml(briefing.rallyCoords) + '\', \'' + escapeHtml(briefing.rally) + '\')">Navigate</button>';
+        }
+        html += '</dd>';
+    }
+    if (briefing.abort) {
+        html += '<dt>Abort</dt><dd>' + escapeHtml(briefing.abort) + '</dd>';
+    }
+    if (briefing.notes) {
+        html += '<dt>Notes</dt><dd>' + escapeHtml(briefing.notes) + '</dd>';
+    }
+
+    html += '</dl>';
+    panel.innerHTML = html;
+
+    // Update summary text for collapsible
+    if (collapsible) {
+        const summary = container.querySelector('summary');
+        if (summary && briefing.role) {
+            summary.textContent = 'Briefing — ' + briefing.role;
+        }
+    }
+
+    container.style.display = '';
+}
+
+/**
+ * Open navigation to coordinates using platform-appropriate URL.
+ * @param {string} coordsStr - "LAT, LNG" string
+ * @param {string} label - Destination label
+ */
+function openNavigation(coordsStr, label) {
+    const parts = coordsStr.split(',').map(s => s.trim());
+    if (parts.length !== 2) return;
+    const lat = parts[0], lng = parts[1];
+    const encodedLabel = encodeURIComponent(label);
+
+    const ua = navigator.userAgent;
+    let url;
+    if (/android/i.test(ua)) {
+        // Android: geo URI triggers OS app chooser
+        url = 'geo:' + lat + ',' + lng + '?q=' + lat + ',' + lng + '(' + encodedLabel + ')';
+    } else if (/iPad|iPhone|iPod/.test(ua)) {
+        // iOS: Apple Maps walking directions
+        url = 'maps://?daddr=' + lat + ',' + lng + '&dirflg=w';
+    } else {
+        // Fallback: Google Maps web with walking directions
+        url = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking';
+    }
+    window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PREVIEW screen logic
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1420,6 +1573,9 @@ function renderPreview() {
         `;
         list.appendChild(li);
     }
+
+    // Briefing panel
+    renderBriefing(evt.briefing, 'preview-briefing', false);
 
     // Pack hint: check for missing packs
     renderPackHint(evt);
@@ -1472,6 +1628,7 @@ function enterPractice() {
     if (!evt || evt.timeline.length === 0) return;
 
     $('practice-title').textContent = evt.title;
+    renderBriefing(evt.briefing, 'practice-briefing', true);
 
     // Initialize audio on first user gesture
     if (!audio.isInitialized()) {
@@ -1537,6 +1694,7 @@ function enterLive() {
     }
 
     $('live-title').textContent = evt.title;
+    renderBriefing(evt.briefing, 'live-briefing', true);
 
     // Initialize audio on first user gesture
     if (!audio.isInitialized()) {
@@ -2471,9 +2629,7 @@ async function importPackFromFile(file) {
         await packManager.ensurePackLoaded(manifest.id);
 
         const cueCount = Object.keys(manifest.cues).length;
-        const grainCount = manifest.grains ? Object.keys(manifest.grains).length : 0;
         let summary = `Imported "${manifest.name}" (${cueCount} cues`;
-        if (grainCount > 0) summary += `, ${grainCount} grains`;
         if (manifest.events && manifest.events.length > 0) summary += `, ${manifest.events.length} events`;
         summary += ')';
 
@@ -2485,11 +2641,7 @@ async function importPackFromFile(file) {
             let msg = summary + '\n\n';
             msg += `\u26A0 ${warns.length} action${warns.length === 1 ? '' : 's'} will fall back to TTS:\n`;
             for (const w of warns.slice(0, 5)) {
-                msg += `  \u2022 "${w.action}" (${w.event} @ ${w.time})`;
-                if (w.missingGrains.length > 0) {
-                    msg += ` \u2014 missing grain${w.missingGrains.length === 1 ? '' : 's'}: ${w.missingGrains.join(', ')}`;
-                }
-                msg += '\n';
+                msg += `  \u2022 "${w.action}" (${w.event} @ ${w.time})\n`;
             }
             if (warns.length > 5) {
                 msg += `  ... and ${warns.length - 5} more`;

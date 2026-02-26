@@ -273,6 +273,18 @@ function createAudioService() {
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
     function resolveAudioCue(action, context) {
+        // Notice context: try notice-prefixed cue first
+        if (context === 'notice' && action.cue && action.pack) {
+            const noticeCueId = 'notice-' + action.cue;
+            if (resourcePackResolver && resourcePackResolver(noticeCueId, action.pack)) {
+                return null; // Resource pack played the notice cue
+            }
+            // No notice cue in pack — fall through to TTS fallback
+            // (DON'T try the main action cue for notices — that would be confusing)
+            if (action.fallbackText) return action.fallbackText;
+            return action.action;
+        }
+
         // Random cues — pick one at random
         if (action.randomCues && action.randomCues.length > 0 && action.pack) {
             const randomIndex = Math.floor(Math.random() * action.randomCues.length);

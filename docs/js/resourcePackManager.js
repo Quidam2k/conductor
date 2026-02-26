@@ -559,19 +559,16 @@ function createResourcePackManager() {
 
     /**
      * Validate event coverage against a pack manifest.
-     * Checks which actions have full cues, grain coverage, or no coverage.
+     * Checks which actions have full cues or no coverage (TTS fallback).
      *
-     * @param {Object} manifest - Pack manifest with cues and optional grains
+     * @param {Object} manifest - Pack manifest with cues
      * @param {Array<{name: string, event: Object}>} events - Parsed event objects
-     * @returns {{covered: number, grainCovered: number, uncovered: Array, total: number}}
+     * @returns {{covered: number, uncovered: Array, total: number}}
      */
     function validatePackEvents(manifest, events) {
         const cueSet = new Set(Object.keys(manifest.cues || {}));
-        const grainSet = new Set(Object.keys(manifest.grains || {}));
-        const hasGrains = grainSet.size > 0;
 
         let covered = 0;
-        let grainCovered = 0;
         const uncovered = [];
         let total = 0;
 
@@ -586,28 +583,13 @@ function createResourcePackManager() {
                 const cueId = action.cue;
                 const actionText = action.action || '';
 
-                // 1. Full cue match
+                // Full cue match
                 if (cueId && cueSet.has(cueId)) {
                     covered++;
                     continue;
                 }
 
-                // 2. Grain coverage — all words present?
-                if (hasGrains) {
-                    const words = actionText.toLowerCase().split(/\s+/).filter(Boolean);
-                    const allGrains = words.length > 0 && words.every(w => grainSet.has(w));
-                    if (allGrains) {
-                        grainCovered++;
-                        continue;
-                    }
-                }
-
-                // 3. Uncovered — will fall back to TTS
-                const words = actionText.toLowerCase().split(/\s+/).filter(Boolean);
-                const missingGrains = hasGrains
-                    ? words.filter(w => !grainSet.has(w))
-                    : [];
-
+                // Uncovered — will fall back to TTS
                 // Compute relative timestamp for display
                 let timeLabel = '';
                 if (action.time && event.startTime) {
@@ -623,12 +605,11 @@ function createResourcePackManager() {
                     time: timeLabel,
                     action: actionText,
                     cue: cueId || '(none)',
-                    missingGrains,
                 });
             }
         }
 
-        return { covered, grainCovered, uncovered, total };
+        return { covered, uncovered, total };
     }
 
     /**

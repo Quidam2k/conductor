@@ -1,0 +1,23 @@
+# The Wave — Group D
+# Fourth of 4 staggered groups creating a visible wave
+# Sign-raise 15 seconds after Group A
+
+Title: The Wave — Group D
+Description: Sign-raise at T+1:15. Fourth of 4 staggered groups creating a visible wave across the space.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         Group D — fourth wave
+exit:         South gate, parking lot B
+exit_coords:  45.5220, -122.6780
+rally:        Coffee shop across the street
+rally_coords: 45.5215, -122.6790
+abort:        Lower sign. Walk to exit normally.
+
+[TIMELINE]
+0:00  [no-countdown] Stand by
+1:15  [countdown:5, haptic:triple] Raise your sign
+1:45  [no-notify, no-countdown] Lower
+2:00  [no-countdown] Walk
+2:10  [no-notify, no-countdown] Done

@@ -89,6 +89,15 @@ function createTimelineAction(overrides = {}) {
  * @property {string|null} [defaultHapticMode] - 'action', 'countdown', or 'off'
  * @property {number|null} [timeWindowSeconds] - Window size in seconds (default 60)
  * @property {string|null} [visualMode] - "circular" or "vertical" (default "circular")
+ * @property {Object|null} [briefing] - Persistent reference info displayed during event
+ *   @property {string|null} [briefing.role] - Participant role description
+ *   @property {string|null} [briefing.event] - Event-level description/context
+ *   @property {string|null} [briefing.exit] - Exit route description
+ *   @property {string|null} [briefing.exitCoords] - Exit GPS coords "LAT, LNG"
+ *   @property {string|null} [briefing.rally] - Rally point description
+ *   @property {string|null} [briefing.rallyCoords] - Rally GPS coords "LAT, LNG"
+ *   @property {string|null} [briefing.abort] - Abort instructions
+ *   @property {string|null} [briefing.notes] - Additional notes
  */
 
 // ─── Event ──────────────────────────────────────────────────────────────────
@@ -160,6 +169,7 @@ function embeddedEventToEvent(embedded) {
         defaultHapticMode: embedded.defaultHapticMode ?? null,
         timeWindowSeconds: embedded.timeWindowSeconds ?? 60,
         visualMode: embedded.visualMode ?? 'circular',
+        briefing: embedded.briefing || null,
         emergencyMode: false,
         emergencyMessage: null,
         createdAt: now,
@@ -187,6 +197,7 @@ function eventToEmbeddedEvent(event) {
         defaultHapticMode: event.defaultHapticMode || null,
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
+        briefing: event.briefing || null,
     };
 }
 

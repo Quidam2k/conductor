@@ -110,6 +110,46 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 
 Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]`
 
+## Briefing Blocks
+
+Add a `[BRIEFING]` section between the headers and the timeline to include persistent reference info displayed on screen during the event — role, exit route, rally point, and abort instructions. Use `[TIMELINE]` to mark where the timeline actions begin.
+
+```
+Title: Flash Mob at Central Park
+Start: 2026-03-15 2:00 PM
+
+[BRIEFING]
+role:         Main group — all participants
+exit:         Northeast corner, 5th and Main
+exit_coords:  40.7829, -73.9654
+rally:        Weston Park, near fountain
+rally_coords: 40.7845, -73.9632
+abort:        Open umbrella. Walk to exit. Do not run.
+notes:        Wear blue shirt
+
+[TIMELINE]
+0:00  Get ready
+0:30  [emphasis] Wave left
+1:00  [alert, countdown] Jump!
+```
+
+### Briefing Keys
+
+| Key | What it does |
+|-----|-------------|
+| `role` | Participant role (displayed prominently) |
+| `event` | Event-level description or context |
+| `exit` | Exit route description |
+| `exit_coords` | GPS coordinates for exit (LAT, LNG) — adds a Navigate button |
+| `rally` | Rally point description |
+| `rally_coords` | GPS coordinates for rally (LAT, LNG) — adds a Navigate button |
+| `abort` | Abort/emergency instructions |
+| `notes` | Additional notes |
+
+All keys are optional. If no `[BRIEFING]` section is present, the format works exactly as before.
+
+When coordinates are provided, the app shows a **Navigate** button that opens the device's map app with walking directions (Apple Maps on iOS, native map chooser on Android, Google Maps on desktop).
+
 ## Backward Compatibility
 
 Tags placed **after** the action text still work but are deprecated:
