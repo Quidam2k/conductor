@@ -18,9 +18,9 @@ test('demo event: load → preview → practice → stop', async ({ page }) => {
     await waitForScreen(page, 'screen-preview');
 
     // Verify preview content
-    await expect(page.locator('#preview-title')).toHaveText('Demo Flash Mob');
-    await expect(page.locator('#preview-count')).toHaveText('5 actions');
-    await expect(page.locator('#preview-duration')).toHaveText('1m 30s');
+    await expect(page.locator('#preview-title')).toHaveText('The Freeze');
+    await expect(page.locator('#preview-count')).toHaveText('10 actions');
+    await expect(page.locator('#preview-duration')).toHaveText('3m 30s');
 
     // Start practice
     await page.click('#btn-start-practice');
@@ -123,7 +123,7 @@ test('hash navigation: URL with event hash auto-loads', async ({ page }) => {
     // Navigate to URL with hash
     await page.goto('/#' + eventCode);
     await waitForScreen(page, 'screen-preview');
-    await expect(page.locator('#preview-title')).toHaveText('Demo Flash Mob');
+    await expect(page.locator('#preview-title')).toHaveText('The Freeze');
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ test('share: event code and link are valid v1_ strings', async ({ page }) => {
         const decoded = decodeEvent(code);
         return decoded.title;
     }, eventCode);
-    expect(roundTrip).toBe('Demo Flash Mob');
+    expect(roundTrip).toBe('The Freeze');
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -317,7 +317,7 @@ test('completed screen: shows summary and return button', async ({ page }) => {
     await page.evaluate(() => transitionTo('completed'));
     await waitForScreen(page, 'screen-completed');
 
-    await expect(page.locator('#done-summary')).toContainText('Demo Flash Mob');
+    await expect(page.locator('#done-summary')).toContainText('The Freeze');
     await expect(page.locator('#btn-return')).toBeVisible();
 
     // Return to start
@@ -835,7 +835,7 @@ test('preview: QR overlay opens and closes with correct title', async ({ page })
     // Click share QR
     await page.click('#btn-share-qr-preview');
     await expect(page.locator('#qr-display-overlay')).toBeVisible();
-    await expect(page.locator('#qr-display-title')).toHaveText('Demo Flash Mob');
+    await expect(page.locator('#qr-display-title')).toHaveText('The Freeze');
     await expect(page.locator('#qr-display-canvas')).toBeVisible();
 
     // Close it
@@ -1110,4 +1110,222 @@ test('preview: shows pack hint when event references missing pack', async ({ pag
     const hintText = await page.locator('#preview-pack-hint').textContent();
     expect(hintText).toContain('fancy-pack');
     expect(hintText).toContain('works fine without it');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 44. Encrypted event: share and load flow
+// ═════════════════════════════════════════════════════════════════════
+
+test('encrypted event: editor share → paste → password prompt → load', async ({ page }) => {
+    await page.goto('/');
+
+    // Create an event via editor
+    await page.click('#btn-create');
+    await waitForScreen(page, 'screen-editor-info');
+    await page.fill('#ed-title', 'Encrypted Test Event');
+    const futureTime = new Date(Date.now() + 3600000).toISOString().slice(0, 16);
+    await page.fill('#ed-datetime', futureTime);
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+
+    // Add an action
+    await page.click('#btn-add-action');
+    await page.fill('.ed-action-text', 'Wave hello');
+    await page.click('.ed-btn-save');
+    await page.click('#btn-ed-next2');
+    await waitForScreen(page, 'screen-editor-review');
+
+    // Enable password protection
+    await page.check('#chk-encrypt');
+    await expect(page.locator('#pwd-fields')).toBeVisible();
+    await page.fill('#ed-pwd', 'secret123');
+    await page.fill('#ed-pwd-confirm', 'secret123');
+
+    // Copy event code (encrypted)
+    const encryptedCode = await page.evaluate(async () => {
+        // Manually validate and get the encoded string
+        state.sharePassword = document.getElementById('ed-pwd').value;
+        return await getShareEncoded();
+    });
+
+    // Verify it's encrypted
+    expect(encryptedCode.startsWith('v1e_')).toBeTruthy();
+
+    // Navigate back to input screen
+    await page.click('#btn-ed-back2');
+    await waitForScreen(page, 'screen-editor-timeline');
+    await page.evaluate(() => { transitionTo('input'); });
+    await waitForScreen(page, 'screen-input');
+
+    // Paste the encrypted code
+    await page.fill('#input-paste', encryptedCode);
+    await page.click('#btn-load');
+
+    // Password prompt should appear
+    await expect(page.locator('#password-overlay')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#pwd-overlay-title')).toHaveText('Password Required');
+
+    // Enter correct password
+    await page.fill('#pwd-input', 'secret123');
+    await page.click('#btn-pwd-unlock');
+
+    // Should navigate to preview with the correct event
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Encrypted Test Event');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 45. Encrypted event: wrong password then correct password
+// ═════════════════════════════════════════════════════════════════════
+
+test('encrypted event: wrong password → error → correct password → loads', async ({ page }) => {
+    await page.goto('/');
+
+    // Create an encrypted event code via JS
+    const encryptedCode = await page.evaluate(async () => {
+        // Create a simple event and encrypt it
+        const embedded = {
+            title: 'Secret Meeting',
+            startTime: new Date(Date.now() + 3600000).toISOString(),
+            timezone: 'UTC',
+            timeline: [createTimelineAction({
+                time: new Date(Date.now() + 3600000).toISOString(),
+                action: 'Begin'
+            })],
+        };
+        const event = embeddedEventToEvent(embedded);
+        return await encodeEventEncrypted(event, 'correctpw');
+    });
+
+    // Paste encrypted code
+    await page.fill('#input-paste', encryptedCode);
+    await page.click('#btn-load');
+
+    // Password prompt appears
+    await expect(page.locator('#password-overlay')).toBeVisible({ timeout: 3000 });
+
+    // Enter wrong password
+    await page.fill('#pwd-input', 'wrongpw');
+    await page.click('#btn-pwd-unlock');
+
+    // Error message should appear
+    await expect(page.locator('#pwd-error')).toHaveText('Wrong password — try again.', { timeout: 5000 });
+
+    // Enter correct password
+    await page.fill('#pwd-input', 'correctpw');
+    await page.click('#btn-pwd-unlock');
+
+    // Should navigate to preview
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Secret Meeting');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 46. Encrypted hash URL → password prompt → load
+// ═════════════════════════════════════════════════════════════════════
+
+test('encrypted hash URL: navigate → password prompt → correct password → preview', async ({ page }) => {
+    await page.goto('/');
+
+    // Create encrypted code
+    const encryptedCode = await page.evaluate(async () => {
+        const embedded = {
+            title: 'Hash Secret Event',
+            startTime: new Date(Date.now() + 3600000).toISOString(),
+            timezone: 'America/New_York',
+            timeline: [createTimelineAction({
+                time: new Date(Date.now() + 3600000).toISOString(),
+                action: 'Go'
+            })],
+        };
+        const event = embeddedEventToEvent(embedded);
+        return await encodeEventEncrypted(event, 'hashpw');
+    });
+
+    // Navigate to URL with encrypted hash
+    await page.evaluate((code) => {
+        location.hash = code;
+    }, encryptedCode);
+
+    // Password prompt should appear
+    await expect(page.locator('#password-overlay')).toBeVisible({ timeout: 3000 });
+
+    // Enter correct password
+    await page.fill('#pwd-input', 'hashpw');
+    await page.click('#btn-pwd-unlock');
+
+    // Should navigate to preview
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Hash Secret Event');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 47. Friendly error: garbage text → user-friendly message
+// ═════════════════════════════════════════════════════════════════════
+
+test('paste garbage text → friendly error, not raw exception', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    // Paste random garbage
+    await page.fill('#input-paste', 'zxcvbnm!@#$%^&*()_+asdfghjkl');
+    await page.click('#btn-load');
+
+    // Should show user-friendly error, not "incorrect header check" or similar
+    const errorText = await page.locator('#input-error').textContent();
+    expect(errorText).toBeTruthy();
+    expect(errorText).not.toContain('incorrect header check');
+    expect(errorText).not.toContain('invalid stored block');
+    expect(errorText).not.toContain('buffer error');
+    expect(errorText).not.toContain('Unexpected token');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 48. Friendly error: truncated v1_ string → user-friendly message
+// ═════════════════════════════════════════════════════════════════════
+
+test('paste truncated v1_ code → friendly error', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    // Paste a truncated v1_ code (valid prefix, corrupted data)
+    await page.fill('#input-paste', 'v1_eJzLSM3JyQcABJgB8Q');
+    await page.click('#btn-load');
+
+    // Should show user-friendly error
+    const errorText = await page.locator('#input-error').textContent();
+    expect(errorText).toBeTruthy();
+    expect(errorText).not.toContain('incorrect header check');
+    expect(errorText).not.toContain('buffer error');
+    // Should be one of our friendly messages
+    expect(errorText.length).toBeGreaterThan(10);
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 49. Speech unavailable → banner visible on practice screen
+// ═════════════════════════════════════════════════════════════════════
+
+test('speech unavailable: practice screen shows warning banner', async ({ page }) => {
+    await page.goto('/');
+
+    // Disable speechSynthesis before loading the demo
+    await page.evaluate(() => {
+        delete window.speechSynthesis;
+    });
+
+    // Load demo event
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+
+    // Enter practice mode
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+
+    // Warning banner should be visible
+    await expect(page.locator('#practice-banner')).toBeVisible();
+    await expect(page.locator('#practice-banner span')).toContainText('Audio unavailable');
+
+    // Dismiss button should hide it
+    await page.click('#practice-banner .dismiss');
+    await expect(page.locator('#practice-banner')).not.toBeVisible();
 });

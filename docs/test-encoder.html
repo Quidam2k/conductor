@@ -784,17 +784,146 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // SUMMARY
+        // TEST SUITE 11: Encryption (AES-GCM)
         // ═══════════════════════════════════════════════════════════════
-        const summaryEl = document.getElementById('summary');
-        const total = passed + failed;
-        if (failed === 0) {
-            summaryEl.className = 'summary pass';
-            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
-        } else {
-            summaryEl.className = 'summary fail';
-            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        log('<h2>11. Encryption (AES-GCM)</h2>');
+
+        async function runEncryptionTests() {
+            // 11.1 Encrypt/decrypt round-trip
+            try {
+                const password = 'test-password-123';
+                const encr = await encodeEventEncrypted(sampleEvent, password);
+                const decr = await decodeEventEncrypted(encr, password);
+                assert('11.1 Encrypt/decrypt round-trip: title', decr.title === sampleEvent.title,
+                    `Expected "${sampleEvent.title}", got "${decr.title}"`);
+                assert('11.1 Encrypt/decrypt round-trip: timeline length', decr.timeline.length === sampleEvent.timeline.length);
+                assert('11.1 Encrypt/decrypt round-trip: start time', decr.startTime === sampleEvent.startTime);
+            } catch (e) {
+                assert('11.1 Encrypt/decrypt round-trip', false, e.message);
+            }
+
+            // 11.2 Wrong password throws "Wrong password"
+            try {
+                const encr = await encodeEventEncrypted(sampleEvent, 'correct-password');
+                try {
+                    await decodeEventEncrypted(encr, 'wrong-password');
+                    assert('11.2 Wrong password throws', false, 'Should have thrown');
+                } catch (e) {
+                    assert('11.2 Wrong password throws "Wrong password"', e.message === 'Wrong password',
+                        `Expected "Wrong password", got "${e.message}"`);
+                }
+            } catch (e) {
+                assert('11.2 Wrong password', false, e.message);
+            }
+
+            // 11.3 v1e_ prefix
+            try {
+                const encr = await encodeEventEncrypted(sampleEvent, 'pw');
+                assert('11.3 v1e_ prefix', encr.startsWith('v1e_'),
+                    `Got prefix: "${encr.substring(0, 10)}..."`);
+            } catch (e) {
+                assert('11.3 v1e_ prefix', false, e.message);
+            }
+
+            // 11.4 Field preservation (cue, pack, briefing, etc.)
+            try {
+                const withBriefing = embeddedEventToEvent({
+                    title: 'Encrypted Briefing Test',
+                    startTime: startTime,
+                    timezone: 'America/Chicago',
+                    timeline: sampleActions,
+                    briefing: { role: 'Alpha team', exit: 'North gate', abort: 'Walk away calmly' },
+                });
+                const encr = await encodeEventEncrypted(withBriefing, 'brief-pw');
+                const decr = await decodeEventEncrypted(encr, 'brief-pw');
+                assert('11.4 Field preservation: briefing.role', decr.briefing && decr.briefing.role === 'Alpha team',
+                    `Got: ${JSON.stringify(decr.briefing)}`);
+                assert('11.4 Field preservation: briefing.exit', decr.briefing && decr.briefing.exit === 'North gate');
+                assert('11.4 Field preservation: cue survives', decr.timeline[1].cue === 'hum-start',
+                    `Got: "${decr.timeline[1].cue}"`);
+                assert('11.4 Field preservation: pack survives', decr.timeline[1].pack === 'flash-mob-v1');
+                assert('11.4 Field preservation: randomCues', deepEqual(decr.timeline[3].randomCues, ['harmony-a', 'harmony-b', 'harmony-c']));
+            } catch (e) {
+                assert('11.4 Field preservation', false, e.message);
+            }
+
+            // 11.5 Unicode password
+            try {
+                const uniPw = '密码🔑パスワード';
+                const encr = await encodeEventEncrypted(sampleEvent, uniPw);
+                const decr = await decodeEventEncrypted(encr, uniPw);
+                assert('11.5 Unicode password: round-trip works', decr.title === sampleEvent.title);
+            } catch (e) {
+                assert('11.5 Unicode password', false, e.message);
+            }
+
+            // 11.6 Large event (50 actions)
+            try {
+                const manyActions = [];
+                for (let i = 0; i < 50; i++) {
+                    manyActions.push(makeAction(i * 10, `Encrypted Action ${i + 1}`));
+                }
+                const bigEvent = embeddedEventToEvent({
+                    title: 'Big Encrypted Event',
+                    description: '50-action encrypted event',
+                    startTime: startTime,
+                    timezone: 'UTC',
+                    timeline: manyActions,
+                });
+                const encr = await encodeEventEncrypted(bigEvent, 'big-pw');
+                const decr = await decodeEventEncrypted(encr, 'big-pw');
+                assert('11.6 Large event: 50 actions survive', decr.timeline.length === 50);
+                assert('11.6 Large event: title', decr.title === 'Big Encrypted Event');
+            } catch (e) {
+                assert('11.6 Large event', false, e.message);
+            }
+
+            // 11.7 Different passwords produce different output
+            try {
+                const encA = await encodeEventEncrypted(sampleEvent, 'password-A');
+                const encB = await encodeEventEncrypted(sampleEvent, 'password-B');
+                assert('11.7 Different passwords → different ciphertext', encA !== encB,
+                    'Both encryptions produced identical output');
+            } catch (e) {
+                assert('11.7 Different passwords', false, e.message);
+            }
+
+            // 11.8 ENCRYPTED_EVENT sentinel from parseEventInput
+            try {
+                const encr = await encodeEventEncrypted(sampleEvent, 'sentinel-test');
+                try {
+                    parseEventInput(encr);
+                    assert('11.8 ENCRYPTED_EVENT sentinel: throws', false, 'Should have thrown');
+                } catch (e) {
+                    assert('11.8 ENCRYPTED_EVENT sentinel: message', e.message === 'ENCRYPTED_EVENT',
+                        `Expected "ENCRYPTED_EVENT", got "${e.message}"`);
+                    assert('11.8 ENCRYPTED_EVENT sentinel: has data', e.data === encr,
+                        `error.data should be the encrypted string`);
+                }
+            } catch (e) {
+                assert('11.8 ENCRYPTED_EVENT sentinel', false, e.message);
+            }
         }
+
+        // Run async encryption tests, then show summary
+        runEncryptionTests().then(() => {
+            // ═══════════════════════════════════════════════════════════════
+            // SUMMARY
+            // ═══════════════════════════════════════════════════════════════
+            const summaryEl = document.getElementById('summary');
+            const total = passed + failed;
+            if (failed === 0) {
+                summaryEl.className = 'summary pass';
+                summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+            } else {
+                summaryEl.className = 'summary fail';
+                summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+            }
+        }).catch(e => {
+            const summaryEl = document.getElementById('summary');
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>Encryption tests crashed: ${esc(e.message)}`;
+        });
 
     })();
     </script>
