@@ -347,18 +347,26 @@
             countdownSeconds: [5, 4, 3, 2, 1],
         });
 
-        // Notice with pack cue
-        const noticeResult = audio.resolveAudioCue(packAction, 'notice');
+        // Trigger context with pack cue (direct cue lookup)
+        const triggerResult = audio.resolveAudioCue(packAction, 'trigger');
         assert('resolveAudioCue returns null when pack plays it',
-            noticeResult === null,
-            `Got: "${noticeResult}"`);
+            triggerResult === null,
+            `Got: "${triggerResult}"`);
 
         // Remove resolver to test fallback
         audio.setResourcePackResolver(null);
-        const fallbackResult = audio.resolveAudioCue(packAction, 'notice');
+        const fallbackResult = audio.resolveAudioCue(packAction, 'trigger');
         assert('resolveAudioCue returns fallbackText without resolver',
             fallbackResult === 'Five',
             `Got: "${fallbackResult}"`);
+
+        // Notice context: tries notice-prefixed cue (notice-countdown-5)
+        // Pack doesn't have notice-countdown-5, so falls back to fallbackText
+        audio.setResourcePackResolver(resolver);
+        const noticeResult = audio.resolveAudioCue(packAction, 'notice');
+        assert('Notice context falls back when pack lacks notice cue',
+            noticeResult === 'Five',
+            `Got: "${noticeResult}"`);
 
         // Countdown with pack (need fresh service for dedup)
         const cdAudio = createAudioService();

@@ -1,0 +1,58 @@
+{
+  "title": "The Wave — Group A",
+  "description": "Sign-raise at T+1:00. First of 4 staggered groups creating a visible wave across the space.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "defaultNoticeSeconds": 5,
+  "briefing": {
+    "role": "Group A — first wave",
+    "exit": "South gate, parking lot B",
+    "exitCoords": "45.5220, -122.6780",
+    "rally": "Coffee shop across the street",
+    "rallyCoords": "45.5215, -122.6790",
+    "abort": "Lower sign. Walk to exit normally."
+  },
+  "timeline": [
+    {
+      "id": "wave-a-01",
+      "time": "2026-03-15T17:00:00Z",
+      "action": "Stand by",
+      "cue": "stand-by",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "wave-a-02",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Raise your sign",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "raise-your-sign",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "wave-a-03",
+      "time": "2026-03-15T17:01:30Z",
+      "action": "Lower",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "lower",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "wave-a-04",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Walk",
+      "cue": "walk",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "wave-a-05",
+      "time": "2026-03-15T17:02:10Z",
+      "action": "Done",
+      "audioAnnounce": true,
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

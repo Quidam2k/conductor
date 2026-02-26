@@ -175,6 +175,7 @@ function validateAndComplete(eventData) {
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
         visualMode: eventData.visualMode ?? 'circular',
+        briefing: eventData.briefing ?? null,
     };
 }
 
@@ -201,6 +202,8 @@ function parseTextFormat(text) {
     const headers = {};
     const actions = [];
     const warnings = [];
+    const briefingData = {};
+    let section = 'header'; // 'header', 'briefing', or 'timeline'
 
     for (const rawLine of lines) {
         const line = rawLine.trim();
@@ -208,7 +211,36 @@ function parseTextFormat(text) {
         // Skip blank lines and comments
         if (!line || line.startsWith('#')) continue;
 
-        // Try header: Key: Value
+        // Section markers
+        if (/^\[BRIEFING\]$/i.test(line)) {
+            section = 'briefing';
+            continue;
+        }
+        if (/^\[TIMELINE\]$/i.test(line)) {
+            section = 'timeline';
+            continue;
+        }
+
+        // Briefing section: parse key: value pairs
+        if (section === 'briefing') {
+            const kvMatch = line.match(/^(\w+(?:_\w+)?)\s*:\s*(.+)$/);
+            if (kvMatch) {
+                let key = kvMatch[1].toLowerCase();
+                // Normalize snake_case to camelCase
+                key = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+                const validKeys = ['role', 'event', 'exit', 'exitCoords', 'rally', 'rallyCoords', 'abort', 'notes'];
+                if (validKeys.includes(key)) {
+                    briefingData[key] = kvMatch[2].trim();
+                } else {
+                    warnings.push('Unknown briefing key: ' + key);
+                }
+            } else {
+                warnings.push('Skipped unrecognized briefing line: ' + line.substring(0, 60));
+            }
+            continue;
+        }
+
+        // Try header: Key: Value (in 'header' or 'timeline' sections)
         const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
@@ -332,6 +364,7 @@ function parseTextFormat(text) {
         defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
+        briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
 }
 

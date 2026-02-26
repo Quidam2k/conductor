@@ -1,0 +1,26 @@
+# The Ambient Walk — Movement Choreography
+# One script, all participants
+# No props, no speech. Synchronized movement is the message.
+
+Title: The Ambient Walk
+Description: Movement choreography — walk, turn, stop, face, disperse. No props, no speech. Fifty people making the same turn at the same moment.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Ambient Walk — all participants
+exit:         Disperse in all directions from current position
+rally:        Blue Line station entrance, north side
+rally_coords: 45.5235, -122.6755
+abort:        Stop moving. Check phone. Walk to rally point.
+
+[TIMELINE]
+0:00  [no-countdown] Stand by
+0:30  [countdown:5] Walk north
+1:00  [no-countdown] Turn east
+1:30  [no-countdown] Stop
+1:35  [no-notify, no-countdown] Face left
+1:50  [no-countdown] Walk
+2:20  [no-countdown] Turn south
+2:50  [no-countdown] Disperse
+3:00  [no-notify, no-countdown] Done

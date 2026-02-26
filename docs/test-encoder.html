@@ -696,6 +696,94 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 10: Briefing Block Parsing
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>10. Briefing Block Parsing</h2>');
+
+        // 10.1 Full briefing with all keys
+        try {
+            const briefingText = [
+                'Title: Briefing Test',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '[BRIEFING]',
+                'role: Main group — all participants',
+                'event: Flash mob at the park',
+                'exit: Northeast corner, 5th and Main',
+                'exit_coords: 40.7829, -73.9654',
+                'rally: Weston Park, near fountain',
+                'rally_coords: 40.7845, -73.9632',
+                'abort: Open umbrella. Walk to exit. Do not run.',
+                'notes: Wear blue shirt',
+                '',
+                '[TIMELINE]',
+                '0:00  Get ready',
+                '0:30  Wave left',
+            ].join('\n');
+            const bParsed = parseTextFormat(briefingText);
+            assert('10.1 Briefing: parsed', bParsed.briefing !== null);
+            assert('10.1 Briefing: role', bParsed.briefing.role === 'Main group — all participants');
+            assert('10.1 Briefing: event', bParsed.briefing.event === 'Flash mob at the park');
+            assert('10.1 Briefing: exit', bParsed.briefing.exit === 'Northeast corner, 5th and Main');
+            assert('10.1 Briefing: exitCoords (snake_case → camelCase)', bParsed.briefing.exitCoords === '40.7829, -73.9654');
+            assert('10.1 Briefing: rally', bParsed.briefing.rally === 'Weston Park, near fountain');
+            assert('10.1 Briefing: rallyCoords', bParsed.briefing.rallyCoords === '40.7845, -73.9632');
+            assert('10.1 Briefing: abort', bParsed.briefing.abort === 'Open umbrella. Walk to exit. Do not run.');
+            assert('10.1 Briefing: notes', bParsed.briefing.notes === 'Wear blue shirt');
+            assert('10.1 Briefing: title still parsed', bParsed.title === 'Briefing Test');
+            assert('10.1 Briefing: timeline actions parsed', bParsed.timeline.length === 2);
+            assert('10.1 Briefing: first action text', bParsed.timeline[0].action === 'Get ready');
+        } catch (e) {
+            assert('10.1 Full briefing', false, e.message);
+        }
+
+        // 10.2 No briefing section — briefing should be null
+        try {
+            const noBriefing = [
+                'Title: No Briefing',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '0:00  Get ready',
+                '0:30  Wave left',
+            ].join('\n');
+            const nbParsed = parseTextFormat(noBriefing);
+            assert('10.2 No briefing: briefing is null', nbParsed.briefing === null);
+            assert('10.2 No briefing: timeline still works', nbParsed.timeline.length === 2);
+        } catch (e) {
+            assert('10.2 No briefing', false, e.message);
+        }
+
+        // 10.3 Briefing round-trip through encode/decode
+        try {
+            const briefingRT = [
+                'Title: Briefing Round-Trip',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                '',
+                '[BRIEFING]',
+                'role: Group Alpha',
+                'exit: South gate',
+                'abort: Disperse calmly',
+                '',
+                '[TIMELINE]',
+                '0:00  Stand by',
+            ].join('\n');
+            const rtParsed = parseTextFormat(briefingRT);
+            const rtValidated = validateAndComplete(rtParsed);
+            const rtEncoded = encodeEmbeddedEvent(rtValidated);
+            const rtDecoded = decodeEvent(rtEncoded);
+            assert('10.3 Round-trip: briefing survives encoding', rtDecoded.briefing !== null);
+            assert('10.3 Round-trip: role preserved', rtDecoded.briefing.role === 'Group Alpha');
+            assert('10.3 Round-trip: exit preserved', rtDecoded.briefing.exit === 'South gate');
+            assert('10.3 Round-trip: abort preserved', rtDecoded.briefing.abort === 'Disperse calmly');
+            assert('10.3 Round-trip: keys not in briefing are absent', rtDecoded.briefing.rally === undefined);
+        } catch (e) {
+            assert('10.3 Briefing round-trip', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // SUMMARY
         // ═══════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');
