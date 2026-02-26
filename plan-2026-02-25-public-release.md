@@ -69,58 +69,30 @@ Current README is stale (SW v4, 21 tests, wrong line counts). Full rewrite:
 
 ---
 
-## Phase 5: UX Pass + Release Prep
+## Phase 5: UX Pass + Release Prep — COMPLETE
 
-**Goal:** Final walk-through, pack assembly, tire-kicking, push.
+Completed Feb 26, 2026.
 
-### Demo Event Update
-Replace createDemoEvent() with The Freeze script embedded inline. Start time 10s
-in future. Includes briefing block. Works offline.
+### What was done
+- Removed 2 debug `console.log` statements from `window.importPack` in index.html
+- Full UX walk-through in Playwright browser: tagline, "What is this?", demo load,
+  preview→practice flow, editor 3-step wizard, password toggle, error messages,
+  Share This App — all verified
+- Tire-kicking: zero console errors, encrypted round-trip (v1e_ prefix, password
+  overlay, wrong-password rejection), TTS available, late joiner banner, briefing block
+- SW v23 → v24
+- 112 Playwright tests: 111 pass, 1 skip (unchanged)
+- Git commit + push to main
+- GitHub Pages live at https://quidam2k.github.io/conductor/ serving v24
 
-### UX Walk-Through
-- [ ] App loads — purpose clear?
-- [ ] "What is this?" — visible, concise?
-- [ ] "Load Demo Event" — impressive first impression?
-- [ ] Preview → Practice → Live flow intuitive?
-- [ ] Create New Event editor intuitive?
-- [ ] Password protect discoverable but not in the way?
-- [ ] Error messages friendly?
-- [ ] Pack hint visible?
+### Deferred (Todd's device)
+- Offline mode (airplane mode after first load)
+- file:// mode (open index.html directly from filesystem)
+- Mobile touch/scroll behavior
 
-### Pack Assembly (when voice clips arrive)
-1. Organize WAVs into audio/, voices/, notices/ folders
-2. Add manifest.json + demo-*.json into events/ folder
-3. Zip into conductor-demo.zip
-4. Import via Pack Manager — verify all cues resolve
-5. Test playback: practice mode with voice clips
-
-### Tire-Kicking Checklist
-- [ ] Encrypted event: create → share → load (all 5 share methods)
-- [ ] Wrong password → clear error
-- [ ] TTS fallback when pack cue missing
-- [ ] Offline mode (airplane mode after first load)
-- [ ] file:// mode (open index.html directly)
-- [ ] Late joiner banner appears
-- [ ] No console errors in normal flow
-- [ ] No debug logs left in
-- [ ] Bundled HTML with encrypted event works
-
-### Release
-- [ ] All tests green
-- [ ] README accurate
-- [ ] Demo pack tested
-- [ ] Git commit + push
-- [ ] Verify GitHub Pages deployment
-- [ ] Share link for feedback
-
-### Files to Modify
-- docs/index.html — createDemoEvent update
-- docs/sw.js → v24 (final)
-
-### Verification
-- Full test suite green
-- Manual walkthrough of all flows on mobile
-- GitHub Pages live and working
+### Deferred (awaiting assets)
+- Voice pack assembly — 79 WAV files not yet generated
+  Instructions at `test-demo/voice-generation-instructions.md`
 
 ---
 
