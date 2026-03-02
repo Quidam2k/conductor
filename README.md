@@ -17,7 +17,9 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 
 ## Try It
 
-**[quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/)**
+**[quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/)** — open the app
+
+**[Getting Started](https://quidam2k.github.io/conductor/start.html)** — download, tutorial, and walkthrough
 
 ## Features
 
@@ -54,7 +56,7 @@ Conductor ships with two demo event scripts to try:
 - **The Freeze** — Everyone freezes in place simultaneously, then unfreezes together
 - **The Walk-Through** — A coordinated walking pattern through a public space
 
-The demo resource pack includes 79 audio cues (1 system + 39 action + 39 notice) for high-quality voice prompts instead of robot TTS.
+The demo resource pack includes 79 audio cues (1 system + 39 action + 39 notice) for high-quality voice prompts instead of robot TTS. Download it from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder.
 
 ## Concepts & Techniques
 
@@ -108,7 +110,10 @@ conductor/
 │   │   ├── demo-walkthrough.txt/.json #   "The Walk-Through" event script
 │   │   ├── manifest.json              #   Pack manifest (79 cues)
 │   │   └── wav-manifest.md            #   Voice generation instructions
-│   ├── sw.js                          # Service Worker v23 (offline caching)
+│   ├── start.html                     # Getting started landing page
+│   ├── conductor-demo.zip             # Demo voice pack (79 cues, 22MB)
+│   ├── GUIDE.md                       # Tutorial: quick start, packs, events
+│   ├── sw.js                          # Service Worker v25 (offline caching)
 │   ├── manifest.json                  # PWA manifest
 │   ├── TEXT_FORMAT.md                 # Human-readable text event format guide
 │   ├── RESOURCE_PACK_FORMAT.md        # Resource pack format specification
