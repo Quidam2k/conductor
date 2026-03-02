@@ -1,6 +1,8 @@
-const CACHE_NAME = 'conductor-v24';
+const CACHE_NAME = 'conductor-v25';
 const ASSETS = [
     './index.html',
+    './start.html',
+    './GUIDE.md',
     './js/models.js',
     './js/eventEncoder.js',
     './js/timingEngine.js',

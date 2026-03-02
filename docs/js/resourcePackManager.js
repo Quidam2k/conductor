@@ -40,11 +40,19 @@ function parseZipCentralDirectory(buffer) {
 
     const centralDirOffset = view.getUint32(eocdOffset + 16, true);
     const entryCount = view.getUint16(eocdOffset + 10, true);
+    const bufLen = buffer.byteLength;
+
+    if (centralDirOffset >= bufLen) {
+        throw new Error('Invalid zip: central directory offset out of bounds');
+    }
 
     const entries = [];
     let pos = centralDirOffset;
 
     for (let i = 0; i < entryCount; i++) {
+        if (pos + 46 > bufLen) {
+            throw new Error('Invalid zip: central directory entry ' + i + ' exceeds file bounds');
+        }
         if (view.getUint32(pos, true) !== 0x02014b50) {
             throw new Error('Invalid zip: bad central directory entry');
         }
@@ -57,6 +65,14 @@ function parseZipCentralDirectory(buffer) {
         const commentLen = view.getUint16(pos + 32, true);
         const localHeaderOffset = view.getUint32(pos + 42, true);
 
+        const entryEnd = pos + 46 + nameLen + extraLen + commentLen;
+        if (entryEnd > bufLen) {
+            throw new Error('Invalid zip: entry "' + i + '" header extends past end of file');
+        }
+        if (localHeaderOffset >= bufLen) {
+            throw new Error('Invalid zip: local header offset out of bounds for entry ' + i);
+        }
+
         const nameBytes = bytes.slice(pos + 46, pos + 46 + nameLen);
         const name = new TextDecoder().decode(nameBytes);
 
@@ -68,7 +84,7 @@ function parseZipCentralDirectory(buffer) {
             offset: localHeaderOffset,
         });
 
-        pos += 46 + nameLen + extraLen + commentLen;
+        pos = entryEnd;
     }
 
     return entries;
@@ -82,8 +98,12 @@ function parseZipCentralDirectory(buffer) {
  */
 function extractZipEntryData(buffer, entry) {
     const view = new DataView(buffer);
+    const bufLen = buffer.byteLength;
     const pos = entry.offset;
 
+    if (pos + 30 > bufLen) {
+        throw new Error('Invalid zip: local file header out of bounds for ' + entry.name);
+    }
     if (view.getUint32(pos, true) !== 0x04034b50) {
         throw new Error('Invalid zip: bad local file header for ' + entry.name);
     }
@@ -91,6 +111,11 @@ function extractZipEntryData(buffer, entry) {
     const nameLen = view.getUint16(pos + 26, true);
     const extraLen = view.getUint16(pos + 28, true);
     const dataStart = pos + 30 + nameLen + extraLen;
+    const dataEnd = dataStart + entry.compressedSize;
+
+    if (dataEnd > bufLen) {
+        throw new Error('Invalid zip: file data extends past end of archive for ' + entry.name);
+    }
 
     return new Uint8Array(buffer, dataStart, entry.compressedSize);
 }
@@ -147,6 +172,13 @@ async function decompressDeflate(compressed) {
  * @returns {Promise<Uint8Array>}
  */
 async function extractZipFile(zipBuffer, entry) {
+    // Guard against zip bombs: 50MB per file is generous for audio cues
+    const MAX_UNCOMPRESSED = 50 * 1024 * 1024;
+    if (entry.uncompressedSize > MAX_UNCOMPRESSED) {
+        throw new Error('File too large: ' + entry.name + ' (' +
+            Math.round(entry.uncompressedSize / 1024 / 1024) + ' MB, max 50 MB)');
+    }
+
     const data = extractZipEntryData(zipBuffer, entry);
 
     if (entry.compressionMethod === 0) {

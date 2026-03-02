@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Conductor — Getting Started</title>
+    <meta name="description" content="Coordinate groups in real time with shared timed cues. No accounts, no servers, no app required.">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f23;
+            --bg-surface: #171733;
+            --bg-elevated: #1f1f42;
+            --text: #e8e6e3;
+            --text-secondary: rgba(232, 230, 227, 0.7);
+            --text-dim: rgba(232, 230, 227, 0.4);
+            --accent-blue: #5ba3ff;
+            --accent-green: #34d399;
+            --accent-gold: #f0b429;
+            --accent-purple: #a78bfa;
+            --accent-red: #ff4757;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ─── Hero ─── */
+        .hero {
+            text-align: center;
+            padding: 80px 24px 60px;
+            background: linear-gradient(180deg, #171733 0%, var(--bg) 100%);
+        }
+
+        .hero-icon {
+            width: 80px; height: 80px;
+            margin: 0 auto 24px;
+            background: var(--bg-elevated);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px;
+            border: 1px solid rgba(91, 163, 255, 0.2);
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+
+        .hero .tagline {
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            color: var(--text-secondary);
+            max-width: 540px;
+            margin: 0 auto 40px;
+        }
+
+        /* ─── Download buttons ─── */
+        .download-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s;
+            border: none;
+            cursor: pointer;
+            min-width: 260px;
+            justify-content: center;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        .btn-app {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+        .btn-app:hover { box-shadow: 0 0 30px rgba(91, 163, 255, 0.35); }
+
+        .btn-pack {
+            background: var(--accent-green);
+            color: #000;
+        }
+        .btn-pack:hover { box-shadow: 0 0 30px rgba(52, 211, 153, 0.35); }
+
+        .btn-icon { font-size: 1.3em; }
+
+        .or-online {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .or-online a { color: var(--accent-gold); }
+
+        /* ─── Section layout ─── */
+        .section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .section h2 {
+            font-size: clamp(1.5rem, 3.5vw, 2rem);
+            font-weight: 700;
+            margin-bottom: 40px;
+            text-align: center;
+            letter-spacing: -0.01em;
+        }
+
+        /* ─── Steps ─── */
+        .steps {
+            display: grid;
+            gap: 20px;
+            counter-reset: step;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 56px 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .step-number {
+            counter-increment: step;
+            width: 56px; height: 56px;
+            background: var(--bg-elevated);
+            border: 2px solid var(--accent-blue);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            flex-shrink: 0;
+        }
+
+        .step-number::after { content: counter(step); }
+
+        .step-content h3 {
+            font-size: 1.15rem;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .step-content p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* ─── Feature cards ─── */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .feature-card .icon { font-size: 1.5rem; margin-bottom: 10px; }
+
+        .feature-card h3 {
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        /* ─── Create Your Own ─── */
+        .create-section {
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .create-section .section { max-width: 760px; }
+
+        .example-block {
+            background: var(--bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 24px 0;
+            overflow-x: auto;
+        }
+
+        .example-block pre {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            white-space: pre;
+            margin: 0;
+        }
+
+        .example-block .comment { color: var(--text-dim); }
+        .example-block .header { color: var(--accent-gold); }
+        .example-block .time { color: var(--accent-blue); }
+        .example-block .tag { color: var(--accent-purple); }
+
+        .subsection {
+            margin-top: 40px;
+        }
+
+        .subsection h3 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: var(--accent-gold);
+        }
+
+        .subsection p, .subsection li {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .subsection ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .subsection ul li::before {
+            content: "\2022  ";
+            color: var(--accent-blue);
+        }
+
+        .folder-tree {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .folder-tree .dir { color: var(--accent-gold); }
+        .folder-tree .file { color: var(--text-secondary); }
+        .folder-tree .desc { color: var(--text-dim); }
+
+        .inline-code {
+            background: var(--bg-elevated);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.88em;
+        }
+
+        /* ─── Footer ─── */
+        .footer {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-dim);
+            font-size: 0.88rem;
+        }
+
+        .footer a { color: var(--text-secondary); }
+
+        .footer .privacy {
+            margin-top: 12px;
+            font-size: 0.82rem;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 600px) {
+            .hero { padding: 56px 20px 40px; }
+            .btn-download {
+                min-width: 100%;
+                padding: 14px 24px;
+            }
+            .section { padding: 40px 20px; }
+            .step { grid-template-columns: 44px 1fr; gap: 12px; }
+            .step-number { width: 44px; height: 44px; font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ Hero ═══ -->
+<header class="hero">
+    <div class="hero-icon" aria-hidden="true">&#127926;</div>
+    <h1>Conductor</h1>
+    <p class="tagline">Coordinate groups in real time with shared timed cues. No accounts, no servers, no app required.</p>
+
+    <div class="download-buttons">
+        <a href="index.html" download="conductor.html" class="btn-download btn-app">
+            <span class="btn-icon" aria-hidden="true">&#128228;</span>
+            Download the App (HTML)
+        </a>
+        <a href="conductor-demo.zip" class="btn-download btn-pack">
+            <span class="btn-icon" aria-hidden="true">&#127908;</span>
+            Download Demo Voice Pack (ZIP)
+        </a>
+    </div>
+
+    <p class="or-online">
+        Or <a href="index.html">use it online right now</a> &mdash; no download needed
+    </p>
+</header>
+
+<!-- ═══ How It Works ═══ -->
+<section class="section">
+    <h2>How It Works</h2>
+    <div class="steps">
+        <div class="step">
+            <div class="step-number" aria-label="Step 1"></div>
+            <div class="step-content">
+                <h3>Download</h3>
+                <p>Save the HTML file to your phone or computer. One file, works offline, forever. Or just use it online &mdash; your choice.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number" aria-label="Step 2"></div>
+            <div class="step-content">
+                <h3>Try the Demo</h3>
+                <p>Open the app and tap <strong>Load Demo Event</strong>. You'll hear a walkthrough of "The Freeze" &mdash; a simple coordinated action where everyone freezes at the same moment.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number" aria-label="Step 3"></div>
+            <div class="step-content">
+                <h3>Import a Voice Pack</h3>
+                <p>Download the Demo Voice Pack (above) and import it in the app's Pack Manager. Replaces the robotic text-to-speech with real voice recordings.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number" aria-label="Step 4"></div>
+            <div class="step-content">
+                <h3>Practice</h3>
+                <p>Tap <strong>Practice</strong> to run through the event at up to 5x speed. Hear every cue, feel every vibration. Get comfortable before the real thing.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number" aria-label="Step 5"></div>
+            <div class="step-content">
+                <h3>Share</h3>
+                <p>Create your own event and share it via link, QR code, or a bundled file. Your friends tap the link and they're in. No install, no signup, no app store.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="features">
+        <div class="feature-card">
+            <div class="icon" aria-hidden="true">&#128274;</div>
+            <h3>Private by Default</h3>
+            <p>No accounts, no tracking, no server. Event data stays in the URL fragment &mdash; never sent to anyone. Optional AES-256 encryption.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" aria-hidden="true">&#128247;</div>
+            <h3>QR Sharing</h3>
+            <p>Show a QR code on your screen. Others scan it with their camera. Works phone-to-phone, no internet needed.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" aria-hidden="true">&#128225;</div>
+            <h3>Works Everywhere</h3>
+            <p>Android, iPhone, desktop &mdash; any modern browser. Works offline after first visit. Works from a USB stick.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" aria-hidden="true">&#127911;</div>
+            <h3>Voice Packs</h3>
+            <p>Optional zip files with pre-recorded audio cues. Falls back to text-to-speech if you don't have one.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ Create Your Own ═══ -->
+<div class="create-section">
+    <section class="section">
+        <h2>Create Your Own</h2>
+
+        <p style="color: var(--text-secondary); text-align: center; max-width: 600px; margin: -20px auto 32px;">
+            Build events in the app's editor, or write them in a text file. Here's the text format:
+        </p>
+
+        <div class="example-block">
+<pre><span class="comment"># My flash mob &mdash; lines starting with # are comments</span>
+<span class="header">Title:</span> Flash Mob at Central Park
+<span class="header">Description:</span> Meet by the fountain, east side
+<span class="header">Start:</span> 2026-03-15 2:00 PM
+<span class="header">Countdown:</span> true
+
+<span class="time">0:00</span>  Get ready
+<span class="time">0:15</span>  <span class="tag">[emphasis]</span> Wave left
+<span class="time">0:30</span>  <span class="tag">[emphasis, countdown]</span> Wave right
+<span class="time">1:00</span>  <span class="tag">[alert, countdown:3]</span> Jump!
+<span class="time">1:30</span>  Freeze in place
+<span class="time">2:00</span>  Walk away casually</pre>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">
+            Paste this into the app's input field and tap <strong>Load Event</strong>. Or save it as a <span class="inline-code">.txt</span> file and import it.
+            Timestamps count up from the start: <span class="inline-code">0:00</span> = event start, <span class="inline-code">1:30</span> = one minute thirty seconds in.
+        </p>
+
+        <div class="subsection">
+            <h3>Making a Voice Pack</h3>
+            <p>A voice pack is a zip file with audio recordings and a manifest. Minimum structure:</p>
+            <div class="example-block">
+<pre class="folder-tree"><span class="dir">my-pack/</span>
+  <span class="file">manifest.json</span>      <span class="desc">&mdash; describes the pack</span>
+  <span class="dir">voices/</span>
+    <span class="file">go.wav</span>           <span class="desc">&mdash; plays instead of TTS</span>
+    <span class="file">freeze.wav</span>
+    <span class="file">walk.wav</span></pre>
+            </div>
+            <p>
+                Record short (1&ndash;3 second) audio clips for each cue in your event. Name them to match the action text.
+                The app plays matching audio from your pack; anything without a match falls back to text-to-speech.
+            </p>
+        </div>
+
+        <div class="subsection">
+            <h3>Full Documentation</h3>
+            <ul>
+                <li><a href="GUIDE.md">Getting Started Guide</a> &mdash; step-by-step tutorial for everything</li>
+                <li><a href="TEXT_FORMAT.md">Text Format Reference</a> &mdash; all tags, briefing blocks, config headers</li>
+                <li><a href="RESOURCE_PACK_FORMAT.md">Resource Pack Spec</a> &mdash; manifest schema, cue types, validation</li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+    <p>
+        <a href="https://github.com/Quidam2k/conductor">View on GitHub</a>
+        &nbsp;&middot;&nbsp;
+        <a href="index.html">Open the App</a>
+        &nbsp;&middot;&nbsp;
+        <a href="GUIDE.md">Full Guide</a>
+    </p>
+    <p class="privacy">
+        No telemetry. No tracking. No data collection. No accounts. Open source (AGPL-3.0).
+    </p>
+</footer>
+
+</body>
+</html>
