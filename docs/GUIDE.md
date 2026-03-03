@@ -19,7 +19,7 @@ Either way, you get the same app. The download is nice because it works without 
 
 When you open the app, you'll see a text box that says *"Got an event code? Paste it here..."*
 
-Tap **Load Demo Event** below it. This loads a sample event called "The Freeze" so you can see how everything works.
+Tap **Load Demo Event** below it to try a pre-built sample called "The Freeze." It works immediately — no downloads or voice pack needed.
 
 ### Step 3: Preview and Practice
 
@@ -34,7 +34,7 @@ Tap **Practice** to run through the event at your own pace. Use the speed slider
 
 The app speaks cues using your phone's built-in text-to-speech by default. It works, but it sounds robotic.
 
-For better audio, import a **resource pack** — a zip file with pre-recorded voice cues. See the [Importing a Resource Pack](#importing-a-resource-pack) section below.
+For better audio, import a **voice pack** (also called a resource pack in the technical docs) — a zip file with pre-recorded voice cues. See the [Importing a Voice Pack](#importing-a-voice-pack) section below.
 
 ### Step 5: Share with Others
 
@@ -47,13 +47,13 @@ The person who receives your link just taps it and they're in. No install, no si
 
 ---
 
-## Importing a Resource Pack
+## Importing a Voice Pack
 
-Resource packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.
+Voice packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.
 
 ### What You Need
 
-A resource pack is a `.zip` file containing audio files and a `manifest.json` that tells the app what's inside.
+A voice pack is a `.zip` file containing audio files and a `manifest.json` that tells the app what's inside.
 
 ### How to Import
 
@@ -71,7 +71,7 @@ After a successful import, you'll see:
 - If it includes any bundled events (demo scripts)
 - A validation report showing which cues are covered
 
-From now on, whenever the app needs to speak a cue that matches one in your pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
+From now on, whenever the app needs to speak a cue that matches one in your voice pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
 
 ### The Demo Pack
 
@@ -112,7 +112,7 @@ Title: Flash Mob at Central Park
 Description: Meet by the fountain, east side
 Start: 2026-03-15 2:00 PM
 Timezone: America/New_York
-Countdown: true
+Countdown: true      # event-level: all actions get a countdown by default
 
 0:00  Get ready
 0:15  [emphasis] Wave left
@@ -127,6 +127,19 @@ Countdown: true
 - Leave a blank line, then list your actions
 - Each action is a timestamp, two spaces, then the text to speak
 - Timestamps count up from the event start: `0:00` = start, `1:30` = one minute thirty seconds in
+
+> **Countdown — two levels:** The header `Countdown: true` turns on a countdown for *every* action in the event by default. The per-action tag `[countdown]` (or `[no-countdown]`) overrides that default for a single action.
+
+**Notices, styles, and haptics:**
+
+Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called **notices**. You can control them with `NotifyWindow` (event-level) or `[notify:N]` / `[no-notify]` (per-action).
+
+The three **styles** change how an action looks on screen:
+- `normal` — blue (default)
+- `emphasis` — gold highlight
+- `alert` — red/urgent
+
+**Haptic** (vibration) tags make the phone vibrate on cue. Note: haptic works on Android. iPhones do not support vibration from web apps.
 
 **Tags** go in square brackets before the action text:
 - `[emphasis]` — highlighted gold style
@@ -311,7 +324,7 @@ If something's missing, you'll see a warning with details about what's not cover
 ## Reference
 
 - **[TEXT_FORMAT.md](TEXT_FORMAT.md)** — Complete reference for the text event format (all tags, briefing blocks, config headers)
-- **[RESOURCE_PACK_FORMAT.md](RESOURCE_PACK_FORMAT.md)** — Technical specification for resource pack structure and manifest schema
+- **[RESOURCE_PACK_FORMAT.md](RESOURCE_PACK_FORMAT.md)** — Technical specification for voice pack (resource pack) structure and manifest schema
 
 ---
 

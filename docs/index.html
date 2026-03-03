@@ -788,15 +788,31 @@
         <details class="app-about">
             <summary>What is this?</summary>
             <div class="about-body">
-                Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of cues — spoken announcements, vibrations, or audio — and shares it as a link or QR code. Every participant's device plays the same cues at the same time. No accounts, no app store, no server required.
+                Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of <strong>cues</strong> &mdash; spoken announcements, vibrations, or audio clips that play at specific times &mdash; and shares the event as a link or QR code. Every participant's device plays the same cues at the same time.
                 <br><br>
-                Events can be password-protected with AES-256 encryption. No data is ever sent to a server — everything stays on your device.
+                Tap <strong>Load Demo Event</strong> below to try it right now &mdash; no downloads or setup needed. The app uses your phone's text-to-speech to play each cue.
                 <br><br>
-                Designed for peaceful coordination — performances, community events, demonstrations. No telemetry, no tracking. By design.
+                Events can be password-protected with AES-256 encryption. No data is ever sent to a server &mdash; everything stays on your device. No accounts, no app store, no server required.
+                <br><br>
+                Designed for peaceful coordination &mdash; performances, community events, demonstrations. No telemetry, no tracking. By design.
                 <br><br>
                 <strong>Tip:</strong> For live events, disable battery saver and keep your screen on.
                 <br><br>
                 <a href="start.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; downloads, tutorial, and how to create your own events.
+            </div>
+        </details>
+
+        <details class="app-about">
+            <summary>How to Create Events</summary>
+            <div class="about-body" style="text-align:left;">
+                <strong>Use the built-in editor:</strong> Tap <em>Create New Event</em> below. Give it a title, start time, and description, then add actions with timestamps. The editor walks you through it step by step.
+                <br><br>
+                <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line (e.g. <code>0:30 Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
+                <br><br>
+                <strong>Start from the demo:</strong> Tap <em>Load Demo Event</em> to see how a finished event looks. You can study the format and adapt it for your own event.
+                <br><br>
+                <a href="TEXT_FORMAT.md" style="color:var(--accent-blue);">Text Format Reference</a> &mdash; full tag list, config headers, and briefing blocks.<br>
+                <a href="GUIDE.md" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; step-by-step tutorial with examples.
             </div>
         </details>
 
@@ -821,7 +837,7 @@
         <input type="file" id="event-file-input" accept=".json,.txt,.conductor" style="display:none;">
         <button id="btn-import-event" class="btn-outline">Import Event File</button>
         <button id="btn-manage-packs" class="btn-outline">Manage Packs</button>
-        <div id="pack-hint-input" class="pack-hint-input" style="display:none;">Have a resource pack (.zip)? Tap above to import it.</div>
+        <div id="pack-hint-input" class="pack-hint-input" style="display:none;">Have a voice pack (.zip)? Tap above to import it.</div>
         <button id="btn-share-app" class="btn-outline">Share This App</button>
 
         <div style="flex:1"></div>
@@ -839,8 +855,8 @@
     <div class="content" role="main">
         <div id="pack-list" class="pack-list"></div>
         <div id="pack-empty" class="pack-empty">
-            No packs installed.<br>
-            Import a .zip resource pack<br>for higher-quality audio.
+            No voice packs installed.<br>
+            Import a .zip voice pack<br>for higher-quality audio.
         </div>
 
         <div style="flex:1"></div>
@@ -1662,16 +1678,16 @@ function renderBriefing(briefing, containerId, collapsible) {
     if (briefing.exit) {
         html += '<dt>Exit</dt><dd>' + escapeHtml(briefing.exit);
         if (briefing.exitCoords) {
-            html += ' <button class="briefing-nav-btn" onclick="openNavigation(\'' +
-                escapeHtml(briefing.exitCoords) + '\', \'' + escapeHtml(briefing.exit) + '\')">Navigate</button>';
+            html += ' <button class="briefing-nav-btn" data-coords="' + escapeHtml(briefing.exitCoords) +
+                '" data-label="' + escapeHtml(briefing.exit) + '">Navigate</button>';
         }
         html += '</dd>';
     }
     if (briefing.rally) {
         html += '<dt>Rally</dt><dd>' + escapeHtml(briefing.rally);
         if (briefing.rallyCoords) {
-            html += ' <button class="briefing-nav-btn" onclick="openNavigation(\'' +
-                escapeHtml(briefing.rallyCoords) + '\', \'' + escapeHtml(briefing.rally) + '\')">Navigate</button>';
+            html += ' <button class="briefing-nav-btn" data-coords="' + escapeHtml(briefing.rallyCoords) +
+                '" data-label="' + escapeHtml(briefing.rally) + '">Navigate</button>';
         }
         html += '</dd>';
     }
@@ -1684,6 +1700,13 @@ function renderBriefing(briefing, containerId, collapsible) {
 
     html += '</dl>';
     panel.innerHTML = html;
+
+    // Wire up navigation buttons via event delegation (avoids inline onclick injection)
+    panel.querySelectorAll('.briefing-nav-btn[data-coords]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            openNavigation(btn.dataset.coords, btn.dataset.label);
+        });
+    });
 
     // Update summary text for collapsible
     if (collapsible) {
@@ -1811,7 +1834,11 @@ async function renderPackHint(evt) {
         const urlForPack = urlMap.get(packId);
         html += `This event uses pack: <strong>${escapeHtml(packId)}</strong>. It works fine without it — packs add higher-quality audio.`;
         if (urlForPack) {
-            html += ` <a href="${escapeHtml(urlForPack)}" target="_blank" rel="noopener">Get pack</a>`;
+            if (/^https?:\/\//i.test(urlForPack)) {
+                html += ` <a href="${escapeHtml(urlForPack)}" target="_blank" rel="noopener">Get pack</a>`;
+            } else {
+                html += ` (${escapeHtml(urlForPack)})`;
+            }
         }
         html += '<br>';
     }
@@ -1997,7 +2024,7 @@ function startAudioLoop(mode) {
             const secUntil = calculateTimeUntilPrecise(action, nowMs);
 
             // Only process actions within announcement range
-            if (secUntil < -2 || secUntil > evt.defaultNoticeSeconds + 2) continue;
+            if (secUntil < -2 || secUntil > Math.max(evt.defaultNoticeSeconds, action.noticeSeconds ?? 0) * speedMult + 2) continue;
 
             const result = audio.announceAction(
                 action, secUntil, evt.defaultNoticeSeconds, speedMult,
@@ -2349,7 +2376,7 @@ function createActionEditForm(action, index) {
             <label for="ed-countdown-${index}">5-second countdown</label>
         </div>
 
-        <label class="field-label">Resource Pack</label>
+        <label class="field-label">Voice Pack</label>
         <select class="field-select ed-pack-select">
             <option value="">None (TTS only)</option>
         </select>
@@ -2827,33 +2854,6 @@ async function shareBundleFile(includeEvent, triggerBtn) {
     }
 }
 
-async function downloadBundledHTML() {
-    if (!validateSharePassword()) return;
-    const btn = $('btn-download-html');
-    const origText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Preparing...';
-    try {
-        const encoded = await getShareEncoded();
-        const html = await buildBundledHTML(encoded);
-
-        const blob = new Blob([html], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = sanitizeFilename(state.event.title) + '.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        showShareFeedback('Download started!');
-    } catch (e) {
-        showShareFeedback('Download failed — only works from hosted version.');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = origText;
-    }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // PACK MANAGER screen
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2887,8 +2887,9 @@ async function renderPackManager() {
         const cueCount = manifest.cues ? Object.keys(manifest.cues).length : 0;
         const card = document.createElement('div');
         card.className = 'pack-card';
-        const urlHtml = manifest.url
-            ? `<div class="pack-url"><a href="${escapeHtml(manifest.url)}" target="_blank" rel="noopener">Download link</a> <button class="pack-copy-url" data-url="${escapeHtml(manifest.url)}">Copy</button></div>`
+        const safeUrl = manifest.url && /^https?:\/\//i.test(manifest.url) ? manifest.url : null;
+        const urlHtml = safeUrl
+            ? `<div class="pack-url"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener">Download link</a> <button class="pack-copy-url" data-url="${escapeHtml(safeUrl)}">Copy</button></div>`
             : '';
         card.innerHTML = `
             <div class="pack-info">
@@ -2948,7 +2949,7 @@ async function importPackFromFile(file) {
 }
 
 async function deletePackUI(packId) {
-    if (!confirm('Delete this resource pack?')) return;
+    if (!confirm('Delete this voice pack?')) return;
 
     try {
         await packManager.deletePack(packId);

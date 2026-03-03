@@ -1,5 +1,7 @@
 # Resource Pack Format Specification
 
+> This is the technical specification for resource packs. For a friendlier guide to creating and using voice packs, see the [Getting Started Guide](GUIDE.md).
+
 Resource packs are optional zip files that enhance Conductor events with pre-recorded audio. Without a pack, the app uses browser TTS. With a pack, it plays higher-quality audio for countdowns, action cues, and notices.
 
 ## Zip Structure
@@ -127,7 +129,7 @@ When the system needs to play audio for an action, it tries these sources in ord
 
 Packs can include event scripts so that related events travel together. When a user imports a pack containing events, the system validates audio coverage for all bundled event actions and reports the results.
 
-> **Planned:** A future "Pack Events" section in the pack manager will let users browse and load bundled events directly. Currently, event files are used for validation only.
+> **[Not Yet Implemented]** A future "Pack Events" section in the pack manager will let users browse and load bundled events directly. Currently, event files are used for validation only.
 
 Event JSON files may include a `briefing` object with fields like `role`, `exit`, `exitCoords`, `rally`, `rallyCoords`, `abort`, and `notes`. This briefing info is displayed on screen during the event for participant reference. See `TEXT_FORMAT.md` for the full list of briefing keys.
 

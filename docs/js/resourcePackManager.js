@@ -129,7 +129,7 @@ async function decompressDeflate(compressed) {
     // Try native DecompressionStream (raw deflate)
     if (typeof DecompressionStream !== 'undefined') {
         try {
-            const ds = new DecompressionStream('raw');
+            const ds = new DecompressionStream('deflate-raw');
             const writer = ds.writable.getWriter();
             const reader = ds.readable.getReader();
 
@@ -212,23 +212,6 @@ function openPackDB() {
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
-    });
-}
-
-/**
- * Run an IDB transaction and return a promise.
- * @param {IDBDatabase} db
- * @param {string|string[]} stores
- * @param {'readonly'|'readwrite'} mode
- * @param {function(IDBTransaction): void} fn
- * @returns {Promise<void>}
- */
-function idbTransaction(db, stores, mode, fn) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(stores, mode);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        fn(tx);
     });
 }
 
