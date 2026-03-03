@@ -88,8 +88,8 @@ Referenced by the `cue` field on timeline actions. The cue ID is typically a keb
 ```json
 {
   "time": "2026-03-15T18:01:00Z",
-  "action": "Stand by",
-  "cue": "stand-by",
+  "action": "Open your umbrella",
+  "cue": "open-umbrella",
   "pack": "my-pack-id"
 }
 ```

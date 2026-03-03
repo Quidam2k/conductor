@@ -19,8 +19,8 @@ test('demo event: load → preview → practice → stop', async ({ page }) => {
 
     // Verify preview content
     await expect(page.locator('#preview-title')).toHaveText('The Freeze');
-    await expect(page.locator('#preview-count')).toHaveText('10 actions');
-    await expect(page.locator('#preview-duration')).toHaveText('3m 30s');
+    await expect(page.locator('#preview-count')).toHaveText('9 actions');
+    await expect(page.locator('#preview-duration')).toHaveText('3m 0s');
 
     // Start practice
     await page.click('#btn-start-practice');
