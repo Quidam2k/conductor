@@ -49,7 +49,7 @@ function createAudioService() {
     /**
      * Resource pack resolver — stub interface.
      * Replace this function to wire in actual resource pack playback.
-     * @type {function(string, string): boolean} (cueId, packId) → true if played
+     * @type {function(string, string, number=): boolean} (cueId, packId, speed?) → true if played
      */
     let resourcePackResolver = null;
 
@@ -192,12 +192,12 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                const text = resolveAudioCue(action, 'notice');
+                const text = resolveAudioCue(action, 'notice', speedMultiplier);
                 if (text === null) {
                     return `notice-pack: "${action.cue || 'random'}"`;
                 }
                 const noticeText = 'Get ready to ' + text.toLowerCase();
-                speak(noticeText);
+                speak(noticeText, 1.2 * speedMultiplier);
                 return `notice: "${noticeText}"`;
             }
         }
@@ -213,10 +213,10 @@ function createAudioService() {
                         announced.add(`${action.id}-countdown-${cs}`);
                     }
                 }
-                if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack)) {
+                if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack, speedMultiplier)) {
                     return 'trigger-pack: "Go!"';
                 }
-                speak('Now!', 1.5);
+                speak('Now!', 1.5 * speedMultiplier);
                 return 'trigger: "Now!"';
             }
         }
@@ -237,7 +237,7 @@ function createAudioService() {
                             }
                         }
                         const countdownCueId = 'countdown-' + cs;
-                        if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack)) {
+                        if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack, speedMultiplier)) {
                             return `countdown-pack: ${cs}`;
                         }
                         // Formatted countdown: first number gets action name context
@@ -270,13 +270,14 @@ function createAudioService() {
      *
      * @param {TimelineAction} action
      * @param {string} context - 'notice', 'countdown', or 'trigger'
+     * @param {number} [speed=1] - Playback speed multiplier
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
-    function resolveAudioCue(action, context) {
+    function resolveAudioCue(action, context, speed = 1) {
         // Notice context: try notice-prefixed cue first
         if (context === 'notice' && action.cue && action.pack) {
             const noticeCueId = 'notice-' + action.cue;
-            if (resourcePackResolver && resourcePackResolver(noticeCueId, action.pack)) {
+            if (resourcePackResolver && resourcePackResolver(noticeCueId, action.pack, speed)) {
                 return null; // Resource pack played the notice cue
             }
             // No notice cue in pack — fall through to TTS fallback
@@ -291,14 +292,14 @@ function createAudioService() {
             const cueId = action.randomCues[randomIndex];
 
             // Try resource pack first
-            if (resourcePackResolver && resourcePackResolver(cueId, action.pack)) {
+            if (resourcePackResolver && resourcePackResolver(cueId, action.pack, speed)) {
                 return null; // Resource pack played it
             }
         }
 
         // Single cue
         if (action.cue && action.pack) {
-            if (resourcePackResolver && resourcePackResolver(action.cue, action.pack)) {
+            if (resourcePackResolver && resourcePackResolver(action.cue, action.pack, speed)) {
                 return null; // Resource pack played it
             }
         }
@@ -359,7 +360,7 @@ function createAudioService() {
 
     /**
      * Set the resource pack resolver function.
-     * @param {function(string, string): boolean} resolver - (cueId, packId) → true if played
+     * @param {function(string, string, number=): boolean} resolver - (cueId, packId, speed?) → true if played
      */
     function setResourcePackResolver(resolver) {
         resourcePackResolver = resolver;
