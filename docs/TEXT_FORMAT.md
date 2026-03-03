@@ -71,6 +71,13 @@ The timestamp is the offset from the event start time — `0:00` means "right wh
 
 ## Tags (Optional)
 
+Tags let you customize individual actions. There are four categories:
+
+- **Styles** (`normal`, `emphasis`, `alert`) — change how the action looks on screen
+- **Countdown** (`countdown`, `countdown:N`, `no-countdown`) — an audible "5, 4, 3, 2, 1" before the action
+- **Haptic** (`haptic:single`, `haptic:double`, `haptic:triple`) — vibration pattern on the phone
+- **Notify** (`notify:N`, `no-notify`) — controls the "heads up" announcement before the action
+
 Add `[tags]` **before** the action text to customize how it looks and feels:
 
 ```
@@ -100,6 +107,8 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 | `notify:N` | Override notice seconds for this action (e.g. `notify:10`) |
 | `no-notify` | Suppress audio notice entirely for this action |
 
+The `notify` and `no-notify` tags control the "heads up" announcement that plays before an action (e.g., "Get ready to wave left"). By default, a notice plays before each action. The timing is set by the `NotifyWindow` header (default: 5 seconds before).
+
 ### Haptic Tags
 
 | Tag | What it does |
@@ -107,6 +116,8 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 | `haptic:single` | Single vibration pulse |
 | `haptic:double` | Double vibration pulse (default) |
 | `haptic:triple` | Triple vibration pulse |
+
+Note: Haptic works on Android. iOS does not support vibration from web apps.
 
 Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]`
 
@@ -166,7 +177,7 @@ Tags placed **after** the action text still work but are deprecated:
 
 - Lines starting with `#` are ignored (comments)
 - Blank lines are ignored
-- Lines that don't match any format are skipped with a warning
+- Lines that don't match any format are skipped. The app will still load — check the preview to see which actions were recognized. (Warnings appear in your browser's developer console — press F12.)
 
 ## Loading Your Event
 

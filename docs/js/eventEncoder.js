@@ -402,8 +402,16 @@ function parseTextFormat(text) {
                     else if (tag === 'countdown') countdown = true;
                     else if (tag === 'no-countdown') noCountdown = true;
                     else if (tag === 'no-notify') noNotify = true;
-                    else if (tag.startsWith('notify:')) noticeSeconds = parseInt(tag.split(':')[1]);
-                    else if (tag.startsWith('countdown:')) countdownDuration = parseInt(tag.split(':')[1]);
+                    else if (tag.startsWith('notify:')) {
+                        const v = parseInt(tag.split(':')[1], 10);
+                        if (isNaN(v)) warnings.push('Invalid notify value: ' + tag);
+                        else noticeSeconds = v;
+                    }
+                    else if (tag.startsWith('countdown:')) {
+                        const v = parseInt(tag.split(':')[1], 10);
+                        if (isNaN(v)) warnings.push('Invalid countdown value: ' + tag);
+                        else countdownDuration = v;
+                    }
                     else if (tag.startsWith('haptic:')) hapticPattern = tag.split(':')[1];
                     else if (tag !== '') warnings.push('Unknown tag: ' + tag);
                 }
@@ -427,7 +435,7 @@ function parseTextFormat(text) {
                 hapticPattern,
                 countdownSeconds,
                 audioAnnounce: !noNotify,
-                noticeSeconds: noNotify ? 0 : (noticeSeconds ?? 5),
+                noticeSeconds: noNotify ? 0 : (noticeSeconds ?? null),
             });
             continue;
         }
@@ -472,8 +480,8 @@ function parseTextFormat(text) {
         timezone,
         timeline,
         // Config headers (undefined so validateAndComplete applies defaults via ??)
-        defaultNoticeSeconds: headers.notifywindow ? parseInt(headers.notifywindow) : undefined,
-        defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow) : undefined,
+        defaultNoticeSeconds: headers.notifywindow ? parseInt(headers.notifywindow, 10) : undefined,
+        defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
