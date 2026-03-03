@@ -498,9 +498,10 @@ function createResourcePackManager() {
     /**
      * Play an AudioBuffer from the cache.
      * @param {string} cacheKey - "packId:cueId"
+     * @param {number} [playbackRate=1] - Playback speed (e.g. 2 = double speed)
      * @returns {boolean} true if played
      */
-    async function playBuffer(cacheKey) {
+    async function playBuffer(cacheKey, playbackRate = 1) {
         const buffer = bufferCache.get(cacheKey);
         if (!buffer) return false;
 
@@ -512,6 +513,7 @@ function createResourcePackManager() {
             }
             const source = ctx.createBufferSource();
             source.buffer = buffer;
+            source.playbackRate.value = playbackRate;
             source.connect(ctx.destination);
             source.start(0);
             return true;
@@ -527,13 +529,13 @@ function createResourcePackManager() {
      * Get a synchronous resolver function for use with audioService.
      * The resolver checks the AudioBuffer cache and plays if available.
      *
-     * @returns {function(string, string): boolean} (cueId, packId) → true if played
+     * @returns {function(string, string, number=): boolean} (cueId, packId, speed?) → true if played
      */
     function getResolver() {
-        return function resolvePackCue(cueId, packId) {
+        return function resolvePackCue(cueId, packId, speed) {
             const key = packId + ':' + cueId;
             if (!bufferCache.has(key)) return false;
-            playBuffer(key); // fire-and-forget async playback
+            playBuffer(key, speed || 1); // fire-and-forget async playback
             return true;
         };
     }
