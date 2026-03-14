@@ -11,7 +11,7 @@ Welcome! Conductor is a free, private tool for coordinating groups of people usi
 You have two options:
 
 - **Use it online** — Open [quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/) in your phone's browser
-- **Download it** — Save `index.html` to your device. It works offline, straight from your files
+- **Download it** — Save `conductor.html` to your device. It works offline, straight from your files
 
 Either way, you get the same app. The download is nice because it works without internet forever.
 
@@ -19,7 +19,7 @@ Either way, you get the same app. The download is nice because it works without 
 
 When you open the app, you'll see a text box that says *"Got an event code? Paste it here..."*
 
-Tap **Load Demo Event** below it to try a pre-built sample called "The Freeze." It works immediately — no downloads or voice pack needed.
+Tap **Load Demo Event** below it to try a pre-built sample called "The Freeze." It works immediately — no downloads or resource pack needed.
 
 ### Step 3: Preview and Practice
 
@@ -30,11 +30,11 @@ After loading the demo, you'll see a preview screen showing:
 
 Tap **Practice** to run through the event at your own pace. Use the speed slider to go faster (up to 5x). Your phone will speak each cue out loud at the right time.
 
-### Step 4: Import a Voice Pack (Optional)
+### Step 4: Import a Resource Pack (Optional)
 
 The app speaks cues using your phone's built-in text-to-speech by default. It works, but it sounds robotic.
 
-For better audio, import a **voice pack** (also called a resource pack in the technical docs) — a zip file with pre-recorded voice cues. See the [Importing a Voice Pack](#importing-a-voice-pack) section below.
+For better audio, import a **resource pack** — a zip file with pre-recorded voice cues. See the [Importing a Resource Pack](#importing-a-resource-pack) section below.
 
 ### Step 5: Share with Others
 
@@ -47,13 +47,13 @@ The person who receives your link just taps it and they're in. No install, no si
 
 ---
 
-## Importing a Voice Pack
+## Importing a Resource Pack
 
-Voice packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.
+Resource packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.
 
 ### What You Need
 
-A voice pack is a `.zip` file containing audio files and a `manifest.json` that tells the app what's inside.
+A resource pack is a `.zip` file containing audio files and a `manifest.json` that tells the app what's inside.
 
 ### How to Import
 
@@ -71,7 +71,7 @@ After a successful import, you'll see:
 - If it includes any bundled events (demo scripts)
 - A validation report showing which cues are covered
 
-From now on, whenever the app needs to speak a cue that matches one in your voice pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
+From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
 
 ### The Demo Pack
 
@@ -324,7 +324,7 @@ If something's missing, you'll see a warning with details about what's not cover
 ## Reference
 
 - **[TEXT_FORMAT.md](TEXT_FORMAT.md)** — Complete reference for the text event format (all tags, briefing blocks, config headers)
-- **[RESOURCE_PACK_FORMAT.md](RESOURCE_PACK_FORMAT.md)** — Technical specification for voice pack (resource pack) structure and manifest schema
+- **[RESOURCE_PACK_FORMAT.md](RESOURCE_PACK_FORMAT.md)** — Technical specification for resource pack structure and manifest schema
 
 ---
 

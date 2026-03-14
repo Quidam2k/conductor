@@ -360,7 +360,7 @@ test('pack manager: shows empty state when no packs installed', async ({ page })
 
     // Empty state message should be visible
     await expect(page.locator('#pack-empty')).toBeVisible();
-    await expect(page.locator('#pack-empty')).toContainText('No voice packs installed');
+    await expect(page.locator('#pack-empty')).toContainText('No resource packs installed');
 
     // Pack list should be empty
     const cards = await page.locator('.pack-card').count();

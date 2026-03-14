@@ -40,14 +40,14 @@
             /* ─── Accent colors ─── */
             --accent-blue: #5ba3ff;
             --accent-green: #34d399;
-            --accent-red: #ff4757;
+            --accent-red: #dc3545;
             --accent-gold: #f0b429;
             --accent-purple: #a78bfa;
 
             /* ─── Glow effects (box-shadow values for hover/focus) ─── */
             --glow-blue: 0 0 20px rgba(91, 163, 255, 0.2);
             --glow-green: 0 0 20px rgba(52, 211, 153, 0.2);
-            --glow-red: 0 0 20px rgba(255, 71, 87, 0.25);
+            --glow-red: 0 0 20px rgba(220, 53, 69, 0.25);
             --glow-gold: 0 0 20px rgba(240, 180, 41, 0.2);
             --glow-purple: 0 0 20px rgba(167, 139, 250, 0.2);
 
@@ -230,12 +230,12 @@
             margin-top: 2px;
             text-align: center;
         }
-        .pack-hint-input {
-            font-size: 12px;
-            color: var(--accent-gold);
+        .getting-started-hint {
+            display: block;
+            font-size: 13px;
+            color: var(--text-dim);
             text-align: center;
-            margin-top: 4px;
-            margin-bottom: 4px;
+            margin: 4px 0;
         }
 
         textarea {
@@ -821,6 +821,15 @@
         <button id="btn-load" class="btn-primary">Load Event</button>
         <button id="btn-scan-qr" class="btn-outline">Scan QR Code</button>
 
+        <div id="getting-started-section" style="display:none;">
+            <div class="separator">getting started</div>
+            <span class="getting-started-hint">Downloaded a resource pack (.zip)? Import it for enhanced audio.</span>
+            <input type="file" id="pack-file-input-quick" accept=".zip" style="display:none;">
+            <button id="btn-import-pack-quick" class="btn-green">Import Resource Pack</button>
+            <div id="import-status-quick" class="import-status"></div>
+            <span class="getting-started-hint" style="margin-top:8px;">Or try <strong>Load Demo Event</strong> below — works with or without a resource pack.</span>
+        </div>
+
         <div id="drafts-section" style="display:none;">
             <h3 style="font-size:14px; color:var(--text-dim); margin:16px 0 8px;">My Drafts</h3>
             <div id="draft-list"></div>
@@ -837,7 +846,6 @@
         <input type="file" id="event-file-input" accept=".json,.txt,.conductor" style="display:none;">
         <button id="btn-import-event" class="btn-outline">Import Event File</button>
         <button id="btn-manage-packs" class="btn-outline">Manage Packs</button>
-        <div id="pack-hint-input" class="pack-hint-input" style="display:none;">Have a voice pack (.zip)? Tap above to import it.</div>
         <button id="btn-share-app" class="btn-outline">Share This App</button>
 
         <div style="flex:1"></div>
@@ -855,8 +863,8 @@
     <div class="content" role="main">
         <div id="pack-list" class="pack-list"></div>
         <div id="pack-empty" class="pack-empty">
-            No voice packs installed.<br>
-            Import a .zip voice pack<br>for higher-quality audio.
+            No resource packs installed.<br>
+            Import a .zip resource pack<br>for higher-quality audio.
         </div>
 
         <div style="flex:1"></div>
@@ -1325,7 +1333,7 @@ function transitionTo(newMode) {
             $('input-paste').value = '';
             $('input-error').textContent = '';
             renderDraftList();
-            updatePackHint();
+            updateInputLayout();
             break;
 
         case 'preview':
@@ -1965,6 +1973,9 @@ function enterLive() {
     // Pre-load resource packs referenced by event actions
     preloadEventPacks(evt);
 
+    // Cache endTime for per-frame completion check
+    state.liveEndMs = new Date(evt.endTime).getTime();
+
     // Create timeline renderer
     const canvas = $('canvas-live');
     timelineLive = createCircularTimeline(canvas);
@@ -1993,10 +2004,7 @@ function startLiveLoop() {
 }
 
 function checkCompletion(nowMs) {
-    const evt = state.event;
-    if (!evt) return;
-    const endMs = new Date(evt.endTime).getTime();
-    if (nowMs > endMs) {
+    if (state.liveEndMs && nowMs > state.liveEndMs) {
         transitionTo('completed');
     }
 }
@@ -2375,7 +2383,7 @@ function createActionEditForm(action, index) {
             <label for="ed-countdown-${index}">5-second countdown</label>
         </div>
 
-        <label class="field-label">Voice Pack</label>
+        <label class="field-label">Resource Pack</label>
         <select class="field-select ed-pack-select">
             <option value="">None (TTS only)</option>
         </select>
@@ -2534,18 +2542,18 @@ function addNewAction() {
     const lastOffset = state.editor.actions.length > 0
         ? state.editor.actions[state.editor.actions.length - 1].offsetSeconds + 15
         : 0;
-    state.editor.actions.push({
+    const newAction = {
         offsetSeconds: lastOffset,
         action: '',
         style: 'normal',
         hapticPattern: 'double',
         countdown: false,
         audioAnnounce: true,
-    });
-    // Sort so the new action lands in the right spot
+    };
+    state.editor.actions.push(newAction);
     state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
-    // Find the index of the newly added action (the one with empty text)
-    const newIndex = state.editor.actions.findIndex(a => a.action === '');
+    // Find by object reference — safe even with multiple empty actions
+    const newIndex = state.editor.actions.indexOf(newAction);
     state.editor.editingIndex = newIndex >= 0 ? newIndex : state.editor.actions.length - 1;
     renderEditorTimeline();
 }
@@ -2763,7 +2771,7 @@ async function copyShareableLink() {
 }
 
 async function webShareEvent() {
-    if (!validateSharePassword()) return;
+    if (!state.event || !validateSharePassword()) return;
     try {
         const encoded = await getShareEncoded();
         const url = location.origin + location.pathname + '#' + encoded;
@@ -2791,12 +2799,19 @@ async function buildBundledHTML(encoded) {
     // Get current page HTML
     let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 
+    // Reset active screen to input (serialized DOM may have a different screen active)
+    html = html.replace(/ class="screen active"/g, ' class="screen"');
+    html = html.replace('id="screen-input" class="screen"', 'id="screen-input" class="screen active"');
+
     // Replace script src tags with inline content
     const closeTag = '<' + '/script>';
     for (const [src, content] of scriptContents) {
+        // Escape closing script tags in inlined content to prevent HTML parser breakage
+        const closeScriptRe = new RegExp('<' + '/script', 'gi');
+        const safeContent = content.replace(closeScriptRe, '<\\/script');
         html = html.replace(
             new RegExp('<script\\s+src=["\']' + src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']\\s*>' + closeTag, 'i'),
-            '<script>/* ' + src + ' */\n' + content + '\n' + closeTag
+            '<script>/* ' + src + ' */\n' + safeContent + '\n' + closeTag
         );
     }
 
@@ -2857,11 +2872,11 @@ async function shareBundleFile(includeEvent, triggerBtn) {
 // PACK MANAGER screen
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function updatePackHint() {
-    const hint = $('pack-hint-input');
-    if (!hint) return;
+async function updateInputLayout() {
+    const section = $('getting-started-section');
+    if (!section) return;
     const packs = await packManager.listPacks();
-    hint.style.display = packs.length === 0 ? '' : 'none';
+    section.style.display = packs.length === 0 ? '' : 'none';
 }
 
 async function renderPackManager() {
@@ -2948,7 +2963,7 @@ async function importPackFromFile(file) {
 }
 
 async function deletePackUI(packId) {
-    if (!confirm('Delete this voice pack?')) return;
+    if (!confirm('Delete this resource pack?')) return;
 
     try {
         await packManager.deletePack(packId);
@@ -3101,9 +3116,10 @@ $('btn-preview-back').addEventListener('click', () => {
 // Practice screen
 $('speed-slider').addEventListener('input', (e) => {
     // Re-anchor virtual time before changing speed to prevent time jumps
-    const virtualNow = getPracticeNow(Date.now(), state.practiceStartRealMs,
+    const now = Date.now();
+    const virtualNow = getPracticeNow(now, state.practiceStartRealMs,
         state.practiceStartEventMs, state.speedMultiplier);
-    state.practiceStartRealMs = Date.now();
+    state.practiceStartRealMs = now;
     state.practiceStartEventMs = virtualNow;
     state.speedMultiplier = parseFloat(e.target.value);
     $('speed-val').textContent = state.speedMultiplier + 'x';
@@ -3249,6 +3265,7 @@ $('btn-qr-display-copy-link').addEventListener('click', async () => {
     setTimeout(() => { btn.textContent = orig; }, 1500);
 });
 $('btn-qr-display-web-share').addEventListener('click', async () => {
+    if (!state.event) return;
     try {
         const encoded = await getShareEncoded();
         const url = location.origin + location.pathname + '#' + encoded;
@@ -3321,6 +3338,34 @@ $('btn-packs-back').addEventListener('click', () => {
     transitionTo('input');
 });
 
+// Quick import from getting-started section
+$('btn-import-pack-quick').addEventListener('click', () => {
+    $('pack-file-input-quick').click();
+});
+$('pack-file-input-quick').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = $('import-status-quick');
+    statusEl.className = 'import-status progress';
+    statusEl.textContent = 'Reading file...';
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const { manifest, validation } = await packManager.importPackWithValidation(arrayBuffer, (msg) => {
+            statusEl.textContent = msg;
+        });
+        await packManager.ensurePackLoaded(manifest.id);
+        const cueCount = Object.keys(manifest.cues).length;
+        let summary = `Imported "${manifest.name}" (${cueCount} cues)`;
+        statusEl.className = 'import-status success';
+        statusEl.textContent = summary;
+        updateInputLayout();
+    } catch (err) {
+        statusEl.className = 'import-status error';
+        statusEl.textContent = err.message || 'Import failed.';
+    }
+    e.target.value = '';
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Init: check URL hash on load
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3339,7 +3384,7 @@ if (loadFromHash()) {
 } else {
     // On input screen by default — render draft list + pack hint
     renderDraftList();
-    updatePackHint();
+    updateInputLayout();
 }
 
 // Register Service Worker (only works on HTTPS/localhost, silently skips file://)
