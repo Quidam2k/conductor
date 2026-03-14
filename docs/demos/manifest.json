@@ -2,7 +2,7 @@
   "id": "conductor-demo",
   "name": "Conductor Demo",
   "version": "3.0.0",
-  "description": "Voice pack for Conductor demo scripts (The Freeze, The Walk-Through). 79 cue files: 1 system countdown, 39 action phrases, and 39 notice cues.",
+  "description": "Resource pack for Conductor demo scripts (The Freeze, The Walk-Through). 79 cue files: 1 system countdown, 39 action phrases, and 39 notice cues.",
   "cues": {
     "countdown-voice": "audio/countdown-voice.wav",
 

@@ -330,7 +330,7 @@ function createResourcePackManager() {
         if (!manifest.version) manifest.version = '1.0.0';
 
         // 4. Extract and store audio files
-        const database = await ensureDB();
+        await ensureDB(); // Validate DB access before extracting
         const cueIds = Object.keys(manifest.cues);
         let processed = 0;
 

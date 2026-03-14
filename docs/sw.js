@@ -1,6 +1,7 @@
-const CACHE_NAME = 'conductor-v26';
+const CACHE_NAME = 'conductor-v27';
 const ASSETS = [
     './index.html',
+    './conductor.html',
     './start.html',
     './GUIDE.md',
     './TEXT_FORMAT.md',

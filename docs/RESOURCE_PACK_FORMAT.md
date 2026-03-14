@@ -1,6 +1,6 @@
 # Resource Pack Format Specification
 
-> This is the technical specification for resource packs. For a friendlier guide to creating and using voice packs, see the [Getting Started Guide](GUIDE.md).
+> This is the technical specification for resource packs. For a friendlier guide to creating and using resource packs, see the [Getting Started Guide](GUIDE.md).
 
 Resource packs are optional zip files that enhance Conductor events with pre-recorded audio. Without a pack, the app uses browser TTS. With a pack, it plays higher-quality audio for countdowns, action cues, and notices.
 
@@ -220,4 +220,4 @@ This replaces "Now!" with a beep for every action. Everything else falls back to
 - Individual audio files: aim for under 500KB each
 - Total pack size: no hard limit, but consider mobile data
 - WAV is largest but most compatible; MP3/OGG significantly smaller
-- A voice pack for a 3-minute event with 20 phrases: ~2-5 MB depending on format
+- A resource pack for a 3-minute event with 20 phrases: ~2-5 MB depending on format
