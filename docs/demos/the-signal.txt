@@ -1,0 +1,28 @@
+# The Signal — Sign Reveal
+# Synchronized sign reveal. Most protest-applicable event.
+# Standalone event — runs independently.
+
+Title: The Signal
+Description: Sign reveal — step forward, raise, flip, and hold signs in unison. Bring a two-sided sign.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Signal — sign group
+exit:         Southeast corner, past the fountain
+exit_coords:  45.5222, -122.6755
+rally:        Community center steps
+rally_coords: 45.5238, -122.6738
+abort:        Lower sign. Walk to exit. Stay calm.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+1:00  [no-countdown] Take one step forward
+1:30  [countdown:5, haptic:triple] Raise your sign
+1:35  [no-notify, no-countdown] Hold your position
+2:15  [no-countdown] Flip your sign over
+3:00  [no-countdown] Lower your sign
+3:15  [no-countdown] Raise your hands
+3:45  [no-countdown] Lower your hands
+4:00  [no-countdown] Disperse
+4:30  [no-notify, no-countdown] Done

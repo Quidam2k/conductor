@@ -1,0 +1,28 @@
+# The Murmur — Sound and Movement
+# Synchronized turns and sound. Eerie, theatrical.
+# Standalone event — runs independently.
+
+Title: The Murmur
+Description: Synchronized sound and movement — humming, whispering, turning, and forming shapes. No props needed.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Murmur — sound and movement
+exit:         Southwest path, along the hedge
+exit_coords:  45.5218, -122.6775
+rally:        Garden gate, stone benches
+rally_coords: 45.5232, -122.6790
+abort:        Stop. Walk to exit silently.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+0:45  [no-countdown] Face the center
+1:15  [no-countdown] Begin humming
+1:45  [no-countdown] Turn slowly in place
+2:15  [no-countdown] Look down
+2:30  [no-countdown] Whisper now
+2:50  [no-countdown] Silence
+3:10  [no-countdown] Look up slowly
+3:30  [no-countdown] Form a circle
+4:00  [no-notify, no-countdown] Done

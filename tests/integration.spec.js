@@ -18,7 +18,7 @@ test('demo event: load → preview → practice → stop', async ({ page }) => {
     await waitForScreen(page, 'screen-preview');
 
     // Verify preview content
-    await expect(page.locator('#preview-title')).toHaveText('The Freeze');
+    await expect(page.locator('#preview-title')).toHaveText('The Stillness');
     await expect(page.locator('#preview-count')).toHaveText('9 actions');
     await expect(page.locator('#preview-duration')).toHaveText('3m 0s');
 
@@ -123,7 +123,7 @@ test('hash navigation: URL with event hash auto-loads', async ({ page }) => {
     // Navigate to URL with hash
     await page.goto('/#' + eventCode);
     await waitForScreen(page, 'screen-preview');
-    await expect(page.locator('#preview-title')).toHaveText('The Freeze');
+    await expect(page.locator('#preview-title')).toHaveText('The Stillness');
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ test('share: event code and link are valid v1_ strings', async ({ page }) => {
         const decoded = decodeEvent(code);
         return decoded.title;
     }, eventCode);
-    expect(roundTrip).toBe('The Freeze');
+    expect(roundTrip).toBe('The Stillness');
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -317,7 +317,7 @@ test('completed screen: shows summary and return button', async ({ page }) => {
     await page.evaluate(() => transitionTo('completed'));
     await waitForScreen(page, 'screen-completed');
 
-    await expect(page.locator('#done-summary')).toContainText('The Freeze');
+    await expect(page.locator('#done-summary')).toContainText('The Stillness');
     await expect(page.locator('#btn-return')).toBeVisible();
 
     // Return to start
@@ -835,7 +835,7 @@ test('preview: QR overlay opens and closes with correct title', async ({ page })
     // Click share QR
     await page.click('#btn-share-qr-preview');
     await expect(page.locator('#qr-display-overlay')).toBeVisible();
-    await expect(page.locator('#qr-display-title')).toHaveText('The Freeze');
+    await expect(page.locator('#qr-display-title')).toHaveText('The Stillness');
     await expect(page.locator('#qr-display-canvas')).toBeVisible();
 
     // Close it
@@ -1045,11 +1045,12 @@ test('pack manager: shows pack URL when present in manifest', async ({ page }) =
     // Inject a fake pack with url into IDB
     await page.evaluate(async () => {
         const db = await new Promise((resolve, reject) => {
-            const req = indexedDB.open('conductor-packs', 1);
+            const req = indexedDB.open('conductor-packs', 2);
             req.onupgradeneeded = (e) => {
                 const d = e.target.result;
                 if (!d.objectStoreNames.contains('manifests')) d.createObjectStore('manifests', { keyPath: 'id' });
                 if (!d.objectStoreNames.contains('audio')) d.createObjectStore('audio');
+                if (!d.objectStoreNames.contains('events')) d.createObjectStore('events', { keyPath: 'key' });
             };
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
@@ -1077,7 +1078,7 @@ test('pack manager: shows pack URL when present in manifest', async ({ page }) =
     // Clean up
     await page.evaluate(async () => {
         const db = await new Promise((resolve, reject) => {
-            const req = indexedDB.open('conductor-packs', 1);
+            const req = indexedDB.open('conductor-packs', 2);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });

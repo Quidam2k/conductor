@@ -1,10 +1,10 @@
 {
-  "title": "The Freeze",
-  "description": "Umbrella formation — open, hold, light, close, disperse. Night variant: flashlights under white umbrellas.",
+  "title": "The Stand",
+  "description": "Stationary umbrella formation — stand tall, open, freeze, light, and close. Runs alongside The Walk.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Freeze — umbrella group",
+    "role": "The Stand — stationary formation",
     "exit": "Northeast corner, 5th and Main",
     "exitCoords": "45.5231, -122.6765",
     "rally": "Weston Park, picnic tables near fountain",
@@ -13,15 +13,29 @@
   },
   "timeline": [
     {
-      "id": "freeze-02",
+      "id": "stand-02",
       "time": "2026-03-15T17:00:30Z",
       "action": "In position — act natural",
       "cue": "in-position",
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-03",
+      "id": "stand-03",
       "time": "2026-03-15T17:01:00Z",
+      "action": "Stand tall",
+      "cue": "stand-tall",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stand-04",
+      "time": "2026-03-15T17:01:30Z",
+      "action": "Raise your umbrella high",
+      "cue": "umbrella-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stand-05",
+      "time": "2026-03-15T17:02:00Z",
       "action": "Open your umbrella",
       "countdownSeconds": [5, 4, 3, 2, 1],
       "hapticPattern": "triple",
@@ -29,53 +43,44 @@
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-04",
-      "time": "2026-03-15T17:01:05Z",
-      "action": "Hold your position",
+      "id": "stand-06",
+      "time": "2026-03-15T17:02:10Z",
+      "action": "Freeze",
       "noticeSeconds": 0,
-      "cue": "hold",
+      "cue": "freeze",
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-05",
-      "time": "2026-03-15T17:02:00Z",
-      "action": "Light your umbrella",
+      "id": "stand-07",
+      "time": "2026-03-15T17:02:45Z",
+      "action": "Light up your umbrella",
       "cue": "light-umbrella",
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-06",
-      "time": "2026-03-15T17:02:45Z",
+      "id": "stand-08",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Hold your position",
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stand-09",
+      "time": "2026-03-15T17:04:00Z",
       "action": "Umbrella lights off",
       "cue": "dark-umbrella",
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-07",
-      "time": "2026-03-15T17:03:00Z",
+      "id": "stand-10",
+      "time": "2026-03-15T17:04:30Z",
       "action": "Close your umbrella",
       "cue": "close-umbrella",
       "pack": "conductor-demo"
     },
     {
-      "id": "freeze-08",
-      "time": "2026-03-15T17:03:10Z",
-      "action": "Your direction: north",
-      "noticeSeconds": 0,
-      "cue": "dir-north",
-      "pack": "conductor-demo"
-    },
-    {
-      "id": "freeze-09",
-      "time": "2026-03-15T17:03:15Z",
-      "action": "Walk",
-      "noticeSeconds": 0,
-      "cue": "walk",
-      "pack": "conductor-demo"
-    },
-    {
-      "id": "freeze-10",
-      "time": "2026-03-15T17:03:30Z",
+      "id": "stand-11",
+      "time": "2026-03-15T17:05:00Z",
       "action": "Done",
       "noticeSeconds": 0,
       "cue": "done",

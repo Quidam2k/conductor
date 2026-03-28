@@ -1,0 +1,28 @@
+# The Stand — Stationary Formation
+# Stationary formation with umbrellas. Designed to run alongside The Walk.
+# Interlocking pair A — runs with The Walk at the same event.
+
+Title: The Stand
+Description: Stationary umbrella formation — stand tall, open, freeze, light, and close. Runs alongside The Walk.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Stand — stationary formation
+exit:         Northeast corner, 5th and Main
+exit_coords:  45.5231, -122.6765
+rally:        Weston Park, picnic tables near fountain
+rally_coords: 45.5251, -122.6741
+abort:        Close umbrella. Walk to exit. Do not run.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+1:00  [no-countdown] Stand tall
+1:30  [no-countdown] Raise your umbrella high
+2:00  [countdown:5, haptic:triple] Open your umbrella
+2:10  [no-notify, no-countdown] Freeze
+2:45  [no-countdown] Light up your umbrella
+3:30  [no-countdown] Hold your position
+4:00  [no-countdown] Umbrella lights off
+4:30  [no-countdown] Close your umbrella
+5:00  [no-notify, no-countdown] Done

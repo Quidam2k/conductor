@@ -2,7 +2,7 @@
   "id": "conductor-demo",
   "name": "Conductor Demo",
   "version": "3.0.0",
-  "description": "Resource pack for Conductor demo scripts (The Freeze, The Walk-Through). 79 cue files: 1 system countdown, 39 action phrases, and 39 notice cues.",
+  "description": "Resource pack for Conductor demo scripts. 121 cue files: 1 system countdown, 60 action phrases, and 60 notice cues. 7 event scripts.",
   "cues": {
     "countdown-voice": "audio/countdown-voice.wav",
 
@@ -16,11 +16,38 @@
     "close-umbrella": "voices/close-umbrella.wav",
     "light-umbrella": "voices/light-umbrella.wav",
     "dark-umbrella": "voices/dark-umbrella.wav",
+    "umbrella-up": "voices/umbrella-up.wav",
+    "umbrella-down": "voices/umbrella-down.wav",
 
     "begin-walking": "voices/begin-walking.wav",
     "stop": "voices/stop.wav",
     "light-on": "voices/light-on.wav",
     "light-off": "voices/light-off.wav",
+
+    "freeze": "voices/freeze.wav",
+    "unfreeze": "voices/unfreeze.wav",
+
+    "phone-up": "voices/phone-up.wav",
+    "phone-down": "voices/phone-down.wav",
+    "hands-up": "voices/hands-up.wav",
+    "hands-down": "voices/hands-down.wav",
+
+    "stand-tall": "voices/stand-tall.wav",
+    "kneel": "voices/kneel.wav",
+
+    "form-circle": "voices/form-circle.wav",
+    "form-line": "voices/form-line.wav",
+
+    "hum": "voices/hum.wav",
+    "whisper": "voices/whisper.wav",
+    "silence": "voices/silence.wav",
+
+    "gaze-up": "voices/gaze-up.wav",
+    "gaze-down": "voices/gaze-down.wav",
+    "slow-turn": "voices/slow-turn.wav",
+    "face-center": "voices/face-center.wav",
+    "sway": "voices/sway.wav",
+    "step-forward": "voices/step-forward.wav",
 
     "dir-north": "voices/dir-north.wav",
     "dir-south": "voices/dir-south.wav",
@@ -59,10 +86,31 @@
     "notice-close-umbrella": "notices/notice-close-umbrella.wav",
     "notice-light-umbrella": "notices/notice-light-umbrella.wav",
     "notice-dark-umbrella": "notices/notice-dark-umbrella.wav",
+    "notice-umbrella-up": "notices/notice-umbrella-up.wav",
+    "notice-umbrella-down": "notices/notice-umbrella-down.wav",
     "notice-begin-walking": "notices/notice-begin-walking.wav",
     "notice-stop": "notices/notice-stop.wav",
     "notice-light-on": "notices/notice-light-on.wav",
     "notice-light-off": "notices/notice-light-off.wav",
+    "notice-freeze": "notices/notice-freeze.wav",
+    "notice-unfreeze": "notices/notice-unfreeze.wav",
+    "notice-phone-up": "notices/notice-phone-up.wav",
+    "notice-phone-down": "notices/notice-phone-down.wav",
+    "notice-hands-up": "notices/notice-hands-up.wav",
+    "notice-hands-down": "notices/notice-hands-down.wav",
+    "notice-stand-tall": "notices/notice-stand-tall.wav",
+    "notice-kneel": "notices/notice-kneel.wav",
+    "notice-form-circle": "notices/notice-form-circle.wav",
+    "notice-form-line": "notices/notice-form-line.wav",
+    "notice-hum": "notices/notice-hum.wav",
+    "notice-whisper": "notices/notice-whisper.wav",
+    "notice-silence": "notices/notice-silence.wav",
+    "notice-gaze-up": "notices/notice-gaze-up.wav",
+    "notice-gaze-down": "notices/notice-gaze-down.wav",
+    "notice-slow-turn": "notices/notice-slow-turn.wav",
+    "notice-face-center": "notices/notice-face-center.wav",
+    "notice-sway": "notices/notice-sway.wav",
+    "notice-step-forward": "notices/notice-step-forward.wav",
     "notice-dir-north": "notices/notice-dir-north.wav",
     "notice-dir-south": "notices/notice-dir-south.wav",
     "notice-dir-east": "notices/notice-dir-east.wav",
@@ -93,14 +141,39 @@
 
   "events": [
     {
-      "file": "events/demo-freeze.json",
-      "name": "The Freeze",
-      "role": "Umbrella formation — open, hold, light, close, disperse"
+      "file": "events/the-stillness.json",
+      "name": "The Stillness",
+      "role": "Freeze mob — sudden collective stillness, no props"
     },
     {
-      "file": "events/demo-walkthrough.json",
-      "name": "The Walk-Through",
-      "role": "Movement group — walk through the umbrella formation"
+      "file": "events/the-bloom.json",
+      "name": "The Bloom",
+      "role": "Umbrella performance — raise, open, sway, light, close"
+    },
+    {
+      "file": "events/lights-out.json",
+      "name": "Lights Out",
+      "role": "Phone flashlights in the dark — evening event"
+    },
+    {
+      "file": "events/the-signal.json",
+      "name": "The Signal",
+      "role": "Sign reveal — step forward, raise, flip, hold"
+    },
+    {
+      "file": "events/the-stand.json",
+      "name": "The Stand",
+      "role": "Stationary umbrella formation — runs alongside The Walk"
+    },
+    {
+      "file": "events/the-walk.json",
+      "name": "The Walk",
+      "role": "Movement with lights through the formation — runs alongside The Stand"
+    },
+    {
+      "file": "events/the-murmur.json",
+      "name": "The Murmur",
+      "role": "Synchronized sound and movement — eerie, theatrical"
     }
   ]
 }

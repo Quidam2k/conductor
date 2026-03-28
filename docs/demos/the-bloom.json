@@ -1,0 +1,89 @@
+{
+  "title": "The Bloom",
+  "description": "Umbrella performance — raise, open, sway, light, and close in unison. Bring a white umbrella and small light.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Bloom — umbrella group",
+    "exit": "East entrance, near the parking garage",
+    "exitCoords": "45.5228, -122.6748",
+    "rally": "Riverside park, footbridge area",
+    "rallyCoords": "45.5243, -122.6735",
+    "abort": "Close umbrella. Walk to exit. Do not run."
+  },
+  "timeline": [
+    {
+      "id": "bloom-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Raise your umbrella high",
+      "cue": "umbrella-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-04",
+      "time": "2026-03-15T17:01:30Z",
+      "action": "Open your umbrella",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "open-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-05",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Sway gently",
+      "cue": "sway",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-06",
+      "time": "2026-03-15T17:02:30Z",
+      "action": "Light up your umbrella",
+      "cue": "light-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-07",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Hold your position",
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-08",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Umbrella lights off",
+      "cue": "dark-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-09",
+      "time": "2026-03-15T17:03:45Z",
+      "action": "Close your umbrella",
+      "cue": "close-umbrella",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-10",
+      "time": "2026-03-15T17:04:00Z",
+      "action": "Lower your umbrella",
+      "cue": "umbrella-down",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "bloom-11",
+      "time": "2026-03-15T17:04:30Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

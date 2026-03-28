@@ -1,0 +1,87 @@
+{
+  "title": "The Murmur",
+  "description": "Synchronized sound and movement — humming, whispering, turning, and forming shapes. No props needed.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Murmur — sound and movement",
+    "exit": "Southwest path, along the hedge",
+    "exitCoords": "45.5218, -122.6775",
+    "rally": "Garden gate, stone benches",
+    "rallyCoords": "45.5232, -122.6790",
+    "abort": "Stop. Walk to exit silently."
+  },
+  "timeline": [
+    {
+      "id": "murmur-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-03",
+      "time": "2026-03-15T17:00:45Z",
+      "action": "Face the center",
+      "cue": "face-center",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-04",
+      "time": "2026-03-15T17:01:15Z",
+      "action": "Begin humming",
+      "cue": "hum",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-05",
+      "time": "2026-03-15T17:01:45Z",
+      "action": "Turn slowly in place",
+      "cue": "slow-turn",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-06",
+      "time": "2026-03-15T17:02:15Z",
+      "action": "Look down",
+      "cue": "gaze-down",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-07",
+      "time": "2026-03-15T17:02:30Z",
+      "action": "Whisper now",
+      "cue": "whisper",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-08",
+      "time": "2026-03-15T17:02:50Z",
+      "action": "Silence",
+      "cue": "silence",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-09",
+      "time": "2026-03-15T17:03:10Z",
+      "action": "Look up slowly",
+      "cue": "gaze-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-10",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Form a circle",
+      "cue": "form-circle",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "murmur-11",
+      "time": "2026-03-15T17:04:00Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "title": "The Signal",
+  "description": "Sign reveal — step forward, raise, flip, and hold signs in unison. Bring a two-sided sign.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Signal — sign group",
+    "exit": "Southeast corner, past the fountain",
+    "exitCoords": "45.5222, -122.6755",
+    "rally": "Community center steps",
+    "rallyCoords": "45.5238, -122.6738",
+    "abort": "Lower sign. Walk to exit. Stay calm."
+  },
+  "timeline": [
+    {
+      "id": "signal-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Take one step forward",
+      "cue": "step-forward",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-04",
+      "time": "2026-03-15T17:01:30Z",
+      "action": "Raise your sign",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "raise-sign",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-05",
+      "time": "2026-03-15T17:01:35Z",
+      "action": "Hold your position",
+      "noticeSeconds": 0,
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-06",
+      "time": "2026-03-15T17:02:15Z",
+      "action": "Flip your sign over",
+      "cue": "flip-sign",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-07",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Lower your sign",
+      "cue": "lower-sign",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-08",
+      "time": "2026-03-15T17:03:15Z",
+      "action": "Raise your hands",
+      "cue": "hands-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-09",
+      "time": "2026-03-15T17:03:45Z",
+      "action": "Lower your hands",
+      "cue": "hands-down",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-10",
+      "time": "2026-03-15T17:04:00Z",
+      "action": "Disperse",
+      "cue": "disperse",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "signal-11",
+      "time": "2026-03-15T17:04:30Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}
