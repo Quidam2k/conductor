@@ -18,7 +18,7 @@ my-pack.zip
 │   ├── notice-stand-by.wav
 │   └── ...
 └── events/                    # Bundled event scripts (optional)
-    ├── demo-freeze.json
+    ├── the-stillness.json
     └── ...
 ```
 
@@ -44,9 +44,9 @@ Folder names are conventions, not requirements — the manifest maps cue IDs to 
 
   "events": [
     {
-      "file": "events/demo-freeze.json",
-      "name": "The Freeze",
-      "role": "Umbrella formation — open, hold, light, close, disperse"
+      "file": "events/the-stillness.json",
+      "name": "The Stillness",
+      "role": "Freeze mob — sudden collective stillness, no props"
     }
   ]
 }

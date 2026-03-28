@@ -19,7 +19,7 @@ Either way, you get the same app. The download is nice because it works without 
 
 When you open the app, you'll see a text box that says *"Got an event code? Paste it here..."*
 
-Tap **Load Demo Event** below it to try a pre-built sample called "The Freeze." It works immediately — no downloads or resource pack needed.
+Tap **Load Demo Event** below it to try a pre-built sample called "The Stillness." It works immediately — no downloads or resource pack needed.
 
 ### Step 3: Preview and Practice
 
@@ -76,9 +76,9 @@ From now on, whenever the app needs to speak a cue that matches one in your reso
 ### The Demo Pack
 
 The Conductor Demo Pack includes:
-- **79 audio cues** — 1 system cue (countdown voice), 39 action cues, 39 notice cues
-- **2 event scripts** — "The Freeze" and "The Walk-Through"
-- Works with both demo events out of the box
+- **121 audio cues** — 1 system cue (countdown voice), 60 action cues, 60 notice cues
+- **7 event scripts** — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur
+- Works with all demo events out of the box
 
 ---
 
@@ -187,16 +187,17 @@ conductor-demo.zip
 ├── audio/
 │   └── countdown-voice.wav    # System cue: the countdown voice
 ├── voices/
-│   ├── hold.wav               # Action cues (39 files)
+│   ├── freeze.wav             # Action cues (60 files)
 │   ├── walk.wav
 │   └── ...
 ├── notices/
-│   ├── notice-hold.wav        # Notice cues (39 files)
+│   ├── notice-freeze.wav      # Notice cues (60 files)
 │   ├── notice-walk.wav
 │   └── ...
 └── events/
-    ├── demo-freeze.json       # Bundled event scripts
-    └── demo-walkthrough.json
+    ├── the-stillness.json     # Bundled event scripts (7 total)
+    ├── the-bloom.json
+    └── ...
 ```
 
 ### Swapping Audio Files
@@ -211,19 +212,19 @@ conductor-demo.zip
 
 The `manifest.json` tells the app what cues are in the pack. If you add or remove audio files, update the manifest to match.
 
-Each cue entry looks like this:
+Cues are listed as key-value pairs — the key is the cue ID and the value is the file path:
 
 ```json
 {
-  "id": "hold",
-  "file": "voices/hold.wav",
-  "label": "Hold position"
+  "cues": {
+    "hold": "voices/hold.wav",
+    "walk": "voices/walk.wav"
+  }
 }
 ```
 
-- `id` — The cue identifier. This is what events reference
-- `file` — Path to the audio file inside the zip
-- `label` — Human-readable description (shown in the editor)
+- **Key** (e.g. `"hold"`) — The cue identifier. This is what events reference
+- **Value** (e.g. `"voices/hold.wav"`) — Path to the audio file inside the zip
 
 ### Adding Your Own Cues
 
@@ -231,7 +232,7 @@ To add a cue that doesn't exist in the demo pack:
 
 1. Record your audio file
 2. Put it in the `voices/` folder (or `notices/` for notice variants)
-3. Add an entry to the `cues` array in `manifest.json`
+3. Add an entry to the `cues` object in `manifest.json`
 4. Reference the cue `id` in your event text — the app matches cue IDs to action text automatically
 
 ---
@@ -248,13 +249,9 @@ You only need two things: a `manifest.json` and at least one audio file.
   "id": "my-pack",
   "name": "My Custom Pack",
   "version": "1.0.0",
-  "cues": [
-    {
-      "id": "go",
-      "file": "voices/go.wav",
-      "label": "Go!"
-    }
-  ]
+  "cues": {
+    "go": "voices/go.wav"
+  }
 }
 ```
 
@@ -302,9 +299,12 @@ To include event scripts in your pack:
   "name": "My Pack",
   "version": "1.0.0",
   "events": [
-    { "file": "events/my-event.json", "label": "My Cool Event" }
+    { "file": "events/my-event.json", "name": "My Cool Event" }
   ],
-  "cues": [ ... ]
+  "cues": {
+    "go": "voices/go.wav",
+    "freeze": "voices/freeze.wav"
+  }
 }
 ```
 

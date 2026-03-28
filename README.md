@@ -51,12 +51,17 @@ Conductor is built to be private by default:
 
 ## The Demo Pack
 
-Conductor ships with two demo event scripts to try:
+The demo resource pack includes 7 event scripts and 121 voice cues:
 
-- **The Freeze** — Everyone freezes in place simultaneously, then unfreezes together
-- **The Walk-Through** — A coordinated walking pattern through a public space
+- **The Stillness** — Freeze mob: sudden collective stillness, no props
+- **The Bloom** — Umbrella performance: raise, open, sway, light, close
+- **Lights Out** — Phone flashlights in the dark, evening event
+- **The Signal** — Sign reveal: step forward, raise, flip, hold
+- **The Stand** — Stationary umbrella formation (pairs with The Walk)
+- **The Walk** — Movement with lights through the formation (pairs with The Stand)
+- **The Murmur** — Synchronized sound and movement, eerie and theatrical
 
-The demo resource pack includes 79 audio cues (1 system + 39 action + 39 notice) for high-quality voice prompts instead of robot TTS. Download it from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder.
+Download the pack from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder. The app also has a built-in demo ("The Stillness") that works immediately with text-to-speech — no downloads needed.
 
 ## Concepts & Techniques
 
@@ -92,7 +97,7 @@ Events created on one host work on any other — the data is in the URL.
 ```
 conductor/
 ├── docs/                              # PWA (served by GitHub Pages)
-│   ├── index.html                     # Main app: 9 screens, ~3350 lines
+│   ├── index.html                     # Main app: 9 screens, ~3460 lines
 │   ├── js/                            # JS modules (7 files)
 │   │   ├── models.js                  #   Data models + conversion helpers
 │   │   ├── eventEncoder.js            #   URL encoder/decoder, text/JSON parsers
@@ -106,14 +111,15 @@ conductor/
 │   │   ├── qr-creator.min.js          #   QR code generation (~12KB)
 │   │   └── qr-scanner.legacy.min.js   #   QR code scanning (~55KB)
 │   ├── demos/                         # Demo content
-│   │   ├── demo-freeze.txt/.json      #   "The Freeze" event script
-│   │   ├── demo-walkthrough.txt/.json #   "The Walk-Through" event script
-│   │   ├── manifest.json              #   Pack manifest (79 cues)
+│   │   ├── the-stillness.txt/.json     #   7 event scripts (.txt + .json pairs)
+│   │   ├── the-bloom.txt/.json        #   (The Bloom, Lights Out, The Signal,
+│   │   ├── ...                        #    The Stand, The Walk, The Murmur)
+│   │   ├── manifest.json              #   Pack manifest (121 cues)
 │   │   └── wav-manifest.md            #   Voice generation instructions
 │   ├── start.html                     # Getting started landing page
-│   ├── conductor-demo.zip             # Demo voice pack (79 cues, 22MB)
+│   ├── conductor-demo.zip             # Demo resource pack (121 cues, ~32MB)
 │   ├── GUIDE.md                       # Tutorial: quick start, packs, events
-│   ├── sw.js                          # Service Worker v25 (offline caching)
+│   ├── sw.js                          # Service Worker v28 (offline caching)
 │   ├── manifest.json                  # PWA manifest
 │   ├── TEXT_FORMAT.md                 # Human-readable text event format guide
 │   ├── RESOURCE_PACK_FORMAT.md        # Resource pack format specification

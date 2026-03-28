@@ -6,18 +6,11 @@ Last updated: 2026-03-01
 
 ## BLOCKING — Must Complete Before Public Testing
 
-### 1. Generate Voice Clips (Todd)
-- **What:** 79 WAV files for the demo resource pack (1 system + 39 action + 39 notice)
-- **Instructions:** `H:\Development\conductor\test-demo\voice-generation-instructions.md`
-- **Hand this file to the voice cloner** — it has everything: exact phrases, filenames, folder structure, performance direction, audio format specs
-- **Output:** Three folders of WAVs: `audio/` (1), `voices/` (39), `notices/` (39)
+### 1. ~~Generate Voice Clips (Todd)~~ — DONE
+- 121 WAV files generated (1 system + 60 action + 60 notice)
 
-### 2. Assemble Demo Pack Zip (Claude, after voice clips arrive)
-- Copy WAVs into correct folder structure
-- Include `manifest.json` from `docs/demos/manifest.json`
-- Include event JSONs from `docs/demos/demo-*.json` into `events/`
-- Zip as `conductor-demo.zip`
-- Test import in the app, verify all 79 cues resolve
+### 2. ~~Assemble Demo Pack Zip~~ — DONE
+- `conductor-demo.zip` built: 31.5 MB, 121 cues, 7 event scripts, validated
 
 ### 3. Real-Device Testing (Todd + Teafaerie)
 - **Checklist:** `TESTING_CHECKLIST.md` in project root
@@ -57,7 +50,6 @@ Low-priority code issues that don't affect normal use:
 | All cascades/plans | Complete |
 | Automated tests | 112 total (111 pass, 1 skip) |
 | Service Worker | v24 |
-| Voice gen instructions | Ready to hand off |
-| Voice clips | **WAITING ON TODD** |
-| Demo pack assembly | Waiting on voice clips |
-| Real-device testing | Waiting on pack + Todd/Teafaerie |
+| Voice clips | Complete (121 cues) |
+| Demo pack assembly | Complete (31.5 MB) |
+| Real-device testing | **NEXT** — Todd + Teafaerie |
