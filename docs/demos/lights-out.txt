@@ -1,0 +1,27 @@
+# Lights Out — Phone Flashlights
+# Phone flashlights in the dark. Evening event.
+# Standalone event — runs independently.
+
+Title: Lights Out
+Description: Phone flashlight performance — raise, light, gaze, sway, and lower in the dark. Evening event.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         Lights Out — flashlight group
+exit:         North path, toward the main road
+exit_coords:  45.5240, -122.6758
+rally:        Corner cafe, patio seating
+rally_coords: 45.5252, -122.6745
+abort:        Turn off light. Pocket phone. Walk to exit.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+1:00  [no-countdown] Raise your phone high
+1:30  [countdown:5, haptic:triple] Turn on your light
+2:00  [no-countdown] Look up slowly
+2:30  [no-countdown] Sway gently
+3:00  [no-countdown] Turn off your light
+3:15  [no-countdown] Lower your phone
+3:30  [no-countdown] Disperse
+4:00  [no-notify, no-countdown] Done

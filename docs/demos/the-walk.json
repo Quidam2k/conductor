@@ -1,10 +1,10 @@
 {
-  "title": "The Walk-Through",
-  "description": "Movement group — walk through the umbrella formation, lights on, lights off, stop, disperse. Night variant: colored lights.",
+  "title": "The Walk",
+  "description": "Movement group — form a line, walk through the formation with lights. Runs alongside The Stand.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Walk-Through — movement group",
+    "role": "The Walk — movement group",
     "exit": "South gate, past the fountain",
     "exitCoords": "45.5225, -122.6770",
     "rally": "Coffee shop on 6th, outdoor tables",
@@ -13,15 +13,22 @@
   },
   "timeline": [
     {
-      "id": "walkthrough-02",
+      "id": "walk-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position",
+      "action": "In position — act natural",
       "cue": "in-position",
       "pack": "conductor-demo"
     },
     {
-      "id": "walkthrough-03",
-      "time": "2026-03-15T17:01:15Z",
+      "id": "walk-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Form a line",
+      "cue": "form-line",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walk-04",
+      "time": "2026-03-15T17:01:30Z",
       "action": "Begin walking",
       "countdownSeconds": [5, 4, 3, 2, 1],
       "hapticPattern": "triple",
@@ -29,45 +36,43 @@
       "pack": "conductor-demo"
     },
     {
-      "id": "walkthrough-04",
-      "time": "2026-03-15T17:02:00Z",
+      "id": "walk-05",
+      "time": "2026-03-15T17:02:15Z",
       "action": "Turn on your light",
       "cue": "light-on",
       "pack": "conductor-demo"
     },
     {
-      "id": "walkthrough-05",
+      "id": "walk-06",
       "time": "2026-03-15T17:02:45Z",
+      "action": "Face the center",
+      "cue": "face-center",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walk-07",
+      "time": "2026-03-15T17:03:15Z",
+      "action": "Walk slowly",
+      "cue": "walk-slowly",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "walk-08",
+      "time": "2026-03-15T17:03:45Z",
       "action": "Turn off your light",
       "cue": "light-off",
       "pack": "conductor-demo"
     },
     {
-      "id": "walkthrough-06",
-      "time": "2026-03-15T17:03:00Z",
+      "id": "walk-09",
+      "time": "2026-03-15T17:04:15Z",
       "action": "Stop where you are",
       "cue": "stop",
       "pack": "conductor-demo"
     },
     {
-      "id": "walkthrough-07",
-      "time": "2026-03-15T17:03:10Z",
-      "action": "Your direction: south",
-      "noticeSeconds": 0,
-      "cue": "dir-south",
-      "pack": "conductor-demo"
-    },
-    {
-      "id": "walkthrough-08",
-      "time": "2026-03-15T17:03:15Z",
-      "action": "Walk",
-      "noticeSeconds": 0,
-      "cue": "walk",
-      "pack": "conductor-demo"
-    },
-    {
-      "id": "walkthrough-09",
-      "time": "2026-03-15T17:03:30Z",
+      "id": "walk-10",
+      "time": "2026-03-15T17:05:00Z",
       "action": "Done",
       "noticeSeconds": 0,
       "cue": "done",

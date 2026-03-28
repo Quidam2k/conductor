@@ -1,0 +1,86 @@
+{
+  "title": "The Stillness",
+  "description": "Freeze mob — sudden stillness in a public space. Two freeze cycles with different countdowns.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Stillness — freeze mob",
+    "exit": "West side, near the bookstore",
+    "exitCoords": "45.5235, -122.6780",
+    "rally": "Library courtyard, south benches",
+    "rallyCoords": "45.5248, -122.6760",
+    "abort": "Unfreeze. Walk to exit. Normal pace."
+  },
+  "timeline": [
+    {
+      "id": "stillness-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Freeze",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "freeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-04",
+      "time": "2026-03-15T17:01:05Z",
+      "action": "Hold your position",
+      "noticeSeconds": 0,
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-05",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Unfreeze",
+      "cue": "unfreeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-06",
+      "time": "2026-03-15T17:02:30Z",
+      "action": "Freeze",
+      "countdownSeconds": [3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "freeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-07",
+      "time": "2026-03-15T17:02:35Z",
+      "action": "Hold your position",
+      "noticeSeconds": 0,
+      "cue": "hold",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-08",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Unfreeze",
+      "cue": "unfreeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-09",
+      "time": "2026-03-15T17:03:10Z",
+      "action": "Disperse",
+      "cue": "disperse",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "stillness-10",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

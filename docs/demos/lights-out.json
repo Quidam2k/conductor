@@ -1,0 +1,82 @@
+{
+  "title": "Lights Out",
+  "description": "Phone flashlight performance — raise, light, gaze, sway, and lower in the dark. Evening event.",
+  "startTime": "2026-03-15T17:00:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "Lights Out — flashlight group",
+    "exit": "North path, toward the main road",
+    "exitCoords": "45.5240, -122.6758",
+    "rally": "Corner cafe, patio seating",
+    "rallyCoords": "45.5252, -122.6745",
+    "abort": "Turn off light. Pocket phone. Walk to exit."
+  },
+  "timeline": [
+    {
+      "id": "lightsout-02",
+      "time": "2026-03-15T17:00:30Z",
+      "action": "In position — act natural",
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-03",
+      "time": "2026-03-15T17:01:00Z",
+      "action": "Raise your phone high",
+      "cue": "phone-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-04",
+      "time": "2026-03-15T17:01:30Z",
+      "action": "Turn on your light",
+      "countdownSeconds": [5, 4, 3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "light-on",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-05",
+      "time": "2026-03-15T17:02:00Z",
+      "action": "Look up slowly",
+      "cue": "gaze-up",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-06",
+      "time": "2026-03-15T17:02:30Z",
+      "action": "Sway gently",
+      "cue": "sway",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-07",
+      "time": "2026-03-15T17:03:00Z",
+      "action": "Turn off your light",
+      "cue": "light-off",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-08",
+      "time": "2026-03-15T17:03:15Z",
+      "action": "Lower your phone",
+      "cue": "phone-down",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-09",
+      "time": "2026-03-15T17:03:30Z",
+      "action": "Disperse",
+      "cue": "disperse",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "lightsout-10",
+      "time": "2026-03-15T17:04:00Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

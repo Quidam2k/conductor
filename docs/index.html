@@ -618,9 +618,6 @@
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius);
             padding: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         .pack-info { flex: 1; min-width: 0; }
@@ -649,6 +646,19 @@
             cursor: pointer; flex-shrink: 0;
         }
         .pack-delete:hover { box-shadow: var(--glow-red); }
+
+        .pack-events { margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
+        .pack-event-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 0; font-size: 13px;
+        }
+        .pack-event-name { color: var(--text-secondary); }
+        .pack-event-load {
+            font-size: 12px; padding: 3px 10px;
+            background: transparent; color: var(--accent-gold);
+            border: 1px solid var(--accent-gold); border-radius: 4px;
+            cursor: pointer;
+        }
 
         .pack-empty {
             text-align: center; padding: 32px 16px;
@@ -1444,47 +1454,69 @@ function loadFromHash() {
     }
 }
 
+function rebaseEventToNow(embeddedEvent) {
+    const originalStart = new Date(embeddedEvent.startTime).getTime();
+    const newStart = Date.now() + 60 * 1000; // 60 seconds from now
+    const delta = newStart - originalStart;
+
+    const rebased = JSON.parse(JSON.stringify(embeddedEvent)); // deep clone
+    rebased.startTime = new Date(newStart).toISOString();
+    rebased.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    if (rebased.timeline) {
+        for (const action of rebased.timeline) {
+            if (action.time) {
+                action.time = new Date(new Date(action.time).getTime() + delta).toISOString();
+            }
+            if (action.timeMs != null) {
+                action.timeMs += delta;
+            }
+        }
+    }
+
+    return rebased;
+}
+
 function createDemoEvent() {
     const now = Date.now();
     const startMs = now + 10 * 1000; // 10 seconds from now
     const startTime = new Date(startMs).toISOString();
 
     const actions = [
-        { offset: 30,  action: 'In position — act natural', cue: 'in-position' },
-        { offset: 60,  action: 'Open your umbrella',       cue: 'open-umbrella',
+        { offset: 30,  action: 'In position — act natural' },
+        { offset: 60,  action: 'Freeze',
           countdownSeconds: [5, 4, 3, 2, 1], hapticPattern: 'triple' },
-        { offset: 65,  action: 'Hold your position',       cue: 'hold',          noticeOff: true },
-        { offset: 120, action: 'Light your umbrella',      cue: 'light-umbrella' },
-        { offset: 165, action: 'Umbrella lights off',      cue: 'dark-umbrella' },
-        { offset: 180, action: 'Close your umbrella',      cue: 'close-umbrella' },
-        { offset: 190, action: 'Your direction: north',    cue: 'dir-north',     noticeOff: true },
-        { offset: 195, action: 'Walk',                     cue: 'walk',          noticeOff: true },
-        { offset: 210, action: 'Done',                     cue: 'done',          noticeOff: true },
+        { offset: 65,  action: 'Hold your position', noticeOff: true },
+        { offset: 120, action: 'Unfreeze' },
+        { offset: 150, action: 'Freeze',
+          countdownSeconds: [3, 2, 1], hapticPattern: 'triple' },
+        { offset: 155, action: 'Hold your position', noticeOff: true },
+        { offset: 180, action: 'Unfreeze' },
+        { offset: 190, action: 'Disperse',           noticeOff: true },
+        { offset: 210, action: 'Done',               noticeOff: true },
     ];
 
     const timeline = actions.map(a => createTimelineAction({
         time: new Date(startMs + a.offset * 1000).toISOString(),
         action: a.action,
-        cue: a.cue,
-        pack: 'conductor-demo',
         hapticPattern: a.hapticPattern || 'double',
         countdownSeconds: a.countdownSeconds || null,
         noticeSeconds: a.noticeOff ? 0 : 5,
     }));
 
     const embedded = {
-        title: 'The Freeze',
-        description: 'Umbrella formation — open, hold, light, close, disperse. Night variant: flashlights under white umbrellas.',
+        title: 'The Stillness',
+        description: 'Freeze mob — sudden stillness in a public space. Two freeze cycles with different countdowns.',
         startTime: startTime,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timeline: timeline,
         briefing: {
-            role: 'The Freeze — umbrella group',
-            exit: 'Northeast corner, 5th and Main',
-            exitCoords: '45.5231, -122.6765',
-            rally: 'Weston Park, picnic tables near fountain',
-            rallyCoords: '45.5251, -122.6741',
-            abort: 'Close umbrella. Walk to exit. Do not run.',
+            role: 'The Stillness — freeze mob',
+            exit: 'West side, near the bookstore',
+            exitCoords: '45.5235, -122.6780',
+            rally: 'Library courtyard, south benches',
+            rallyCoords: '45.5248, -122.6760',
+            abort: 'Unfreeze. Walk to exit. Normal pace.',
         },
     };
 
@@ -2879,6 +2911,9 @@ async function updateInputLayout() {
     section.style.display = packs.length === 0 ? '' : 'none';
 }
 
+/** Map of "packId:idx" → event object, rebuilt each render */
+const packEventsMap = new Map();
+
 async function renderPackManager() {
     const listEl = $('pack-list');
     const emptyEl = $('pack-empty');
@@ -2887,6 +2922,7 @@ async function renderPackManager() {
     statusEl.className = 'import-status';
 
     listEl.innerHTML = '';
+    packEventsMap.clear();
 
     const packs = await packManager.listPacks();
 
@@ -2905,13 +2941,33 @@ async function renderPackManager() {
         const urlHtml = safeUrl
             ? `<div class="pack-url"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener">Download link</a> <button class="pack-copy-url" data-url="${escapeHtml(safeUrl)}">Copy</button></div>`
             : '';
+
+        // Fetch bundled events for this pack
+        const events = await packManager.getPackEvents(manifest.id);
+        let eventsHtml = '';
+        if (events.length > 0) {
+            let items = '';
+            for (let i = 0; i < events.length; i++) {
+                const mapKey = manifest.id + ':' + i;
+                packEventsMap.set(mapKey, events[i].event);
+                items += `<div class="pack-event-item">
+                    <span class="pack-event-name">${escapeHtml(events[i].name)}</span>
+                    <button class="pack-event-load" data-event-key="${escapeHtml(mapKey)}">Load</button>
+                </div>`;
+            }
+            eventsHtml = `<div class="pack-events">${items}</div>`;
+        }
+
         card.innerHTML = `
-            <div class="pack-info">
-                <div class="pack-name">${escapeHtml(manifest.name)}</div>
-                <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}</div>
-                ${urlHtml}
+            <div style="display:flex;align-items:center;gap:10px">
+                <div class="pack-info">
+                    <div class="pack-name">${escapeHtml(manifest.name)}</div>
+                    <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}${events.length > 0 ? ' &middot; ' + events.length + ' event' + (events.length !== 1 ? 's' : '') : ''}</div>
+                    ${urlHtml}
+                </div>
+                <button class="pack-delete" data-pack-id="${escapeHtml(manifest.id)}">Delete</button>
             </div>
-            <button class="pack-delete" data-pack-id="${escapeHtml(manifest.id)}">Delete</button>
+            ${eventsHtml}
         `;
         listEl.appendChild(card);
     }
@@ -3332,6 +3388,16 @@ $('pack-list').addEventListener('click', async (e) => {
         const orig = copyBtn.textContent;
         copyBtn.textContent = ok ? 'Copied!' : 'Failed';
         setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+        return;
+    }
+    const loadBtn = e.target.closest('.pack-event-load');
+    if (loadBtn) {
+        const eventData = packEventsMap.get(loadBtn.dataset.eventKey);
+        if (!eventData) return;
+        const rebased = rebaseEventToNow(eventData);
+        state.event = embeddedEventToEvent(rebased);
+        state.previewReturnTo = 'packs';
+        transitionTo('preview');
     }
 });
 $('btn-packs-back').addEventListener('click', () => {

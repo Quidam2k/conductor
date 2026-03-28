@@ -13,9 +13,10 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const RPM_DB_NAME = 'conductor-packs';
-const RPM_DB_VERSION = 1;
+const RPM_DB_VERSION = 2;
 const RPM_STORE_MANIFESTS = 'manifests';
 const RPM_STORE_AUDIO = 'audio';
+const RPM_STORE_EVENTS = 'events';
 
 // ─── Zip parsing helpers ────────────────────────────────────────────────────
 
@@ -208,6 +209,9 @@ function openPackDB() {
             }
             if (!db.objectStoreNames.contains(RPM_STORE_AUDIO)) {
                 db.createObjectStore(RPM_STORE_AUDIO);
+            }
+            if (!db.objectStoreNames.contains(RPM_STORE_EVENTS)) {
+                db.createObjectStore(RPM_STORE_EVENTS, { keyPath: 'key' });
             }
         };
         req.onsuccess = () => resolve(req.result);
@@ -410,7 +414,7 @@ function createResourcePackManager() {
 
         await new Promise((resolve, reject) => {
             const tx = database.transaction(
-                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO],
+                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO, RPM_STORE_EVENTS],
                 'readwrite'
             );
             tx.oncomplete = () => resolve();
@@ -425,6 +429,19 @@ function createResourcePackManager() {
                     audioStore.delete(packId + ':' + cueId);
                 }
             }
+
+            // Delete all event entries for this pack
+            const eventsStore = tx.objectStore(RPM_STORE_EVENTS);
+            const cursorReq = eventsStore.openCursor();
+            cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    if (cursor.value.packId === packId) {
+                        cursor.delete();
+                    }
+                    cursor.continue();
+                }
+            };
         });
 
         // Clear cache
@@ -572,6 +589,19 @@ function createResourcePackManager() {
         return Object.keys(manifest.cues);
     }
 
+    /**
+     * Get stored events for a pack.
+     * @param {string} packId
+     * @returns {Promise<Array<{name: string, file: string, event: Object}>>}
+     */
+    async function getPackEvents(packId) {
+        const database = await ensureDB();
+        const all = await idbGetAll(database, RPM_STORE_EVENTS);
+        return all
+            .filter(e => e.packId === packId)
+            .map(e => ({ name: e.name, file: e.file, event: e.event }));
+    }
+
     // ─── Pack validation ────────────────────────────────────────
 
     /**
@@ -673,6 +703,30 @@ function createResourcePackManager() {
             }
         }
 
+        // Store parsed events in IDB for the Pack Events UI
+        if (events.length > 0) {
+            const database3 = await ensureDB();
+            await new Promise((resolve, reject) => {
+                const tx = database3.transaction(RPM_STORE_EVENTS, 'readwrite');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                const store = tx.objectStore(RPM_STORE_EVENTS);
+                for (let i = 0; i < manifest.events.length; i++) {
+                    const eventRef = manifest.events[i];
+                    const match = events.find(e => e.name === (eventRef.name || eventRef.file));
+                    if (match) {
+                        store.put({
+                            key: manifest.id + ':' + eventRef.file,
+                            packId: manifest.id,
+                            name: eventRef.name || eventRef.file,
+                            file: eventRef.file,
+                            event: match.event,
+                        });
+                    }
+                }
+            });
+        }
+
         const validation = events.length > 0
             ? validatePackEvents(manifest, events)
             : null;
@@ -692,6 +746,7 @@ function createResourcePackManager() {
         getAudioContext,
         getPackInfo,
         getCueList,
+        getPackEvents,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,

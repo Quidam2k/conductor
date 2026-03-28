@@ -1,0 +1,27 @@
+# The Stillness — Freeze Mob
+# The power of sudden collective stillness. No props needed.
+# Standalone event — runs independently.
+
+Title: The Stillness
+Description: Freeze mob — sudden stillness in a public space. Two freeze cycles with different countdowns.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Stillness — freeze mob
+exit:         West side, near the bookstore
+exit_coords:  45.5235, -122.6780
+rally:        Library courtyard, south benches
+rally_coords: 45.5248, -122.6760
+abort:        Unfreeze. Walk to exit. Normal pace.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+1:00  [countdown:5, haptic:triple] Freeze
+1:05  [no-notify, no-countdown] Hold your position
+2:00  [no-countdown] Unfreeze
+2:30  [countdown:3, haptic:triple] Freeze
+2:35  [no-notify, no-countdown] Hold your position
+3:00  [no-countdown] Unfreeze
+3:10  [no-countdown] Disperse
+3:30  [no-notify, no-countdown] Done

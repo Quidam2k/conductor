@@ -1,0 +1,27 @@
+# The Walk — Movement Group
+# Movement with lights through The Stand's formation.
+# Interlocking pair B — runs with The Stand at the same event.
+
+Title: The Walk
+Description: Movement group — form a line, walk through the formation with lights. Runs alongside The Stand.
+Start: 2026-03-15 12:00 PM
+Timezone: America/Chicago
+
+[BRIEFING]
+role:         The Walk — movement group
+exit:         South gate, past the fountain
+exit_coords:  45.5225, -122.6770
+rally:        Coffee shop on 6th, outdoor tables
+rally_coords: 45.5241, -122.6752
+abort:        Stop walking. Pocket your light. Walk to exit.
+
+[TIMELINE]
+0:30  [no-countdown] In position — act natural
+1:00  [no-countdown] Form a line
+1:30  [countdown:5, haptic:triple] Begin walking
+2:15  [no-countdown] Turn on your light
+2:45  [no-countdown] Face the center
+3:15  [no-countdown] Walk slowly
+3:45  [no-countdown] Turn off your light
+4:15  [no-countdown] Stop where you are
+5:00  [no-notify, no-countdown] Done
