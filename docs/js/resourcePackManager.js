@@ -705,9 +705,9 @@ function createResourcePackManager() {
 
         // Store parsed events in IDB for the Pack Events UI
         if (events.length > 0) {
-            const database3 = await ensureDB();
+            const db = await ensureDB();
             await new Promise((resolve, reject) => {
-                const tx = database3.transaction(RPM_STORE_EVENTS, 'readwrite');
+                const tx = db.transaction(RPM_STORE_EVENTS, 'readwrite');
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
                 const store = tx.objectStore(RPM_STORE_EVENTS);
