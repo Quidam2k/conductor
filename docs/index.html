@@ -620,6 +620,11 @@
             padding: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
+        .pack-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .pack-info { flex: 1; min-width: 0; }
         .pack-name {
             font-size: 15px;
@@ -1459,7 +1464,7 @@ function rebaseEventToNow(embeddedEvent) {
     const newStart = Date.now() + 60 * 1000; // 60 seconds from now
     const delta = newStart - originalStart;
 
-    const rebased = JSON.parse(JSON.stringify(embeddedEvent)); // deep clone
+    const rebased = structuredClone(embeddedEvent);
     rebased.startTime = new Date(newStart).toISOString();
     rebased.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -2933,7 +2938,12 @@ async function renderPackManager() {
 
     emptyEl.style.display = 'none';
 
-    for (const manifest of packs) {
+    // Fetch events for all packs in parallel
+    const allPackEvents = await Promise.all(packs.map(m => packManager.getPackEvents(m.id)));
+
+    for (let p = 0; p < packs.length; p++) {
+        const manifest = packs[p];
+        const events = allPackEvents[p];
         const cueCount = manifest.cues ? Object.keys(manifest.cues).length : 0;
         const card = document.createElement('div');
         card.className = 'pack-card';
@@ -2942,8 +2952,6 @@ async function renderPackManager() {
             ? `<div class="pack-url"><a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener">Download link</a> <button class="pack-copy-url" data-url="${escapeHtml(safeUrl)}">Copy</button></div>`
             : '';
 
-        // Fetch bundled events for this pack
-        const events = await packManager.getPackEvents(manifest.id);
         let eventsHtml = '';
         if (events.length > 0) {
             let items = '';
@@ -2959,7 +2967,7 @@ async function renderPackManager() {
         }
 
         card.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px">
+            <div class="pack-header">
                 <div class="pack-info">
                     <div class="pack-name">${escapeHtml(manifest.name)}</div>
                     <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}${events.length > 0 ? ' &middot; ' + events.length + ' event' + (events.length !== 1 ? 's' : '') : ''}</div>
