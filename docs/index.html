@@ -1490,9 +1490,9 @@ function createDemoEvent() {
     const startTime = new Date(startMs).toISOString();
 
     const actions = [
-        { offset: 30,  action: 'In position — act natural' },
+        { offset: 30,  action: 'Get in position',    noticeOff: true },
         { offset: 60,  action: 'Freeze',
-          countdownSeconds: [5, 4, 3, 2, 1], hapticPattern: 'triple' },
+          countdownSeconds: [3, 2, 1], hapticPattern: 'triple' },
         { offset: 65,  action: 'Hold your position', noticeOff: true },
         { offset: 120, action: 'Unfreeze' },
         { offset: 150, action: 'Freeze',
