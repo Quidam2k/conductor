@@ -87,8 +87,8 @@ Conductor is designed to be uncensorable. Host your own copy:
 1. **GitHub Pages** — Fork this repo, enable Pages on `docs/`
 2. **Any Static Server** — Upload the `docs/` folder to Netlify, Vercel, or your own server
 3. **IPFS** — Pin the `docs/` folder for decentralized hosting
-4. **USB Stick** — Copy `docs/` to a thumb drive, open `index.html` directly in a browser
-5. **Local File** — Just open `index.html` from your filesystem. It works from `file://`
+4. **USB Stick** — Copy `conductor.html` to a thumb drive. One file, works offline
+5. **Local File** — Just open `conductor.html` from your filesystem. It works from `file://`
 
 Events created on one host work on any other — the data is in the URL.
 
