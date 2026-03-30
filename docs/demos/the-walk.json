@@ -1,10 +1,10 @@
 {
   "title": "The Walk",
-  "description": "Movement group \u00e2\u20ac\u201d form a line, walk through the formation with lights. Runs alongside The Stand.",
+  "description": "Movement group â€” form a line, walk through the formation with lights. Runs alongside The Stand.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Walk \u00e2\u20ac\u201d movement group",
+    "role": "The Walk â€” movement group",
     "exit": "South gate, past the fountain",
     "exitCoords": "45.5225, -122.6770",
     "rally": "Coffee shop on 6th, outdoor tables",
@@ -15,9 +15,10 @@
     {
       "id": "walk-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position \u00e2\u20ac\u201d act natural",
+      "action": "Get in position",
       "cue": "in-position",
-      "pack": "conductor-demo"
+      "pack": "conductor-demo",
+      "noticeSeconds": 0
     },
     {
       "id": "walk-03",
@@ -31,8 +32,6 @@
       "time": "2026-03-15T17:01:30Z",
       "action": "Begin walking",
       "countdownSeconds": [
-        5,
-        4,
         3,
         2,
         1

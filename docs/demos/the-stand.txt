@@ -23,6 +23,6 @@ abort:        Close umbrella. Walk to exit. Do not run.
 2:10  [no-notify, no-countdown] Freeze
 2:45  [no-countdown] Light up your umbrella
 3:30  [no-countdown] Hold your position
-4:00  [no-countdown] Umbrella lights off
+4:00  [no-countdown] Turn off umbrella lights
 4:30  [no-countdown] Close your umbrella
 5:00  [no-notify, no-countdown] Done
