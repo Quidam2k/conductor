@@ -129,7 +129,7 @@ When the system needs to play audio for an action, it tries these sources in ord
 
 Packs can include event scripts so that related events travel together. When a user imports a pack containing events, the system validates audio coverage for all bundled event actions and reports the results.
 
-> **[Not Yet Implemented]** A future "Pack Events" section in the pack manager will let users browse and load bundled events directly. Currently, event files are used for validation only.
+> Bundled events appear in the pack manager with **Load** buttons, allowing users to browse and load events directly from an imported pack.
 
 Event JSON files may include a `briefing` object with fields like `role`, `exit`, `exitCoords`, `rally`, `rallyCoords`, `abort`, and `notes`. This briefing info is displayed on screen during the event for participant reference. See `TEXT_FORMAT.md` for the full list of briefing keys.
 
@@ -138,14 +138,14 @@ Event JSON files may include a `briefing` object with fields like `role`, `exit`
 ```json
 "events": [
   {
-    "file": "events/demo-freeze.json",
-    "name": "The Freeze",
-    "role": "Umbrella formation — open, hold, light, close, disperse"
+    "file": "events/the-stillness.json",
+    "name": "The Stillness",
+    "role": "Freeze mob — sudden collective stillness, no props"
   },
   {
-    "file": "events/demo-walkthrough.json",
-    "name": "The Walk-Through",
-    "role": "Movement group — walk through the umbrella formation"
+    "file": "events/the-bloom.json",
+    "name": "The Bloom",
+    "role": "Umbrella performance — raise, open, sway, light, close"
   }
 ]
 ```
@@ -184,7 +184,7 @@ The pack manager displays uncovered actions after import:
 
 ```
 Pack imported: Conductor Demo
-79 cues · 2 events
+121 cues · 7 events
 
 ⚠ 2 actions will fall back to TTS:
   • "Custom phrase" (reveal @ 1:30)
