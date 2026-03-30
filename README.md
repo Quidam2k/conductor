@@ -92,61 +92,17 @@ Conductor is designed to be uncensorable. Host your own copy:
 
 Events created on one host work on any other — the data is in the URL.
 
-## Project Structure
-
-```
-conductor/
-├── docs/                              # PWA (served by GitHub Pages)
-│   ├── index.html                     # Main app: 9 screens, ~3460 lines
-│   ├── js/                            # JS modules (7 files)
-│   │   ├── models.js                  #   Data models + conversion helpers
-│   │   ├── eventEncoder.js            #   URL encoder/decoder, text/JSON parsers
-│   │   ├── timingEngine.js            #   Timing, positions, countdowns, practice mode
-│   │   ├── audioService.js            #   TTS, haptics, resource pack audio fallback
-│   │   ├── circularTimeline.js        #   Canvas circular timeline renderer
-│   │   ├── resourcePackManager.js     #   IndexedDB pack storage, zip extraction, validation
-│   │   └── draftManager.js            #   IndexedDB draft persistence
-│   ├── lib/                           # Third-party libs
-│   │   ├── pako.min.js                #   Gzip compression (~25KB)
-│   │   ├── qr-creator.min.js          #   QR code generation (~12KB)
-│   │   └── qr-scanner.legacy.min.js   #   QR code scanning (~55KB)
-│   ├── demos/                         # Demo content
-│   │   ├── the-stillness.txt/.json     #   7 event scripts (.txt + .json pairs)
-│   │   ├── the-bloom.txt/.json        #   (The Bloom, Lights Out, The Signal,
-│   │   ├── ...                        #    The Stand, The Walk, The Murmur)
-│   │   ├── manifest.json              #   Pack manifest (121 cues)
-│   │   └── wav-manifest.md            #   Voice generation instructions
-│   ├── start.html                     # Getting started landing page
-│   ├── conductor-demo.zip             # Demo resource pack (121 cues, ~32MB)
-│   ├── GUIDE.md                       # Tutorial: quick start, packs, events
-│   ├── sw.js                          # Service Worker v28 (offline caching)
-│   ├── manifest.json                  # PWA manifest
-│   ├── TEXT_FORMAT.md                 # Human-readable text event format guide
-│   ├── RESOURCE_PACK_FORMAT.md        # Resource pack format specification
-│   └── test-*.html                    # Module test harnesses (6 pages)
-├── tests/                             # Playwright test specs
-│   ├── integration.spec.js            # 50 integration tests
-│   └── unit-harnesses.spec.js         # 6 unit harness tests (~280 assertions)
-├── conductor-mobile/                  # KMM Android app (reference, porting complete)
-├── _archive/                          # Old server/client code + KMM-era docs
-├── LICENSE                            # AGPL-3.0
-├── CLAUDE.md                          # Development documentation
-├── LESSONS_LEARNED.md                 # Technical discoveries from Plans 1-14
-└── TESTING_CHECKLIST.md               # Manual real-device testing checklist
-```
-
-## Development
+## Contributing
 
 ```bash
-# Serve locally
-cd docs
-python -m http.server 8000
-# Open http://localhost:8000
+# Serve locally for development
+cd docs && python -m http.server 8000
 
 # Run tests (requires Playwright)
 npx playwright test
-# 50 integration + 6 unit harnesses × 2 browsers = 112 total tests
 ```
+
+Found a bug or have an idea? [Open an issue](https://github.com/Quidam2k/conductor/issues) — we'd love to hear from you.
 
 ## License
 
