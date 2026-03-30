@@ -833,19 +833,24 @@
             </div>
         </details>
 
+        <div id="getting-started-section" style="display:none;">
+            <button id="btn-demo" class="btn-green" style="font-size:1.1rem; padding:16px;">Try the Demo</button>
+            <span class="getting-started-hint">See how it works — plays a sample event using your phone's built-in voice.</span>
+
+            <div style="margin-top:12px;">
+                <span class="getting-started-hint">Have a resource pack (.zip)? Import it for better audio:</span>
+                <input type="file" id="pack-file-input-quick" accept=".zip" style="display:none;">
+                <button id="btn-import-pack-quick" class="btn-outline" style="margin-top:6px;">Import Resource Pack</button>
+                <div id="import-status-quick" class="import-status"></div>
+            </div>
+
+            <div class="separator">already have an event?</div>
+        </div>
+
         <textarea id="input-paste" placeholder="Got an event code? Paste it here..."></textarea>
         <div id="input-error" class="error-msg"></div>
         <button id="btn-load" class="btn-primary">Load Event</button>
         <button id="btn-scan-qr" class="btn-outline">Scan QR Code</button>
-
-        <div id="getting-started-section" style="display:none;">
-            <div class="separator">getting started</div>
-            <span class="getting-started-hint">Downloaded a resource pack (.zip)? Import it for enhanced audio.</span>
-            <input type="file" id="pack-file-input-quick" accept=".zip" style="display:none;">
-            <button id="btn-import-pack-quick" class="btn-green">Import Resource Pack</button>
-            <div id="import-status-quick" class="import-status"></div>
-            <span class="getting-started-hint" style="margin-top:8px;">Or try <strong>Load Demo Event</strong> below — works right away using your phone's built-in voice.</span>
-        </div>
 
         <div id="drafts-section" style="display:none;">
             <h3 style="font-size:14px; color:var(--text-dim); margin:16px 0 8px;">My Drafts</h3>
@@ -855,8 +860,10 @@
         <div class="separator">or</div>
 
         <button id="btn-create" class="btn-green">Create New Event</button>
-        <button id="btn-demo" class="btn-outline">Load Demo Event</button>
-        <span class="btn-hint">Try a sample event to see how it works</span>
+        <div id="demo-fallback" style="display:none;">
+            <button id="btn-demo-fallback" class="btn-outline">Load Demo Event</button>
+            <span class="btn-hint">Try a sample event to see how it works</span>
+        </div>
 
         <div class="separator">or</div>
 
@@ -2913,9 +2920,14 @@ async function shareBundleFile(includeEvent, triggerBtn) {
 
 async function updateInputLayout() {
     const section = $('getting-started-section');
+    const fallback = $('demo-fallback');
     if (!section) return;
     const packs = await packManager.listPacks();
-    section.style.display = packs.length === 0 ? '' : 'none';
+    const isNewUser = packs.length === 0;
+    // New users: show prominent "Try the Demo" at top, hide secondary demo button
+    // Returning users: hide getting-started, show fallback demo button
+    section.style.display = isNewUser ? '' : 'none';
+    if (fallback) fallback.style.display = isNewUser ? 'none' : '';
 }
 
 /** Map of "packId:idx" → event object, rebuilt each render */
@@ -3138,11 +3150,13 @@ $('btn-load').addEventListener('click', () => {
     }
 });
 
-$('btn-demo').addEventListener('click', () => {
+function loadDemo() {
     createDemoEvent();
     state.previewReturnTo = 'input';
     transitionTo('preview');
-});
+}
+$('btn-demo').addEventListener('click', loadDemo);
+$('btn-demo-fallback').addEventListener('click', loadDemo);
 
 $('btn-import-event').addEventListener('click', () => {
     $('event-file-input').click();
