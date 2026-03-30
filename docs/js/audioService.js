@@ -188,17 +188,21 @@ function createAudioService() {
         };
 
         // 1. Notice announcement (highest temporal threshold, fires first chronologically)
-        if (crossed(noticeSeconds) && action.announceActionName) {
+        //    Does NOT return early — allows countdown to also fire on the same tick
+        //    if noticeSeconds coincides with a countdown threshold.
+        let noticeResult = null;
+        if (noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
                 const text = resolveAudioCue(action, 'notice', speedMultiplier);
                 if (text === null) {
-                    return `notice-pack: "${action.cue || 'random'}"`;
+                    noticeResult = `notice-pack: "${action.cue || 'random'}"`;
+                } else {
+                    const noticeText = 'Get ready to ' + text.toLowerCase();
+                    speak(noticeText, 1.2 * speedMultiplier);
+                    noticeResult = `notice: "${noticeText}"`;
                 }
-                const noticeText = 'Get ready to ' + text.toLowerCase();
-                speak(noticeText, 1.2 * speedMultiplier);
-                return `notice: "${noticeText}"`;
             }
         }
 
@@ -255,7 +259,7 @@ function createAudioService() {
             }
         }
 
-        return null;
+        return noticeResult;
     }
 
     // ─── Resource pack fallback chain ───────────────────────────
