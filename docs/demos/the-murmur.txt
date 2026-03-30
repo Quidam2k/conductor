@@ -16,7 +16,7 @@ rally_coords: 45.5232, -122.6790
 abort:        Stop. Walk to exit silently.
 
 [TIMELINE]
-0:30  [no-countdown] In position — act natural
+0:30  [no-countdown, no-notify] Get in position
 0:45  [no-countdown] Face the center
 1:15  [no-countdown] Begin humming
 1:45  [no-countdown] Turn slowly in place

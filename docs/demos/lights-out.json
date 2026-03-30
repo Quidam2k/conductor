@@ -1,10 +1,10 @@
 {
   "title": "Lights Out",
-  "description": "Phone flashlight performance — raise, light, gaze, sway, and lower in the dark. Evening event.",
+  "description": "Phone flashlight performance \u00e2\u20ac\u201d raise, light, gaze, sway, and lower in the dark. Evening event.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "Lights Out — flashlight group",
+    "role": "Lights Out \u00e2\u20ac\u201d flashlight group",
     "exit": "North path, toward the main road",
     "exitCoords": "45.5240, -122.6758",
     "rally": "Corner cafe, patio seating",
@@ -15,7 +15,7 @@
     {
       "id": "lightsout-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position — act natural",
+      "action": "In position \u00e2\u20ac\u201d act natural",
       "cue": "in-position",
       "pack": "conductor-demo"
     },
@@ -30,7 +30,13 @@
       "id": "lightsout-04",
       "time": "2026-03-15T17:01:30Z",
       "action": "Turn on your light",
-      "countdownSeconds": [5, 4, 3, 2, 1],
+      "countdownSeconds": [
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
       "hapticPattern": "triple",
       "cue": "light-on",
       "pack": "conductor-demo"

@@ -15,7 +15,8 @@
     {
       "id": "stillness-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position — act natural",
+      "action": "Get in position",
+      "noticeSeconds": 0,
       "cue": "in-position",
       "pack": "conductor-demo"
     },
@@ -23,7 +24,7 @@
       "id": "stillness-03",
       "time": "2026-03-15T17:01:00Z",
       "action": "Freeze",
-      "countdownSeconds": [5, 4, 3, 2, 1],
+      "countdownSeconds": [3, 2, 1],
       "hapticPattern": "triple",
       "cue": "freeze",
       "pack": "conductor-demo"
