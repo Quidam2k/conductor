@@ -16,7 +16,7 @@ rally_coords: 45.5251, -122.6741
 abort:        Close umbrella. Walk to exit. Do not run.
 
 [TIMELINE]
-0:30  [no-countdown] In position — act natural
+0:30  [no-countdown, no-notify] Get in position
 1:00  [no-countdown] Stand tall
 1:30  [no-countdown] Raise your umbrella high
 2:00  [countdown:5, haptic:triple] Open your umbrella

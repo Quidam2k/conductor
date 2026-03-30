@@ -1,10 +1,10 @@
 {
   "title": "The Signal",
-  "description": "Sign reveal — step forward, raise, flip, and hold signs in unison. Bring a two-sided sign.",
+  "description": "Sign reveal \u00e2\u20ac\u201d step forward, raise, flip, and hold signs in unison. Bring a two-sided sign.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Signal — sign group",
+    "role": "The Signal \u00e2\u20ac\u201d sign group",
     "exit": "Southeast corner, past the fountain",
     "exitCoords": "45.5222, -122.6755",
     "rally": "Community center steps",
@@ -15,7 +15,7 @@
     {
       "id": "signal-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position — act natural",
+      "action": "In position \u00e2\u20ac\u201d act natural",
       "cue": "in-position",
       "pack": "conductor-demo"
     },
@@ -30,7 +30,13 @@
       "id": "signal-04",
       "time": "2026-03-15T17:01:30Z",
       "action": "Raise your sign",
-      "countdownSeconds": [5, 4, 3, 2, 1],
+      "countdownSeconds": [
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
       "hapticPattern": "triple",
       "cue": "raise-sign",
       "pack": "conductor-demo"
