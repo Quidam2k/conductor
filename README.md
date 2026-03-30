@@ -17,7 +17,7 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 
 ## Try It
 
-**[quidam2k.github.io/conductor/](https://quidam2k.github.io/conductor/)** — open the app
+**[Try the Demo](https://quidam2k.github.io/conductor/index.html?demo)** — loads a sample event right in your browser, no download needed
 
 **[Getting Started](https://quidam2k.github.io/conductor/start.html)** — download, tutorial, and walkthrough
 

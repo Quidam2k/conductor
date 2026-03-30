@@ -3457,6 +3457,13 @@ window.addEventListener('hashchange', () => {
 if (loadFromHash()) {
     state.previewReturnTo = 'input';
     transitionTo('preview');
+} else if (new URLSearchParams(location.search).has('demo')) {
+    // Arriving from start.html "Use It Now" — go straight to demo
+    createDemoEvent();
+    state.previewReturnTo = 'input';
+    transitionTo('preview');
+    // Clean URL without reload
+    history.replaceState(null, '', location.pathname);
 } else {
     // On input screen by default — render draft list + pack hint
     renderDraftList();

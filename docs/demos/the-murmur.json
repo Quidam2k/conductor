@@ -1,10 +1,10 @@
 {
   "title": "The Murmur",
-  "description": "Synchronized sound and movement \u00e2\u20ac\u201d humming, whispering, turning, and forming shapes. No props needed.",
+  "description": "Synchronized sound and movement â€” humming, whispering, turning, and forming shapes. No props needed.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Murmur \u00e2\u20ac\u201d sound and movement",
+    "role": "The Murmur â€” sound and movement",
     "exit": "Southwest path, along the hedge",
     "exitCoords": "45.5218, -122.6775",
     "rally": "Garden gate, stone benches",
@@ -15,9 +15,10 @@
     {
       "id": "murmur-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position \u00e2\u20ac\u201d act natural",
+      "action": "Get in position",
       "cue": "in-position",
-      "pack": "conductor-demo"
+      "pack": "conductor-demo",
+      "noticeSeconds": 0
     },
     {
       "id": "murmur-03",
@@ -57,7 +58,7 @@
     {
       "id": "murmur-08",
       "time": "2026-03-15T17:02:50Z",
-      "action": "Silence",
+      "action": "Go silent",
       "cue": "silence",
       "pack": "conductor-demo"
     },

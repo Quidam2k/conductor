@@ -1,10 +1,10 @@
 {
   "title": "The Bloom",
-  "description": "Umbrella performance \u00e2\u20ac\u201d raise, open, sway, light, and close in unison. Bring a white umbrella and small light.",
+  "description": "Umbrella performance â€” raise, open, sway, light, and close in unison. Bring a white umbrella and small light.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Bloom \u00e2\u20ac\u201d umbrella group",
+    "role": "The Bloom â€” umbrella group",
     "exit": "East entrance, near the parking garage",
     "exitCoords": "45.5228, -122.6748",
     "rally": "Riverside park, footbridge area",
@@ -15,9 +15,10 @@
     {
       "id": "bloom-02",
       "time": "2026-03-15T17:00:30Z",
-      "action": "In position \u00e2\u20ac\u201d act natural",
+      "action": "Get in position",
       "cue": "in-position",
-      "pack": "conductor-demo"
+      "pack": "conductor-demo",
+      "noticeSeconds": 0
     },
     {
       "id": "bloom-03",
@@ -31,8 +32,6 @@
       "time": "2026-03-15T17:01:30Z",
       "action": "Open your umbrella",
       "countdownSeconds": [
-        5,
-        4,
         3,
         2,
         1
@@ -65,7 +64,7 @@
     {
       "id": "bloom-08",
       "time": "2026-03-15T17:03:30Z",
-      "action": "Umbrella lights off",
+      "action": "Turn off umbrella lights",
       "cue": "dark-umbrella",
       "pack": "conductor-demo"
     },
