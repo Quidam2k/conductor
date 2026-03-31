@@ -318,6 +318,7 @@
             border-bottom: 1px solid rgba(255,255,255,0.06);
             border-left: 3px solid transparent;
             font-size: 14px;
+            line-height: 1.3;
         }
         .action-dot {
             width: 10px;
@@ -832,7 +833,7 @@
             </div>
         </details>
 
-        <div id="getting-started-section" style="display:none;">
+        <div id="getting-started-section">
             <button id="btn-demo" class="btn-green" style="font-size:1.1rem; padding:16px;">Try the Demo</button>
             <span class="getting-started-hint">See how it works — plays a sample event using your phone's built-in voice.</span>
 
@@ -3048,6 +3049,22 @@ function createResourcePackManager() {
      * @param {function(string): void} [onProgress] - Progress callback
      * @returns {Promise<Object>} The pack manifest
      */
+    /**
+     * Extract just the manifest from a zip without importing.
+     * Returns null if the zip is invalid or has no manifest.
+     */
+    async function peekManifest(arrayBuffer) {
+        try {
+            const entries = parseZipCentralDirectory(arrayBuffer);
+            const manifestEntry = entries.find(e => e.name === 'manifest.json');
+            if (!manifestEntry) return null;
+            const manifestBytes = await extractZipFile(arrayBuffer, manifestEntry);
+            return JSON.parse(new TextDecoder().decode(manifestBytes));
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function importPack(arrayBuffer, onProgress) {
         const progress = onProgress || (() => {});
 
@@ -3486,6 +3503,7 @@ function createResourcePackManager() {
     }
 
     return {
+        peekManifest,
         importPack,
         importPackWithValidation,
         validatePackEvents,
@@ -4871,7 +4889,7 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 // PRACTICE mode
 // ═══════════════════════════════════════════════════════════════════════════
 
-function enterPractice() {
+async function enterPractice() {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -4892,8 +4910,8 @@ function enterPractice() {
         hideBanner('practice-banner');
     }
 
-    // Pre-load resource packs referenced by event actions
-    preloadEventPacks(evt);
+    // Pre-load resource packs referenced by event actions (wait for audio buffers)
+    await preloadEventPacks(evt);
 
     // Set practice start: begin 15s before first action
     const sorted = [...evt.timeline].sort((a, b) =>
@@ -4936,7 +4954,7 @@ function startPracticeLoop() {
 // LIVE mode
 // ═══════════════════════════════════════════════════════════════════════════
 
-function enterLive() {
+async function enterLive() {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -4972,8 +4990,8 @@ function enterLive() {
         hideBanner('live-banner');
     }
 
-    // Pre-load resource packs referenced by event actions
-    preloadEventPacks(evt);
+    // Pre-load resource packs referenced by event actions (wait for audio buffers)
+    await preloadEventPacks(evt);
 
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
@@ -5162,14 +5180,12 @@ function toggleMute() {
  * Pre-load resource packs referenced by event actions.
  * Fires async — doesn't block mode entry; audio falls back to TTS if not ready.
  */
-function preloadEventPacks(evt) {
+async function preloadEventPacks(evt) {
     const packIds = new Set();
     for (const action of evt.timeline) {
         if (action.pack) packIds.add(action.pack);
     }
-    for (const packId of packIds) {
-        packManager.ensurePackLoaded(packId).catch(() => {});
-    }
+    await Promise.all([...packIds].map(id => packManager.ensurePackLoaded(id).catch(() => {})));
 }
 
 function escapeHtml(str) {
@@ -5958,13 +5974,21 @@ async function importPackFromFile(file) {
 
     try {
         const arrayBuffer = await file.arrayBuffer();
+
+        // Peek at manifest to check for existing pack
+        const peekBuf = arrayBuffer.slice(0);
+        const tempManifest = await packManager.peekManifest(peekBuf);
+        const wasInstalled = tempManifest && await packManager.hasPack(tempManifest.id);
+
         const { manifest, validation } = await packManager.importPackWithValidation(arrayBuffer, (msg) => {
             statusEl.textContent = msg;
         });
         await packManager.ensurePackLoaded(manifest.id);
 
         const cueCount = Object.keys(manifest.cues).length;
-        let summary = `Imported "${manifest.name}" (${cueCount} cues`;
+        let summary = wasInstalled
+            ? `Updated "${manifest.name}" (${cueCount} cues`
+            : `Imported "${manifest.name}" (${cueCount} cues`;
         if (manifest.events && manifest.events.length > 0) summary += `, ${manifest.events.length} events`;
         summary += ')';
 
@@ -6396,12 +6420,17 @@ $('pack-file-input-quick').addEventListener('change', async (e) => {
     statusEl.textContent = 'Reading file...';
     try {
         const arrayBuffer = await file.arrayBuffer();
+        const peekBuf = arrayBuffer.slice(0);
+        const tempManifest = await packManager.peekManifest(peekBuf);
+        const wasInstalled = tempManifest && await packManager.hasPack(tempManifest.id);
         const { manifest, validation } = await packManager.importPackWithValidation(arrayBuffer, (msg) => {
             statusEl.textContent = msg;
         });
         await packManager.ensurePackLoaded(manifest.id);
         const cueCount = Object.keys(manifest.cues).length;
-        let summary = `Imported "${manifest.name}" (${cueCount} cues)`;
+        let summary = wasInstalled
+            ? `Updated "${manifest.name}" (${cueCount} cues)`
+            : `Imported "${manifest.name}" (${cueCount} cues)`;
         statusEl.className = 'import-status success';
         statusEl.textContent = summary;
         updateInputLayout();

@@ -297,6 +297,22 @@ function createResourcePackManager() {
      * @param {function(string): void} [onProgress] - Progress callback
      * @returns {Promise<Object>} The pack manifest
      */
+    /**
+     * Extract just the manifest from a zip without importing.
+     * Returns null if the zip is invalid or has no manifest.
+     */
+    async function peekManifest(arrayBuffer) {
+        try {
+            const entries = parseZipCentralDirectory(arrayBuffer);
+            const manifestEntry = entries.find(e => e.name === 'manifest.json');
+            if (!manifestEntry) return null;
+            const manifestBytes = await extractZipFile(arrayBuffer, manifestEntry);
+            return JSON.parse(new TextDecoder().decode(manifestBytes));
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function importPack(arrayBuffer, onProgress) {
         const progress = onProgress || (() => {});
 
@@ -735,6 +751,7 @@ function createResourcePackManager() {
     }
 
     return {
+        peekManifest,
         importPack,
         importPackWithValidation,
         validatePackEvents,
