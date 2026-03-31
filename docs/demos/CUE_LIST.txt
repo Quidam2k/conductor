@@ -1,0 +1,151 @@
+Conductor Demo Pack — Available Cues
+========================================
+
+Pack: Conductor Demo v3.0.0
+Total: 121 cues
+
+System Cues (1)
+------------------------------
+  countdown-voice
+
+Action Cues (60)
+------------------------------
+Use these names in your event scripts.
+The app matches cue names to action text automatically.
+
+  begin-walking             Begin Walking
+  close-umbrella            Close Umbrella
+  dark-sign                 Dark Sign
+  dark-umbrella             Dark Umbrella
+  dir-east                  Dir East
+  dir-north                 Dir North
+  dir-south                 Dir South
+  dir-west                  Dir West
+  disperse                  Disperse
+  done                      Done
+  face-center               Face Center
+  face-left                 Face Left
+  face-right                Face Right
+  flip-sign                 Flip Sign
+  form-circle               Form Circle
+  form-line                 Form Line
+  freeze                    Freeze
+  gaze-down                 Gaze Down
+  gaze-up                   Gaze Up
+  hands-down                Hands Down
+  hands-up                  Hands Up
+  hold                      Hold
+  hum                       Hum
+  in-position               In Position
+  kneel                     Kneel
+  light-off                 Light Off
+  light-on                  Light On
+  light-sign                Light Sign
+  light-umbrella            Light Umbrella
+  lower-sign                Lower Sign
+  open-umbrella             Open Umbrella
+  phone-down                Phone Down
+  phone-up                  Phone Up
+  raise-sign                Raise Sign
+  silence                   Silence
+  slow-turn                 Slow Turn
+  stand-by                  Stand By
+  stand-tall                Stand Tall
+  step-forward              Step Forward
+  stop                      Stop
+  stop-walking              Stop Walking
+  sway                      Sway
+  ten-seconds               Ten Seconds
+  thirty-seconds            Thirty Seconds
+  turn-east                 Turn East
+  turn-north                Turn North
+  turn-south                Turn South
+  turn-west                 Turn West
+  umbrella-down             Umbrella Down
+  umbrella-up               Umbrella Up
+  unfreeze                  Unfreeze
+  walk                      Walk
+  walk-east                 Walk East
+  walk-in                   Walk In
+  walk-north                Walk North
+  walk-out                  Walk Out
+  walk-slowly               Walk Slowly
+  walk-south                Walk South
+  walk-west                 Walk West
+  whisper                   Whisper
+
+Notice Cues (60)
+------------------------------
+These play automatically as "get ready" warnings.
+You don't need to reference them directly.
+
+  notice-begin-walking           (before "begin-walking")
+  notice-close-umbrella          (before "close-umbrella")
+  notice-dark-sign               (before "dark-sign")
+  notice-dark-umbrella           (before "dark-umbrella")
+  notice-dir-east                (before "dir-east")
+  notice-dir-north               (before "dir-north")
+  notice-dir-south               (before "dir-south")
+  notice-dir-west                (before "dir-west")
+  notice-disperse                (before "disperse")
+  notice-done                    (before "done")
+  notice-face-center             (before "face-center")
+  notice-face-left               (before "face-left")
+  notice-face-right              (before "face-right")
+  notice-flip-sign               (before "flip-sign")
+  notice-form-circle             (before "form-circle")
+  notice-form-line               (before "form-line")
+  notice-freeze                  (before "freeze")
+  notice-gaze-down               (before "gaze-down")
+  notice-gaze-up                 (before "gaze-up")
+  notice-hands-down              (before "hands-down")
+  notice-hands-up                (before "hands-up")
+  notice-hold                    (before "hold")
+  notice-hum                     (before "hum")
+  notice-in-position             (before "in-position")
+  notice-kneel                   (before "kneel")
+  notice-light-off               (before "light-off")
+  notice-light-on                (before "light-on")
+  notice-light-sign              (before "light-sign")
+  notice-light-umbrella          (before "light-umbrella")
+  notice-lower-sign              (before "lower-sign")
+  notice-open-umbrella           (before "open-umbrella")
+  notice-phone-down              (before "phone-down")
+  notice-phone-up                (before "phone-up")
+  notice-raise-sign              (before "raise-sign")
+  notice-silence                 (before "silence")
+  notice-slow-turn               (before "slow-turn")
+  notice-stand-by                (before "stand-by")
+  notice-stand-tall              (before "stand-tall")
+  notice-step-forward            (before "step-forward")
+  notice-stop                    (before "stop")
+  notice-stop-walking            (before "stop-walking")
+  notice-sway                    (before "sway")
+  notice-ten-seconds             (before "ten-seconds")
+  notice-thirty-seconds          (before "thirty-seconds")
+  notice-turn-east               (before "turn-east")
+  notice-turn-north              (before "turn-north")
+  notice-turn-south              (before "turn-south")
+  notice-turn-west               (before "turn-west")
+  notice-umbrella-down           (before "umbrella-down")
+  notice-umbrella-up             (before "umbrella-up")
+  notice-unfreeze                (before "unfreeze")
+  notice-walk                    (before "walk")
+  notice-walk-east               (before "walk-east")
+  notice-walk-in                 (before "walk-in")
+  notice-walk-north              (before "walk-north")
+  notice-walk-out                (before "walk-out")
+  notice-walk-slowly             (before "walk-slowly")
+  notice-walk-south              (before "walk-south")
+  notice-walk-west               (before "walk-west")
+  notice-whisper                 (before "whisper")
+
+Event Scripts (7)
+------------------------------
+  The Stillness        Freeze mob — sudden collective stillness, no props
+  The Bloom            Umbrella performance — raise, open, sway, light, close
+  Lights Out           Phone flashlights in the dark — evening event
+  The Signal           Sign reveal — step forward, raise, flip, hold
+  The Stand            Stationary umbrella formation — runs alongside The Walk
+  The Walk             Movement with lights through the formation — runs alongside The Stand
+  The Murmur           Synchronized sound and movement — eerie, theatrical
