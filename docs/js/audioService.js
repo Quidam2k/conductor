@@ -4,7 +4,7 @@
  *
  * Handles TTS announcements for event coordination:
  * - Web Speech API wrapper with voice selection
- * - Announcement logic: notice → countdown → trigger ("Now!")
+ * - Announcement logic: notice → countdown → trigger (action name)
  * - Deduplication (each announcement fires only once)
  * - Resource pack fallback chain (interface ready, zip loading comes later)
  * - Haptic feedback via Vibration API
@@ -122,8 +122,14 @@ function createAudioService() {
     function speak(text, rate = 1.2) {
         if (muted || mode !== AudioMode.TTS || !window.speechSynthesis) return;
 
-        // Cancel any ongoing speech to prevent queue buildup
-        speechSynthesis.cancel();
+        // iOS Safari: resume in case synth was auto-paused during idle
+        if (speechSynthesis.paused) speechSynthesis.resume();
+
+        // Only cancel if actively speaking (iOS drops next utterance if cancel
+        // is called when nothing is playing — known WebKit bug)
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+            speechSynthesis.cancel();
+        }
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = Math.max(0.1, Math.min(10, rate));
@@ -206,7 +212,7 @@ function createAudioService() {
             }
         }
 
-        // 2. Trigger — "Now!" (most urgent when in countdown zone)
+        // 2. Trigger — announce action name (e.g., "Freeze!") at the zero mark
         if (crossed(0)) {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
@@ -220,8 +226,9 @@ function createAudioService() {
                 if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack, speedMultiplier)) {
                     return 'trigger-pack: "Go!"';
                 }
-                speak('Now!', 1.5 * speedMultiplier);
-                return 'trigger: "Now!"';
+                const triggerText = action.action || 'Go';
+                speak(triggerText + '!', 1.5 * speedMultiplier);
+                return 'trigger: "' + triggerText + '!"';
             }
         }
 

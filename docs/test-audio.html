@@ -146,7 +146,7 @@
 
         // Trigger at 0
         result = testSvc.announceAction(action1, 0, 5);
-        assert('Trigger fires at 0', result === 'trigger: "Now!"', `Got: ${result}`);
+        assert('Trigger fires at 0', result === 'trigger: "Gather at fountain!"', `Got: ${result}`);
 
         // Duplicate trigger suppressed
         dup = testSvc.announceAction(action1, 0, 5);
@@ -231,7 +231,7 @@
 
         // At 5x speed, secondsUntil=0 → trigger
         result = speedSvc.announceAction(speedAction, 0, 5, 5);
-        assert('5x speed: trigger at 0', result === 'trigger: "Now!"', `Got: ${result}`);
+        assert('5x speed: trigger at 0', result === 'trigger: "Speed test!"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // 7. Resource pack fallback chain
@@ -526,7 +526,7 @@
 
         // Trigger
         result = evtDefSvc.announceAction(evtDefAction, 0, 5, 1, evtDefs);
-        assert('Event default: trigger fires', result === 'trigger: "Now!"', `Got: ${result}`);
+        assert('Event default: trigger fires', result === 'trigger: "Event default countdown!"', `Got: ${result}`);
 
         // Action with explicit countdownSeconds overrides event default
         const evtDefSvc2 = createAudioService();
