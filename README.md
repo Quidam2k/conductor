@@ -69,7 +69,10 @@ Download the pack from the [Getting Started](https://quidam2k.github.io/conducto
 Use a cheap old phone as a dedicated music/audio player paired to a Bluetooth speaker (in a backpack, for example). Separates the music device from the participant's main phone — one coordinates, the other provides atmosphere.
 
 ### The Claque
-Station a few trusted participants (a "claque") in the crowd as safety anchors and social proof. They start each action confidently, giving others permission to join. They also serve as the event's immune system — able to de-escalate problems because they're known to the organizer.
+Station a few trusted participants (a "claque") in the crowd. They serve multiple roles:
+- **Audience seeding** — they start each action first and with confidence, giving bystanders permission to join (like a laugh track or applause catalyst)
+- **Social proof** — their visible participation makes the event feel real and inviting
+- **Safety anchors** — known to the organizer, they can de-escalate problems and serve as the event's immune system
 
 ### Night Events
 Flashlights under translucent umbrellas create glowing orbs. Colored phone screens or clip-on lights add variety. Conductor's timed cues can coordinate color changes across the group.
