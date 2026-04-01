@@ -72,6 +72,13 @@ function createAudioService() {
         mode = AudioMode.TTS;
         initialized = true;
 
+        // iOS Safari requires first speechSynthesis.speak() in a user gesture
+        // context (tap/click handler). Without this, all later speaks from
+        // setInterval are silently ignored. A near-silent warmup unlocks it.
+        const warmup = new SpeechSynthesisUtterance(' ');
+        warmup.volume = 0.01;
+        speechSynthesis.speak(warmup);
+
         // Voices may load asynchronously (especially Chrome)
         const pickVoice = () => {
             const voices = speechSynthesis.getVoices();
