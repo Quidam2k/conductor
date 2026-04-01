@@ -2428,13 +2428,6 @@ function createAudioService() {
         mode = AudioMode.TTS;
         initialized = true;
 
-        // iOS Safari requires first speechSynthesis.speak() in a user gesture
-        // context (tap/click handler). Without this, all later speaks from
-        // setInterval are silently ignored. A near-silent warmup unlocks it.
-        const warmup = new SpeechSynthesisUtterance(' ');
-        warmup.volume = 0.01;
-        speechSynthesis.speak(warmup);
-
         // Voices may load asynchronously (especially Chrome)
         const pickVoice = () => {
             const voices = speechSynthesis.getVoices();
@@ -2448,6 +2441,15 @@ function createAudioService() {
             speechSynthesis.onvoiceschanged = pickVoice;
         }
 
+        // iOS Safari requires first speechSynthesis.speak() to happen in a
+        // user gesture context (tap/click). Speak an audible word to unlock
+        // TTS for subsequent timer-driven calls. Also serves as UX feedback.
+        const warmup = new SpeechSynthesisUtterance('Ready');
+        warmup.volume = 1;
+        warmup.rate = 1.2;
+        if (selectedVoice) warmup.voice = selectedVoice;
+        speechSynthesis.speak(warmup);
+
         if (onReady) onReady(mode);
     }
 
@@ -2459,14 +2461,18 @@ function createAudioService() {
      * @returns {SpeechSynthesisVoice|null}
      */
     function chooseBestVoice(voices) {
-        // Prefer non-local (higher quality) en-US voices
         const enUS = voices.filter(v => v.lang.startsWith('en-US'));
         const enGB = voices.filter(v => v.lang.startsWith('en-GB'));
         const enAny = voices.filter(v => v.lang.startsWith('en'));
 
-        // Pick first non-local, or first available in preference order
+        // iOS Safari: remote voices may be listed but silently fail to speak.
+        // Always use local voices on iOS. On desktop, prefer remote (higher quality).
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
         for (const pool of [enUS, enGB, enAny]) {
             if (pool.length > 0) {
+                if (isIOS) return pool[0];
                 const remote = pool.find(v => !v.localService);
                 return remote || pool[0];
             }
