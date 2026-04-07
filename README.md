@@ -107,6 +107,11 @@ npx playwright test
 
 Found a bug or have an idea? [Open an issue](https://github.com/Quidam2k/conductor/issues) — we'd love to hear from you.
 
+### Contributors
+
+- **[Quidam2k](https://github.com/Quidam2k)** (Todd) — Creator, lead developer
+- **[Teafaerie](https://github.com/Teafaerie)** (Jessica) — Design collaborator, iOS testing, voice cloning, resource pack vision
+
 ## License
 
 **GNU Affero General Public License v3.0** (AGPL-3.0)
