@@ -3497,8 +3497,25 @@ if (loadFromHash()) {
 }
 
 // Register Service Worker (only works on HTTPS/localhost, silently skips file://)
+// updateViaCache:'none' bypasses HTTP cache for sw.js so new versions are discovered
+// immediately. controllerchange listener auto-reloads the page when a new SW takes
+// over, so users never see a stale HTML shell after a deploy.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Only reload on controllerchange if a SW was already in control at page load.
+    // First-ever visits have no prior controller, and clients.claim() would otherwise
+    // trigger a spurious reload on initial install.
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    if (hadController) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (reloading) return;
+            reloading = true;
+            location.reload();
+        });
+    }
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(reg => { reg.update().catch(() => {}); })
+        .catch(() => {});
 }
 
 </script>
