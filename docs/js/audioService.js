@@ -46,6 +46,11 @@ function createAudioService() {
     /** @type {boolean} */
     let muted = false;
 
+    /** @type {number} Multiplier applied to all speech rates. iOS local voices
+     * (e.g. Samantha) interpret the same rate value as faster than remote/desktop
+     * voices, so we scale down on iOS to keep announcements intelligible. */
+    let rateScale = 1;
+
     /**
      * Resource pack resolver — stub interface.
      * Replace this function to wire in actual resource pack playback.
@@ -71,6 +76,12 @@ function createAudioService() {
 
         mode = AudioMode.TTS;
         initialized = true;
+
+        // iOS local voices speak noticeably faster at the same rate value than
+        // desktop/remote voices. Scale rates down so announcements stay intelligible.
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        rateScale = isIOS ? 0.8 : 1;
 
         // Voices may load asynchronously (especially Chrome)
         const pickVoice = () => {
@@ -145,7 +156,7 @@ function createAudioService() {
         }
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = Math.max(0.1, Math.min(10, rate));
+        utterance.rate = Math.max(0.1, Math.min(10, rate * rateScale));
         utterance.volume = 1;
         if (selectedVoice) utterance.voice = selectedVoice;
 

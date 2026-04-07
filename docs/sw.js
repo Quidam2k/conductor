@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conductor-v30';
+const CACHE_NAME = 'conductor-v31';
 const ASSETS = [
     './index.html',
     './conductor.html',
@@ -42,10 +42,38 @@ self.addEventListener('activate', (e) => {
     );
 });
 
-// Fetch: cache-first, network-fallback
+// Fetch strategy:
+// - HTML navigations: stale-while-revalidate. Serve cached HTML instantly so the
+//   app starts offline-fast, but always kick off a background fetch to update the
+//   cache for the next load. Combined with the page's controllerchange reload,
+//   users get the new UI on their second visit after a deploy — never stuck on
+//   stale HTML waiting for a CACHE_NAME bump.
+// - Other assets: cache-first. They're versioned via CACHE_NAME and the new SW's
+//   install step re-fetches them all, so a fresh CACHE_NAME = fresh assets.
 self.addEventListener('fetch', (e) => {
     if (e.request.method !== 'GET') return;
     if (new URL(e.request.url).origin !== location.origin) return;
+
+    const isHTML = e.request.mode === 'navigate' ||
+        (e.request.destination === 'document') ||
+        (e.request.headers.get('accept') || '').includes('text/html');
+
+    if (isHTML) {
+        e.respondWith(
+            caches.open(CACHE_NAME).then(cache =>
+                cache.match(e.request).then(cached => {
+                    const networkFetch = fetch(e.request)
+                        .then(resp => {
+                            if (resp && resp.ok) cache.put(e.request, resp.clone());
+                            return resp;
+                        })
+                        .catch(() => cached); // offline → fall back to cache
+                    return cached || networkFetch;
+                })
+            )
+        );
+        return;
+    }
 
     e.respondWith(
         caches.match(e.request)
