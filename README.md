@@ -110,7 +110,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/Quidam2k/conduct
 ### Contributors
 
 - **[Quidam2k](https://github.com/Quidam2k)** (Todd) — Creator, lead developer
-- **[Teafaerie](https://github.com/Teafaerie)** (Jessica) — Design collaborator, iOS testing, voice cloning, resource pack vision
+- **[Teafaerie](https://github.com/Teafaerie)** (Jessica) — Design collaborator, iOS testing, voice cloning, resource pack vision. Confirmed iOS audio feasibility (Feb 2026) and drove the resource pack architecture through hands-on testing.
 
 ## License
 
