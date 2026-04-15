@@ -165,8 +165,8 @@
         }
         .btn-outline {
             background: transparent;
-            color: var(--text-dim);
-            border: 1px solid rgba(255,255,255,0.15);
+            color: var(--text);
+            border: 1.5px solid rgba(255,255,255,0.4);
             width: 100%;
         }
         .btn-small {
@@ -186,7 +186,33 @@
         .btn-primary:hover, .btn-primary:focus-visible { box-shadow: var(--glow-blue); }
         .btn-green:hover, .btn-green:focus-visible { box-shadow: var(--glow-green); }
         .btn-red:hover, .btn-red:focus-visible { box-shadow: var(--glow-red); }
-        .btn-outline:hover, .btn-outline:focus-visible { border-color: rgba(255,255,255,0.25); color: var(--text); }
+        .btn-outline:hover, .btn-outline:focus-visible { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.04); }
+        .host-banner {
+            display: none;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            line-height: 1.3;
+        }
+        .host-banner.hosted {
+            display: block;
+            background: rgba(91, 163, 255, 0.18);
+            color: var(--accent-blue);
+            border-bottom: 1px solid rgba(91, 163, 255, 0.35);
+        }
+        .host-banner.local {
+            display: block;
+            background: rgba(240, 180, 41, 0.18);
+            color: var(--accent-gold);
+            border-bottom: 1px solid rgba(240, 180, 41, 0.35);
+        }
+        #hosted-link-section { display: none; margin-top: 16px; text-align: center; }
+        #hosted-link-section a { color: var(--accent-blue); font-size: 13px; text-decoration: none; }
+        #hosted-link-section a:hover { text-decoration: underline; }
+        #hosted-link-section .hosted-link-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; display: block; }
 
         /* ─── Input screen ─── */
         .app-logo {
@@ -792,6 +818,7 @@
 <!-- SCREEN: INPUT                                                          -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <div id="screen-input" class="screen active">
+    <div id="host-banner" class="host-banner" role="status" aria-live="polite"></div>
     <div class="header header-input" role="banner">
         <h1>Conductor</h1>
     </div>
@@ -799,7 +826,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v31</span></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v32</span></p>
         </div>
 
         <details class="app-about">
@@ -873,6 +900,11 @@
         <button id="btn-import-event" class="btn-outline">Import Event File</button>
         <button id="btn-manage-packs" class="btn-outline">Manage Packs</button>
         <button id="btn-share-app" class="btn-outline">Share This App</button>
+
+        <div id="hosted-link-section">
+            <a id="hosted-link" href="https://quidam2k.github.io/conductor/" target="_blank" rel="noopener">View the showcase version online &rarr;</a>
+            <span class="hosted-link-hint">A clean copy without your packs or saved events &mdash; safe to show off.</span>
+        </div>
 
         <div style="flex:1"></div>
     </div>
@@ -2923,12 +2955,31 @@ async function updateInputLayout() {
     const fallback = $('demo-fallback');
     if (!section) return;
     const packs = await packManager.listPacks();
-    const isNewUser = packs.length === 0;
-    // New users: show prominent "Try the Demo" at top, hide secondary demo button
-    // Returning users: hide getting-started, show fallback demo button
-    section.style.display = isNewUser ? '' : 'none';
-    if (fallback) fallback.style.display = isNewUser ? 'none' : '';
+    // Hosted version is the showcase: always show prominent demo so first-time
+    // visitors see it regardless of what packs they've installed across sessions.
+    // Local file copy assumes the user knows what they're doing once they have packs.
+    const isHosted = location.protocol !== 'file:';
+    const showProminent = isHosted || packs.length === 0;
+    section.style.display = showProminent ? '' : 'none';
+    if (fallback) fallback.style.display = showProminent ? 'none' : '';
 }
+
+function setHostBanner() {
+    const banner = $('host-banner');
+    const hostedLink = $('hosted-link-section');
+    if (!banner) return;
+    const isHosted = location.protocol !== 'file:';
+    if (isHosted) {
+        banner.className = 'host-banner hosted';
+        banner.textContent = 'From GitHub';
+        if (hostedLink) hostedLink.style.display = 'none';
+    } else {
+        banner.className = 'host-banner local';
+        banner.textContent = 'From your files';
+        if (hostedLink) hostedLink.style.display = 'block';
+    }
+}
+setHostBanner();
 
 /** Map of "packId:idx" → event object, rebuilt each render */
 const packEventsMap = new Map();
