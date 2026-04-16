@@ -1100,9 +1100,11 @@ test('preview: shows pack hint when event references missing pack', async ({ pag
     await page.click('#btn-demo');
     await waitForScreen(page, 'screen-preview');
 
-    // Modify the event's first action to reference a pack
+    // Modify every timeline action to reference a single missing pack.
+    // (Setting only [0] races with the demo-click's own renderPackHint call,
+    // since the demo timeline now carries its own pack field on every action.)
     await page.evaluate(() => {
-        state.event.timeline[0].pack = 'fancy-pack';
+        state.event.timeline.forEach(a => { a.pack = 'fancy-pack'; });
         renderPreview();
     });
 
@@ -1329,4 +1331,29 @@ test('speech unavailable: practice screen shows warning banner', async ({ page }
     // Dismiss button should hide it
     await page.click('#practice-banner .dismiss');
     await expect(page.locator('#practice-banner')).not.toBeVisible();
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 51. Demo event wires pack + cue on every timeline action
+// ═════════════════════════════════════════════════════════════════════
+
+test('demo event: every timeline action has cue + pack fields', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+
+    const timeline = await page.evaluate(() => state.event.timeline.map(a => ({
+        action: a.action,
+        cue: a.cue,
+        pack: a.pack,
+    })));
+
+    expect(timeline.length).toBeGreaterThan(0);
+    for (const a of timeline) {
+        expect(a.pack, `action "${a.action}" should have pack`).toBe('conductor-demo');
+        expect(typeof a.cue, `action "${a.action}" should have string cue`).toBe('string');
+        expect(a.cue.length, `action "${a.action}" cue should be non-empty`).toBeGreaterThan(0);
+    }
 });

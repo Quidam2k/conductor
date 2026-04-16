@@ -826,7 +826,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v32</span></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v33</span></p>
         </div>
 
         <details class="app-about">
@@ -1531,17 +1531,17 @@ function createDemoEvent() {
     const startTime = new Date(startMs).toISOString();
 
     const actions = [
-        { offset: 30,  action: 'Get in position',    noticeOff: true },
-        { offset: 60,  action: 'Freeze',
+        { offset: 30,  action: 'Get in position',    cue: 'in-position', noticeOff: true },
+        { offset: 60,  action: 'Freeze',             cue: 'freeze',
           countdownSeconds: [3, 2, 1], hapticPattern: 'triple' },
-        { offset: 65,  action: 'Hold your position', noticeOff: true },
-        { offset: 120, action: 'Unfreeze' },
-        { offset: 150, action: 'Freeze',
+        { offset: 65,  action: 'Hold your position', cue: 'hold',       noticeOff: true },
+        { offset: 120, action: 'Unfreeze',           cue: 'unfreeze' },
+        { offset: 150, action: 'Freeze',             cue: 'freeze',
           countdownSeconds: [3, 2, 1], hapticPattern: 'triple' },
-        { offset: 155, action: 'Hold your position', noticeOff: true },
-        { offset: 180, action: 'Unfreeze' },
-        { offset: 190, action: 'Disperse',           noticeOff: true },
-        { offset: 210, action: 'Done',               noticeOff: true },
+        { offset: 155, action: 'Hold your position', cue: 'hold',       noticeOff: true },
+        { offset: 180, action: 'Unfreeze',           cue: 'unfreeze' },
+        { offset: 190, action: 'Disperse',           cue: 'disperse',   noticeOff: true },
+        { offset: 210, action: 'Done',               cue: 'done',       noticeOff: true },
     ];
 
     const timeline = actions.map(a => createTimelineAction({
@@ -1550,6 +1550,8 @@ function createDemoEvent() {
         hapticPattern: a.hapticPattern || 'double',
         countdownSeconds: a.countdownSeconds || null,
         noticeSeconds: a.noticeOff ? 0 : 5,
+        cue: a.cue,
+        pack: 'conductor-demo',
     }));
 
     const embedded = {

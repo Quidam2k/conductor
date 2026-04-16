@@ -15,5 +15,6 @@ module.exports = defineConfig({
     projects: [
         { name: 'chromium', use: { browserName: 'chromium' } },
         { name: 'webkit', use: { browserName: 'webkit' } },
+        { name: 'firefox', use: { browserName: 'firefox' } },
     ],
 });

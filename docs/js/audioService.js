@@ -247,8 +247,8 @@ function createAudioService() {
                         announced.add(`${action.id}-countdown-${cs}`);
                     }
                 }
-                if (action.pack && resourcePackResolver && resourcePackResolver('trigger', action.pack, speedMultiplier)) {
-                    return 'trigger-pack: "Go!"';
+                if (action.cue && action.pack && resourcePackResolver && resourcePackResolver(action.cue, action.pack, speedMultiplier)) {
+                    return 'trigger-pack: "' + action.cue + '"';
                 }
                 const triggerText = action.action || 'Go';
                 speak(triggerText + '!', 1.5 * speedMultiplier);
