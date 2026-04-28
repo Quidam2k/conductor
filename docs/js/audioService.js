@@ -260,6 +260,24 @@ function createAudioService() {
         //    Iterate ascending so the most relevant number fires first.
         if (countdownSeconds && countdownSeconds.length > 0) {
             const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
+
+            // Pack-wide countdown-voice cue takes precedence over per-number lookup.
+            // Fires once when the highest countdown threshold is first crossed and
+            // marks all subsequent countdown beats as already announced — packs that
+            // ship a single full "3, 2, 1" clip don't need per-number cues.
+            const maxCountdown = sortedCountdown[sortedCountdown.length - 1];
+            if (action.pack && resourcePackResolver && crossed(maxCountdown)) {
+                const firstKey = `${action.id}-countdown-${maxCountdown}`;
+                if (!announced.has(firstKey)) {
+                    if (resourcePackResolver('countdown-voice', action.pack, speedMultiplier)) {
+                        for (const cs of countdownSeconds) {
+                            announced.add(`${action.id}-countdown-${cs}`);
+                        }
+                        return 'countdown-pack: countdown-voice';
+                    }
+                }
+            }
+
             for (const cs of sortedCountdown) {
                 if (crossed(cs)) {
                     const key = `${action.id}-countdown-${cs}`;

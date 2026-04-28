@@ -825,7 +825,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v34</span></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v35</span></p>
         </div>
 
         <details class="app-about">
@@ -2654,6 +2654,24 @@ function createAudioService() {
         //    Iterate ascending so the most relevant number fires first.
         if (countdownSeconds && countdownSeconds.length > 0) {
             const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
+
+            // Pack-wide countdown-voice cue takes precedence over per-number lookup.
+            // Fires once when the highest countdown threshold is first crossed and
+            // marks all subsequent countdown beats as already announced — packs that
+            // ship a single full "3, 2, 1" clip don't need per-number cues.
+            const maxCountdown = sortedCountdown[sortedCountdown.length - 1];
+            if (action.pack && resourcePackResolver && crossed(maxCountdown)) {
+                const firstKey = `${action.id}-countdown-${maxCountdown}`;
+                if (!announced.has(firstKey)) {
+                    if (resourcePackResolver('countdown-voice', action.pack, speedMultiplier)) {
+                        for (const cs of countdownSeconds) {
+                            announced.add(`${action.id}-countdown-${cs}`);
+                        }
+                        return 'countdown-pack: countdown-voice';
+                    }
+                }
+            }
+
             for (const cs of sortedCountdown) {
                 if (crossed(cs)) {
                     const key = `${action.id}-countdown-${cs}`;
@@ -3103,7 +3121,9 @@ function createResourcePackManager() {
 
     function getAudioContext() {
         if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            audioCtx = new Ctor();
         }
         return audioCtx;
     }
@@ -4408,10 +4428,16 @@ function transitionTo(newMode) {
             break;
 
         case 'practice':
+            // iOS Web Audio unlock: must touch the AudioContext synchronously
+            // inside the user-gesture stack BEFORE any awaits. enterPractice()
+            // is async, so the AudioContext created later (post-await) is no
+            // longer in gesture context and stays suspended on iOS Safari.
+            packManager.getAudioContext()?.resume?.();
             enterPractice();
             break;
 
         case 'live':
+            packManager.getAudioContext()?.resume?.();
             enterLive();
             break;
 
