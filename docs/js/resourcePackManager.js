@@ -282,7 +282,9 @@ function createResourcePackManager() {
 
     function getAudioContext() {
         if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            audioCtx = new Ctor();
         }
         return audioCtx;
     }

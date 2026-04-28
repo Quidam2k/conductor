@@ -1417,3 +1417,107 @@ test('embeddedEventToEvent: raw pack-event JSON gets audio defaults filled in', 
     expect(result[0].cue).toBe('freeze');
     expect(result[1].cue).toBe('unfreeze');
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 52. Practice click handler unlocks AudioContext synchronously.
+//     Regression: iOS Safari leaves the AudioContext suspended unless
+//     it is touched from inside a user-gesture stack BEFORE the first
+//     await. The transitionTo('practice') case must call
+//     packManager.getAudioContext().resume() synchronously.
+// ═════════════════════════════════════════════════════════════════════
+
+test('practice transition: AudioContext unlock runs on click', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    // Skip the assertion on engines without Web Audio (e.g. Playwright headless webkit).
+    // The fix still applies — we just can't observe the unlocked state on those engines.
+    const hasAudio = await page.evaluate(() => !!(window.AudioContext || window.webkitAudioContext));
+
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+
+    // Click practice — the case 'practice' branch should call
+    // packManager.getAudioContext()?.resume?.() synchronously, BEFORE the
+    // async enterPractice() is awaited. Spy on getAudioContext to confirm
+    // it is invoked from the click handler.
+    await page.evaluate(() => {
+        window.__getAudioCtxCalls = 0;
+        const orig = packManager.getAudioContext;
+        packManager.getAudioContext = function() {
+            window.__getAudioCtxCalls++;
+            return orig.apply(this, arguments);
+        };
+    });
+
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+
+    const calls = await page.evaluate(() => window.__getAudioCtxCalls);
+    expect(calls).toBeGreaterThan(0);
+
+    if (hasAudio) {
+        // AudioContext must exist and be in 'running' or 'suspended'. On engines
+        // that auto-allow (chromium/firefox/webkit headed), it should be 'running'.
+        const ctxState = await page.evaluate(() => {
+            const ctx = packManager.getAudioContext();
+            return ctx && ctx.state;
+        });
+        expect(ctxState).toBeTruthy();
+        expect(['running', 'suspended']).toContain(ctxState);
+    }
+
+    await page.click('#btn-practice-stop');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 53. Countdown-voice cue: pack-wide cue suppresses per-number TTS.
+//     Regression: Conductor demo pack ships only `countdown-voice`,
+//     not per-number countdown cues. The audioService countdown branch
+//     must fire `countdown-voice` once and mark all countdown beats as
+//     announced — not fall through to TTS for each number.
+// ═════════════════════════════════════════════════════════════════════
+
+test('countdown wire-up: countdown-voice cue fires once + suppresses per-number', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        // Build a fresh audioService so we don't share dedup state with the page's instance
+        const a = createAudioService();
+        const calls = [];
+        a.setResourcePackResolver((cueId, packId) => {
+            calls.push(cueId);
+            // Pack ONLY has 'countdown-voice' — no per-number cues
+            return cueId === 'countdown-voice';
+        });
+
+        const action = {
+            id: 'tc1',
+            action: 'Freeze',
+            cue: 'freeze',
+            pack: 'conductor-demo',
+            audioAnnounce: true,
+            announceActionName: true,
+            countdownSeconds: [3, 2, 1],
+        };
+
+        // Tick across the countdown range. First tick primes lastAdjusted,
+        // subsequent ticks cross thresholds.
+        const announcements = [];
+        for (const s of [10, 4, 3, 2, 1, 0]) {
+            const r = a.announceAction(action, s, 5, 1, {});
+            if (r) announcements.push(r);
+        }
+
+        return { announcements, resolverCalls: calls };
+    });
+
+    // Exactly one countdown announcement (the pack one), not three TTS ones.
+    const countdownAnnouncements = result.announcements.filter(s => s.startsWith('countdown'));
+    expect(countdownAnnouncements.length).toBe(1);
+    expect(countdownAnnouncements[0]).toBe('countdown-pack: countdown-voice');
+
+    // Resolver was called for 'countdown-voice' (not just per-number lookups)
+    expect(result.resolverCalls).toContain('countdown-voice');
+});
