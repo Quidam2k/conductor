@@ -163,7 +163,7 @@
             width: 100%;
         }
         .btn-outline {
-            background: transparent;
+            background: var(--bg-elevated);
             color: var(--text);
             border: 1.5px solid rgba(255,255,255,0.4);
             width: 100%;
@@ -825,7 +825,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v33</span></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v34</span></p>
         </div>
 
         <details class="app-about">
@@ -930,7 +930,7 @@
         <button id="btn-import-pack" class="btn-primary" style="margin-top:16px;">Import Pack (.zip)</button>
         <div id="import-status" class="import-status"></div>
 
-        <button id="btn-packs-back" class="btn-outline" style="margin-top:10px;">Back</button>
+        <button id="btn-packs-back" class="btn-outline" style="margin-top:10px;">Return</button>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -965,7 +965,7 @@
             <button id="btn-start-practice" class="btn-green">Start Practice</button>
             <div class="btn-row">
                 <button id="btn-share-qr-preview" class="btn-primary" style="flex:2;">Share QR Code</button>
-                <button id="btn-preview-back" class="btn-outline" style="flex:1;">Back</button>
+                <button id="btn-preview-back" class="btn-outline" style="flex:1;">Return</button>
             </div>
         </div>
     </div>
@@ -1103,7 +1103,7 @@
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
             <button id="btn-ed-next2" class="btn-primary">Next: Review & Share</button>
             <button id="btn-save-draft" class="btn-outline">Save Draft</button>
-            <button id="btn-ed-back1" class="btn-outline">Back</button>
+            <button id="btn-ed-back1" class="btn-outline">Return</button>
         </div>
     </div>
     <div class="safe-bottom"></div>
@@ -1150,7 +1150,7 @@
         <div style="flex:1"></div>
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
             <button id="btn-preview-from-editor" class="btn-green">Preview Event</button>
-            <button id="btn-ed-back2" class="btn-outline">Back</button>
+            <button id="btn-ed-back2" class="btn-outline">Return</button>
         </div>
     </div>
     <div class="safe-bottom"></div>
@@ -1466,6 +1466,11 @@ function embeddedEventToEvent(embedded) {
     const hashInput = `${embedded.title}_${embedded.startTime}_${timeline.length}`;
     const uniqueId = String(simpleHash(hashInput));
 
+    // Normalize timeline actions: pack events ship raw JSON without runtime
+    // defaults like audioAnnounce/announceActionName. Without this, the
+    // announceAction guard returns null on every tick and practice is silent.
+    const normalizedTimeline = timeline.map(a => createTimelineAction(a));
+
     return {
         id: uniqueId,
         title: embedded.title,
@@ -1475,7 +1480,7 @@ function embeddedEventToEvent(embedded) {
         timezone: embedded.timezone,
         status: 'published',
         creatorId: 'embedded',
-        timeline: timeline,
+        timeline: normalizedTimeline,
         defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 5,
         defaultCountdownSeconds: embedded.defaultCountdownSeconds ?? null,
         defaultCountdown: embedded.defaultCountdown ?? null,

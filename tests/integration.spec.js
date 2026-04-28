@@ -1357,3 +1357,63 @@ test('demo event: every timeline action has cue + pack fields', async ({ page })
         expect(a.cue.length, `action "${a.action}" cue should be non-empty`).toBeGreaterThan(0);
     }
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 51. embeddedEventToEvent normalizes raw pack-event JSON
+//     Regression: Apr 21 silent-practice bug. Pack events ship without
+//     audioAnnounce / announceActionName, so audioService.announceAction
+//     returned null on every tick.
+// ═════════════════════════════════════════════════════════════════════
+
+test('embeddedEventToEvent: raw pack-event JSON gets audio defaults filled in', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        // Mimics the shape of an event loaded from a resource pack: no
+        // audioAnnounce, no announceActionName, no hapticPattern.
+        const rawEmbedded = {
+            title: 'Pack Event Mock',
+            startTime: new Date(Date.now() + 60000).toISOString(),
+            timezone: 'UTC',
+            timeline: [
+                {
+                    id: 'a1',
+                    time: new Date(Date.now() + 90000).toISOString(),
+                    action: 'Freeze',
+                    cue: 'freeze',
+                    pack: 'conductor-demo',
+                    countdownSeconds: [3, 2, 1],
+                },
+                {
+                    id: 'a2',
+                    time: new Date(Date.now() + 120000).toISOString(),
+                    action: 'Unfreeze',
+                    cue: 'unfreeze',
+                    pack: 'conductor-demo',
+                    noticeSeconds: 0,
+                },
+            ],
+        };
+        const evt = embeddedEventToEvent(rawEmbedded);
+        return evt.timeline.map(a => ({
+            action: a.action,
+            audioAnnounce: a.audioAnnounce,
+            announceActionName: a.announceActionName,
+            hapticPattern: a.hapticPattern,
+            cue: a.cue,
+            pack: a.pack,
+        }));
+    });
+
+    expect(result.length).toBe(2);
+    for (const a of result) {
+        expect(a.audioAnnounce, `${a.action} audioAnnounce`).toBe(true);
+        expect(a.announceActionName, `${a.action} announceActionName`).toBe(true);
+        expect(a.hapticPattern, `${a.action} hapticPattern`).toBe('double');
+        // Pre-existing fields preserved
+        expect(a.pack).toBe('conductor-demo');
+    }
+    expect(result[0].cue).toBe('freeze');
+    expect(result[1].cue).toBe('unfreeze');
+});

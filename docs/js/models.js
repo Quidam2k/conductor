@@ -153,6 +153,11 @@ function embeddedEventToEvent(embedded) {
     const hashInput = `${embedded.title}_${embedded.startTime}_${timeline.length}`;
     const uniqueId = String(simpleHash(hashInput));
 
+    // Normalize timeline actions: pack events ship raw JSON without runtime
+    // defaults like audioAnnounce/announceActionName. Without this, the
+    // announceAction guard returns null on every tick and practice is silent.
+    const normalizedTimeline = timeline.map(a => createTimelineAction(a));
+
     return {
         id: uniqueId,
         title: embedded.title,
@@ -162,7 +167,7 @@ function embeddedEventToEvent(embedded) {
         timezone: embedded.timezone,
         status: 'published',
         creatorId: 'embedded',
-        timeline: timeline,
+        timeline: normalizedTimeline,
         defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 5,
         defaultCountdownSeconds: embedded.defaultCountdownSeconds ?? null,
         defaultCountdown: embedded.defaultCountdown ?? null,
