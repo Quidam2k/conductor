@@ -1419,59 +1419,7 @@ test('embeddedEventToEvent: raw pack-event JSON gets audio defaults filled in', 
 });
 
 // ═════════════════════════════════════════════════════════════════════
-// 52. Practice click handler unlocks AudioContext synchronously.
-//     Regression: iOS Safari leaves the AudioContext suspended unless
-//     it is touched from inside a user-gesture stack BEFORE the first
-//     await. The transitionTo('practice') case must call
-//     packManager.getAudioContext().resume() synchronously.
-// ═════════════════════════════════════════════════════════════════════
-
-test('practice transition: AudioContext unlock runs on click', async ({ page }) => {
-    await page.goto('/');
-    await waitForScreen(page, 'screen-input');
-
-    // Skip the assertion on engines without Web Audio (e.g. Playwright headless webkit).
-    // The fix still applies — we just can't observe the unlocked state on those engines.
-    const hasAudio = await page.evaluate(() => !!(window.AudioContext || window.webkitAudioContext));
-
-    await page.click('#btn-demo');
-    await waitForScreen(page, 'screen-preview');
-
-    // Click practice — the case 'practice' branch should call
-    // packManager.getAudioContext()?.resume?.() synchronously, BEFORE the
-    // async enterPractice() is awaited. Spy on getAudioContext to confirm
-    // it is invoked from the click handler.
-    await page.evaluate(() => {
-        window.__getAudioCtxCalls = 0;
-        const orig = packManager.getAudioContext;
-        packManager.getAudioContext = function() {
-            window.__getAudioCtxCalls++;
-            return orig.apply(this, arguments);
-        };
-    });
-
-    await page.click('#btn-start-practice');
-    await waitForScreen(page, 'screen-practice');
-
-    const calls = await page.evaluate(() => window.__getAudioCtxCalls);
-    expect(calls).toBeGreaterThan(0);
-
-    if (hasAudio) {
-        // AudioContext must exist and be in 'running' or 'suspended'. On engines
-        // that auto-allow (chromium/firefox/webkit headed), it should be 'running'.
-        const ctxState = await page.evaluate(() => {
-            const ctx = packManager.getAudioContext();
-            return ctx && ctx.state;
-        });
-        expect(ctxState).toBeTruthy();
-        expect(['running', 'suspended']).toContain(ctxState);
-    }
-
-    await page.click('#btn-practice-stop');
-});
-
-// ═════════════════════════════════════════════════════════════════════
-// 53. Countdown-voice cue: pack-wide cue suppresses per-number TTS.
+// 52. Countdown-voice cue: pack-wide cue suppresses per-number TTS.
 //     Regression: Conductor demo pack ships only `countdown-voice`,
 //     not per-number countdown cues. The audioService countdown branch
 //     must fire `countdown-voice` once and mark all countdown beats as

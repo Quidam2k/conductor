@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conductor-v35';
+const CACHE_NAME = 'conductor-v36';
 const ASSETS = [
     './index.html',
     './conductor.html',
@@ -6,6 +6,7 @@ const ASSETS = [
     './GUIDE.md',
     './TEXT_FORMAT.md',
     './RESOURCE_PACK_FORMAT.md',
+    './ios-audio-test/index.html',
     './js/models.js',
     './js/eventEncoder.js',
     './js/timingEngine.js',

@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Conductor - iOS Audio Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iOS Audio Diagnostics — v36</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -11,354 +11,528 @@
     background: #1a1a2e;
     color: #eee;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     padding: 20px;
+    line-height: 1.5;
   }
-  h1 { font-size: 22px; margin-bottom: 8px; }
-  .subtitle { color: #aaa; font-size: 14px; margin-bottom: 24px; text-align: center; }
-  .log {
-    width: 100%;
-    max-width: 400px;
+  .wrap { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #aaa; font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 16px; margin: 18px 0 10px; color: #4fc3f7; }
+  .card {
     background: #0d0d1a;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    min-height: 200px;
-    max-height: 40vh;
-    overflow-y: auto;
-    font-family: monospace;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
     font-size: 13px;
-    line-height: 1.6;
   }
-  .log-entry { padding: 2px 0; }
-  .log-entry.tts { color: #4fc3f7; }
-  .log-entry.audio { color: #81c784; }
-  .log-entry.beep { color: #ffb74d; }
-  .log-entry.error { color: #ef5350; }
-  .log-entry.info { color: #aaa; }
-  .status {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 20px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    text-align: center;
+  .env-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid #1a1a2e;
   }
-  .status.idle { background: #333; }
-  .status.running { background: #1b5e20; }
-  .status.stopped { background: #b71c1c; }
+  .env-row:last-child { border-bottom: none; }
+  .env-key { color: #888; }
+  .env-val { color: #ddd; font-family: monospace; text-align: right; word-break: break-all; }
+  .test {
+    background: #0d0d1a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .test-title { font-weight: bold; margin-bottom: 4px; }
+  .test-desc { color: #aaa; font-size: 12px; margin-bottom: 8px; }
+  .test-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
   button {
-    font-size: 18px;
-    padding: 16px 40px;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    margin: 8px;
-    font-weight: bold;
-  }
-  .btn-start { background: #4caf50; color: white; }
-  .btn-stop { background: #f44336; color: white; }
-  .btn-start:disabled, .btn-stop:disabled { opacity: 0.4; }
-  .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
-  .instructions {
-    width: 100%;
-    max-width: 400px;
-    background: #16213e;
-    border-radius: 12px;
-    padding: 16px;
     font-size: 14px;
-    line-height: 1.6;
-  }
-  .instructions h2 { font-size: 16px; margin-bottom: 8px; color: #4fc3f7; }
-  .instructions ol { padding-left: 20px; }
-  .instructions li { margin-bottom: 6px; }
-  .counter {
-    font-size: 48px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
     font-weight: bold;
-    margin: 16px 0;
-    font-variant-numeric: tabular-nums;
+    background: #4fc3f7;
+    color: #0d0d1a;
   }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .result {
+    flex: 1;
+    min-width: 120px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .result.pending { color: #888; }
+  .result.ok { color: #81c784; }
+  .result.fail { color: #ef5350; }
+  .result.info { color: #ffb74d; }
+  .log-box {
+    background: #0d0d1a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: monospace;
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .log-line { padding: 2px 0; }
+  .log-line.err { color: #ef5350; }
+  .log-line.ok { color: #81c784; }
+  .log-line.warn { color: #ffb74d; }
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .btn-ghost {
+    background: #2a2a3e;
+    color: #eee;
+  }
+  .note {
+    background: #2a1f00;
+    border-left: 3px solid #ffb74d;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  a { color: #4fc3f7; }
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<h1>Conductor iOS Audio Test</h1>
-<p class="subtitle">Testing background audio survival on iOS Safari</p>
+<h1>iOS Audio Diagnostics</h1>
+<p class="sub">Build v36 — click each test, report results.</p>
 
-<div class="status idle" id="status">IDLE</div>
-<div class="counter" id="counter">--:--</div>
+<h2>Environment</h2>
+<div class="card" id="env"></div>
 
-<div class="buttons">
-  <button class="btn-start" id="startBtn" onclick="startTest()">Start Test</button>
-  <button class="btn-stop" id="stopBtn" onclick="stopTest()" disabled>Stop</button>
+<h2>Tests</h2>
+
+<div class="test">
+  <div class="test-title">1. TTS alone</div>
+  <div class="test-desc">Speak "Hello Jessica" via speechSynthesis. Did you hear it?</div>
+  <div class="test-row">
+    <button onclick="test1()">Run</button>
+    <span class="result pending" id="r1">—</span>
+  </div>
 </div>
 
-<div class="log" id="log"></div>
-
-<div class="instructions">
-  <h2>How to test</h2>
-  <ol>
-    <li>Connect earbuds/headphones</li>
-    <li>Tap <b>Start Test</b> (you must tap - iOS requires user gesture for audio)</li>
-    <li>Wait for the first announcement to confirm audio works</li>
-    <li><b>Lock the phone</b> and put it in your pocket</li>
-    <li>Listen for announcements every 15 seconds</li>
-    <li>After 2-3 minutes, unlock and check the log</li>
-  </ol>
-  <h2>What we're testing</h2>
-  <p>Three audio methods fire every 15 seconds:</p>
-  <ol>
-    <li><b style="color:#4fc3f7">TTS</b> - Web Speech API ("Action in 5... 4... 3...")</li>
-    <li><b style="color:#81c784">Audio clip</b> - Web Audio API generated speech-like tone</li>
-    <li><b style="color:#ffb74d">Beep</b> - Web Audio API beep pattern</li>
-  </ol>
-  <p>A silent audio loop runs continuously to keep iOS from suspending the page.</p>
+<div class="test">
+  <div class="test-title">2. TTS at iOS-scaled rate (0.96)</div>
+  <div class="test-desc">Same as #1 but rate=0.96, matching the main app's iOS speech rate.</div>
+  <div class="test-row">
+    <button onclick="test2()">Run</button>
+    <span class="result pending" id="r2">—</span>
+  </div>
 </div>
 
+<div class="test">
+  <div class="test-title">3. Web Audio tone alone</div>
+  <div class="test-desc">Create AudioContext, resume, play 1 second of 440 Hz.</div>
+  <div class="test-row">
+    <button onclick="test3()">Run</button>
+    <span class="result pending" id="r3">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">4. TTS → tone (sequential)</div>
+  <div class="test-desc">Speak first, wait 2s, then play tone. Both should fire.</div>
+  <div class="test-row">
+    <button onclick="test4()">Run</button>
+    <span class="result pending" id="r4">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">5. Tone → TTS (sequential)</div>
+  <div class="test-desc">Play tone first, wait 2s, then speak. Critical: does TTS still work after Web Audio?</div>
+  <div class="test-row">
+    <button onclick="test5()">Run</button>
+    <span class="result pending" id="r5">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">6. Resume + TTS (immediate, the v35 sequence)</div>
+  <div class="test-desc">Create+resume AudioContext, then immediately speak. The exact ordering that broke v35.</div>
+  <div class="test-row">
+    <button onclick="test6()">Run</button>
+    <span class="result pending" id="r6">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">7. Decode + play demo WAV (real pack-audio path)</div>
+  <div class="test-desc">Fetch conductor-demo.zip, extract voices/freeze.wav, decode, play. Logs sample rates + duration.</div>
+  <div class="test-row">
+    <button onclick="test7()">Run</button>
+    <span class="result pending" id="r7">—</span>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Hardware probe:</strong> If tests 3, 4, 5, or 7 are silent, check your iPhone's silent switch
+  (the small slider on the side, above the volume buttons). Web Audio honors hardware mute on iOS.
+</div>
+
+<h2>Results log</h2>
+<div class="actions">
+  <button class="btn-ghost" onclick="copyLog()">Copy results</button>
+  <button class="btn-ghost" onclick="clearLog()">Clear</button>
+</div>
+<div class="log-box" id="log"></div>
+
+</div>
+
+<script src="../js/resourcePackManager.js"></script>
 <script>
-let running = false;
-let intervalId = null;
-let tickCount = 0;
-let audioCtx = null;
-let silentSource = null;
-let silentAudio = null;
-let startTime = null;
-
 const logEl = document.getElementById('log');
-const statusEl = document.getElementById('status');
-const counterEl = document.getElementById('counter');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
+const envEl = document.getElementById('env');
 
-function log(msg, cls = 'info') {
-  const now = new Date();
-  const ts = now.toLocaleTimeString('en-US', { hour12: false });
-  const entry = document.createElement('div');
-  entry.className = `log-entry ${cls}`;
-  entry.textContent = `[${ts}] ${msg}`;
-  logEl.appendChild(entry);
+function log(msg, cls) {
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const line = document.createElement('div');
+  line.className = 'log-line' + (cls ? ' ' + cls : '');
+  line.textContent = '[' + ts + '] ' + msg;
+  logEl.appendChild(line);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-function updateCounter() {
-  if (!startTime) { counterEl.textContent = '--:--'; return; }
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const sec = String(elapsed % 60).padStart(2, '0');
-  counterEl.textContent = `${min}:${sec}`;
+function setResult(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'result ' + (cls || 'info');
 }
 
-// === METHOD 1: Silent audio loop (keepalive) ===
-function startSilentAudioLoop() {
-  // Use an <audio> element with a generated silent WAV
-  // This is the most reliable iOS background audio keepalive
-  try {
-    const sampleRate = 22050;
-    const seconds = 10;
-    const numSamples = sampleRate * seconds;
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
-    const view = new DataView(buffer);
+function copyLog() {
+  const text = Array.from(logEl.querySelectorAll('.log-line'))
+    .map(l => l.textContent).join('\n');
+  const env = Array.from(envEl.querySelectorAll('.env-row'))
+    .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
+  const full = '=== Conductor iOS Audio Diagnostics v36 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(full).then(
+      () => log('Results copied to clipboard.', 'ok'),
+      e => log('Copy failed: ' + e.message, 'err')
+    );
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = full;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); log('Results copied (legacy fallback).', 'ok'); }
+    catch (e) { log('Copy failed: ' + e.message, 'err'); }
+    document.body.removeChild(ta);
+  }
+}
 
-    // WAV header
-    const writeString = (offset, str) => {
-      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+function clearLog() {
+  logEl.innerHTML = '';
+}
+
+// ─── Environment dump ───────────────────────────────────────────────────────
+
+function envRow(key, val) {
+  const row = document.createElement('div');
+  row.className = 'env-row';
+  const k = document.createElement('span'); k.className = 'env-key'; k.textContent = key;
+  const v = document.createElement('span'); v.className = 'env-val'; v.textContent = val;
+  row.appendChild(k); row.appendChild(v);
+  envEl.appendChild(row);
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function dumpEnv() {
+  envRow('User agent', navigator.userAgent);
+  envRow('Platform', navigator.platform || '(unknown)');
+  envRow('Detected iOS', isIOS() ? 'yes' : 'no');
+  envRow('AudioContext', typeof AudioContext);
+  envRow('webkitAudioContext', typeof webkitAudioContext);
+  envRow('speechSynthesis', typeof speechSynthesis);
+
+  if (typeof speechSynthesis !== 'undefined') {
+    let voicesDumped = false;
+    const dump = () => {
+      if (voicesDumped) return;
+      const voices = speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      voicesDumped = true;
+      envRow('Voice count', String(voices.length));
+      voices.slice(0, 20).forEach((v, i) => {
+        envRow('Voice ' + i, v.name + ' [' + v.lang + ']' + (v.localService ? ' (local)' : ' (remote)'));
+      });
+      if (voices.length > 20) envRow('… and', (voices.length - 20) + ' more');
     };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, numSamples * 2, true);
-    // samples are all 0 (silence)
-
-    const blob = new Blob([buffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-
-    silentAudio = new Audio(url);
-    silentAudio.loop = true;
-    silentAudio.volume = 0.01; // near-silent but not zero (iOS may ignore zero)
-    silentAudio.play().then(() => {
-      log('Silent audio loop started (keepalive)', 'info');
-    }).catch(e => {
-      log('Silent audio FAILED: ' + e.message, 'error');
-    });
-  } catch (e) {
-    log('Silent audio setup error: ' + e.message, 'error');
-  }
-}
-
-// === METHOD 2: Web Audio API context ===
-function initAudioContext() {
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+    dump();
+    if (!voicesDumped) {
+      envRow('Voice count', '0 (waiting for voiceschanged…)');
+      speechSynthesis.onvoiceschanged = dump;
     }
-    log('Web Audio API initialized (state: ' + audioCtx.state + ')', 'info');
-  } catch (e) {
-    log('Web Audio API FAILED: ' + e.message, 'error');
   }
 }
 
-// === ANNOUNCEMENT: Web Speech API TTS ===
-function announceTTS(text) {
-  try {
-    if (!('speechSynthesis' in window)) {
-      log('TTS: speechSynthesis not available', 'error');
+// ─── Test helpers ───────────────────────────────────────────────────────────
+
+function speak(text, rate, label) {
+  return new Promise(resolve => {
+    if (typeof speechSynthesis === 'undefined') {
+      log(label + ': speechSynthesis unavailable', 'err');
+      resolve({ ok: false, reason: 'speechSynthesis unavailable' });
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.1;
-    utterance.volume = 1.0;
-    utterance.onstart = () => log('TTS playing: "' + text + '"', 'tts');
-    utterance.onerror = (e) => log('TTS error: ' + e.error, 'error');
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    log('TTS exception: ' + e.message, 'error');
-  }
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = rate;
+    u.volume = 1;
+    let started = false;
+    let resolved = false;
+    const done = (outcome) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(outcome);
+    };
+    u.onstart = () => {
+      started = true;
+      log(label + ': onstart fired (rate=' + rate + ')', 'ok');
+    };
+    u.onend = () => {
+      log(label + ': onend fired (started=' + started + ')', started ? 'ok' : 'warn');
+      done({ ok: started, started });
+    };
+    u.onerror = (e) => {
+      log(label + ': onerror "' + (e.error || 'unknown') + '"', 'err');
+      done({ ok: false, reason: e.error });
+    };
+    log(label + ': speak("' + text + '", rate=' + rate + ')');
+    try {
+      speechSynthesis.speak(u);
+    } catch (e) {
+      log(label + ': speak() threw: ' + e.message, 'err');
+      done({ ok: false, reason: e.message });
+    }
+    setTimeout(() => done({ ok: started, started, timeout: true }), 8000);
+  });
 }
 
-// === ANNOUNCEMENT: Web Audio API beep pattern ===
-function playBeeps(count) {
-  if (!audioCtx) return;
-  try {
-    for (let i = 0; i < count; i++) {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+async function playTone(label, freq, durationSec) {
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    log(label + ': no AudioContext constructor', 'err');
+    return { ok: false, reason: 'no AudioContext' };
+  }
+  const ctx = new Ctor();
+  const stateBefore = ctx.state;
+  log(label + ': ctx created, state=' + stateBefore + ', sampleRate=' + ctx.sampleRate);
+  try { await ctx.resume(); } catch (e) { log(label + ': resume threw: ' + e.message, 'warn'); }
+  const stateAfter = ctx.state;
+  log(label + ': after resume, state=' + stateAfter, stateAfter === 'running' ? 'ok' : 'warn');
+
+  return new Promise(resolve => {
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.frequency.value = 880;
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
       osc.type = 'sine';
-      gain.gain.value = 0.3;
-      const t = audioCtx.currentTime + i * 0.25;
-      osc.start(t);
-      osc.stop(t + 0.15);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationSec);
+      osc.onended = () => {
+        log(label + ': oscillator onended', 'ok');
+        ctx.close().catch(() => {});
+        resolve({ ok: true, stateBefore, stateAfter });
+      };
+      osc.start();
+      osc.stop(ctx.currentTime + durationSec);
+      log(label + ': oscillator started, ' + freq + 'Hz for ' + durationSec + 's');
+    } catch (e) {
+      log(label + ': tone failed: ' + e.message, 'err');
+      ctx.close().catch(() => {});
+      resolve({ ok: false, reason: e.message });
     }
-    log('Beep x' + count + ' scheduled', 'beep');
-  } catch (e) {
-    log('Beep error: ' + e.message, 'error');
-  }
+  });
 }
 
-// === ANNOUNCEMENT: Web Audio API tone (speech-substitute) ===
-function playTone(frequency, duration) {
-  if (!audioCtx) return;
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+async function test1() {
+  setResult('r1', 'running…', 'info');
+  log('--- Test 1: TTS alone ---');
+  const r = await speak('Hello Jessica', 1.0, 'T1');
+  setResult('r1', r.ok ? 'started + ended' : ('FAIL: ' + (r.reason || 'no onstart')), r.ok ? 'ok' : 'fail');
+}
+
+async function test2() {
+  setResult('r2', 'running…', 'info');
+  log('--- Test 2: TTS at iOS-scaled rate (0.96) ---');
+  const r = await speak('Hello Jessica', 0.96, 'T2');
+  setResult('r2', r.ok ? 'started + ended' : ('FAIL: ' + (r.reason || 'no onstart')), r.ok ? 'ok' : 'fail');
+}
+
+async function test3() {
+  setResult('r3', 'running…', 'info');
+  log('--- Test 3: Web Audio tone alone ---');
+  const r = await playTone('T3', 440, 1.0);
+  setResult('r3', r.ok ? ('played, state ' + r.stateBefore + '→' + r.stateAfter) : ('FAIL: ' + r.reason), r.ok ? 'ok' : 'fail');
+}
+
+async function test4() {
+  setResult('r4', 'running…', 'info');
+  log('--- Test 4: TTS → tone (sequential) ---');
+  const t = await speak('First, the voice', 1.0, 'T4-tts');
+  await wait(2000);
+  const tone = await playTone('T4-tone', 660, 1.0);
+  const ok = t.ok && tone.ok;
+  setResult('r4', ok ? 'both fired' : ('TTS=' + t.ok + ', tone=' + tone.ok), ok ? 'ok' : 'fail');
+}
+
+async function test5() {
+  setResult('r5', 'running…', 'info');
+  log('--- Test 5: Tone → TTS (sequential) — v35 ordering ---');
+  const tone = await playTone('T5-tone', 660, 1.0);
+  await wait(2000);
+  const t = await speak('Now the voice after the tone', 1.0, 'T5-tts');
+  const ok = tone.ok && t.ok;
+  setResult('r5', ok ? 'both fired' : ('tone=' + tone.ok + ', TTS=' + t.ok), ok ? 'ok' : 'fail');
+}
+
+async function test6() {
+  setResult('r6', 'running…', 'info');
+  log('--- Test 6: Resume + immediate TTS (exact v35 sequence) ---');
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    log('T6: no AudioContext', 'err');
+    setResult('r6', 'FAIL: no AudioContext', 'fail');
+    return;
+  }
+  const ctx = new Ctor();
+  log('T6: ctx state=' + ctx.state);
+  ctx.resume?.();
+  log('T6: called ctx.resume() (sync), state now=' + ctx.state);
+  const t = await speak('Hello Jessica after resume', 1.0, 'T6');
+  ctx.close().catch(() => {});
+  setResult('r6', t.ok ? 'TTS still fired' : ('TTS suppressed: ' + (t.reason || 'no onstart')), t.ok ? 'ok' : 'fail');
+}
+
+async function test7() {
+  setResult('r7', 'running…', 'info');
+  log('--- Test 7: Decode + play demo WAV (pack audio path) ---');
+
+  let zipBuf;
   try {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.value = frequency;
-    osc.type = 'triangle';
-    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-    log('Audio tone ' + frequency + 'Hz for ' + duration + 's', 'audio');
+    log('T7: fetching ../conductor-demo.zip…');
+    const resp = await fetch('../conductor-demo.zip', { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    zipBuf = await resp.arrayBuffer();
+    log('T7: zip fetched, ' + zipBuf.byteLength + ' bytes', 'ok');
   } catch (e) {
-    log('Tone error: ' + e.message, 'error');
+    log('T7: zip fetch failed: ' + e.message, 'err');
+    setResult('r7', 'FAIL: zip fetch (' + e.message + ')', 'fail');
+    return;
   }
-}
 
-// === MAIN TICK (fires every 15 seconds) ===
-function tick() {
-  tickCount++;
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-
-  log('--- Tick #' + tickCount + ' (elapsed: ' + elapsed + 's) ---', 'info');
-
-  // Simulate a countdown announcement
-  const phrases = [
-    'Action in 5 seconds',
-    'Hold signs up now',
-    'Three, two, one, go',
-    'Turn left and march',
-    'Stop and hold position',
-    'Raise your lights',
-    'Begin chanting now',
-    'Regroup at checkpoint',
-  ];
-  const phrase = phrases[(tickCount - 1) % phrases.length];
-
-  // Method 1: TTS
-  announceTTS(phrase);
-
-  // Method 2: Distinctive tone (so tester can distinguish from TTS)
-  setTimeout(() => playTone(440 + tickCount * 50, 0.5), 3000);
-
-  // Method 3: Beep pattern
-  setTimeout(() => playBeeps(Math.min(tickCount, 3)), 6000);
-
-  // Resume audio context if suspended (iOS sometimes suspends it)
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().then(() => log('AudioContext resumed from suspended', 'info'));
+  if (typeof parseZipCentralDirectory !== 'function' || typeof extractZipFile !== 'function') {
+    log('T7: resourcePackManager helpers not exposed globally', 'err');
+    setResult('r7', 'FAIL: zip helpers missing', 'fail');
+    return;
   }
-}
 
-function startTest() {
-  if (running) return;
-  running = true;
-  tickCount = 0;
-  startTime = Date.now();
+  let entries;
+  try {
+    entries = parseZipCentralDirectory(zipBuf);
+    log('T7: parsed ' + entries.length + ' entries', 'ok');
+  } catch (e) {
+    log('T7: zip parse failed: ' + e.message, 'err');
+    setResult('r7', 'FAIL: zip parse', 'fail');
+    return;
+  }
 
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-  statusEl.textContent = 'RUNNING';
-  statusEl.className = 'status running';
+  const candidates = ['voices/freeze.wav', 'voices/freeze.mp3'];
+  let target = null;
+  for (const c of candidates) {
+    target = entries.find(e => e.name === c);
+    if (target) break;
+  }
+  if (!target) {
+    target = entries.find(e => /^voices\/.+\.(wav|mp3|ogg)$/i.test(e.name));
+  }
+  if (!target) {
+    log('T7: no voice file found in zip', 'err');
+    setResult('r7', 'FAIL: no voice file', 'fail');
+    return;
+  }
+  log('T7: extracting "' + target.name + '"…');
 
-  logEl.innerHTML = '';
-  log('Test started - announcements every 15 seconds', 'info');
-  log('Lock your phone after the first announcement plays', 'info');
+  let audioBytes;
+  try {
+    audioBytes = await extractZipFile(zipBuf, target);
+    log('T7: extracted ' + audioBytes.byteLength + ' bytes', 'ok');
+  } catch (e) {
+    log('T7: extract failed: ' + e.message, 'err');
+    setResult('r7', 'FAIL: extract', 'fail');
+    return;
+  }
 
-  // Initialize audio systems (must happen in user gesture handler)
-  initAudioContext();
-  startSilentAudioLoop();
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    log('T7: no AudioContext', 'err');
+    setResult('r7', 'FAIL: no AudioContext', 'fail');
+    return;
+  }
+  const ctx = new Ctor();
+  try { await ctx.resume(); } catch (e) {}
+  log('T7: ctx state=' + ctx.state + ', sampleRate=' + ctx.sampleRate);
 
-  // Fire first tick immediately
-  tick();
+  let buf;
+  try {
+    const ab = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
+    buf = await new Promise((resolve, reject) => {
+      ctx.decodeAudioData(ab, resolve, reject);
+    });
+    log('T7: decoded buffer sampleRate=' + buf.sampleRate + ', duration=' + buf.duration.toFixed(2) + 's, channels=' + buf.numberOfChannels, 'ok');
+  } catch (e) {
+    log('T7: decodeAudioData failed: ' + (e?.message || e), 'err');
+    ctx.close().catch(() => {});
+    setResult('r7', 'FAIL: decode', 'fail');
+    return;
+  }
 
-  // Then every 15 seconds
-  intervalId = setInterval(tick, 15000);
-
-  // Update counter every second
-  setInterval(updateCounter, 1000);
-}
-
-function stopTest() {
-  running = false;
-
-  if (intervalId) { clearInterval(intervalId); intervalId = null; }
-  if (silentAudio) { silentAudio.pause(); silentAudio = null; }
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  window.speechSynthesis?.cancel();
-
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  statusEl.textContent = 'STOPPED';
-  statusEl.className = 'status stopped';
-
-  log('Test stopped after ' + tickCount + ' ticks', 'info');
-  log('Check log above: any gaps = iOS killed the audio', 'info');
-}
-
-// Prevent iOS from pausing audio on page visibility change
-document.addEventListener('visibilitychange', () => {
-  if (running) {
-    log('Visibility changed to: ' + document.visibilityState, 'info');
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+  await new Promise(resolve => {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.onended = () => {
+      log('T7: BufferSource onended', 'ok');
+      resolve();
+    };
+    try {
+      src.start();
+      log('T7: BufferSource started');
+    } catch (e) {
+      log('T7: start threw: ' + e.message, 'err');
+      resolve();
     }
-  }
-});
+  });
+  ctx.close().catch(() => {});
+  setResult('r7', 'decoded + played (' + buf.duration.toFixed(2) + 's)', 'ok');
+}
+
+dumpEnv();
+log('Page loaded. Click each test in order.');
 </script>
 
 </body>
