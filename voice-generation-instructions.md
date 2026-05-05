@@ -19,11 +19,17 @@ existing 79 files to maintain consistency across the pack.
 - Trim silence: ~50ms before and after each clip
 - Normalize volume to match the existing clips
 
-## Important: Minimum Phrase Length
+## Phrase Length — Updated 2026-05-05
 
-**Chatterbox struggles with very short utterances.** Every cue must be a
-natural-sounding phrase of **at least 3-4 words**. That's why "Freeze" becomes
-"Freeze. Don't move." and "Sway" becomes "Sway gently in place."
+Earlier guidance required 3-4 word phrases due to Chatterbox's trouble with
+short utterances. **That rule is relaxed for the next regen.** Keep cues as
+short as the action allows ("Freeze." "Walk." "Disperse.") even if Chatterbox
+needs extra coaxing — the redundant trailing modifiers ("Freeze. Don't move.",
+"Walk. Normal pace.") were too verbose for live use.
+
+**Source of truth for spoken text: `docs/demos/wav-manifest.md`.** The tables
+below in this file are kept for historical reference; if a row disagrees with
+wav-manifest.md, wav-manifest.md wins.
 
 ## Folder Structure
 
@@ -46,8 +52,8 @@ These are the main coordination cues — clear, direct, calm authority.
 
 | # | Filename | Speak | Notes |
 |---|---|---|---|
-| 1 | `voices/freeze.wav` | "Freeze. Don't move." | Sharp, immediate. THE signature moment. |
-| 2 | `voices/unfreeze.wav` | "Unfreeze. You can move." | Relief, release of tension. |
+| 1 | `voices/freeze.wav` | "Freeze." | Sharp, immediate. THE signature moment. |
+| 2 | `voices/unfreeze.wav` | "Unfreeze." | Relief, release of tension. |
 
 ### Umbrella — raise/lower (2 files) — used in The Bloom, The Stand
 
@@ -69,8 +75,8 @@ These are the main coordination cues — clear, direct, calm authority.
 
 | # | Filename | Speak | Notes |
 |---|---|---|---|
-| 9 | `voices/stand-tall.wav` | "Stand tall. Shoulders back." | Confident, upright energy |
-| 10 | `voices/kneel.wav` | "Kneel down slowly." | Calm, deliberate |
+| 9 | `voices/stand-tall.wav` | "Stand tall." | Confident, upright energy |
+| 10 | `voices/kneel.wav` | "Kneel down." | Calm, deliberate |
 
 ### Formation (2 files) — used in The Walk, The Murmur
 
@@ -83,20 +89,20 @@ These are the main coordination cues — clear, direct, calm authority.
 
 | # | Filename | Speak | Notes |
 |---|---|---|---|
-| 13 | `voices/hum.wav` | "Begin humming softly." | Gentle, inviting. Sets an eerie tone. |
-| 14 | `voices/whisper.wav` | "Whisper to each other." | Quiet, conspiratorial |
-| 15 | `voices/silence.wav` | "Silence. No sound at all." | Firm but quiet. Dramatic pause. |
+| 13 | `voices/hum.wav` | "Begin humming." | Gentle, inviting. Sets an eerie tone. |
+| 14 | `voices/whisper.wav` | "Whisper now." | Quiet, conspiratorial |
+| 15 | `voices/silence.wav` | "Silence." | Firm but quiet. Dramatic pause. |
 
 ### Gaze & Movement (6 files) — used in The Murmur, Lights Out, The Bloom
 
 | # | Filename | Speak | Notes |
 |---|---|---|---|
-| 16 | `voices/gaze-up.wav` | "Look up. Eyes to the sky." | Gentle, contemplative |
-| 17 | `voices/gaze-down.wav` | "Look down. Eyes to the ground." | Contemplative, internal |
-| 18 | `voices/slow-turn.wav` | "Turn slowly in place." | Measured, deliberate |
+| 16 | `voices/gaze-up.wav` | "Look up." | Gentle, contemplative |
+| 17 | `voices/gaze-down.wav` | "Look down." | Contemplative, internal |
+| 18 | `voices/slow-turn.wav` | "Turn slowly." | Measured, deliberate |
 | 19 | `voices/face-center.wav` | "Face the center." | Clear, orienting |
-| 20 | `voices/sway.wav` | "Sway gently in place." | Smooth, flowing energy |
-| 21 | `voices/step-forward.wav` | "Step forward. One step." | Clear, decisive |
+| 20 | `voices/sway.wav` | "Sway gently." | Smooth, flowing energy |
+| 21 | `voices/step-forward.wav` | "Take one step forward." | Clear, decisive |
 
 ---
 
@@ -142,7 +148,7 @@ commanding. "Get ready to..." phrasing, flowing naturally as one phrase.
 - **Not robotic** — human warmth, just minimal
 
 Special notes for new cues:
-- **Freeze** ("Freeze. Don't move.") — sharpest, most immediate cue in the set.
+- **Freeze** ("Freeze.") — sharpest, most immediate cue in the set.
   This is the signature flash mob moment.
 - **Sound cues** (hum, whisper, silence) — gentler, almost conspiratorial.
   These set an eerie, theatrical mood for The Murmur script.

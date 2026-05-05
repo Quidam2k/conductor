@@ -39,20 +39,20 @@ struggles with very short utterances.
 | `in-position` | "You're in position. Act natural." | `voices/in-position.wav` | All scripts |
 | `hold` | "Hold your position." | `voices/hold.wav` | Stillness, Bloom, Stand, Signal |
 | `done` | "You're done. Thank you." | `voices/done.wav` | All scripts |
-| `walk` | "Walk. Normal pace." | `voices/walk.wav` | — |
+| `walk` | "Walk." | `voices/walk.wav` | — |
 
 ### Freeze / Unfreeze
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `freeze` | "Freeze. Don't move." | `voices/freeze.wav` | Stillness, Stand |
-| `unfreeze` | "Unfreeze. Move naturally." | `voices/unfreeze.wav` | Stillness |
+| `freeze` | "Freeze." | `voices/freeze.wav` | Stillness, Stand |
+| `unfreeze` | "Unfreeze." | `voices/unfreeze.wav` | Stillness |
 
 ### Umbrella
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `umbrella-up` | "Raise your umbrella high." | `voices/umbrella-up.wav` | Bloom, Stand |
+| `umbrella-up` | "Raise your umbrella." | `voices/umbrella-up.wav` | Bloom, Stand |
 | `umbrella-down` | "Lower your umbrella." | `voices/umbrella-down.wav` | Bloom |
 | `open-umbrella` | "Open your umbrella." | `voices/open-umbrella.wav` | Bloom, Stand |
 | `close-umbrella` | "Close your umbrella." | `voices/close-umbrella.wav` | Bloom, Stand |
@@ -63,7 +63,7 @@ struggles with very short utterances.
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `phone-up` | "Raise your phone high." | `voices/phone-up.wav` | Lights Out |
+| `phone-up` | "Raise your phone." | `voices/phone-up.wav` | Lights Out |
 | `phone-down` | "Lower your phone." | `voices/phone-down.wav` | Lights Out |
 | `hands-up` | "Raise your hands." | `voices/hands-up.wav` | Signal |
 | `hands-down` | "Lower your hands." | `voices/hands-down.wav` | Signal |
@@ -72,8 +72,8 @@ struggles with very short utterances.
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `stand-tall` | "Stand tall. Shoulders back." | `voices/stand-tall.wav` | Stand |
-| `kneel` | "Kneel down slowly." | `voices/kneel.wav` | — |
+| `stand-tall` | "Stand tall." | `voices/stand-tall.wav` | Stand |
+| `kneel` | "Kneel down." | `voices/kneel.wav` | — |
 
 ### Formation
 
@@ -94,9 +94,9 @@ struggles with very short utterances.
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `gaze-up` | "Look up slowly." | `voices/gaze-up.wav` | Lights Out, Murmur |
+| `gaze-up` | "Look up." | `voices/gaze-up.wav` | Lights Out, Murmur |
 | `gaze-down` | "Look down." | `voices/gaze-down.wav` | Murmur |
-| `slow-turn` | "Turn slowly in place." | `voices/slow-turn.wav` | Murmur |
+| `slow-turn` | "Turn slowly." | `voices/slow-turn.wav` | Murmur |
 | `face-center` | "Face the center." | `voices/face-center.wav` | Murmur, Walk |
 | `sway` | "Sway gently." | `voices/sway.wav` | Bloom, Lights Out |
 | `step-forward` | "Take one step forward." | `voices/step-forward.wav` | Signal |
@@ -105,7 +105,7 @@ struggles with very short utterances.
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `begin-walking` | "Begin walking. Slow pace." | `voices/begin-walking.wav` | Walk |
+| `begin-walking` | "Begin walking." | `voices/begin-walking.wav` | Walk |
 | `stop` | "Stop where you are." | `voices/stop.wav` | Walk |
 | `light-on` | "Turn on your light." | `voices/light-on.wav` | Lights Out, Walk |
 | `light-off` | "Turn off your light." | `voices/light-off.wav` | Lights Out, Walk |
@@ -118,20 +118,20 @@ struggles with very short utterances.
 | `dir-south` | "Your direction is south." | `voices/dir-south.wav` | — |
 | `dir-east` | "Your direction is east." | `voices/dir-east.wav` | — |
 | `dir-west` | "Your direction is west." | `voices/dir-west.wav` | — |
-| `disperse` | "Disperse. Any direction." | `voices/disperse.wav` | Stillness, Lights Out, Signal |
+| `disperse` | "Disperse." | `voices/disperse.wav` | Stillness, Lights Out, Signal |
 
 ### Directional Movement
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `walk-north` | "Walk north. Normal pace." | `voices/walk-north.wav` | — |
-| `walk-south` | "Walk south. Normal pace." | `voices/walk-south.wav` | — |
-| `walk-east` | "Walk east. Normal pace." | `voices/walk-east.wav` | — |
-| `walk-west` | "Walk west. Normal pace." | `voices/walk-west.wav` | — |
+| `walk-north` | "Walk north." | `voices/walk-north.wav` | — |
+| `walk-south` | "Walk south." | `voices/walk-south.wav` | — |
+| `walk-east` | "Walk east." | `voices/walk-east.wav` | — |
+| `walk-west` | "Walk west." | `voices/walk-west.wav` | — |
 | `walk-in` | "Walk toward the center." | `voices/walk-in.wav` | — |
 | `walk-out` | "Walk away from the center." | `voices/walk-out.wav` | — |
-| `walk-slowly` | "Walk slowly. Take your time." | `voices/walk-slowly.wav` | Walk |
-| `stop-walking` | "Stop walking. Hold your position." | `voices/stop-walking.wav` | — |
+| `walk-slowly` | "Walk slowly." | `voices/walk-slowly.wav` | Walk |
+| `stop-walking` | "Stop walking." | `voices/stop-walking.wav` | — |
 
 ### Turns & Facing
 
@@ -150,7 +150,7 @@ struggles with very short utterances.
 |--------|-------------|-----------|---------|
 | `raise-sign` | "Raise your sign." | `voices/raise-sign.wav` | Signal |
 | `lower-sign` | "Lower your sign." | `voices/lower-sign.wav` | Signal |
-| `flip-sign` | "Flip your sign over." | `voices/flip-sign.wav` | Signal |
+| `flip-sign` | "Flip your sign." | `voices/flip-sign.wav` | Signal |
 | `light-sign` | "Light up your sign." | `voices/light-sign.wav` | — |
 | `dark-sign` | "Sign lights off." | `voices/dark-sign.wav` | — |
 

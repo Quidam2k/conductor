@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iOS Audio Diagnostics — v36</title>
+<title>iOS Audio Diagnostics — v37</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -70,6 +70,17 @@
   .result.ok { color: #81c784; }
   .result.fail { color: #ef5350; }
   .result.info { color: #ffb74d; }
+  .audibility-ctrl {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 4px;
+  }
+  .audibility-ctrl button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .btn-heard { background: #81c784; color: #0d0d1a; }
+  .btn-silent { background: #ef5350; color: #0d0d1a; }
   .log-box {
     background: #0d0d1a;
     border-radius: 10px;
@@ -109,7 +120,13 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v36 — click each test, report results.</p>
+<p class="sub">Build v37 — click Run on each test, then tap ✓ Heard or ✗ Silent.</p>
+
+<div class="note">
+  After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
+  Tap whichever is true — the result line only finalizes after you do. For tests 7 and 9 you may
+  see "decoding… please wait" first; wait until it changes before tapping.
+</div>
 
 <h2>Environment</h2>
 <div class="card" id="env"></div>
@@ -118,7 +135,7 @@
 
 <div class="test">
   <div class="test-title">1. TTS alone</div>
-  <div class="test-desc">Speak "Hello Jessica" via speechSynthesis. Did you hear it?</div>
+  <div class="test-desc">Speak "Hello Jessica" via speechSynthesis.</div>
   <div class="test-row">
     <button onclick="test1()">Run</button>
     <span class="result pending" id="r1">—</span>
@@ -145,7 +162,7 @@
 
 <div class="test">
   <div class="test-title">4. TTS → tone (sequential)</div>
-  <div class="test-desc">Speak first, wait 2s, then play tone. Both should fire.</div>
+  <div class="test-desc">Speak first, wait 2s, then play tone. Two audibility questions: voice, then tone.</div>
   <div class="test-row">
     <button onclick="test4()">Run</button>
     <span class="result pending" id="r4">—</span>
@@ -154,7 +171,7 @@
 
 <div class="test">
   <div class="test-title">5. Tone → TTS (sequential)</div>
-  <div class="test-desc">Play tone first, wait 2s, then speak. Critical: does TTS still work after Web Audio?</div>
+  <div class="test-desc">Play tone first, wait 2s, then speak. Two audibility questions: tone, then voice.</div>
   <div class="test-row">
     <button onclick="test5()">Run</button>
     <span class="result pending" id="r5">—</span>
@@ -172,16 +189,29 @@
 
 <div class="test">
   <div class="test-title">7. Decode + play demo WAV (real pack-audio path)</div>
-  <div class="test-desc">Fetch conductor-demo.zip, extract voices/freeze.wav, decode, play. Logs sample rates + duration.</div>
+  <div class="test-desc">Fetch conductor-demo.zip, extract voices/freeze.wav, decode via decodeAudioData, play through BufferSource.</div>
   <div class="test-row">
     <button onclick="test7()">Run</button>
     <span class="result pending" id="r7">—</span>
   </div>
 </div>
 
-<div class="note">
-  <strong>Hardware probe:</strong> If tests 3, 4, 5, or 7 are silent, check your iPhone's silent switch
-  (the small slider on the side, above the volume buttons). Web Audio honors hardware mute on iOS.
+<div class="test">
+  <div class="test-title">8. Silent &lt;audio&gt; keepalive + Web Audio tone</div>
+  <div class="test-desc">Start a silent looping &lt;audio&gt; element, then play a 440 Hz Web Audio tone. Tests if the keepalive un-silences Web Audio on iOS 18.</div>
+  <div class="test-row">
+    <button onclick="test8()">Run</button>
+    <span class="result pending" id="r8">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">9. HTMLAudioElement plays the demo WAV</div>
+  <div class="test-desc">Same WAV as test 7, but played through &lt;audio&gt; + blob URL — bypasses decodeAudioData and BufferSource entirely.</div>
+  <div class="test-row">
+    <button onclick="test9()">Run</button>
+    <span class="result pending" id="r9">—</span>
+  </div>
 </div>
 
 <h2>Results log</h2>
@@ -218,7 +248,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor iOS Audio Diagnostics v36 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor iOS Audio Diagnostics v37 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),
@@ -284,6 +314,66 @@ function dumpEnv() {
   }
 }
 
+// ─── Audibility prompt ──────────────────────────────────────────────────────
+// After a test's API portion completes, mount ✓ Heard / ✗ Silent buttons in the
+// test row and wait for a click. Resolves to 'heard' or 'silent'. The result
+// line only finalizes after the user picks one — so a test passes only when API
+// succeeded AND the user actually heard something.
+
+function awaitAudibility(resultId, prompt) {
+  return new Promise(resolve => {
+    setResult(resultId, prompt, 'info');
+    const resultEl = document.getElementById(resultId);
+    const row = resultEl.parentElement;
+
+    const ctrl = document.createElement('span');
+    ctrl.className = 'audibility-ctrl';
+
+    const heardBtn = document.createElement('button');
+    heardBtn.textContent = '✓ Heard';
+    heardBtn.className = 'btn-heard';
+
+    const silentBtn = document.createElement('button');
+    silentBtn.textContent = '✗ Silent';
+    silentBtn.className = 'btn-silent';
+
+    ctrl.appendChild(heardBtn);
+    ctrl.appendChild(silentBtn);
+    row.appendChild(ctrl);
+
+    const finish = (v) => {
+      heardBtn.disabled = true;
+      silentBtn.disabled = true;
+      ctrl.remove();
+      resolve(v);
+    };
+    heardBtn.onclick = () => finish('heard');
+    silentBtn.onclick = () => finish('silent');
+  });
+}
+
+function applyVerdict(resultId, apiOk, audVerdict, apiFailReason) {
+  if (!apiOk) {
+    setResult(resultId, 'API FAIL: ' + (apiFailReason || 'unknown'), 'fail');
+    return;
+  }
+  if (audVerdict === 'heard') {
+    setResult(resultId, 'HEARD ✓', 'ok');
+  } else {
+    setResult(resultId, 'INAUDIBLE ✗ (API ok)', 'fail');
+  }
+}
+
+function applyPairVerdict(resultId, apiOk, label1, v1, label2, v2, apiFailReason) {
+  if (!apiOk) {
+    setResult(resultId, 'API FAIL: ' + (apiFailReason || 'unknown'), 'fail');
+    return;
+  }
+  const tag = (v) => v === 'heard' ? 'HEARD' : 'SILENT';
+  const ok = v1 === 'heard' && v2 === 'heard';
+  setResult(resultId, label1 + '=' + tag(v1) + ', ' + label2 + '=' + tag(v2), ok ? 'ok' : 'fail');
+}
+
 // ─── Test helpers ───────────────────────────────────────────────────────────
 
 function speak(text, rate, label) {
@@ -326,15 +416,16 @@ function speak(text, rate, label) {
   });
 }
 
-async function playTone(label, freq, durationSec) {
+async function playTone(label, freq, durationSec, ctxOverride) {
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) {
     log(label + ': no AudioContext constructor', 'err');
     return { ok: false, reason: 'no AudioContext' };
   }
-  const ctx = new Ctor();
+  const ctx = ctxOverride || new Ctor();
+  const ownsCtx = !ctxOverride;
   const stateBefore = ctx.state;
-  log(label + ': ctx created, state=' + stateBefore + ', sampleRate=' + ctx.sampleRate);
+  log(label + ': ctx state=' + stateBefore + ', sampleRate=' + ctx.sampleRate);
   try { await ctx.resume(); } catch (e) { log(label + ': resume threw: ' + e.message, 'warn'); }
   const stateAfter = ctx.state;
   log(label + ': after resume, state=' + stateAfter, stateAfter === 'running' ? 'ok' : 'warn');
@@ -351,7 +442,7 @@ async function playTone(label, freq, durationSec) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationSec);
       osc.onended = () => {
         log(label + ': oscillator onended', 'ok');
-        ctx.close().catch(() => {});
+        if (ownsCtx) ctx.close().catch(() => {});
         resolve({ ok: true, stateBefore, stateAfter });
       };
       osc.start();
@@ -359,7 +450,7 @@ async function playTone(label, freq, durationSec) {
       log(label + ': oscillator started, ' + freq + 'Hz for ' + durationSec + 's');
     } catch (e) {
       log(label + ': tone failed: ' + e.message, 'err');
-      ctx.close().catch(() => {});
+      if (ownsCtx) ctx.close().catch(() => {});
       resolve({ ok: false, reason: e.message });
     }
   });
@@ -367,99 +458,52 @@ async function playTone(label, freq, durationSec) {
 
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
-
-async function test1() {
-  setResult('r1', 'running…', 'info');
-  log('--- Test 1: TTS alone ---');
-  const r = await speak('Hello Jessica', 1.0, 'T1');
-  setResult('r1', r.ok ? 'started + ended' : ('FAIL: ' + (r.reason || 'no onstart')), r.ok ? 'ok' : 'fail');
+// Build a 16-bit mono PCM WAV of `seconds` of silence as an ArrayBuffer.
+// Used by Test 8 to keep an <audio> element playing in the background.
+function makeSilentWavBytes(seconds, sampleRate) {
+  const sr = sampleRate || 44100;
+  const numSamples = Math.floor(sr * seconds);
+  const dataSize = numSamples * 2; // 16-bit mono
+  const buf = new ArrayBuffer(44 + dataSize);
+  const v = new DataView(buf);
+  // RIFF header
+  v.setUint32(0, 0x52494646, false); // "RIFF"
+  v.setUint32(4, 36 + dataSize, true);
+  v.setUint32(8, 0x57415645, false); // "WAVE"
+  // fmt chunk
+  v.setUint32(12, 0x666d7420, false); // "fmt "
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);            // PCM
+  v.setUint16(22, 1, true);            // mono
+  v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true);       // byte rate
+  v.setUint16(32, 2, true);            // block align
+  v.setUint16(34, 16, true);           // bits per sample
+  // data chunk
+  v.setUint32(36, 0x64617461, false); // "data"
+  v.setUint32(40, dataSize, true);
+  // PCM samples already initialized to 0
+  return buf;
 }
 
-async function test2() {
-  setResult('r2', 'running…', 'info');
-  log('--- Test 2: TTS at iOS-scaled rate (0.96) ---');
-  const r = await speak('Hello Jessica', 0.96, 'T2');
-  setResult('r2', r.ok ? 'started + ended' : ('FAIL: ' + (r.reason || 'no onstart')), r.ok ? 'ok' : 'fail');
-}
-
-async function test3() {
-  setResult('r3', 'running…', 'info');
-  log('--- Test 3: Web Audio tone alone ---');
-  const r = await playTone('T3', 440, 1.0);
-  setResult('r3', r.ok ? ('played, state ' + r.stateBefore + '→' + r.stateAfter) : ('FAIL: ' + r.reason), r.ok ? 'ok' : 'fail');
-}
-
-async function test4() {
-  setResult('r4', 'running…', 'info');
-  log('--- Test 4: TTS → tone (sequential) ---');
-  const t = await speak('First, the voice', 1.0, 'T4-tts');
-  await wait(2000);
-  const tone = await playTone('T4-tone', 660, 1.0);
-  const ok = t.ok && tone.ok;
-  setResult('r4', ok ? 'both fired' : ('TTS=' + t.ok + ', tone=' + tone.ok), ok ? 'ok' : 'fail');
-}
-
-async function test5() {
-  setResult('r5', 'running…', 'info');
-  log('--- Test 5: Tone → TTS (sequential) — v35 ordering ---');
-  const tone = await playTone('T5-tone', 660, 1.0);
-  await wait(2000);
-  const t = await speak('Now the voice after the tone', 1.0, 'T5-tts');
-  const ok = tone.ok && t.ok;
-  setResult('r5', ok ? 'both fired' : ('tone=' + tone.ok + ', TTS=' + t.ok), ok ? 'ok' : 'fail');
-}
-
-async function test6() {
-  setResult('r6', 'running…', 'info');
-  log('--- Test 6: Resume + immediate TTS (exact v35 sequence) ---');
-  const Ctor = window.AudioContext || window.webkitAudioContext;
-  if (!Ctor) {
-    log('T6: no AudioContext', 'err');
-    setResult('r6', 'FAIL: no AudioContext', 'fail');
-    return;
+// Cache the freeze.wav bytes so Test 7 and Test 9 don't both download 33 MB.
+let _freezeWavBytes = null;
+async function getFreezeWavBytes(label) {
+  if (_freezeWavBytes) {
+    log(label + ': using cached freeze.wav (' + _freezeWavBytes.byteLength + ' bytes)', 'ok');
+    return _freezeWavBytes;
   }
-  const ctx = new Ctor();
-  log('T6: ctx state=' + ctx.state);
-  ctx.resume?.();
-  log('T6: called ctx.resume() (sync), state now=' + ctx.state);
-  const t = await speak('Hello Jessica after resume', 1.0, 'T6');
-  ctx.close().catch(() => {});
-  setResult('r6', t.ok ? 'TTS still fired' : ('TTS suppressed: ' + (t.reason || 'no onstart')), t.ok ? 'ok' : 'fail');
-}
-
-async function test7() {
-  setResult('r7', 'running…', 'info');
-  log('--- Test 7: Decode + play demo WAV (pack audio path) ---');
-
-  let zipBuf;
-  try {
-    log('T7: fetching ../conductor-demo.zip…');
-    const resp = await fetch('../conductor-demo.zip', { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    zipBuf = await resp.arrayBuffer();
-    log('T7: zip fetched, ' + zipBuf.byteLength + ' bytes', 'ok');
-  } catch (e) {
-    log('T7: zip fetch failed: ' + e.message, 'err');
-    setResult('r7', 'FAIL: zip fetch (' + e.message + ')', 'fail');
-    return;
-  }
+  log(label + ': fetching ../conductor-demo.zip…');
+  const resp = await fetch('../conductor-demo.zip', { cache: 'no-store' });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const zipBuf = await resp.arrayBuffer();
+  log(label + ': zip fetched, ' + zipBuf.byteLength + ' bytes', 'ok');
 
   if (typeof parseZipCentralDirectory !== 'function' || typeof extractZipFile !== 'function') {
-    log('T7: resourcePackManager helpers not exposed globally', 'err');
-    setResult('r7', 'FAIL: zip helpers missing', 'fail');
-    return;
+    throw new Error('zip helpers missing on window');
   }
-
-  let entries;
-  try {
-    entries = parseZipCentralDirectory(zipBuf);
-    log('T7: parsed ' + entries.length + ' entries', 'ok');
-  } catch (e) {
-    log('T7: zip parse failed: ' + e.message, 'err');
-    setResult('r7', 'FAIL: zip parse', 'fail');
-    return;
-  }
+  const entries = parseZipCentralDirectory(zipBuf);
+  log(label + ': parsed ' + entries.length + ' entries', 'ok');
 
   const candidates = ['voices/freeze.wav', 'voices/freeze.mp3'];
   let target = null;
@@ -470,44 +514,141 @@ async function test7() {
   if (!target) {
     target = entries.find(e => /^voices\/.+\.(wav|mp3|ogg)$/i.test(e.name));
   }
-  if (!target) {
-    log('T7: no voice file found in zip', 'err');
-    setResult('r7', 'FAIL: no voice file', 'fail');
+  if (!target) throw new Error('no voice file found in zip');
+  log(label + ': extracting "' + target.name + '"…');
+
+  const audioBytes = await extractZipFile(zipBuf, target);
+  log(label + ': extracted ' + audioBytes.byteLength + ' bytes', 'ok');
+  _freezeWavBytes = audioBytes;
+  return audioBytes;
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+async function test1() {
+  setResult('r1', 'running…', 'info');
+  log('--- Test 1: TTS alone ---');
+  const r = await speak('Hello Jessica', 1.0, 'T1');
+  if (!r.ok) { applyVerdict('r1', false, null, r.reason || 'no onstart'); return; }
+  const v = await awaitAudibility('r1', 'API ran — did you hear it?');
+  log('T1: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r1', true, v);
+}
+
+async function test2() {
+  setResult('r2', 'running…', 'info');
+  log('--- Test 2: TTS at iOS-scaled rate (0.96) ---');
+  const r = await speak('Hello Jessica', 0.96, 'T2');
+  if (!r.ok) { applyVerdict('r2', false, null, r.reason || 'no onstart'); return; }
+  const v = await awaitAudibility('r2', 'API ran — did you hear it?');
+  log('T2: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r2', true, v);
+}
+
+async function test3() {
+  setResult('r3', 'running…', 'info');
+  log('--- Test 3: Web Audio tone alone ---');
+  const r = await playTone('T3', 440, 1.0);
+  if (!r.ok) { applyVerdict('r3', false, null, r.reason); return; }
+  const v = await awaitAudibility('r3', 'API ran — did you hear the tone?');
+  log('T3: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r3', true, v);
+}
+
+async function test4() {
+  setResult('r4', 'running…', 'info');
+  log('--- Test 4: TTS → tone (sequential) ---');
+  const t = await speak('First, the voice', 1.0, 'T4-tts');
+  await wait(2000);
+  const tone = await playTone('T4-tone', 660, 1.0);
+  const apiOk = t.ok && tone.ok;
+  if (!apiOk) {
+    applyPairVerdict('r4', false, 'voice', null, 'tone', null,
+      'tts=' + t.ok + ' tone=' + tone.ok);
     return;
   }
-  log('T7: extracting "' + target.name + '"…');
+  const v1 = await awaitAudibility('r4', 'Did you hear the VOICE?');
+  log('T4-tts: audibility = ' + v1.toUpperCase(), v1 === 'heard' ? 'ok' : 'err');
+  const v2 = await awaitAudibility('r4', 'Did you hear the TONE?');
+  log('T4-tone: audibility = ' + v2.toUpperCase(), v2 === 'heard' ? 'ok' : 'err');
+  applyPairVerdict('r4', true, 'voice', v1, 'tone', v2);
+}
+
+async function test5() {
+  setResult('r5', 'running…', 'info');
+  log('--- Test 5: Tone → TTS (sequential) — v35 ordering ---');
+  const tone = await playTone('T5-tone', 660, 1.0);
+  await wait(2000);
+  const t = await speak('Now the voice after the tone', 1.0, 'T5-tts');
+  const apiOk = tone.ok && t.ok;
+  if (!apiOk) {
+    applyPairVerdict('r5', false, 'tone', null, 'voice', null,
+      'tone=' + tone.ok + ' tts=' + t.ok);
+    return;
+  }
+  const v1 = await awaitAudibility('r5', 'Did you hear the TONE?');
+  log('T5-tone: audibility = ' + v1.toUpperCase(), v1 === 'heard' ? 'ok' : 'err');
+  const v2 = await awaitAudibility('r5', 'Did you hear the VOICE?');
+  log('T5-tts: audibility = ' + v2.toUpperCase(), v2 === 'heard' ? 'ok' : 'err');
+  applyPairVerdict('r5', true, 'tone', v1, 'voice', v2);
+}
+
+async function test6() {
+  setResult('r6', 'running…', 'info');
+  log('--- Test 6: Resume + immediate TTS (exact v35 sequence) ---');
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    log('T6: no AudioContext', 'err');
+    applyVerdict('r6', false, null, 'no AudioContext');
+    return;
+  }
+  const ctx = new Ctor();
+  log('T6: ctx state=' + ctx.state);
+  ctx.resume?.();
+  log('T6: called ctx.resume() (sync), state now=' + ctx.state);
+  const t = await speak('Hello Jessica after resume', 1.0, 'T6');
+  ctx.close().catch(() => {});
+  if (!t.ok) { applyVerdict('r6', false, null, t.reason || 'no onstart'); return; }
+  const v = await awaitAudibility('r6', 'API ran — did you hear it?');
+  log('T6: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r6', true, v);
+}
+
+async function test7() {
+  setResult('r7', 'running…', 'info');
+  log('--- Test 7: Decode + play demo WAV (BufferSource pack-audio path) ---');
 
   let audioBytes;
   try {
-    audioBytes = await extractZipFile(zipBuf, target);
-    log('T7: extracted ' + audioBytes.byteLength + ' bytes', 'ok');
+    audioBytes = await getFreezeWavBytes('T7');
   } catch (e) {
-    log('T7: extract failed: ' + e.message, 'err');
-    setResult('r7', 'FAIL: extract', 'fail');
+    log('T7: getFreezeWavBytes failed: ' + e.message, 'err');
+    applyVerdict('r7', false, null, e.message);
     return;
   }
 
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) {
     log('T7: no AudioContext', 'err');
-    setResult('r7', 'FAIL: no AudioContext', 'fail');
+    applyVerdict('r7', false, null, 'no AudioContext');
     return;
   }
   const ctx = new Ctor();
   try { await ctx.resume(); } catch (e) {}
   log('T7: ctx state=' + ctx.state + ', sampleRate=' + ctx.sampleRate);
 
+  setResult('r7', 'decoding… please wait', 'info');
   let buf;
   try {
     const ab = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
     buf = await new Promise((resolve, reject) => {
       ctx.decodeAudioData(ab, resolve, reject);
     });
-    log('T7: decoded buffer sampleRate=' + buf.sampleRate + ', duration=' + buf.duration.toFixed(2) + 's, channels=' + buf.numberOfChannels, 'ok');
+    log('T7: decoded sampleRate=' + buf.sampleRate + ', duration=' + buf.duration.toFixed(2) + 's, channels=' + buf.numberOfChannels, 'ok');
   } catch (e) {
     log('T7: decodeAudioData failed: ' + (e?.message || e), 'err');
     ctx.close().catch(() => {});
-    setResult('r7', 'FAIL: decode', 'fail');
+    applyVerdict('r7', false, null, 'decode failed');
     return;
   }
 
@@ -528,7 +669,119 @@ async function test7() {
     }
   });
   ctx.close().catch(() => {});
-  setResult('r7', 'decoded + played (' + buf.duration.toFixed(2) + 's)', 'ok');
+
+  const v = await awaitAudibility('r7', 'BufferSource finished — did you hear it?');
+  log('T7: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r7', true, v);
+}
+
+// Test 8 — does a silent <audio> keepalive un-silence Web Audio on iOS 18?
+async function test8() {
+  setResult('r8', 'running…', 'info');
+  log('--- Test 8: Silent <audio> keepalive + Web Audio tone ---');
+
+  let blobUrl = null;
+  let keepalive = null;
+  try {
+    const wavBuf = makeSilentWavBytes(10, 44100);
+    const blob = new Blob([wavBuf], { type: 'audio/wav' });
+    blobUrl = URL.createObjectURL(blob);
+    keepalive = new Audio(blobUrl);
+    keepalive.loop = true;
+    keepalive.volume = 0.01;
+    log('T8: starting silent <audio> keepalive (10s loop, vol=0.01)…');
+    try {
+      const playPromise = keepalive.play();
+      if (playPromise && typeof playPromise.then === 'function') await playPromise;
+      log('T8: keepalive.play() resolved', 'ok');
+    } catch (e) {
+      log('T8: keepalive.play() rejected: ' + e.message, 'err');
+      applyVerdict('r8', false, null, 'keepalive play() rejected: ' + e.message);
+      keepalive.pause();
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+
+    log('T8: now firing 440 Hz Web Audio tone with keepalive running…');
+    const tone = await playTone('T8-tone', 440, 1.0);
+    if (!tone.ok) {
+      applyVerdict('r8', false, null, 'tone API failed: ' + tone.reason);
+      keepalive.pause();
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+
+    const v = await awaitAudibility('r8', 'Tone played with keepalive — did you hear the TONE?');
+    log('T8: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+    applyVerdict('r8', true, v);
+  } finally {
+    if (keepalive) {
+      try { keepalive.pause(); } catch (e) {}
+      keepalive.removeAttribute('src');
+    }
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    log('T8: keepalive stopped, blob URL revoked');
+  }
+}
+
+// Test 9 — does HTMLAudioElement playback of the pack WAV work where
+// BufferSource (test 7) was inaudible? No decodeAudioData, no Web Audio.
+async function test9() {
+  setResult('r9', 'running…', 'info');
+  log('--- Test 9: HTMLAudioElement plays demo WAV ---');
+
+  let audioBytes;
+  try {
+    audioBytes = await getFreezeWavBytes('T9');
+  } catch (e) {
+    log('T9: getFreezeWavBytes failed: ' + e.message, 'err');
+    applyVerdict('r9', false, null, e.message);
+    return;
+  }
+
+  setResult('r9', 'decoding… please wait', 'info');
+  const blob = new Blob([audioBytes], { type: 'audio/wav' });
+  const blobUrl = URL.createObjectURL(blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+
+  const cleanup = () => {
+    try { audio.pause(); } catch (e) {}
+    audio.removeAttribute('src');
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  let started = false;
+  try {
+    log('T9: calling audio.play()…');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    started = true;
+    log('T9: audio.play() resolved', 'ok');
+  } catch (e) {
+    log('T9: audio.play() rejected: ' + e.message, 'err');
+    cleanup();
+    applyVerdict('r9', false, null, 'play() rejected: ' + e.message);
+    return;
+  }
+
+  await new Promise(resolve => {
+    let done = false;
+    const finish = (reason) => {
+      if (done) return;
+      done = true;
+      log('T9: playback ended (' + reason + ')', 'ok');
+      resolve();
+    };
+    audio.onended = () => finish('ended event');
+    audio.onerror = () => finish('error event');
+    setTimeout(() => finish('6s timeout'), 6000);
+  });
+
+  const v = await awaitAudibility('r9', '<audio> finished — did you hear it?');
+  log('T9: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r9', true, v);
+  cleanup();
 }
 
 dumpEnv();
