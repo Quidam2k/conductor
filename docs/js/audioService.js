@@ -178,9 +178,13 @@ function createAudioService() {
      * @param {number|null} [eventDefaults.defaultCountdownSeconds] - Default countdown duration
      * @param {boolean|null} [eventDefaults.defaultCountdown] - Whether countdown is on by default
      * @param {string|null} [eventDefaults.defaultHapticMode] - 'action', 'countdown', or 'off'
+     * @param {number} [gapToNext=Infinity] - Milliseconds until the next action. Used to size the
+     *     countdown template: <3s → "And, Cue"; 3-5s → "2, 1, Cue"; ≥5s or last action → existing path.
+     * @param {boolean} [groupStartFlag=true] - False suppresses the "Get ready to" prep for cues
+     *     mid-group (rapid-sequence grouping by adjacent gaps <10s).
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
-    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}) {
+    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true) {
         if (!action.audioAnnounce) return null;
 
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
@@ -188,17 +192,24 @@ function createAudioService() {
 
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
-        // Resolve countdown for this action
+        // Resolve countdown template.
+        // Tier override applies when gap-to-next is finite and short — the countdown
+        // is sized to fit the available runway so it can't be truncated by the next cue.
         let countdownSeconds;
-        if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
-            // Action has explicit countdown — use it
+        let andTier = false;
+        if (gapToNext < 3000) {
+            // Tier 3: <3s gap. Single beat speaks the literal word "and" (dance-conductor cadence).
+            countdownSeconds = [1];
+            andTier = true;
+        } else if (gapToNext < 5000) {
+            // Tier 2: 3-5s gap. "2, 1, Cue".
+            countdownSeconds = [2, 1];
+        } else if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
             countdownSeconds = action.countdownSeconds;
         } else if (eventDefaults.defaultCountdown) {
-            // Event default says countdown is on
             const duration = eventDefaults.defaultCountdownSeconds ?? 5;
             countdownSeconds = Array.from({length: duration}, (_, i) => duration - i);
         } else {
-            // No countdown
             countdownSeconds = null;
         }
         const adjustedSeconds = Math.round(secondsUntil / speedMultiplier);
@@ -220,8 +231,10 @@ function createAudioService() {
         // 1. Notice announcement (highest temporal threshold, fires first chronologically)
         //    Does NOT return early — allows countdown to also fire on the same tick
         //    if noticeSeconds coincides with a countdown threshold.
+        //    Suppressed when groupStartFlag is false (cue is mid-rapid-sequence, group's
+        //    prep already played on the group-leading cue).
         let noticeResult = null;
-        if (noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
+        if (groupStartFlag && noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
@@ -265,8 +278,9 @@ function createAudioService() {
             // Fires once when the highest countdown threshold is first crossed and
             // marks all subsequent countdown beats as already announced — packs that
             // ship a single full "3, 2, 1" clip don't need per-number cues.
+            // Skipped in and-tier: the "and" beat is too short for a packed voice clip.
             const maxCountdown = sortedCountdown[sortedCountdown.length - 1];
-            if (action.pack && resourcePackResolver && crossed(maxCountdown)) {
+            if (!andTier && action.pack && resourcePackResolver && crossed(maxCountdown)) {
                 const firstKey = `${action.id}-countdown-${maxCountdown}`;
                 if (!announced.has(firstKey)) {
                     if (resourcePackResolver('countdown-voice', action.pack, speedMultiplier)) {
@@ -289,17 +303,22 @@ function createAudioService() {
                                 announced.add(`${action.id}-countdown-${cs2}`);
                             }
                         }
-                        const countdownCueId = 'countdown-' + cs;
-                        if (action.pack && resourcePackResolver && resourcePackResolver(countdownCueId, action.pack, speedMultiplier)) {
-                            return `countdown-pack: ${cs}`;
-                        }
-                        // Formatted countdown: first number gets action name context
-                        const maxCountdown = Math.max(...countdownSeconds);
                         let text;
-                        if (cs === maxCountdown) {
-                            text = action.action + ' in ' + cs;
+                        let cueId;
+                        if (andTier) {
+                            text = 'and';
+                            cueId = 'countdown-and';
                         } else {
-                            text = String(cs);
+                            cueId = 'countdown-' + cs;
+                            const maxCs = Math.max(...countdownSeconds);
+                            if (cs === maxCs) {
+                                text = action.action + ' in ' + cs;
+                            } else {
+                                text = String(cs);
+                            }
+                        }
+                        if (action.pack && resourcePackResolver && resourcePackResolver(cueId, action.pack, speedMultiplier)) {
+                            return `countdown-pack: ${cs}`;
                         }
                         speak(text, 1.3 * speedMultiplier);
                         return `countdown: "${text}"`;

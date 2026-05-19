@@ -578,6 +578,79 @@
         assert('Third countdown: just "3"', result === 'countdown: "3"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
+        // 18. Close-cue countdown tier (gap-to-next sizing)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>18. Close-Cue Countdown Tiers</h2>');
+
+        // Tier 1: gap >= 5s — existing path, uses action.countdownSeconds.
+        const tier1Svc = createAudioService();
+        tier1Svc.initialize(() => {});
+        tier1Svc.setMuted(true);
+        const tier1Action = actionAt(0, 'Freeze', {
+            noticeSeconds: 0,
+            countdownSeconds: [3, 2, 1],
+        });
+        // Prime with first tick well outside countdown range
+        tier1Svc.announceAction(tier1Action, 10, 5, 1, {}, 8000, true);
+        result = tier1Svc.announceAction(tier1Action, 3, 5, 1, {}, 8000, true);
+        assert('Tier 1 (gap=8s): countdown opens with action+3',
+            result === 'countdown: "Freeze in 3"', `Got: ${result}`);
+        result = tier1Svc.announceAction(tier1Action, 2, 5, 1, {}, 8000, true);
+        assert('Tier 1 (gap=8s): cd-2 is just "2"', result === 'countdown: "2"', `Got: ${result}`);
+
+        // Tier 2: gap in 3-5s — forced [2,1], drop "3".
+        const tier2Svc = createAudioService();
+        tier2Svc.initialize(() => {});
+        tier2Svc.setMuted(true);
+        const tier2Action = actionAt(0, 'Walk', {
+            noticeSeconds: 0,
+            countdownSeconds: [3, 2, 1], // overridden by tier
+        });
+        tier2Svc.announceAction(tier2Action, 10, 5, 1, {}, 4000, true);
+        // At secUntil=3 in tier 2, "3" was dropped — nothing should fire
+        result = tier2Svc.announceAction(tier2Action, 3, 5, 1, {}, 4000, true);
+        assert('Tier 2 (gap=4s): no countdown at 3', result === null, `Got: ${result}`);
+        // At secUntil=2, first countdown beat ("Walk in 2")
+        result = tier2Svc.announceAction(tier2Action, 2, 5, 1, {}, 4000, true);
+        assert('Tier 2 (gap=4s): cd opens "Walk in 2"',
+            result === 'countdown: "Walk in 2"', `Got: ${result}`);
+
+        // Tier 3: gap < 3s — speaks literal "and".
+        const tier3Svc = createAudioService();
+        tier3Svc.initialize(() => {});
+        tier3Svc.setMuted(true);
+        const tier3Action = actionAt(0, 'Hop', {
+            noticeSeconds: 0,
+            countdownSeconds: [3, 2, 1], // overridden by tier
+        });
+        tier3Svc.announceAction(tier3Action, 10, 5, 1, {}, 2000, true);
+        // At secUntil=2 in tier 3, nothing — single beat is at 1.
+        result = tier3Svc.announceAction(tier3Action, 2, 5, 1, {}, 2000, true);
+        assert('Tier 3 (gap=2s): no countdown at 2', result === null, `Got: ${result}`);
+        // At secUntil=1, the single beat speaks "and"
+        result = tier3Svc.announceAction(tier3Action, 1, 5, 1, {}, 2000, true);
+        assert('Tier 3 (gap=2s): cd is "and"',
+            result === 'countdown: "and"', `Got: ${result}`);
+        // Trigger normally
+        result = tier3Svc.announceAction(tier3Action, 0, 5, 1, {}, 2000, true);
+        assert('Tier 3 (gap=2s): trigger fires normally',
+            result === 'trigger: "Hop!"', `Got: ${result}`);
+
+        // groupStartFlag=false suppresses the notice ("Get ready to")
+        const noNoticeSvc = createAudioService();
+        noNoticeSvc.initialize(() => {});
+        noNoticeSvc.setMuted(true);
+        const groupedAction = actionAt(0, 'Cheer', {
+            noticeSeconds: 5,
+            countdownSeconds: [1],
+        });
+        // Prime at 10s, then cross noticeSeconds=5 with groupStartFlag=false → no notice
+        noNoticeSvc.announceAction(groupedAction, 10, 5, 1, {}, 4000, false);
+        result = noNoticeSvc.announceAction(groupedAction, 5, 5, 1, {}, 4000, false);
+        assert('groupStartFlag=false: notice suppressed at 5s',
+            result === null, `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
         // SUMMARY
         // ═════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');
