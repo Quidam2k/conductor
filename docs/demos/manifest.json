@@ -1,10 +1,11 @@
 {
   "id": "conductor-demo",
   "name": "Conductor Demo",
-  "version": "3.0.0",
-  "description": "Resource pack for Conductor demo scripts. 121 cue files: 1 system countdown, 60 action phrases, and 60 notice cues. 7 event scripts.",
+  "version": "3.1.0",
+  "description": "Resource pack for Conductor demo scripts. 122 cue files: 2 system countdown beats, 60 action phrases, 60 notice cues. 8 event scripts.",
   "cues": {
     "countdown-voice": "audio/countdown-voice.wav",
+    "countdown-and": "audio/countdown-and.wav",
 
     "stand-by": "voices/stand-by.wav",
     "in-position": "voices/in-position.wav",
@@ -174,6 +175,11 @@
       "file": "events/the-murmur.json",
       "name": "The Murmur",
       "role": "Synchronized sound and movement — eerie, theatrical"
+    },
+    {
+      "file": "events/the-cascade.json",
+      "name": "The Cascade",
+      "role": "Tier-test event — exercises close-cue countdown tiers, ~1 minute"
     }
   ]
 }
