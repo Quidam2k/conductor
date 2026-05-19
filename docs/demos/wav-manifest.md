@@ -14,7 +14,7 @@ If any cue is missing from the pack, the system falls back to TTS automatically.
 
 ---
 
-## Category 1: System Cues (1 file)
+## Category 1: System Cues (2 files)
 
 Single countdown voice clip. The timing engine plays this at T-5 before a
 countdown action. Final 2 seconds handled by haptic pulses (device-generated,
@@ -23,6 +23,11 @@ precise) with TTS fallback on iOS.
 | Cue ID | Spoken Text | File Path |
 |--------|-------------|-----------|
 | `countdown-voice` | "Five. Four. Three." | `audio/countdown-voice.wav` |
+| `countdown-and` | "And." | `audio/countdown-and.wav` |
+
+`countdown-and` is the single beat that fires when adjacent cues are <3s apart
+(close-cue tier 3 — dance-conductor cadence). Until this file ships in the
+pack, the audio service falls back to TTS for the word "and".
 
 ---
 
@@ -36,9 +41,9 @@ struggles with very short utterances.
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
 | `stand-by` | "Stand by." | `voices/stand-by.wav` | — |
-| `in-position` | "You're in position. Act natural." | `voices/in-position.wav` | All scripts |
+| `in-position` | "You're in position." | `voices/in-position.wav` | All scripts |
 | `hold` | "Hold your position." | `voices/hold.wav` | Stillness, Bloom, Stand, Signal |
-| `done` | "You're done. Thank you." | `voices/done.wav` | All scripts |
+| `done` | "You're done." | `voices/done.wav` | All scripts |
 | `walk` | "Walk." | `voices/walk.wav` | — |
 
 ### Freeze / Unfreeze
@@ -73,7 +78,7 @@ struggles with very short utterances.
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
 | `stand-tall` | "Stand tall." | `voices/stand-tall.wav` | Stand |
-| `kneel` | "Kneel down." | `voices/kneel.wav` | — |
+| `kneel` | "Kneel." | `voices/kneel.wav` | — |
 
 ### Formation
 
@@ -87,7 +92,7 @@ struggles with very short utterances.
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
 | `hum` | "Begin humming." | `voices/hum.wav` | Murmur |
-| `whisper` | "Whisper now." | `voices/whisper.wav` | Murmur |
+| `whisper` | "Whisper." | `voices/whisper.wav` | Murmur |
 | `silence` | "Silence." | `voices/silence.wav` | Murmur |
 
 ### Gaze & Movement
@@ -106,7 +111,7 @@ struggles with very short utterances.
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
 | `begin-walking` | "Begin walking." | `voices/begin-walking.wav` | Walk |
-| `stop` | "Stop where you are." | `voices/stop.wav` | Walk |
+| `stop` | "Stop." | `voices/stop.wav` | Walk |
 | `light-on` | "Turn on your light." | `voices/light-on.wav` | Lights Out, Walk |
 | `light-off` | "Turn off your light." | `voices/light-off.wav` | Lights Out, Walk |
 
@@ -137,12 +142,12 @@ struggles with very short utterances.
 
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
-| `turn-north` | "Turn and face north." | `voices/turn-north.wav` | — |
-| `turn-south` | "Turn and face south." | `voices/turn-south.wav` | — |
-| `turn-east` | "Turn and face east." | `voices/turn-east.wav` | — |
-| `turn-west` | "Turn and face west." | `voices/turn-west.wav` | — |
-| `face-left` | "Turn and face left." | `voices/face-left.wav` | — |
-| `face-right` | "Turn and face right." | `voices/face-right.wav` | — |
+| `turn-north` | "Turn north." | `voices/turn-north.wav` | — |
+| `turn-south` | "Turn south." | `voices/turn-south.wav` | — |
+| `turn-east` | "Turn east." | `voices/turn-east.wav` | — |
+| `turn-west` | "Turn west." | `voices/turn-west.wav` | — |
+| `face-left` | "Face left." | `voices/face-left.wav` | — |
+| `face-right` | "Face right." | `voices/face-right.wav` | — |
 
 ### Signs
 
@@ -176,7 +181,7 @@ pattern is `notice-{actionCueId}`.
 | `notice-stand-by` | "Get ready to stand by." | `notices/notice-stand-by.wav` |
 | `notice-in-position` | "Get ready — in position soon." | `notices/notice-in-position.wav` |
 | `notice-hold` | "Get ready to hold your position." | `notices/notice-hold.wav` |
-| `notice-done` | "Almost done. Thank you." | `notices/notice-done.wav` |
+| `notice-done` | "Almost done." | `notices/notice-done.wav` |
 | `notice-walk` | "Get ready to walk." | `notices/notice-walk.wav` |
 
 ### Freeze / Unfreeze Notices

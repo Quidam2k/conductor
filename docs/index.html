@@ -826,7 +826,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v37</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v38</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -2109,11 +2109,27 @@ function startAudioLoop(mode) {
 
         const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
 
+        // Pre-pass: derive per-action gapToNext + groupStartFlag from timeline.
+        // Grouping rule: cues with gap-from-previous <10s share the group's first prep.
+        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+        const sorted = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
+        const meta = new Map();
+        for (let i = 0; i < sorted.length; i++) {
+            const cur = sorted[i];
+            const curMs = tsOf(cur);
+            const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
+            const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
+            const groupStartFlag = gapFromPrev >= 10000;
+            meta.set(cur.id, { gapToNext, groupStartFlag });
+        }
+
         for (const action of evt.timeline) {
             const secUntil = calculateTimeUntilPrecise(action, nowMs);
 
             // Only process actions within announcement range
             if (secUntil < -2 || secUntil > Math.max(evt.defaultNoticeSeconds, action.noticeSeconds ?? 0) * speedMult + 2) continue;
+
+            const m = meta.get(action.id) || { gapToNext: Infinity, groupStartFlag: true };
 
             const result = audio.announceAction(
                 action, secUntil, evt.defaultNoticeSeconds, speedMult,
@@ -2121,7 +2137,9 @@ function startAudioLoop(mode) {
                     defaultCountdownSeconds: evt.defaultCountdownSeconds,
                     defaultCountdown: evt.defaultCountdown,
                     defaultHapticMode: evt.defaultHapticMode,
-                }
+                },
+                m.gapToNext,
+                m.groupStartFlag
             );
 
             // Haptic feedback — respects event-level haptic mode

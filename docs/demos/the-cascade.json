@@ -1,0 +1,63 @@
+{
+  "title": "The Cascade",
+  "description": "Tier-test event — exercises all three close-cue countdown tiers (>5s, 3-5s, <3s) and rapid-sequence \"Get ready to\" coalescing in one ~1-minute run. Used to verify v38 audio scheduling end-to-end on iOS.",
+  "startTime": "2026-05-19T20:30:00Z",
+  "timezone": "America/Chicago",
+  "briefing": {
+    "role": "The Cascade — close-cue tier test",
+    "exit": "Wherever you started.",
+    "rally": "Phone in hand. No props.",
+    "abort": "Stop. Nothing was real."
+  },
+  "timeline": [
+    {
+      "id": "cascade-01",
+      "time": "2026-05-19T20:30:10Z",
+      "action": "Get in position",
+      "noticeSeconds": 0,
+      "cue": "in-position",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "cascade-02",
+      "time": "2026-05-19T20:30:25Z",
+      "action": "Freeze",
+      "countdownSeconds": [3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "freeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "cascade-03",
+      "time": "2026-05-19T20:30:33Z",
+      "action": "Unfreeze",
+      "countdownSeconds": [3, 2, 1],
+      "cue": "unfreeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "cascade-04",
+      "time": "2026-05-19T20:30:37Z",
+      "action": "Freeze",
+      "countdownSeconds": [3, 2, 1],
+      "hapticPattern": "triple",
+      "cue": "freeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "cascade-05",
+      "time": "2026-05-19T20:30:39Z",
+      "action": "Unfreeze",
+      "cue": "unfreeze",
+      "pack": "conductor-demo"
+    },
+    {
+      "id": "cascade-06",
+      "time": "2026-05-19T20:31:00Z",
+      "action": "Done",
+      "noticeSeconds": 0,
+      "cue": "done",
+      "pack": "conductor-demo"
+    }
+  ]
+}

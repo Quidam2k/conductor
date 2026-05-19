@@ -1469,3 +1469,68 @@ test('countdown wire-up: countdown-voice cue fires once + suppresses per-number'
     // Resolver was called for 'countdown-voice' (not just per-number lookups)
     expect(result.resolverCalls).toContain('countdown-voice');
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 53. Rapid-sequence grouping + tier-3 "and" countdown.
+//     Three cues spaced 2s apart should produce a single "Get ready to"
+//     for the group-leading cue (the other two suppress their prep) and
+//     "and" countdown beats for cues whose gap-to-next is <3s.
+// ═════════════════════════════════════════════════════════════════════
+
+test('rapid sequence: one prep + "and" countdown per close cue', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        // Fresh service, no initialize — speak() is a no-op in VISUAL_ONLY mode
+        // but announceAction still returns its announcement strings (matches the
+        // pattern of the countdown-voice wire-up test above).
+        const a = createAudioService();
+
+        // Three cues 2s apart. gapFromPrev for cue 2 and 3 is 2s (< 10s) so they're
+        // grouped under cue 1's prep. gapToNext for c1 and c2 is 2s → tier 3 ("and").
+        // c3 is the last cue → gapToNext=Infinity → tier 1 (no override, no countdown
+        // configured on this action so it goes silent until the trigger).
+        const cues = [
+            { id: 'c1', action: 'Freeze',   noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
+            { id: 'c2', action: 'Unfreeze', noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
+            { id: 'c3', action: 'Freeze',   noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
+        ];
+        const meta = new Map([
+            ['c1', { gapToNext: 2000,     groupStartFlag: true  }],
+            ['c2', { gapToNext: 2000,     groupStartFlag: false }],
+            ['c3', { gapToNext: Infinity, groupStartFlag: false }],
+        ]);
+        const triggerT = { c1: 0, c2: 2, c3: 4 };
+
+        const announcements = [];
+        // Walk a virtual clock from t=-10 through past the last cue trigger.
+        for (let t = -10; t <= 5; t += 1) {
+            for (const c of cues) {
+                const secUntil = triggerT[c.id] - t;
+                if (secUntil < -2) continue;
+                const m = meta.get(c.id);
+                const r = a.announceAction(c, secUntil, 5, 1, {}, m.gapToNext, m.groupStartFlag);
+                if (r) announcements.push({ t, id: c.id, r });
+            }
+        }
+        return announcements;
+    });
+
+    const notices = result.filter(x => x.r.startsWith('notice:'));
+    const ands = result.filter(x => x.r === 'countdown: "and"');
+    const triggers = result.filter(x => x.r.startsWith('trigger:'));
+
+    // Exactly one "Get ready to" — the rest of the group is suppressed
+    expect(notices.length).toBe(1);
+    expect(notices[0].r).toBe('notice: "Get ready to freeze"');
+    expect(notices[0].id).toBe('c1');
+
+    // c1 and c2 each have gap-to-next <3s → "and" beat. c3 (last, gap=Infinity) does not.
+    expect(ands.length).toBe(2);
+    expect(ands.map(x => x.id)).toEqual(['c1', 'c2']);
+
+    // All three triggers fire
+    expect(triggers.length).toBe(3);
+    expect(triggers.map(x => x.id)).toEqual(['c1', 'c2', 'c3']);
+});
