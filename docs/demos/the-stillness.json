@@ -16,7 +16,6 @@
       "id": "stillness-02",
       "time": "2026-03-15T17:00:30Z",
       "action": "Get in position",
-      "noticeSeconds": 0,
       "cue": "in-position",
       "pack": "conductor-demo"
     },

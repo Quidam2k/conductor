@@ -124,17 +124,17 @@
         let dup = testSvc.announceAction(action1, 10, 5);
         assert('Duplicate notice is suppressed', dup === null);
 
-        // Countdown at 5s — first countdown gets action name context
+        // Countdown beats now fire tonal beeps (per-second ascending pitch)
+        // instead of TTS — the v38 verbal-countdown bug was that "3, 2, 1" was
+        // one multi-second clip, so per-second crossings never aligned.
         result = testSvc.announceAction(action1, 5, 5);
-        assert('Countdown fires at 5s with action name', result === 'countdown: "Gather at fountain in 5"', `Got: ${result}`);
+        assert('Countdown beep fires at 5s', result === 'countdown-beep: 5', `Got: ${result}`);
 
-        // Countdown at 4s — subsequent are just numbers
         result = testSvc.announceAction(action1, 4, 5);
-        assert('Countdown fires at 4s (just number)', result === 'countdown: "4"', `Got: ${result}`);
+        assert('Countdown beep fires at 4s', result === 'countdown-beep: 4', `Got: ${result}`);
 
-        // Countdown at 3s
         result = testSvc.announceAction(action1, 3, 5);
-        assert('Countdown fires at 3s (just number)', result === 'countdown: "3"', `Got: ${result}`);
+        assert('Countdown beep fires at 3s', result === 'countdown-beep: 3', `Got: ${result}`);
 
         // Duplicate countdown suppressed
         dup = testSvc.announceAction(action1, 3, 5);
@@ -187,9 +187,14 @@
         // At 5s with defaultNotice=5, notice fires
         result = defaultSvc.announceAction(noCountdownAction, 5, 5);
         assert('Notice fires at 5s (noticeSeconds=5)', result !== null && result.startsWith('notice:'), `Got: ${result}`);
-        // Without explicit countdownSeconds and no event default, countdown should NOT fire
+        // With noticeSeconds=5 and no explicit countdownSeconds, v39 fits beats
+        // after the prep speech (5 - 3 = 2 beats). At secUntil=3 nothing has
+        // crossed yet (highest beat is at 2); at secUntil=2 the first beep fires.
         result = defaultSvc.announceAction(noCountdownAction, 3, 5);
-        assert('No countdown without explicit countdownSeconds', result === null, `Got: ${result}`);
+        assert('No beep before highest fit-beat threshold', result === null, `Got: ${result}`);
+        result = defaultSvc.announceAction(noCountdownAction, 2, 5);
+        assert('Fit-beat-2 beep fires after prep window',
+            result === 'countdown-beep: 2', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // 5. Default noticeSeconds from event
@@ -225,9 +230,10 @@
         assert('2x speed: notice at 20s real (=10s adjusted)', result !== null && result.startsWith('notice:'),
             `Got: ${result}`);
 
-        // At 2x speed, secondsUntil=10 → adjustedSeconds = round(10/2) = 5 → countdown fires
+        // At 2x speed, secondsUntil=10 → adjustedSeconds = round(10/2) = 5 → countdown beep fires
         result = speedSvc.announceAction(speedAction, 10, 5, 2);
-        assert('2x speed: countdown-5 at 10s real', result === 'countdown: "Speed test in 5"', `Got: ${result}`);
+        assert('2x speed: countdown-beep 5 at 10s real',
+            result === 'countdown-beep: 5', `Got: ${result}`);
 
         // At 5x speed, secondsUntil=0 → trigger
         result = speedSvc.announceAction(speedAction, 0, 5, 5);
@@ -458,7 +464,7 @@
 
         assert('First is notice with "Get ready to"', announcements[0].result === 'notice: "Get ready to wave your hands"');
         assert('Last is trigger', announcements[6].result.startsWith('trigger:'));
-        assert('First countdown has action name', announcements[1].result === 'countdown: "Wave your hands in 5"');
+        assert('First countdown is the 5-second beep', announcements[1].result === 'countdown-beep: 5');
 
         log(`<pre>Integration timeline:\n${announcements.map(a => `  t=${a.time}s → ${a.result}`).join('\n')}</pre>`);
 
@@ -511,18 +517,16 @@
         result = evtDefSvc.announceAction(evtDefAction, 10, 5, 1, evtDefs);
         assert('Event default: notice fires', result !== null && result.startsWith('notice:'), `Got: ${result}`);
 
-        // Countdown 3 — first number gets action name
+        // Countdown beats are tonal beeps in v39
         result = evtDefSvc.announceAction(evtDefAction, 3, 5, 1, evtDefs);
-        assert('Event default: countdown 3 with action name',
-            result === 'countdown: "Event default countdown in 3"', `Got: ${result}`);
+        assert('Event default: countdown beep 3',
+            result === 'countdown-beep: 3', `Got: ${result}`);
 
-        // Countdown 2 — just the number
         result = evtDefSvc.announceAction(evtDefAction, 2, 5, 1, evtDefs);
-        assert('Event default: countdown 2 (just number)', result === 'countdown: "2"', `Got: ${result}`);
+        assert('Event default: countdown beep 2', result === 'countdown-beep: 2', `Got: ${result}`);
 
-        // Countdown 1
         result = evtDefSvc.announceAction(evtDefAction, 1, 5, 1, evtDefs);
-        assert('Event default: countdown 1 (just number)', result === 'countdown: "1"', `Got: ${result}`);
+        assert('Event default: countdown beep 1', result === 'countdown-beep: 1', `Got: ${result}`);
 
         // Trigger
         result = evtDefSvc.announceAction(evtDefAction, 0, 5, 1, evtDefs);
@@ -543,15 +547,15 @@
         // At 3 — should NOT fire because action's explicit countdown is [2, 1]
         result = evtDefSvc2.announceAction(explicitCdAction, 3, 5, 1, evtDefs);
         assert('Explicit countdown overrides event default (no cd at 3)', result === null, `Got: ${result}`);
-        // At 2 — should fire
+        // At 2 — should fire as a tone beep
         result = evtDefSvc2.announceAction(explicitCdAction, 2, 5, 1, evtDefs);
-        assert('Explicit countdown: cd at 2 fires',
-            result === 'countdown: "Explicit countdown in 2"', `Got: ${result}`);
+        assert('Explicit countdown: cd at 2 fires (beep)',
+            result === 'countdown-beep: 2', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
-        // 17. Formatted countdown detail
+        // 17. Tonal countdown — beep per second, no verbal numbers
         // ═════════════════════════════════════════════════════════════
-        log('<h2>17. Formatted Countdown Detail</h2>');
+        log('<h2>17. Tonal Countdown</h2>');
 
         const fmtSvc = createAudioService();
         fmtSvc.initialize(() => {});
@@ -562,79 +566,74 @@
             countdownSeconds: [5, 4, 3, 2, 1],
         });
 
-        // Notice — "Get ready to jump!"
+        // Notice — speech still works as "Get ready to jump!"
         result = fmtSvc.announceAction(fmtAction, 10, 5);
-        assert('Formatted notice lowercases action', result === 'notice: "Get ready to jump!"', `Got: ${result}`);
+        assert('Notice lowercases action', result === 'notice: "Get ready to jump!"', `Got: ${result}`);
 
-        // First countdown includes action name
+        // Each countdown threshold fires a beep, not TTS — fixes v38 bug where a
+        // single "three two one" clip would overflow into the trigger.
         result = fmtSvc.announceAction(fmtAction, 5, 5);
-        assert('First countdown: "Jump! in 5"', result === 'countdown: "Jump! in 5"', `Got: ${result}`);
+        assert('Countdown beep at 5', result === 'countdown-beep: 5', `Got: ${result}`);
 
-        // Subsequent countdowns are just numbers
         result = fmtSvc.announceAction(fmtAction, 4, 5);
-        assert('Second countdown: just "4"', result === 'countdown: "4"', `Got: ${result}`);
+        assert('Countdown beep at 4', result === 'countdown-beep: 4', `Got: ${result}`);
 
         result = fmtSvc.announceAction(fmtAction, 3, 5);
-        assert('Third countdown: just "3"', result === 'countdown: "3"', `Got: ${result}`);
+        assert('Countdown beep at 3', result === 'countdown-beep: 3', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
-        // 18. Close-cue countdown tier (gap-to-next sizing)
+        // 18. Tier templates removed in v39 — gap-to-next no longer
+        //     rewrites countdownSeconds. The "fit as many beeps as time
+        //     allows" rule is just `action.countdownSeconds`, period.
         // ═════════════════════════════════════════════════════════════
-        log('<h2>18. Close-Cue Countdown Tiers</h2>');
+        log('<h2>18. Tier Templates Are Gone</h2>');
 
-        // Tier 1: gap >= 5s — existing path, uses action.countdownSeconds.
-        const tier1Svc = createAudioService();
-        tier1Svc.initialize(() => {});
-        tier1Svc.setMuted(true);
-        const tier1Action = actionAt(0, 'Freeze', {
+        const noTierSvc = createAudioService();
+        noTierSvc.initialize(() => {});
+        noTierSvc.setMuted(true);
+
+        // Pre-v39 with gapToNext=2000, this would have been forced into the
+        // "And, Cue" tier-3 template. Now: explicit countdown wins, gapToNext
+        // is ignored, and each beat is a beep.
+        const noTierAction = actionAt(0, 'Hop', {
             noticeSeconds: 0,
             countdownSeconds: [3, 2, 1],
         });
-        // Prime with first tick well outside countdown range
-        tier1Svc.announceAction(tier1Action, 10, 5, 1, {}, 8000, true);
-        result = tier1Svc.announceAction(tier1Action, 3, 5, 1, {}, 8000, true);
-        assert('Tier 1 (gap=8s): countdown opens with action+3',
-            result === 'countdown: "Freeze in 3"', `Got: ${result}`);
-        result = tier1Svc.announceAction(tier1Action, 2, 5, 1, {}, 8000, true);
-        assert('Tier 1 (gap=8s): cd-2 is just "2"', result === 'countdown: "2"', `Got: ${result}`);
-
-        // Tier 2: gap in 3-5s — forced [2,1], drop "3".
-        const tier2Svc = createAudioService();
-        tier2Svc.initialize(() => {});
-        tier2Svc.setMuted(true);
-        const tier2Action = actionAt(0, 'Walk', {
-            noticeSeconds: 0,
-            countdownSeconds: [3, 2, 1], // overridden by tier
-        });
-        tier2Svc.announceAction(tier2Action, 10, 5, 1, {}, 4000, true);
-        // At secUntil=3 in tier 2, "3" was dropped — nothing should fire
-        result = tier2Svc.announceAction(tier2Action, 3, 5, 1, {}, 4000, true);
-        assert('Tier 2 (gap=4s): no countdown at 3', result === null, `Got: ${result}`);
-        // At secUntil=2, first countdown beat ("Walk in 2")
-        result = tier2Svc.announceAction(tier2Action, 2, 5, 1, {}, 4000, true);
-        assert('Tier 2 (gap=4s): cd opens "Walk in 2"',
-            result === 'countdown: "Walk in 2"', `Got: ${result}`);
-
-        // Tier 3: gap < 3s — speaks literal "and".
-        const tier3Svc = createAudioService();
-        tier3Svc.initialize(() => {});
-        tier3Svc.setMuted(true);
-        const tier3Action = actionAt(0, 'Hop', {
-            noticeSeconds: 0,
-            countdownSeconds: [3, 2, 1], // overridden by tier
-        });
-        tier3Svc.announceAction(tier3Action, 10, 5, 1, {}, 2000, true);
-        // At secUntil=2 in tier 3, nothing — single beat is at 1.
-        result = tier3Svc.announceAction(tier3Action, 2, 5, 1, {}, 2000, true);
-        assert('Tier 3 (gap=2s): no countdown at 2', result === null, `Got: ${result}`);
-        // At secUntil=1, the single beat speaks "and"
-        result = tier3Svc.announceAction(tier3Action, 1, 5, 1, {}, 2000, true);
-        assert('Tier 3 (gap=2s): cd is "and"',
-            result === 'countdown: "and"', `Got: ${result}`);
-        // Trigger normally
-        result = tier3Svc.announceAction(tier3Action, 0, 5, 1, {}, 2000, true);
-        assert('Tier 3 (gap=2s): trigger fires normally',
+        noTierSvc.announceAction(noTierAction, 10, 5, 1, {}, 2000, true);
+        result = noTierSvc.announceAction(noTierAction, 3, 5, 1, {}, 2000, true);
+        assert('Tier removed: beep 3 fires regardless of gapToNext',
+            result === 'countdown-beep: 3', `Got: ${result}`);
+        result = noTierSvc.announceAction(noTierAction, 2, 5, 1, {}, 2000, true);
+        assert('Tier removed: beep 2 fires', result === 'countdown-beep: 2', `Got: ${result}`);
+        result = noTierSvc.announceAction(noTierAction, 1, 5, 1, {}, 2000, true);
+        assert('Tier removed: beep 1 fires', result === 'countdown-beep: 1', `Got: ${result}`);
+        result = noTierSvc.announceAction(noTierAction, 0, 5, 1, {}, 2000, true);
+        assert('Tier removed: trigger fires normally',
             result === 'trigger: "Hop!"', `Got: ${result}`);
+
+        // No pack-wide "countdown-voice" shortcut anymore — packs can ship
+        // a per-cue trigger sound, but the count itself is always beeps.
+        const noVoiceSvc = createAudioService();
+        noVoiceSvc.initialize(() => {});
+        noVoiceSvc.setMuted(true);
+        const resolverCalls = [];
+        noVoiceSvc.setResourcePackResolver((cueId) => {
+            resolverCalls.push(cueId);
+            return cueId === 'countdown-voice';
+        });
+        const packAction = actionAt(0, 'Freeze', {
+            noticeSeconds: 0,
+            countdownSeconds: [3, 2, 1],
+            cue: 'freeze',
+            pack: 'demo',
+        });
+        noVoiceSvc.announceAction(packAction, 10, 5, 1, {}, 8000, true);
+        noVoiceSvc.announceAction(packAction, 3, 5, 1, {}, 8000, true);
+        noVoiceSvc.announceAction(packAction, 2, 5, 1, {}, 8000, true);
+        noVoiceSvc.announceAction(packAction, 1, 5, 1, {}, 8000, true);
+        assert('countdown-voice cue is not consulted anymore',
+            !resolverCalls.includes('countdown-voice'),
+            `Resolver was called with: ${resolverCalls.join(', ')}`);
 
         // groupStartFlag=false suppresses the notice ("Get ready to")
         const noNoticeSvc = createAudioService();
@@ -649,6 +648,55 @@
         result = noNoticeSvc.announceAction(groupedAction, 5, 5, 1, {}, 4000, false);
         assert('groupStartFlag=false: notice suppressed at 5s',
             result === null, `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 19. First-cue warmup — gapFromPrev=Infinity (the first cue of
+        //     an event) must fire its notice + countdown like any other.
+        //     Reproducer for the 2026-05-19 Jessica session bug.
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>19. First-Cue Warmup</h2>');
+
+        const firstSvc = createAudioService();
+        firstSvc.initialize(() => {});
+        firstSvc.setMuted(true);
+
+        // First cue of an event: groupStartFlag=true (gapFromPrev=Infinity ≥ 10s)
+        // and gapToNext could be anything — we use a wide gap here so the gate
+        // doesn't influence anything.
+        const firstAction = actionAt(0, 'Get in position', {
+            noticeSeconds: 10,
+            countdownSeconds: [3, 2, 1],
+        });
+
+        // Prime well before the notice window
+        firstSvc.announceAction(firstAction, 15, 10, 1, {}, Infinity, true);
+        // Notice fires when we cross noticeSeconds=10
+        result = firstSvc.announceAction(firstAction, 10, 10, 1, {}, Infinity, true);
+        assert('First cue: notice fires on first cross',
+            result === 'notice: "Get ready to get in position"', `Got: ${result}`);
+        // Countdown beeps from 3 down
+        firstSvc.announceAction(firstAction, 4, 10, 1, {}, Infinity, true);
+        result = firstSvc.announceAction(firstAction, 3, 10, 1, {}, Infinity, true);
+        assert('First cue: countdown beep 3', result === 'countdown-beep: 3', `Got: ${result}`);
+        result = firstSvc.announceAction(firstAction, 0, 10, 1, {}, Infinity, true);
+        assert('First cue: trigger fires', result === 'trigger: "Get in position!"', `Got: ${result}`);
+
+        // Authoring `noticeSeconds: 0` is an explicit "no warning" opt-out —
+        // the framework honors it even on first cues. This is the historic
+        // demo-JSON shape and it should still be addressable.
+        const optOutSvc = createAudioService();
+        optOutSvc.initialize(() => {});
+        optOutSvc.setMuted(true);
+        const silentFirst = actionAt(0, 'Silent first', {
+            noticeSeconds: 0,
+        });
+        optOutSvc.announceAction(silentFirst, 10, 10, 1, {}, Infinity, true);
+        result = optOutSvc.announceAction(silentFirst, 5, 10, 1, {}, Infinity, true);
+        assert('noticeSeconds=0 still opts out of the notice',
+            result === null, `Got: ${result}`);
+        result = optOutSvc.announceAction(silentFirst, 0, 10, 1, {}, Infinity, true);
+        assert('noticeSeconds=0: trigger still fires',
+            result === 'trigger: "Silent first!"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // SUMMARY

@@ -281,7 +281,7 @@ function validateAndComplete(eventData) {
         startTime: eventData.startTime,
         timezone: eventData.timezone,
         timeline: eventData.timeline.map(action => createTimelineAction(action)),
-        defaultNoticeSeconds: eventData.defaultNoticeSeconds ?? 5,
+        defaultNoticeSeconds: eventData.defaultNoticeSeconds ?? 10,
         defaultCountdownSeconds: eventData.defaultCountdownSeconds ?? null,
         defaultCountdown: eventData.defaultCountdown ?? null,
         defaultHapticMode: eventData.defaultHapticMode ?? null,

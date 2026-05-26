@@ -229,7 +229,7 @@
             const rawJson = new TextDecoder().decode(pako.ungzip(rawBytes));
             const rawObj = JSON.parse(rawJson);
 
-            assert('defaultNoticeSeconds omitted when 5', !('defaultNoticeSeconds' in rawObj),
+            assert('defaultNoticeSeconds omitted when default (10)', !('defaultNoticeSeconds' in rawObj),
                 `Found defaultNoticeSeconds=${rawObj.defaultNoticeSeconds} in encoded JSON`);
             assert('timeWindowSeconds omitted when 60', !('timeWindowSeconds' in rawObj),
                 `Found timeWindowSeconds=${rawObj.timeWindowSeconds} in encoded JSON`);
@@ -418,7 +418,7 @@
                 startTime: startTime,
                 timezone: 'America/Chicago',
                 timeline: sampleActions,
-                defaultNoticeSeconds: 10,
+                defaultNoticeSeconds: 7,
                 timeWindowSeconds: 90,
                 visualMode: 'vertical',
             };
@@ -428,13 +428,13 @@
             assert('embeddedEventToEvent: has endTime', typeof event.endTime === 'string');
             assert('embeddedEventToEvent: status is "published"', event.status === 'published');
             assert('embeddedEventToEvent: creatorId is "embedded"', event.creatorId === 'embedded');
-            assert('embeddedEventToEvent: preserves custom defaults', event.defaultNoticeSeconds === 10);
+            assert('embeddedEventToEvent: preserves custom defaults', event.defaultNoticeSeconds === 7);
             assert('embeddedEventToEvent: endTime > last action',
                 new Date(event.endTime).getTime() > new Date(sampleActions[sampleActions.length - 1].time).getTime());
 
             const backToEmbedded = eventToEmbeddedEvent(event);
             assert('eventToEmbeddedEvent: title preserved', backToEmbedded.title === 'Conversion Test');
-            assert('eventToEmbeddedEvent: non-default notice kept', backToEmbedded.defaultNoticeSeconds === 10);
+            assert('eventToEmbeddedEvent: non-default notice kept', backToEmbedded.defaultNoticeSeconds === 7);
             assert('eventToEmbeddedEvent: non-default window kept', backToEmbedded.timeWindowSeconds === 90);
             assert('eventToEmbeddedEvent: non-default visualMode kept', backToEmbedded.visualMode === 'vertical');
         } catch (e) {

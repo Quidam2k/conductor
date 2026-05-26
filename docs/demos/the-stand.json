@@ -1,10 +1,10 @@
 {
   "title": "The Stand",
-  "description": "Stationary umbrella formation â€” stand tall, open, freeze, light, and close. Runs alongside The Walk.",
+  "description": "Stationary umbrella formation — stand tall, open, freeze, light, and close. Runs alongside The Walk.",
   "startTime": "2026-03-15T17:00:00Z",
   "timezone": "America/Chicago",
   "briefing": {
-    "role": "The Stand â€” stationary formation",
+    "role": "The Stand — stationary formation",
     "exit": "Northeast corner, 5th and Main",
     "exitCoords": "45.5231, -122.6765",
     "rally": "Weston Park, picnic tables near fountain",
@@ -17,8 +17,7 @@
       "time": "2026-03-15T17:00:30Z",
       "action": "Get in position",
       "cue": "in-position",
-      "pack": "conductor-demo",
-      "noticeSeconds": 0
+      "pack": "conductor-demo"
     },
     {
       "id": "stand-03",
