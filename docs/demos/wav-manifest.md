@@ -1,7 +1,7 @@
 # Conductor Demo — WAV File Manifest
 
 Complete list of WAV files needed for the `conductor-demo` resource pack.
-**121 files total** across 3 categories.
+**120 files total** across 3 categories.
 
 ## How It Works
 
@@ -78,7 +78,6 @@ struggles with very short utterances.
 | Cue ID | Spoken Text | File Path | Used In |
 |--------|-------------|-----------|---------|
 | `stand-tall` | "Stand tall." | `voices/stand-tall.wav` | Stand |
-| `kneel` | "Kneel." | `voices/kneel.wav` | — |
 
 ### Formation
 
@@ -216,7 +215,6 @@ pattern is `notice-{actionCueId}`.
 | Cue ID | Spoken Text | File Path |
 |--------|-------------|-----------|
 | `notice-stand-tall` | "Get ready to stand tall." | `notices/notice-stand-tall.wav` |
-| `notice-kneel` | "Get ready to kneel." | `notices/notice-kneel.wav` |
 
 ### Formation Notices
 
@@ -310,10 +308,12 @@ pattern is `notice-{actionCueId}`.
 
 | Category | Count | Purpose |
 |----------|-------|---------|
-| System cues | 1 | Countdown voice ("Five. Four. Three.") |
-| Action phrases | 60 | Pre-recorded action cues |
-| Notice cues | 60 | Pre-recorded "Get ready to..." notices |
-| **Total** | **121** | **Full coverage** |
+| System cues | 2 | Countdown voice + "and" beat |
+| Action phrases | 59 | Pre-recorded action cues |
+| Notice cues | 59 | Pre-recorded "Get ready to..." notices |
+| **Total** | **120** | **Full coverage** |
+
+> `kneel`/`notice-kneel` were dropped in pack v3.2.0 — Chatterbox can't reliably synthesize the single word "Kneel." Add a longer phrase (e.g. "Kneel down.") to the manifest if the cue is needed.
 
 ## Event Scripts (7)
 

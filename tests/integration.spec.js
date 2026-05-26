@@ -1419,25 +1419,23 @@ test('embeddedEventToEvent: raw pack-event JSON gets audio defaults filled in', 
 });
 
 // ═════════════════════════════════════════════════════════════════════
-// 52. Countdown-voice cue: pack-wide cue suppresses per-number TTS.
-//     Regression: Conductor demo pack ships only `countdown-voice`,
-//     not per-number countdown cues. The audioService countdown branch
-//     must fire `countdown-voice` once and mark all countdown beats as
-//     announced — not fall through to TTS for each number.
+// 52. Countdown is tone beeps (v39). The pre-v39 `countdown-voice` pack
+//     shortcut shipped one multi-second clip for "three, two, one" —
+//     timing never matched semantic seconds, so the trigger landed mid-
+//     countdown. v39 replaces that with per-second OscillatorNode beeps.
+//     The pack resolver MUST NOT receive `countdown-voice` anymore.
 // ═════════════════════════════════════════════════════════════════════
 
-test('countdown wire-up: countdown-voice cue fires once + suppresses per-number', async ({ page }) => {
+test('countdown wire-up: tone beeps fire per-second; countdown-voice cue is gone', async ({ page }) => {
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
 
     const result = await page.evaluate(() => {
-        // Build a fresh audioService so we don't share dedup state with the page's instance
         const a = createAudioService();
         const calls = [];
         a.setResourcePackResolver((cueId, packId) => {
             calls.push(cueId);
-            // Pack ONLY has 'countdown-voice' — no per-number cues
-            return cueId === 'countdown-voice';
+            return false;
         });
 
         const action = {
@@ -1450,8 +1448,6 @@ test('countdown wire-up: countdown-voice cue fires once + suppresses per-number'
             countdownSeconds: [3, 2, 1],
         };
 
-        // Tick across the countdown range. First tick primes lastAdjusted,
-        // subsequent ticks cross thresholds.
         const announcements = [];
         for (const s of [10, 4, 3, 2, 1, 0]) {
             const r = a.announceAction(action, s, 5, 1, {});
@@ -1461,40 +1457,33 @@ test('countdown wire-up: countdown-voice cue fires once + suppresses per-number'
         return { announcements, resolverCalls: calls };
     });
 
-    // Exactly one countdown announcement (the pack one), not three TTS ones.
-    const countdownAnnouncements = result.announcements.filter(s => s.startsWith('countdown'));
-    expect(countdownAnnouncements.length).toBe(1);
-    expect(countdownAnnouncements[0]).toBe('countdown-pack: countdown-voice');
-
-    // Resolver was called for 'countdown-voice' (not just per-number lookups)
-    expect(result.resolverCalls).toContain('countdown-voice');
+    const countdownBeeps = result.announcements.filter(s => s.startsWith('countdown-beep:'));
+    expect(countdownBeeps).toEqual(['countdown-beep: 3', 'countdown-beep: 2', 'countdown-beep: 1']);
+    expect(result.resolverCalls).not.toContain('countdown-voice');
 });
 
 // ═════════════════════════════════════════════════════════════════════
-// 53. Rapid-sequence grouping + tier-3 "and" countdown.
-//     Three cues spaced 2s apart should produce a single "Get ready to"
-//     for the group-leading cue (the other two suppress their prep) and
-//     "and" countdown beats for cues whose gap-to-next is <3s.
+// 53. Rapid-sequence grouping survives the tone pivot. Three cues spaced
+//     2s apart produce a single "Get ready to" for the group-leading cue
+//     (the other two suppress their prep). The "and" tier-3 template is
+//     gone — close cues now use whatever countdownSeconds they were
+//     authored with, with each beat firing as a beep.
 // ═════════════════════════════════════════════════════════════════════
 
-test('rapid sequence: one prep + "and" countdown per close cue', async ({ page }) => {
+test('rapid sequence: one prep at group start; per-cue beeps fire independently', async ({ page }) => {
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
 
     const result = await page.evaluate(() => {
-        // Fresh service, no initialize — speak() is a no-op in VISUAL_ONLY mode
-        // but announceAction still returns its announcement strings (matches the
-        // pattern of the countdown-voice wire-up test above).
         const a = createAudioService();
 
         // Three cues 2s apart. gapFromPrev for cue 2 and 3 is 2s (< 10s) so they're
-        // grouped under cue 1's prep. gapToNext for c1 and c2 is 2s → tier 3 ("and").
-        // c3 is the last cue → gapToNext=Infinity → tier 1 (no override, no countdown
-        // configured on this action so it goes silent until the trigger).
+        // grouped under cue 1's prep. Each cue has countdownSeconds=[1] so the
+        // single-beat beep fires at secUntil=1 for each.
         const cues = [
-            { id: 'c1', action: 'Freeze',   noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
-            { id: 'c2', action: 'Unfreeze', noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
-            { id: 'c3', action: 'Freeze',   noticeSeconds: 5, audioAnnounce: true, announceActionName: true },
+            { id: 'c1', action: 'Freeze',   noticeSeconds: 5, countdownSeconds: [1], audioAnnounce: true, announceActionName: true },
+            { id: 'c2', action: 'Unfreeze', noticeSeconds: 5, countdownSeconds: [1], audioAnnounce: true, announceActionName: true },
+            { id: 'c3', action: 'Freeze',   noticeSeconds: 5, countdownSeconds: [1], audioAnnounce: true, announceActionName: true },
         ];
         const meta = new Map([
             ['c1', { gapToNext: 2000,     groupStartFlag: true  }],
@@ -1504,7 +1493,6 @@ test('rapid sequence: one prep + "and" countdown per close cue', async ({ page }
         const triggerT = { c1: 0, c2: 2, c3: 4 };
 
         const announcements = [];
-        // Walk a virtual clock from t=-10 through past the last cue trigger.
         for (let t = -10; t <= 5; t += 1) {
             for (const c of cues) {
                 const secUntil = triggerT[c.id] - t;
@@ -1518,7 +1506,7 @@ test('rapid sequence: one prep + "and" countdown per close cue', async ({ page }
     });
 
     const notices = result.filter(x => x.r.startsWith('notice:'));
-    const ands = result.filter(x => x.r === 'countdown: "and"');
+    const beeps = result.filter(x => x.r.startsWith('countdown-beep:'));
     const triggers = result.filter(x => x.r.startsWith('trigger:'));
 
     // Exactly one "Get ready to" — the rest of the group is suppressed
@@ -1526,11 +1514,10 @@ test('rapid sequence: one prep + "and" countdown per close cue', async ({ page }
     expect(notices[0].r).toBe('notice: "Get ready to freeze"');
     expect(notices[0].id).toBe('c1');
 
-    // c1 and c2 each have gap-to-next <3s → "and" beat. c3 (last, gap=Infinity) does not.
-    expect(ands.length).toBe(2);
-    expect(ands.map(x => x.id)).toEqual(['c1', 'c2']);
+    // Each cue's single-beat beep fires
+    expect(beeps.length).toBe(3);
+    expect(beeps.map(x => x.id)).toEqual(['c1', 'c2', 'c3']);
 
-    // All three triggers fire
     expect(triggers.length).toBe(3);
     expect(triggers.map(x => x.id)).toEqual(['c1', 'c2', 'c3']);
 });

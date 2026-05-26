@@ -14,7 +14,6 @@
       "id": "cascade-01",
       "time": "2026-05-19T20:30:10Z",
       "action": "Get in position",
-      "noticeSeconds": 0,
       "cue": "in-position",
       "pack": "conductor-demo"
     },

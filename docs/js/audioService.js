@@ -58,6 +58,17 @@ function createAudioService() {
      */
     let resourcePackResolver = null;
 
+    /**
+     * AudioContext provider. Lets us share the pack manager's AudioContext so
+     * tones and pack BufferSources hit the same destination — important on
+     * iOS where each AudioContext needs its own user-gesture unlock.
+     * @type {function(): AudioContext|null}
+     */
+    let audioContextProvider = null;
+
+    /** @type {AudioContext|null} Fallback context if no provider is wired (tests, standalone). */
+    let fallbackAudioCtx = null;
+
     // ─── Initialization ─────────────────────────────────────────
 
     /**
@@ -135,6 +146,104 @@ function createAudioService() {
         return voices[0] || null;
     }
 
+    // ─── Tone scheduler ─────────────────────────────────────────
+
+    /**
+     * Get the shared AudioContext (from the pack manager, if wired) or
+     * lazily create a private fallback. Returns null if Web Audio is
+     * unavailable.
+     * @returns {AudioContext|null}
+     */
+    function getAudioContext() {
+        if (audioContextProvider) {
+            const ctx = audioContextProvider();
+            if (ctx) return ctx;
+        }
+        if (!fallbackAudioCtx) {
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            fallbackAudioCtx = new Ctor();
+        }
+        return fallbackAudioCtx;
+    }
+
+    /**
+     * Frequency table for countdown beeps. Pitch ascends as we approach the
+     * trigger — gives the listener "are we there yet" cadence. Anything past
+     * N=8 reuses the 8-key (still musical, just keeps the beep audible).
+     */
+    const COUNTDOWN_FREQ_HZ = {
+        1: 880,  // A5
+        2: 784,  // G5
+        3: 698,  // F5
+        4: 622,  // D#5
+        5: 587,  // D5
+        6: 523,  // C5
+        7: 494,  // B4
+        8: 440,  // A4
+    };
+
+    /**
+     * Trigger beep frequency — distinctly higher and longer than countdown
+     * beeps so the "downbeat" reads unambiguously.
+     */
+    const TRIGGER_FREQ_HZ = 1320; // E6
+
+    /**
+     * Play a single short beep at the given pitch.
+     * Safe to call repeatedly; no shared state to leak.
+     *
+     * @param {number} freqHz - Oscillator frequency
+     * @param {number} durationMs - Total envelope length
+     */
+    function playBeep(freqHz, durationMs) {
+        if (muted) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            // Fire-and-forget — Safari needs this kickstarted on each
+            // gesture path; we already swallow the promise elsewhere.
+            try { ctx.resume(); } catch (e) { /* ignore */ }
+        }
+        try {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freqHz;
+
+            const now = ctx.currentTime;
+            const durS = durationMs / 1000;
+            // Quick attack, exponential decay — keeps each beep crisp.
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.4, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + durS);
+
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + durS + 0.02);
+        } catch (e) {
+            // Don't break the audio loop if Web Audio rejects a node creation
+            console.warn('playBeep failed:', e);
+        }
+    }
+
+    /**
+     * Play one countdown beep keyed to how many seconds remain.
+     * @param {number} secondsRemaining - 1..8 (clamped)
+     */
+    function playCountdownBeep(secondsRemaining) {
+        const key = Math.max(1, Math.min(8, Math.round(secondsRemaining)));
+        playBeep(COUNTDOWN_FREQ_HZ[key], 150);
+    }
+
+    /**
+     * Play the trigger beep — distinct from countdown beeps so the listener
+     * can tell "downbeat" from "preparation."
+     */
+    function playTriggerBeep() {
+        playBeep(TRIGGER_FREQ_HZ, 300);
+    }
+
     // ─── TTS wrapper ────────────────────────────────────────────
 
     /**
@@ -178,8 +287,8 @@ function createAudioService() {
      * @param {number|null} [eventDefaults.defaultCountdownSeconds] - Default countdown duration
      * @param {boolean|null} [eventDefaults.defaultCountdown] - Whether countdown is on by default
      * @param {string|null} [eventDefaults.defaultHapticMode] - 'action', 'countdown', or 'off'
-     * @param {number} [gapToNext=Infinity] - Milliseconds until the next action. Used to size the
-     *     countdown template: <3s → "And, Cue"; 3-5s → "2, 1, Cue"; ≥5s or last action → existing path.
+     * @param {number} [gapToNext=Infinity] - Milliseconds until the next action. Unused since
+     *     v39 — kept in the signature for compatibility with existing callers.
      * @param {boolean} [groupStartFlag=true] - False suppresses the "Get ready to" prep for cues
      *     mid-group (rapid-sequence grouping by adjacent gaps <10s).
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
@@ -192,23 +301,22 @@ function createAudioService() {
 
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
-        // Resolve countdown template.
-        // Tier override applies when gap-to-next is finite and short — the countdown
-        // is sized to fit the available runway so it can't be truncated by the next cue.
+        // Resolve countdown template. Verbal "3, 2, 1" was replaced by tonal beeps
+        // in v39, so the only knob is "how many beeps." If action.countdownSeconds
+        // is explicit, use it. Otherwise derive from the time between when the
+        // "Get ready to" speech ends and the trigger fires.
         let countdownSeconds;
-        let andTier = false;
-        if (gapToNext < 3000) {
-            // Tier 3: <3s gap. Single beat speaks the literal word "and" (dance-conductor cadence).
-            countdownSeconds = [1];
-            andTier = true;
-        } else if (gapToNext < 5000) {
-            // Tier 2: 3-5s gap. "2, 1, Cue".
-            countdownSeconds = [2, 1];
-        } else if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
+        if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
             countdownSeconds = action.countdownSeconds;
         } else if (eventDefaults.defaultCountdown) {
             const duration = eventDefaults.defaultCountdownSeconds ?? 5;
             countdownSeconds = Array.from({length: duration}, (_, i) => duration - i);
+        } else if (noticeSeconds > 0) {
+            // "Get ready to X" speech runs ~3s; whatever remains can be filled
+            // with one-second beeps, capped at 8 (the highest pitch in the table).
+            const PREP_SPEECH_S = 3;
+            const beats = Math.max(0, Math.min(8, Math.floor(noticeSeconds - PREP_SPEECH_S)));
+            countdownSeconds = beats > 0 ? Array.from({length: beats}, (_, i) => beats - i) : null;
         } else {
             countdownSeconds = null;
         }
@@ -249,7 +357,9 @@ function createAudioService() {
             }
         }
 
-        // 2. Trigger — announce action name (e.g., "Freeze!") at the zero mark
+        // 2. Trigger — announce action name (e.g., "Freeze!") at the zero mark.
+        //    Tone beep accompanies the speech so the downbeat is unambiguous
+        //    even when speech latency varies.
         if (crossed(0)) {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
@@ -260,6 +370,7 @@ function createAudioService() {
                         announced.add(`${action.id}-countdown-${cs}`);
                     }
                 }
+                playTriggerBeep();
                 if (action.cue && action.pack && resourcePackResolver && resourcePackResolver(action.cue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + action.cue + '"';
                 }
@@ -270,27 +381,12 @@ function createAudioService() {
         }
 
         // 3. Countdown — fire the lowest crossed number (closest to now).
-        //    Iterate ascending so the most relevant number fires first.
+        //    Each beat is a tonal beep (ascending pitch) instead of TTS, so the
+        //    timing matches actual seconds. The pre-v39 "countdown-voice" pack
+        //    shortcut and per-number pack lookups are gone — a single multi-second
+        //    clip can never sync to per-second crossings, which was the v38 bug.
         if (countdownSeconds && countdownSeconds.length > 0) {
             const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
-
-            // Pack-wide countdown-voice cue takes precedence over per-number lookup.
-            // Fires once when the highest countdown threshold is first crossed and
-            // marks all subsequent countdown beats as already announced — packs that
-            // ship a single full "3, 2, 1" clip don't need per-number cues.
-            // Skipped in and-tier: the "and" beat is too short for a packed voice clip.
-            const maxCountdown = sortedCountdown[sortedCountdown.length - 1];
-            if (!andTier && action.pack && resourcePackResolver && crossed(maxCountdown)) {
-                const firstKey = `${action.id}-countdown-${maxCountdown}`;
-                if (!announced.has(firstKey)) {
-                    if (resourcePackResolver('countdown-voice', action.pack, speedMultiplier)) {
-                        for (const cs of countdownSeconds) {
-                            announced.add(`${action.id}-countdown-${cs}`);
-                        }
-                        return 'countdown-pack: countdown-voice';
-                    }
-                }
-            }
 
             for (const cs of sortedCountdown) {
                 if (crossed(cs)) {
@@ -303,25 +399,8 @@ function createAudioService() {
                                 announced.add(`${action.id}-countdown-${cs2}`);
                             }
                         }
-                        let text;
-                        let cueId;
-                        if (andTier) {
-                            text = 'and';
-                            cueId = 'countdown-and';
-                        } else {
-                            cueId = 'countdown-' + cs;
-                            const maxCs = Math.max(...countdownSeconds);
-                            if (cs === maxCs) {
-                                text = action.action + ' in ' + cs;
-                            } else {
-                                text = String(cs);
-                            }
-                        }
-                        if (action.pack && resourcePackResolver && resourcePackResolver(cueId, action.pack, speedMultiplier)) {
-                            return `countdown-pack: ${cs}`;
-                        }
-                        speak(text, 1.3 * speedMultiplier);
-                        return `countdown: "${text}"`;
+                        playCountdownBeep(cs);
+                        return `countdown-beep: ${cs}`;
                     }
                 }
             }
@@ -438,6 +517,15 @@ function createAudioService() {
         resourcePackResolver = resolver;
     }
 
+    /**
+     * Wire up an AudioContext provider — typically the pack manager's, so
+     * tones and pack BufferSources share a single iOS-unlocked context.
+     * @param {function(): AudioContext|null} provider
+     */
+    function setAudioContextProvider(provider) {
+        audioContextProvider = provider;
+    }
+
     // ─── Public API ─────────────────────────────────────────────
 
     return {
@@ -446,10 +534,13 @@ function createAudioService() {
         announceAction,
         resolveAudioCue,
         haptic,
+        playCountdownBeep,
+        playTriggerBeep,
         reset,
         shutdown,
         setMuted,
         setResourcePackResolver,
+        setAudioContextProvider,
 
         // Getters
         getMode: () => mode,

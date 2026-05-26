@@ -1,8 +1,8 @@
 {
   "id": "conductor-demo",
   "name": "Conductor Demo",
-  "version": "3.1.0",
-  "description": "Resource pack for Conductor demo scripts. 122 cue files: 2 system countdown beats, 60 action phrases, 60 notice cues. 8 event scripts.",
+  "version": "3.2.0",
+  "description": "Resource pack for Conductor demo scripts. 120 cue files: 2 system countdown beats, 59 action phrases, 59 notice cues. 8 event scripts.",
   "cues": {
     "countdown-voice": "audio/countdown-voice.wav",
     "countdown-and": "audio/countdown-and.wav",
@@ -34,7 +34,6 @@
     "hands-down": "voices/hands-down.wav",
 
     "stand-tall": "voices/stand-tall.wav",
-    "kneel": "voices/kneel.wav",
 
     "form-circle": "voices/form-circle.wav",
     "form-line": "voices/form-line.wav",
@@ -100,7 +99,6 @@
     "notice-hands-up": "notices/notice-hands-up.wav",
     "notice-hands-down": "notices/notice-hands-down.wav",
     "notice-stand-tall": "notices/notice-stand-tall.wav",
-    "notice-kneel": "notices/notice-kneel.wav",
     "notice-form-circle": "notices/notice-form-circle.wav",
     "notice-form-line": "notices/notice-form-line.wav",
     "notice-hum": "notices/notice-hum.wav",

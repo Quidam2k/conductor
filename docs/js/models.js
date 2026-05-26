@@ -83,7 +83,7 @@ function createTimelineAction(overrides = {}) {
  * @property {string} startTime - ISO 8601 UTC
  * @property {string} timezone - IANA timezone (e.g. "America/New_York")
  * @property {TimelineAction[]} timeline
- * @property {number|null} [defaultNoticeSeconds] - Default notice for actions (default 5)
+ * @property {number|null} [defaultNoticeSeconds] - Default notice for actions (default 10)
  * @property {number|null} [defaultCountdownSeconds] - Default countdown duration
  * @property {boolean|null} [defaultCountdown] - Whether countdown is on by default
  * @property {string|null} [defaultHapticMode] - 'action', 'countdown', or 'off'
@@ -168,7 +168,7 @@ function embeddedEventToEvent(embedded) {
         status: 'published',
         creatorId: 'embedded',
         timeline: normalizedTimeline,
-        defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 5,
+        defaultNoticeSeconds: embedded.defaultNoticeSeconds ?? 10,
         defaultCountdownSeconds: embedded.defaultCountdownSeconds ?? null,
         defaultCountdown: embedded.defaultCountdown ?? null,
         defaultHapticMode: embedded.defaultHapticMode ?? null,
@@ -196,7 +196,7 @@ function eventToEmbeddedEvent(event) {
         startTime: event.startTime,
         timezone: event.timezone,
         timeline: event.timeline,
-        defaultNoticeSeconds: event.defaultNoticeSeconds !== 5 ? event.defaultNoticeSeconds : null,
+        defaultNoticeSeconds: event.defaultNoticeSeconds !== 10 ? event.defaultNoticeSeconds : null,
         defaultCountdownSeconds: event.defaultCountdownSeconds || null,
         defaultCountdown: event.defaultCountdown != null ? event.defaultCountdown : null,
         defaultHapticMode: event.defaultHapticMode || null,

@@ -826,7 +826,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v38</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v40</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1276,6 +1276,9 @@ let timelineLive = null;        // CircularTimeline for live canvas
 
 // Wire resource pack resolver into audio service
 audio.setResourcePackResolver(packManager.getResolver());
+// Share the pack manager's AudioContext for tone beeps so iOS sees a single
+// unlocked context across BufferSource + OscillatorNode playback.
+audio.setAudioContextProvider(() => packManager.getAudioContext());
 
 // Dev hook for console testing: window.importPack(arrayBuffer)
 window.importPack = async (arrayBuffer) => {
@@ -1531,7 +1534,7 @@ function createDemoEvent() {
     const startTime = new Date(startMs).toISOString();
 
     const actions = [
-        { offset: 30,  action: 'Get in position',    cue: 'in-position', noticeOff: true },
+        { offset: 30,  action: 'Get in position',    cue: 'in-position' },
         { offset: 60,  action: 'Freeze',             cue: 'freeze',
           countdownSeconds: [3, 2, 1], hapticPattern: 'triple' },
         { offset: 65,  action: 'Hold your position', cue: 'hold',       noticeOff: true },
@@ -1549,7 +1552,7 @@ function createDemoEvent() {
         action: a.action,
         hapticPattern: a.hapticPattern || 'double',
         countdownSeconds: a.countdownSeconds || null,
-        noticeSeconds: a.noticeOff ? 0 : 5,
+        noticeSeconds: a.noticeOff ? 0 : 10,
         cue: a.cue,
         pack: 'conductor-demo',
     }));
@@ -2706,7 +2709,7 @@ function finalizeEditorEvent() {
         hapticPattern: a.hapticPattern,
         countdownSeconds: a.countdown ? [5, 4, 3, 2, 1] : null,
         audioAnnounce: a.audioAnnounce,
-        noticeSeconds: 5,
+        noticeSeconds: 10,
         pack: a.pack || null,
         cue: a.cue || null,
         fallbackText: a.fallbackText || null,
