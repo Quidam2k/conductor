@@ -187,13 +187,13 @@
         // At 5s with defaultNotice=5, notice fires
         result = defaultSvc.announceAction(noCountdownAction, 5, 5);
         assert('Notice fires at 5s (noticeSeconds=5)', result !== null && result.startsWith('notice:'), `Got: ${result}`);
-        // With noticeSeconds=5 and no explicit countdownSeconds, v39 fits beats
-        // after the prep speech (5 - 3 = 2 beats). At secUntil=3 nothing has
-        // crossed yet (highest beat is at 2); at secUntil=2 the first beep fires.
+        // With noticeSeconds=5 and no explicit countdownSeconds, v41 caps at 3
+        // beeps in the final 3 seconds. At secUntil=3 the first beep fires.
         result = defaultSvc.announceAction(noCountdownAction, 3, 5);
-        assert('No beep before highest fit-beat threshold', result === null, `Got: ${result}`);
+        assert('Beep fires at 3s (3-beat cap)',
+            result === 'countdown-beep: 3', `Got: ${result}`);
         result = defaultSvc.announceAction(noCountdownAction, 2, 5);
-        assert('Fit-beat-2 beep fires after prep window',
+        assert('Beep fires at 2s',
             result === 'countdown-beep: 2', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════

@@ -312,10 +312,8 @@ function createAudioService() {
             const duration = eventDefaults.defaultCountdownSeconds ?? 5;
             countdownSeconds = Array.from({length: duration}, (_, i) => duration - i);
         } else if (noticeSeconds > 0) {
-            // "Get ready to X" speech runs ~3s; whatever remains can be filled
-            // with one-second beeps, capped at 8 (the highest pitch in the table).
-            const PREP_SPEECH_S = 3;
-            const beats = Math.max(0, Math.min(8, Math.floor(noticeSeconds - PREP_SPEECH_S)));
+            // Three ascending beeps in the final 3 seconds before trigger.
+            const beats = Math.min(3, Math.floor(noticeSeconds));
             countdownSeconds = beats > 0 ? Array.from({length: beats}, (_, i) => beats - i) : null;
         } else {
             countdownSeconds = null;
