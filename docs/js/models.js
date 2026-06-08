@@ -172,7 +172,7 @@ function embeddedEventToEvent(embedded) {
         defaultCountdownSeconds: embedded.defaultCountdownSeconds ?? null,
         defaultCountdown: embedded.defaultCountdown ?? null,
         defaultHapticMode: embedded.defaultHapticMode ?? null,
-        timeWindowSeconds: embedded.timeWindowSeconds ?? 60,
+        timeWindowSeconds: embedded.timeWindowSeconds ?? null,
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
         emergencyMode: false,

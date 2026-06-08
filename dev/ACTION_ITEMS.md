@@ -13,7 +13,7 @@ Last updated: 2026-03-01
 - `conductor-demo.zip` built: 31.5 MB, 121 cues, 7 event scripts, validated
 
 ### 3. Real-Device Testing (Todd + Teafaerie)
-- **Checklist:** `TESTING_CHECKLIST.md` in project root
+- **Checklist:** `TESTING_CHECKLIST.md` (same folder, `dev/`)
 - Covers Android Chrome, iOS Safari, Desktop browsers, Cross-device sharing
 - Critical test: **TTS works with screen locked on iOS**
 - Test with and without the resource pack imported

@@ -699,6 +699,94 @@
             result === 'trigger: "Silent first!"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
+        // 20. resolveCountdownBeeps + gapFromPrev capping
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>20. Countdown Capping (gapFromPrev)</h2>');
+
+        const capSvc = createAudioService();
+        capSvc.initialize(() => {});
+        capSvc.setMuted(true);
+
+        // resolveCountdownBeeps: auto-derived, no gap constraint
+        let beeps = capSvc.resolveCountdownBeeps(
+            actionAt(0, 'Test', { noticeSeconds: 10 }), 10, {}, Infinity);
+        assert('Auto-derive: 3 beeps with infinite gap',
+            beeps && beeps.length === 3 && beeps[0] === 3, `Got: ${JSON.stringify(beeps)}`);
+
+        // resolveCountdownBeeps: auto-derived, gap=4s → max 3 beeps (floor(4)-1=3)
+        beeps = capSvc.resolveCountdownBeeps(
+            actionAt(0, 'Test', { noticeSeconds: 10 }), 10, {}, 4000);
+        assert('Auto-derive: 3 beeps with 4s gap',
+            beeps && beeps.length === 3 && beeps[0] === 3, `Got: ${JSON.stringify(beeps)}`);
+
+        // resolveCountdownBeeps: auto-derived, gap=3s → max 2 beeps (floor(3)-1=2)
+        beeps = capSvc.resolveCountdownBeeps(
+            actionAt(0, 'Test', { noticeSeconds: 10 }), 10, {}, 3000);
+        assert('Auto-derive: 2 beeps with 3s gap',
+            beeps && beeps.length === 2 && beeps[0] === 2, `Got: ${JSON.stringify(beeps)}`);
+
+        // resolveCountdownBeeps: auto-derived, gap=1.5s → 0 beeps (floor(1.5)-1=0)
+        beeps = capSvc.resolveCountdownBeeps(
+            actionAt(0, 'Test', { noticeSeconds: 10 }), 10, {}, 1500);
+        assert('Auto-derive: null with 1.5s gap', beeps === null, `Got: ${JSON.stringify(beeps)}`);
+
+        // resolveCountdownBeeps: explicit [3,2,1], gap=2.5s → filter to [2,1]
+        beeps = capSvc.resolveCountdownBeeps(
+            actionAt(0, 'Test', { countdownSeconds: [3, 2, 1] }), 5, {}, 2500);
+        assert('Explicit [3,2,1] capped to [2,1] by 2.5s gap',
+            beeps && beeps.length === 2 && beeps[0] === 2 && beeps[1] === 1, `Got: ${JSON.stringify(beeps)}`);
+
+        // gapFromPrevMs passed to announceAction caps beeps
+        const gapAction = actionAt(0, 'Gap test', { noticeSeconds: 10 });
+        capSvc.announceAction(gapAction, 15, 10, 1, {}, Infinity, true, 2000);
+        result = capSvc.announceAction(gapAction, 1, 10, 1, {}, Infinity, true, 2000);
+        assert('gapFromPrev=2s: beep at 1 fires',
+            result === 'countdown-beep: 1', `Got: ${result}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 21. suppressBeepPlayback — marks but doesn't play
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>21. Suppress Beep Playback</h2>');
+
+        const supSvc = createAudioService();
+        supSvc.initialize(() => {});
+        supSvc.setMuted(true);
+
+        const supAction = actionAt(0, 'Suppress test', {
+            noticeSeconds: 5,
+            countdownSeconds: [3, 2, 1],
+        });
+        supSvc.announceAction(supAction, 10, 5, 1, {}, Infinity, true, Infinity, true);
+        result = supSvc.announceAction(supAction, 3, 5, 1, {}, Infinity, true, Infinity, true);
+        assert('suppressBeepPlayback: still returns countdown-beep',
+            result === 'countdown-beep: 3', `Got: ${result}`);
+        assert('suppressBeepPlayback: dedup key marked',
+            supSvc.getAnnouncedSet().has(`${supAction.id}-countdown-3`));
+
+        // ═════════════════════════════════════════════════════════════
+        // 22. Countdown fires before trigger on same tick
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>22. Countdown Before Trigger (Same Tick)</h2>');
+
+        const reorderSvc = createAudioService();
+        reorderSvc.initialize(() => {});
+        reorderSvc.setMuted(true);
+
+        const reorderAction = actionAt(0, 'Reorder', {
+            noticeSeconds: 5,
+            countdownSeconds: [3, 2, 1],
+        });
+        // Prime at 5s, then jump to 0 — both cd-1 and trigger should cross
+        reorderSvc.announceAction(reorderAction, 5, 5);
+        result = reorderSvc.announceAction(reorderAction, 0, 5);
+        // Trigger takes priority in return value when both fire on same tick
+        assert('Same-tick: trigger returned (priority)',
+            result === 'trigger: "Reorder!"', `Got: ${result}`);
+        // But the countdown keys should ALSO be marked
+        assert('Same-tick: cd-1 was marked by trigger bulk-mark',
+            reorderSvc.getAnnouncedSet().has(`${reorderAction.id}-countdown-1`));
+
+        // ═════════════════════════════════════════════════════════════
         // SUMMARY
         // ═════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');

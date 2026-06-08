@@ -15,11 +15,9 @@ You have two options:
 
 Either way, you get the same app. The download is nice because it works without internet forever.
 
-### Step 2: Load a Demo Event
+### Step 2: Try the Demo
 
-When you open the app, you'll see a text box that says *"Got an event code? Paste it here..."*
-
-Tap **Load Demo Event** below it to try a pre-built sample called "The Stillness." It works immediately — no downloads or resource pack needed.
+When you open the app, you'll see a green **Try the Demo** button near the top. Tap it to load a pre-built sample called "The Stillness." It works immediately — no downloads or resource pack needed.
 
 ### Step 3: Preview and Practice
 
@@ -28,7 +26,7 @@ After loading the demo, you'll see a preview screen showing:
 - A list of all the timed cues
 - When the event is scheduled to start
 
-Tap **Practice** to run through the event at your own pace. Use the speed slider to go faster (up to 5x). Your phone will speak each cue out loud at the right time.
+Tap **Start Practice** to run through the event at your own pace. Use the speed slider to go faster (up to 5x). Your phone will speak each cue out loud at the right time.
 
 ### Step 4: Import a Resource Pack (Optional)
 
@@ -38,7 +36,7 @@ For better audio, import a **resource pack** — a zip file with pre-recorded vo
 
 ### Step 5: Share with Others
 
-From the preview screen, tap **Share** to get options:
+From the preview screen, tap **Share QR Code**. The share screen gives you several options:
 - **Copy Link** — Pastes a URL to your clipboard. Send it via text, email, whatever
 - **QR Code** — Show a scannable code on your screen. Others point their camera at it
 - **Share File** — Send a self-contained HTML file that has both the app and the event baked in
@@ -58,7 +56,7 @@ A resource pack is a `.zip` file containing audio files and a `manifest.json` th
 ### How to Import
 
 1. Open Conductor in your browser
-2. On the main screen, scroll down and find the **pack icon** or tap **Manage Packs** (it may appear as a hint if you haven't imported one yet)
+2. On the main screen, tap **Import Resource Pack** (or **Manage Packs** → **Import Pack**)
 3. In the Pack Manager, tap **Import Pack**
 4. Pick your `.zip` file from your device
 5. The app will read the zip, check its contents, and show you what it found
@@ -97,7 +95,7 @@ The easiest way. No coding, no special formats.
    - Set the time offset (minutes and seconds from the start)
    - Type what should be announced (e.g., "Freeze in place")
    - Choose a style (normal, emphasis, or alert)
-   - Toggle countdown, notification, and haptic options
+   - Toggle countdown, notice, and haptic options
 4. **Step 3** — Review everything, then share via link, QR code, or file
 
 ### Option 2: Write a Text File
@@ -144,8 +142,8 @@ The three **styles** change how an action looks on screen:
 **Tags** go in square brackets before the action text:
 - `[emphasis]` — highlighted gold style
 - `[alert]` — urgent red style
-- `[countdown]` — speaks "5, 4, 3, 2, 1" before the action
-- `[countdown:3]` — shorter countdown ("3, 2, 1")
+- `[countdown]` — plays an audible countdown (ascending beeps) leading into the action
+- `[countdown:3]` — a shorter countdown (fits up to 3 beeps before the cue)
 - `[haptic:triple]` — vibration pattern
 
 Combine them with commas: `[alert, countdown:3, haptic:triple]`

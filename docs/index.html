@@ -826,7 +826,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v41</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v43</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -834,7 +834,7 @@
             <div class="about-body">
                 Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of <strong>cues</strong> &mdash; spoken announcements, vibrations, or audio clips that play at specific times &mdash; and shares the event as a link or QR code. Every participant's device plays the same cues at the same time.
                 <br><br>
-                Tap <strong>Load Demo Event</strong> below to try it right now &mdash; no downloads or setup needed. The app uses your phone's text-to-speech to play each cue.
+                Tap <strong>Try the Demo</strong> below to try it right now &mdash; no downloads or setup needed. The app uses your phone's text-to-speech to play each cue.
                 <br><br>
                 Events can be password-protected with AES-256 encryption. No data is ever sent to a server &mdash; everything stays on your device. No accounts, no app store, no server required.
                 <br><br>
@@ -855,10 +855,10 @@
                 <br><br>
                 <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line (e.g. <code>0:30 Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
                 <br><br>
-                <strong>Start from the demo:</strong> Tap <em>Load Demo Event</em> to see how a finished event looks. You can study the format and adapt it for your own event.
+                <strong>Start from the demo:</strong> Tap <em>Try the Demo</em> to see how a finished event looks. You can study the format and adapt it for your own event.
                 <br><br>
-                <a href="TEXT_FORMAT.md" style="color:var(--accent-blue);">Text Format Reference</a> &mdash; full tag list, config headers, and briefing blocks.<br>
-                <a href="GUIDE.md" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; step-by-step tutorial with examples.
+                <a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md" style="color:var(--accent-blue);">Text Format Reference</a> &mdash; full tag list, config headers, and briefing blocks.<br>
+                <a href="GUIDE.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; step-by-step tutorial with examples.
             </div>
         </details>
 
@@ -890,7 +890,7 @@
 
         <button id="btn-create" class="btn-green">Create New Event</button>
         <div id="demo-fallback" style="display:none;">
-            <button id="btn-demo-fallback" class="btn-outline">Load Demo Event</button>
+            <button id="btn-demo-fallback" class="btn-outline">Try the Demo</button>
             <span class="btn-hint">Try a sample event to see how it works</span>
         </div>
 
@@ -1068,6 +1068,16 @@
 
         <label class="field-label">Timezone</label>
         <select id="ed-timezone" class="field-select"></select>
+
+        <label class="field-label">Timeline window</label>
+        <select id="ed-time-window" class="field-select">
+            <option value="">Auto</option>
+            <option value="15">15 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+        </select>
 
         <div id="ed-info-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1987,11 +1997,34 @@ async function enterPractice() {
     state.practiceStartEventMs = firstActionMs - 15000;
     state.speedMultiplier = parseFloat($('speed-slider').value);
 
+    // Precompute per-action gaps for countdown capping
+    const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+    const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
+    state.actionMeta = new Map();
+    for (let i = 0; i < sortedAll.length; i++) {
+        const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
+        state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
+    }
+
     // Create timeline renderer
     const canvas = $('canvas-practice');
     timelinePractice = createCircularTimeline(canvas);
     timelinePractice.setEvent(evt);
     timelinePractice.resize();
+
+    // RAF-synced countdown beeps — fires when the displayed number transitions
+    const evtDefs = {
+        defaultCountdownSeconds: evt.defaultCountdownSeconds,
+        defaultCountdown: evt.defaultCountdown,
+    };
+    timelinePractice.setOnCountdownTick((seconds, action) => {
+        if (!action.audioAnnounce) return;
+        const m = state.actionMeta?.get(action.id);
+        const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
+        if (beeps && beeps.includes(seconds)) {
+            audio.playCountdownBeep(seconds);
+        }
+    });
 
     // Start loops
     startPracticeLoop();
@@ -2061,11 +2094,36 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
+    // Precompute per-action gaps (reuse if already computed in practice)
+    if (!state.actionMeta || state.actionMeta.size === 0) {
+        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+        const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
+        state.actionMeta = new Map();
+        for (let i = 0; i < sortedAll.length; i++) {
+            const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
+            state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
+        }
+    }
+
     // Create timeline renderer
     const canvas = $('canvas-live');
     timelineLive = createCircularTimeline(canvas);
     timelineLive.setEvent(evt);
     timelineLive.resize();
+
+    // RAF-synced countdown beeps
+    const evtDefs = {
+        defaultCountdownSeconds: evt.defaultCountdownSeconds,
+        defaultCountdown: evt.defaultCountdown,
+    };
+    timelineLive.setOnCountdownTick((seconds, action) => {
+        if (!action.audioAnnounce) return;
+        const m = state.actionMeta?.get(action.id);
+        const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
+        if (beeps && beeps.includes(seconds)) {
+            audio.playCountdownBeep(seconds);
+        }
+    });
 
     // Start loops
     startLiveLoop();
@@ -2113,7 +2171,7 @@ function startAudioLoop(mode) {
         const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
 
         // Pre-pass: derive per-action gapToNext + groupStartFlag from timeline.
-        // Grouping rule: cues with gap-from-previous <10s share the group's first prep.
+        // Grouping rule: cues with gap-from-previous <5s share the group's first prep.
         const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
         const sorted = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
         const meta = new Map();
@@ -2122,9 +2180,14 @@ function startAudioLoop(mode) {
             const curMs = tsOf(cur);
             const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
             const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
-            const groupStartFlag = gapFromPrev >= 10000;
-            meta.set(cur.id, { gapToNext, groupStartFlag });
+            const groupStartFlag = gapFromPrev >= 5000;
+            meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag });
         }
+
+        // Suppress countdown beeps from audio loop when tab is visible —
+        // the RAF-driven visual callback handles playback for precise sync.
+        // When the tab is hidden (no RAF), let the audio loop play beeps.
+        const suppressBeeps = !document.hidden;
 
         for (const action of evt.timeline) {
             const secUntil = calculateTimeUntilPrecise(action, nowMs);
@@ -2132,7 +2195,7 @@ function startAudioLoop(mode) {
             // Only process actions within announcement range
             if (secUntil < -2 || secUntil > Math.max(evt.defaultNoticeSeconds, action.noticeSeconds ?? 0) * speedMult + 2) continue;
 
-            const m = meta.get(action.id) || { gapToNext: Infinity, groupStartFlag: true };
+            const m = meta.get(action.id) || { gapToNext: Infinity, gapFromPrev: Infinity, groupStartFlag: true };
 
             const result = audio.announceAction(
                 action, secUntil, evt.defaultNoticeSeconds, speedMult,
@@ -2142,7 +2205,9 @@ function startAudioLoop(mode) {
                     defaultHapticMode: evt.defaultHapticMode,
                 },
                 m.gapToNext,
-                m.groupStartFlag
+                m.groupStartFlag,
+                m.gapFromPrev,
+                suppressBeeps
             );
 
             // Haptic feedback — respects event-level haptic mode
@@ -2360,6 +2425,7 @@ function initEditorInfo() {
     $('ed-datetime').value = ed.startDateTime || getDefaultDateTime();
     const tz = ed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     populateTimezoneSelect(tz);
+    $('ed-time-window').value = ed.timeWindowSeconds || '';
     $('ed-info-error').textContent = '';
 }
 
@@ -2391,6 +2457,8 @@ function saveEditorInfo() {
     state.editor.description = $('ed-description').value.trim();
     state.editor.startDateTime = datetime;
     state.editor.timezone = $('ed-timezone').value;
+    const twVal = $('ed-time-window').value;
+    state.editor.timeWindowSeconds = twVal ? parseInt(twVal, 10) : null;
 
     // Auto-save draft silently on Step 1 → Step 2 transition
     saveDraftFromEditor().catch(() => {});
@@ -2467,27 +2535,28 @@ function createActionEditForm(action, index) {
 
         <label class="field-label">Style</label>
         <div class="ed-toggle-group ed-style-group">
-            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal">Normal</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis">Emphasis</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert">Alert</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
         </div>
 
         <label class="field-label">Haptic</label>
         <div class="ed-toggle-group ed-haptic-group">
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'single' ? ' selected' : ''}" data-val="single">Single</button>
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'double' ? ' selected' : ''}" data-val="double">Double</button>
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'triple' ? ' selected' : ''}" data-val="triple">Triple</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'single' ? ' selected' : ''}" data-val="single" title="One short vibration">Single</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'double' ? ' selected' : ''}" data-val="double" title="Two quick vibrations">Double</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'triple' ? ' selected' : ''}" data-val="triple" title="Three vibrations — strongest alert">Triple</button>
         </div>
 
         <div class="ed-checkbox-row">
             <input type="checkbox" id="ed-countdown-${index}" class="ed-countdown-check" ${action.countdown ? 'checked' : ''}>
-            <label for="ed-countdown-${index}">5-second countdown</label>
+            <label for="ed-countdown-${index}" title="3 ascending tones before this cue triggers">Countdown beeps</label>
         </div>
 
         <label class="field-label">Resource Pack</label>
         <select class="field-select ed-pack-select">
             <option value="">None (TTS only)</option>
         </select>
+        <div class="ed-tts-hint" style="font-size:11px; color:var(--text-dim); margin-top:4px;">With TTS only, the action text above is spoken aloud.</div>
         <select class="field-select ed-cue-select" style="display:none; margin-top:6px;">
             <option value="">Select a cue...</option>
         </select>
@@ -2529,18 +2598,24 @@ async function populatePackDropdown(form, action) {
     } catch { /* IDB not available — leave default */ }
 
     // Wire pack change → populate cues
+    const ttsHint = form.querySelector('.ed-tts-hint');
+
     packSelect.addEventListener('change', async () => {
         const packId = packSelect.value;
         if (!packId) {
             cueSelect.style.display = 'none';
             fallbackInput.style.display = 'none';
             cueSelect.innerHTML = '<option value="">Select a cue...</option>';
+            if (ttsHint) ttsHint.style.display = '';
             return;
         }
         await populateCueDropdown(cueSelect, packId, null);
         cueSelect.style.display = '';
         fallbackInput.style.display = '';
+        if (ttsHint) ttsHint.style.display = 'none';
     });
+
+    if (action.pack && ttsHint) ttsHint.style.display = 'none';
 }
 
 async function populateCueDropdown(cueSelect, packId, selectedCue) {
@@ -2707,7 +2782,7 @@ function finalizeEditorEvent() {
         action: a.action,
         style: a.style,
         hapticPattern: a.hapticPattern,
-        countdownSeconds: a.countdown ? [5, 4, 3, 2, 1] : null,
+        countdownSeconds: a.countdown ? [3, 2, 1] : null,
         audioAnnounce: a.audioAnnounce,
         noticeSeconds: 10,
         pack: a.pack || null,
@@ -2721,6 +2796,7 @@ function finalizeEditorEvent() {
         startTime: startUTC,
         timezone: ed.timezone,
         timeline: timeline,
+        timeWindowSeconds: ed.timeWindowSeconds || undefined,
     };
 
     state.event = embeddedEventToEvent(embedded);

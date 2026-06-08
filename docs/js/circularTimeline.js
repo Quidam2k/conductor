@@ -48,6 +48,12 @@ function createCircularTimeline(canvas) {
     // Pulse animation state
     let pulsePhase = 0;
 
+    // Countdown tick callback state — fires when the displayed
+    // countdown number transitions (e.g. 4→3), enabling RAF-synced beeps.
+    let _onCountdownTick = null;
+    let _lastTickSeconds = null;
+    let _lastTickActionId = null;
+
     // ─── Sizing ─────────────────────────────────────────────────
 
     /**
@@ -318,6 +324,9 @@ function createCircularTimeline(canvas) {
 
     function drawCenterText(cx, cy, currentAction, timeline) {
         if (currentAction) {
+            _lastTickSeconds = null;
+            _lastTickActionId = null;
+
             // "NOW" in big red
             ctx.fillStyle = TimelineColors.triggerRed;
             ctx.font = 'bold 28px monospace';
@@ -344,6 +353,14 @@ function createCircularTimeline(canvas) {
                 const rounded = Math.ceil(secUntil);
 
                 if (rounded <= 10 && rounded > 0) {
+                    if (rounded !== _lastTickSeconds || next.id !== _lastTickActionId) {
+                        _lastTickSeconds = rounded;
+                        _lastTickActionId = next.id;
+                        if (_onCountdownTick) {
+                            _onCountdownTick(rounded, next);
+                        }
+                    }
+
                     // Countdown number
                     ctx.fillStyle = TimelineColors.countdownYellow;
                     ctx.font = 'bold 36px monospace';
@@ -358,19 +375,27 @@ function createCircularTimeline(canvas) {
                     ctx.fillStyle = TimelineColors.textSecondary;
                     ctx.font = '12px monospace';
                     ctx.fillText(name, cx, cy + 14);
-                } else if (rounded > 0) {
-                    // Time until next
-                    ctx.fillStyle = TimelineColors.textPrimary;
-                    ctx.font = '20px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(formatCountdown(rounded), cx, cy - 8);
+                } else {
+                    _lastTickSeconds = null;
+                    _lastTickActionId = null;
 
-                    ctx.fillStyle = TimelineColors.textDim;
-                    ctx.font = '11px monospace';
-                    ctx.fillText('until next action', cx, cy + 12);
+                    if (rounded > 0) {
+                        // Time until next
+                        ctx.fillStyle = TimelineColors.textPrimary;
+                        ctx.font = '20px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(formatCountdown(rounded), cx, cy - 8);
+
+                        ctx.fillStyle = TimelineColors.textDim;
+                        ctx.font = '11px monospace';
+                        ctx.fillText('until next action', cx, cy + 12);
+                    }
                 }
             } else {
+                _lastTickSeconds = null;
+                _lastTickActionId = null;
+
                 // No upcoming actions
                 ctx.fillStyle = TimelineColors.textDim;
                 ctx.font = '14px monospace';
@@ -406,10 +431,14 @@ function createCircularTimeline(canvas) {
          */
         setEvent(evt) {
             event = evt;
-            // Auto-zoom based on upcoming action density
             if (evt && evt.timeline.length > 0) {
-                const upcoming = getUpcomingActions(evt.timeline, nowMs, 120);
-                windowSeconds = calculateOptimalZoom(upcoming, evt.timeWindowSeconds || 60);
+                if (evt.timeWindowSeconds) {
+                    windowSeconds = evt.timeWindowSeconds;
+                } else {
+                    const sorted = [...evt.timeline].sort((a, b) =>
+                        (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
+                    windowSeconds = calculateOptimalZoom(sorted, 60);
+                }
             }
         },
 
@@ -462,6 +491,15 @@ function createCircularTimeline(canvas) {
                 cancelAnimationFrame(animFrameId);
                 animFrameId = null;
             }
+        },
+
+        /**
+         * Register a callback fired when the displayed countdown number
+         * transitions (e.g. 4→3). Used to sync beep playback to the visual.
+         * @param {function(number, TimelineAction): void} cb - (secondsRemaining, action)
+         */
+        setOnCountdownTick(cb) {
+            _onCountdownTick = cb;
         },
 
         /** @returns {boolean} */

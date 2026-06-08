@@ -275,6 +275,41 @@ function createAudioService() {
     // ─── Announcement logic ─────────────────────────────────────
 
     /**
+     * Resolve which countdown beep seconds apply to an action.
+     * Shared by announceAction (dedup marking) and the RAF-driven
+     * beep callback (actual playback).
+     *
+     * @param {TimelineAction} action
+     * @param {number} defaultNoticeSeconds
+     * @param {Object} [eventDefaults={}]
+     * @param {number} [gapFromPrevMs=Infinity] - Milliseconds since previous action's trigger
+     * @returns {number[]|null} e.g. [3,2,1] or null
+     */
+    function resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults = {}, gapFromPrevMs = Infinity) {
+        const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+        let result;
+        if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
+            result = [...action.countdownSeconds];
+        } else if (eventDefaults.defaultCountdown) {
+            const duration = eventDefaults.defaultCountdownSeconds ?? 5;
+            result = Array.from({length: duration}, (_, i) => duration - i);
+        } else if (noticeSeconds > 0) {
+            const gapSec = gapFromPrevMs / 1000;
+            const beats = Math.min(3, Math.floor(noticeSeconds),
+                gapFromPrevMs < Infinity ? Math.max(0, Math.floor(gapSec) - 1) : 3);
+            result = beats > 0 ? Array.from({length: beats}, (_, i) => beats - i) : null;
+        } else {
+            result = null;
+        }
+        if (result && gapFromPrevMs < Infinity) {
+            const gapSec = gapFromPrevMs / 1000;
+            result = result.filter(s => s < gapSec);
+            if (result.length === 0) result = null;
+        }
+        return result;
+    }
+
+    /**
      * Process an action for announcement. Call this each tick.
      * Handles the full announcement chain: notice → countdown → trigger.
      * Deduplicates so each announcement fires exactly once.
@@ -290,10 +325,15 @@ function createAudioService() {
      * @param {number} [gapToNext=Infinity] - Milliseconds until the next action. Unused since
      *     v39 — kept in the signature for compatibility with existing callers.
      * @param {boolean} [groupStartFlag=true] - False suppresses the "Get ready to" prep for cues
-     *     mid-group (rapid-sequence grouping by adjacent gaps <10s).
+     *     mid-group (rapid-sequence grouping by adjacent gaps).
+     * @param {number} [gapFromPrevMs=Infinity] - Milliseconds since the previous action's trigger.
+     *     Used to cap countdown beeps so they don't overlap with the previous cue.
+     * @param {boolean} [suppressBeepPlayback=false] - When true, countdown thresholds are still
+     *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
+     *     callback handles actual beep playback for precise visual sync.
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
-    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true) {
+    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false) {
         if (!action.audioAnnounce) return null;
 
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
@@ -301,23 +341,7 @@ function createAudioService() {
 
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
-        // Resolve countdown template. Verbal "3, 2, 1" was replaced by tonal beeps
-        // in v39, so the only knob is "how many beeps." If action.countdownSeconds
-        // is explicit, use it. Otherwise derive from the time between when the
-        // "Get ready to" speech ends and the trigger fires.
-        let countdownSeconds;
-        if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
-            countdownSeconds = action.countdownSeconds;
-        } else if (eventDefaults.defaultCountdown) {
-            const duration = eventDefaults.defaultCountdownSeconds ?? 5;
-            countdownSeconds = Array.from({length: duration}, (_, i) => duration - i);
-        } else if (noticeSeconds > 0) {
-            // Three ascending beeps in the final 3 seconds before trigger.
-            const beats = Math.min(3, Math.floor(noticeSeconds));
-            countdownSeconds = beats > 0 ? Array.from({length: beats}, (_, i) => beats - i) : null;
-        } else {
-            countdownSeconds = null;
-        }
+        const countdownSeconds = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrevMs);
         const adjustedSeconds = Math.round(secondsUntil / speedMultiplier);
 
         // Range-crossing detection: track last seen adjustedSeconds per action.
@@ -355,14 +379,40 @@ function createAudioService() {
             }
         }
 
-        // 2. Trigger — announce action name (e.g., "Freeze!") at the zero mark.
+        // 2. Countdown — processed before trigger so the "1" beep is never
+        //    preempted by the trigger's bulk-mark. Does NOT return early;
+        //    saves result so trigger can still fire on the same tick.
+        let countdownResult = null;
+        if (countdownSeconds && countdownSeconds.length > 0) {
+            const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
+
+            for (const cs of sortedCountdown) {
+                if (crossed(cs)) {
+                    const key = `${action.id}-countdown-${cs}`;
+                    if (!announced.has(key)) {
+                        announced.add(key);
+                        for (const cs2 of countdownSeconds) {
+                            if (cs2 > cs) {
+                                announced.add(`${action.id}-countdown-${cs2}`);
+                            }
+                        }
+                        if (!suppressBeepPlayback) {
+                            playCountdownBeep(cs);
+                        }
+                        countdownResult = `countdown-beep: ${cs}`;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Trigger — announce action name (e.g., "Freeze!") at the zero mark.
         //    Tone beep accompanies the speech so the downbeat is unambiguous
         //    even when speech latency varies.
         if (crossed(0)) {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
                 announced.add(key);
-                // Mark any skipped countdown numbers as announced
                 if (countdownSeconds) {
                     for (const cs of countdownSeconds) {
                         announced.add(`${action.id}-countdown-${cs}`);
@@ -378,33 +428,7 @@ function createAudioService() {
             }
         }
 
-        // 3. Countdown — fire the lowest crossed number (closest to now).
-        //    Each beat is a tonal beep (ascending pitch) instead of TTS, so the
-        //    timing matches actual seconds. The pre-v39 "countdown-voice" pack
-        //    shortcut and per-number pack lookups are gone — a single multi-second
-        //    clip can never sync to per-second crossings, which was the v38 bug.
-        if (countdownSeconds && countdownSeconds.length > 0) {
-            const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
-
-            for (const cs of sortedCountdown) {
-                if (crossed(cs)) {
-                    const key = `${action.id}-countdown-${cs}`;
-                    if (!announced.has(key)) {
-                        announced.add(key);
-                        // Mark higher crossed countdowns as skipped
-                        for (const cs2 of countdownSeconds) {
-                            if (cs2 > cs) {
-                                announced.add(`${action.id}-countdown-${cs2}`);
-                            }
-                        }
-                        playCountdownBeep(cs);
-                        return `countdown-beep: ${cs}`;
-                    }
-                }
-            }
-        }
-
-        return noticeResult;
+        return countdownResult || noticeResult;
     }
 
     // ─── Resource pack fallback chain ───────────────────────────
@@ -531,6 +555,7 @@ function createAudioService() {
         speak,
         announceAction,
         resolveAudioCue,
+        resolveCountdownBeeps,
         haptic,
         playCountdownBeep,
         playTriggerBeep,

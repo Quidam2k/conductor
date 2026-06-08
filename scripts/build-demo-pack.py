@@ -1,8 +1,8 @@
 """Build docs/conductor-demo.zip from voice-forge output + demo manifest + events.
 
-Usage:
-    python build-demo-pack.py
-    python build-demo-pack.py --voice-source X:/voice-forge/output
+Usage (run from the repo root):
+    python scripts/build-demo-pack.py
+    python scripts/build-demo-pack.py --voice-source X:/voice-forge/output
 
 The output zip contains:
     manifest.json                              <- from docs/demos/manifest.json
@@ -21,7 +21,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent
+REPO = Path(__file__).resolve().parent.parent  # scripts/ -> repo root
 DEMOS = REPO / "docs" / "demos"
 DEFAULT_VOICE_SOURCE = Path("X:/voice-forge/output")
 OUT_ZIP = REPO / "docs" / "conductor-demo.zip"

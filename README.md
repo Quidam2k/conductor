@@ -2,7 +2,9 @@
 
 **Coordinate groups in real time with shared timed cues. No accounts, no servers, no app required.**
 
-Conductor is a serverless PWA for synchronized real-world actions — performances, community events, demonstrations, art installations. An organizer creates a timed sequence of cues, shares it as a link, and every participant's phone plays the same cues at the same time.
+Conductor is a free web app for coordinating groups of people in real time — performances, community events, demonstrations, art installations. An organizer creates a timed sequence of cues, shares it as a link, and every participant's phone plays the same cues at the same moment.
+
+No app to install, no account to make, no server in the middle. You open a link in your browser and you're in. (For the technically inclined: it's a serverless progressive web app — the whole event lives inside the link itself.)
 
 Designed for peaceful coordination. No telemetry, no tracking, no data collection. By design.
 

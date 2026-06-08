@@ -10,7 +10,8 @@ import re
 import os
 import sys
 
-DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ -> repo root
+DOCS = os.path.join(REPO, 'docs')
 SRC = os.path.join(DOCS, 'index.html')
 OUT = os.path.join(DOCS, 'conductor.html')
 

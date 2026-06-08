@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Conductor — Getting Started Guide</title>
+    <meta name="description" content="Step-by-step guide to Conductor: load the demo, practice, import a resource pack, and create your own events.">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f23;
+            --bg-surface: #171733;
+            --bg-elevated: #1f1f42;
+            --text: #e8e6e3;
+            --text-secondary: rgba(232, 230, 227, 0.7);
+            --text-dim: rgba(232, 230, 227, 0.4);
+            --accent-blue: #5ba3ff;
+            --accent-green: #34d399;
+            --accent-gold: #f0b429;
+            --accent-purple: #a78bfa;
+            --accent-red: #ff4757;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ─── Top bar ─── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            font-size: 0.9rem;
+        }
+        .topbar a { color: var(--text-secondary); }
+        .topbar .brand { font-weight: 700; letter-spacing: 0.5px; color: var(--text); }
+
+        /* ─── Hero ─── */
+        .hero {
+            text-align: center;
+            padding: 48px 24px 32px;
+            background: linear-gradient(180deg, #171733 0%, var(--bg) 100%);
+        }
+        .hero .icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+        .hero h1 {
+            font-size: clamp(1.8rem, 5vw, 2.6rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+        }
+        .hero p {
+            color: var(--text-secondary);
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ─── Layout ─── */
+        main {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 24px 24px 60px;
+        }
+        section { margin-top: 48px; }
+        section:first-of-type { margin-top: 24px; }
+
+        h2 {
+            font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            scroll-margin-top: 16px;
+        }
+        h3 {
+            font-size: 1.2rem;
+            color: var(--accent-gold);
+            margin: 28px 0 10px;
+        }
+        h4 {
+            font-size: 1.02rem;
+            color: var(--text);
+            margin: 20px 0 8px;
+        }
+
+        p { margin-bottom: 12px; color: var(--text-secondary); }
+        strong { color: var(--text); }
+        em { color: var(--text); font-style: italic; }
+
+        ul, ol { margin: 0 0 14px 0; padding-left: 0; list-style: none; }
+        ul li, ol li {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            padding-left: 24px;
+            position: relative;
+        }
+        ul li::before {
+            content: "\2022";
+            color: var(--accent-blue);
+            position: absolute;
+            left: 6px;
+        }
+        ol { counter-reset: li; }
+        ol li::before {
+            counter-increment: li;
+            content: counter(li) ".";
+            color: var(--accent-blue);
+            font-weight: 700;
+            position: absolute;
+            left: 0;
+        }
+        li ul { margin-top: 8px; }
+
+        /* ─── Code ─── */
+        code {
+            background: var(--bg-elevated);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.88em;
+            color: var(--text);
+        }
+        pre {
+            background: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin: 0 0 16px;
+            overflow-x: auto;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            white-space: pre;
+        }
+
+        /* ─── Callout ─── */
+        blockquote {
+            background: rgba(91, 163, 255, 0.08);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 0 0 16px;
+            color: var(--text-secondary);
+        }
+        blockquote strong { color: var(--accent-blue); }
+
+        /* ─── Table ─── */
+        .table-wrap { overflow-x: auto; margin-bottom: 16px; }
+        table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+        th, td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        th { color: var(--accent-gold); font-weight: 600; }
+        td { color: var(--text-secondary); }
+
+        hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 40px 0; }
+
+        /* ─── Footer ─── */
+        footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        footer a { color: var(--text-secondary); }
+        footer .build { margin-top: 10px; font-size: 0.78rem; }
+
+        @media (max-width: 600px) {
+            main { padding: 16px 18px 48px; }
+            .hero { padding: 36px 18px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="start.html" class="brand">&#127926; Conductor</a>
+    <span>
+        <a href="index.html">Open the App</a>
+        &nbsp;&middot;&nbsp;
+        <a href="start.html">Getting Started</a>
+    </span>
+</nav>
+
+<header class="hero">
+    <div class="icon" aria-hidden="true">&#128214;</div>
+    <h1>Getting Started with Conductor</h1>
+    <p>Conductor is a free, private tool for coordinating groups of people using their phones. This guide walks you through everything, step by step.</p>
+</header>
+
+<main>
+
+    <section>
+        <h2 id="quick-start">Quick Start (5 Steps)</h2>
+
+        <h3>Step 1: Get the App</h3>
+        <p>You have two options:</p>
+        <ul>
+            <li><strong>Use it online</strong> — Open <a href="https://quidam2k.github.io/conductor/">quidam2k.github.io/conductor/</a> in your phone's browser.</li>
+            <li><strong>Download it</strong> — Save <code>conductor.html</code> to your device. It works offline, straight from your files.</li>
+        </ul>
+        <p>Either way, you get the same app. The download is nice because it works without internet forever.</p>
+
+        <h3>Step 2: Try the Demo</h3>
+        <p>When you open the app, you'll see a green <strong>Try the Demo</strong> button near the top. Tap it to load a pre-built sample called "The Stillness." It works immediately — no downloads or resource pack needed, using your phone's built-in text-to-speech.</p>
+
+        <h3>Step 3: Preview and Practice</h3>
+        <p>After loading the demo, you'll see a preview screen showing:</p>
+        <ul>
+            <li>The event title and description</li>
+            <li>A list of all the timed cues</li>
+            <li>When the event is scheduled to start</li>
+        </ul>
+        <p>Tap <strong>Start Practice</strong> to run through the event at your own pace. Use the speed slider to go faster (up to 5×). Your phone will speak each cue out loud at the right time.</p>
+
+        <h3>Step 4: Import a Resource Pack (Optional)</h3>
+        <p>The app speaks cues using your phone's built-in text-to-speech by default. It works, but it sounds robotic.</p>
+        <p>For better audio, import a <strong>resource pack</strong> — a zip file with pre-recorded voice cues. See the <a href="#importing-a-resource-pack">Importing a Resource Pack</a> section below.</p>
+
+        <h3>Step 5: Share with Others</h3>
+        <p>From the preview screen, tap <strong>Share QR Code</strong>. The share screen gives you several options:</p>
+        <ul>
+            <li><strong>Copy Link</strong> — Copies a URL to your clipboard. Send it via text, email, whatever.</li>
+            <li><strong>QR Code</strong> — Shows a scannable code on your screen. Others point their camera at it.</li>
+            <li><strong>Share File</strong> — Sends a self-contained HTML file that has both the app and the event baked in.</li>
+        </ul>
+        <p>The person who receives your link just taps it and they're in. No install, no signup.</p>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="importing-a-resource-pack">Importing a Resource Pack</h2>
+        <p>Resource packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.</p>
+
+        <h3>What You Need</h3>
+        <p>A resource pack is a <code>.zip</code> file containing audio files and a <code>manifest.json</code> that tells the app what's inside.</p>
+
+        <h3>How to Import</h3>
+        <ol>
+            <li>Open Conductor in your browser.</li>
+            <li>On the main screen, tap <strong>Import Resource Pack</strong> (or <strong>Manage Packs</strong> &rarr; <strong>Import Pack</strong>).</li>
+            <li>Pick your <code>.zip</code> file from your device.</li>
+            <li>The app reads the zip, checks its contents, and shows you what it found.</li>
+        </ol>
+
+        <h3>What to Expect</h3>
+        <p>After a successful import, you'll see:</p>
+        <ul>
+            <li>The pack name and description</li>
+            <li>How many audio cues it contains</li>
+            <li>If it includes any bundled events (demo scripts)</li>
+            <li>A validation report showing which cues are covered</li>
+        </ul>
+        <p>From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.</p>
+
+        <h3>The Demo Pack</h3>
+        <p>The Conductor Demo Pack includes:</p>
+        <ul>
+            <li><strong>121 audio cues</strong> — 1 system cue (countdown voice), 60 action cues, 60 notice cues</li>
+            <li><strong>7 event scripts</strong> — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur</li>
+            <li>Works with all demo events out of the box</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="creating-events">Creating Events</h2>
+        <p>There are three ways to create events. Pick whichever feels most natural.</p>
+
+        <h3>Option 1: Use the Built-in Editor</h3>
+        <p>The easiest way. No coding, no special formats.</p>
+        <ol>
+            <li>Tap <strong>Create New Event</strong> on the main screen.</li>
+            <li><strong>Step 1</strong> — Fill in the title, description, and start time.</li>
+            <li><strong>Step 2</strong> — Build your timeline:
+                <ul>
+                    <li>Tap <strong>Add Action</strong> to add a cue</li>
+                    <li>Set the time offset (minutes and seconds from the start)</li>
+                    <li>Type what should be announced (e.g., "Freeze in place")</li>
+                    <li>Choose a style (normal, emphasis, or alert)</li>
+                    <li>Toggle countdown, notice, and haptic options</li>
+                </ul>
+            </li>
+            <li><strong>Step 3</strong> — Review everything, then share via link, QR code, or file.</li>
+        </ol>
+
+        <h3>Option 2: Write a Text File</h3>
+        <p>For more control, write your event in any text editor. Save it as a <code>.txt</code> file and import it, or paste the text directly into the input field.</p>
+        <p>Here's a complete example:</p>
+        <pre><code># My event — lines starting with # are comments
+Title: Flash Mob at Central Park
+Description: Meet by the fountain, east side
+Start: 2026-03-15 2:00 PM
+Timezone: America/New_York
+Countdown: true      # event-level: all actions get a countdown by default
+
+0:00  Get ready
+0:15  [emphasis] Wave left
+0:30  [emphasis, countdown] Wave right
+1:00  [alert, countdown:3, haptic:triple] Jump!
+1:30  Freeze in place
+2:00  Walk away casually</code></pre>
+
+        <h4>The basics:</h4>
+        <ul>
+            <li>Put your title, start time, and other settings at the top</li>
+            <li>Leave a blank line, then list your actions</li>
+            <li>Each action is a timestamp, two spaces, then the text to speak</li>
+            <li>Timestamps count up from the event start: <code>0:00</code> = start, <code>1:30</code> = one minute thirty seconds in</li>
+        </ul>
+
+        <blockquote>
+            <strong>Countdown — two levels:</strong> The header <code>Countdown: true</code> turns on a countdown for <em>every</em> action in the event by default. The per-action tag <code>[countdown]</code> (or <code>[no-countdown]</code>) overrides that default for a single action.
+        </blockquote>
+
+        <h4>Notices, styles, and haptics:</h4>
+        <p>Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called <strong>notices</strong>. You can control them with <code>NotifyWindow</code> (event-level) or <code>[notify:N]</code> / <code>[no-notify]</code> (per-action).</p>
+        <p>The three <strong>styles</strong> change how an action looks on screen:</p>
+        <ul>
+            <li><code>normal</code> — blue (default)</li>
+            <li><code>emphasis</code> — gold highlight</li>
+            <li><code>alert</code> — red/urgent</li>
+        </ul>
+        <p><strong>Haptic</strong> (vibration) tags make the phone vibrate on cue. Note: haptic works on Android. iPhones do not support vibration from web apps.</p>
+        <p><strong>Tags</strong> go in square brackets before the action text:</p>
+        <ul>
+            <li><code>[emphasis]</code> — highlighted gold style</li>
+            <li><code>[alert]</code> — urgent red style</li>
+            <li><code>[countdown]</code> — plays an audible countdown (ascending beeps) leading into the action</li>
+            <li><code>[countdown:3]</code> — a shorter countdown (fits up to 3 beeps before the cue)</li>
+            <li><code>[haptic:triple]</code> — vibration pattern</li>
+        </ul>
+        <p>Combine them with commas: <code>[alert, countdown:3, haptic:triple]</code></p>
+        <p>For the full reference with all tags, briefing blocks, and advanced features, see the <a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md">Text Format Reference</a>.</p>
+
+        <h3>Option 3: Write JSON</h3>
+        <p>For programmers or anyone generating events from code, you can write raw JSON:</p>
+        <pre><code>{
+  "title": "Flash Mob",
+  "startTime": "2026-03-15T14:00:00-04:00",
+  "timezone": "America/New_York",
+  "description": "Meet by the fountain",
+  "timeline": [
+    { "time": 0, "text": "Get ready" },
+    { "time": 15, "text": "Wave left", "style": "emphasis" },
+    { "time": 30, "text": "Wave right", "style": "emphasis", "countdown": true },
+    { "time": 60, "text": "Jump!", "style": "alert", "countdown": 3, "haptic": "triple" }
+  ]
+}</code></pre>
+        <p>Paste the JSON into the input field or save it as a <code>.json</code> file and import it.</p>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="adapting-the-demo-pack">Adapting the Demo Pack</h2>
+        <p>Want to use the demo pack as a starting point for your own? Here's how.</p>
+
+        <h3>What's Inside the Zip</h3>
+        <pre><code>conductor-demo.zip
+├── manifest.json              # Describes the pack contents
+├── audio/
+│   └── countdown-voice.wav    # System cue: the countdown voice
+├── voices/
+│   ├── freeze.wav             # Action cues (60 files)
+│   ├── walk.wav
+│   └── ...
+├── notices/
+│   ├── notice-freeze.wav      # Notice cues (60 files)
+│   ├── notice-walk.wav
+│   └── ...
+└── events/
+    ├── the-stillness.json     # Bundled event scripts (7 total)
+    ├── the-bloom.json
+    └── ...</code></pre>
+
+        <h3>Swapping Audio Files</h3>
+        <ol>
+            <li><strong>Unzip</strong> the demo pack to a folder on your computer.</li>
+            <li><strong>Replace</strong> any <code>.wav</code> file with your own recording, keeping the <strong>same filename</strong>.</li>
+            <li>Audio format: WAV or MP3, any sample rate. Keep files under 500KB each for best performance.</li>
+            <li><strong>Re-zip</strong> the folder contents (not the folder itself — the files should be at the root of the zip).</li>
+            <li><strong>Import</strong> your modified zip into the app.</li>
+        </ol>
+
+        <h3>Editing the Manifest</h3>
+        <p>The <code>manifest.json</code> tells the app what cues are in the pack. If you add or remove audio files, update the manifest to match.</p>
+        <p>Cues are listed as key-value pairs — the key is the cue ID and the value is the file path:</p>
+        <pre><code>{
+  "cues": {
+    "hold": "voices/hold.wav",
+    "walk": "voices/walk.wav"
+  }
+}</code></pre>
+        <ul>
+            <li><strong>Key</strong> (e.g. <code>"hold"</code>) — The cue identifier. This is what events reference.</li>
+            <li><strong>Value</strong> (e.g. <code>"voices/hold.wav"</code>) — Path to the audio file inside the zip.</li>
+        </ul>
+
+        <h3>Adding Your Own Cues</h3>
+        <ol>
+            <li>Record your audio file.</li>
+            <li>Put it in the <code>voices/</code> folder (or <code>notices/</code> for notice variants).</li>
+            <li>Add an entry to the <code>cues</code> object in <code>manifest.json</code>.</li>
+            <li>Reference the cue in your event text — the app matches cue IDs to action text automatically.</li>
+        </ol>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="creating-packs-from-scratch">Creating Packs from Scratch</h2>
+
+        <h3>Minimum Viable Pack</h3>
+        <p>You only need two things: a <code>manifest.json</code> and at least one audio file.</p>
+        <h4>manifest.json:</h4>
+        <pre><code>{
+  "id": "my-pack",
+  "name": "My Custom Pack",
+  "version": "1.0.0",
+  "cues": {
+    "go": "voices/go.wav"
+  }
+}</code></pre>
+        <h4>Folder structure:</h4>
+        <pre><code>my-pack/
+├── manifest.json
+└── voices/
+    └── go.wav</code></pre>
+        <p>Zip it up, import it, and any event action containing "go" will play your audio file instead of TTS.</p>
+
+        <h3>Folder Conventions</h3>
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Folder</th><th>What goes in it</th></tr></thead>
+            <tbody>
+                <tr><td><code>audio/</code></td><td>System cues (countdown voice, trigger sounds)</td></tr>
+                <tr><td><code>voices/</code></td><td>Action cues — the main spoken prompts</td></tr>
+                <tr><td><code>notices/</code></td><td>Notice cues — "get ready to..." variants, prefixed with <code>notice-</code></td></tr>
+                <tr><td><code>events/</code></td><td>Bundled event scripts (JSON format)</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>These are conventions, not requirements. The app finds files by the <code>file</code> path in each cue entry, so you could put everything in one folder if you wanted. But following the convention makes packs easier to understand and share.</p>
+
+        <h3>Recording Tips</h3>
+        <ul>
+            <li><strong>Keep it short</strong> — 1-3 seconds per cue is ideal. The cue needs to finish before the next one starts.</li>
+            <li><strong>Be clear</strong> — Speak at a normal pace, enunciate. This plays through phone speakers in noisy environments.</li>
+            <li><strong>Consistent volume</strong> — Normalize your recordings so they're all roughly the same loudness.</li>
+            <li><strong>WAV or MP3</strong> — Both work. WAV is higher quality, MP3 is smaller. For voice cues, MP3 is fine.</li>
+            <li><strong>Notice variants</strong> — Record a softer "heads up" version of each action cue. Name it <code>notice-{cue-id}.wav</code> and put it in <code>notices/</code>. The app plays these as advance warnings before the main cue.</li>
+        </ul>
+
+        <h3>Bundling Events</h3>
+        <ol>
+            <li>Create your events (using the editor or text format).</li>
+            <li>Export them as JSON files.</li>
+            <li>Put them in the <code>events/</code> folder.</li>
+            <li>Add them to the manifest:</li>
+        </ol>
+        <pre><code>{
+  "id": "my-pack",
+  "name": "My Pack",
+  "version": "1.0.0",
+  "events": [
+    { "file": "events/my-event.json", "name": "My Cool Event" }
+  ],
+  "cues": {
+    "go": "voices/go.wav",
+    "freeze": "voices/freeze.wav"
+  }
+}</code></pre>
+        <p>When someone imports your pack, the app validates that your audio cues cover all the actions in your bundled events and shows a report.</p>
+
+        <h3>Validation</h3>
+        <p>When you import a pack, the app checks:</p>
+        <ul>
+            <li>Is the manifest valid JSON with required fields?</li>
+            <li>Do all cue <code>file</code> paths point to actual files in the zip?</li>
+            <li>For bundled events: are all action cues covered by audio files?</li>
+        </ul>
+        <p>If something's missing, you'll see a warning with details about what's not covered. The event will still work — uncovered cues just fall back to TTS.</p>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="reference">Reference</h2>
+        <ul>
+            <li><a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md"><strong>Text Format Reference</strong></a> — Complete reference for the text event format (all tags, briefing blocks, config headers).</li>
+            <li><a href="https://github.com/Quidam2k/conductor/blob/main/docs/RESOURCE_PACK_FORMAT.md"><strong>Resource Pack Format</strong></a> — Technical specification for resource pack structure and manifest schema.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2 id="tips">Tips</h2>
+        <ul>
+            <li><strong>Practice first</strong> — Always run through your event in practice mode before the real thing. Use the speed slider to go fast.</li>
+            <li><strong>Battery matters</strong> — For live events, disable battery saver and keep your screen on. The app shows a reminder about this.</li>
+            <li><strong>Encryption</strong> — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device.</li>
+            <li><strong>Offline works</strong> — Once you've opened the app in your browser, it caches itself. Works without internet after that.</li>
+            <li><strong>Phone-to-phone</strong> — Show a QR code on your screen, others scan it with their camera. No internet needed for the transfer.</li>
+            <li><strong>Briefing blocks</strong> — Add rally points, exit routes, and role assignments that display before the event starts. See the Text Format Reference for details.</li>
+        </ul>
+    </section>
+
+</main>
+
+<footer>
+    <p>
+        <a href="index.html">Open the App</a>
+        &nbsp;&middot;&nbsp;
+        <a href="start.html">Getting Started</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/Quidam2k/conductor">GitHub</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
+    </p>
+    <p class="build">build v43 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+</footer>
+
+</body>
+</html>
