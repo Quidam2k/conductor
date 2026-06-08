@@ -276,6 +276,21 @@
             font-size: 0.88em;
         }
 
+        /* ─── Built to Spread ─── */
+        .spread-section { background: var(--bg-surface); border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .spread-lead { color: var(--text-secondary); font-size: 1.04rem; max-width: 620px; margin: -16px auto 0; text-align: center; }
+        .spread-both { color: var(--text-secondary); font-size: 0.98rem; max-width: 600px; margin: 20px auto 0; text-align: center; }
+        .spread-both strong { color: var(--text); }
+        .transfer-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(248px, 1fr)); gap: 16px; margin-top: 20px; }
+        .transfer-card { background: var(--bg); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 22px; }
+        .transfer-card h4 { font-size: 1rem; color: var(--accent-gold); margin-bottom: 12px; }
+        .transfer-card ol { margin: 0; padding-left: 1.25em; }
+        .transfer-card ol li { color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 9px; line-height: 1.5; }
+        .transfer-card ol li strong { color: var(--text); }
+        .transfer-card .step-note { display: block; color: var(--text-dim); font-size: 0.84rem; margin-top: 3px; }
+        .transfer-cross { color: var(--text-dim); font-size: 0.9rem; max-width: 600px; margin: 18px auto 0; text-align: center; }
+        .transfer-cross strong { color: var(--text-secondary); }
+
         /* ─── Footer ─── */
         .footer {
             text-align: center;
@@ -393,6 +408,61 @@
         </div>
     </div>
 </section>
+
+<!-- ═══ Built to Spread ═══ -->
+<div class="spread-section">
+    <section class="section">
+        <h2>Built to Spread</h2>
+        <p class="spread-lead">
+            Most coordination tools need an organizer with everyone's contacts. Conductor just needs a crowd.
+            A few people show up knowing the plan &mdash; everyone else catches it from whoever's standing next to them.
+            A tap, a QR code, a file handed phone to phone. No app store, no account, no sign-up.
+            Seed it with a handful of people and a whole crowd can be moving together minutes later.
+        </p>
+
+        <p class="spread-both">
+            It's the same tool whether you're <strong>making art or making a point</strong>. A hundred strangers going
+            still at the same instant is a performance &mdash; and it's a protest. Conductor doesn't pick a side;
+            it just puts everyone on the same beat.
+        </p>
+
+        <div class="subsection">
+            <h3>Passing it on at the event</h3>
+            <p>
+                Here's the part that matters in a real crowd: <strong style="color:var(--text-secondary);">you don't need a
+                signal at the event.</strong> Load the app and your event at home, where you've got wifi or data.
+                Once it's on your phone, it hands off over the air &mdash; phone to phone &mdash; even if the network is
+                jammed or down.
+            </p>
+
+            <div class="transfer-cards">
+                <div class="transfer-card">
+                    <h4>On an iPhone &mdash; AirDrop</h4>
+                    <ol>
+                        <li>Open your event, tap <strong>Share QR Code</strong>, then <strong>Share File</strong>.</li>
+                        <li>Tap <strong>AirDrop</strong>, then tap the other person's name.
+                            <span class="step-note">They need AirDrop on: swipe into Control Center &rarr; AirDrop &rarr; Everyone for 10 Minutes.</span>
+                        </li>
+                        <li>They tap <strong>Accept</strong>, then open it. They're in.</li>
+                    </ol>
+                </div>
+                <div class="transfer-card">
+                    <h4>On an Android &mdash; Quick Share</h4>
+                    <ol>
+                        <li>Open your event, tap <strong>Share QR Code</strong>, then <strong>Share File</strong>.</li>
+                        <li>Tap <strong>Quick Share</strong> (older phones say <strong>Nearby Share</strong>), then tap the other phone.</li>
+                        <li>They tap to accept, then open it. They're in.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <p class="transfer-cross">
+                <strong>iPhone &harr; Android?</strong> Those two don't hand off to each other directly. Easiest mix:
+                show the <strong>QR code</strong> and have them scan it (one quick moment of signal), or just text them the link.
+            </p>
+        </div>
+    </section>
+</div>
 
 <!-- ═══ Create Your Own ═══ -->
 <div class="create-section">
