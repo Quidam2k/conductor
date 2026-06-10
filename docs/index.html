@@ -2010,14 +2010,8 @@ async function enterPractice() {
     state.practiceStartEventMs = Math.max(eventStartMs, firstActionMs - 15000);
     state.speedMultiplier = parseFloat($('speed-slider').value);
 
-    // Precompute per-action gaps for countdown capping
-    const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-    const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-    state.actionMeta = new Map();
-    for (let i = 0; i < sortedAll.length; i++) {
-        const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
-        state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
-    }
+    // Precompute per-action gaps + grouping for countdown capping
+    state.actionMeta = computeActionMeta(evt.timeline);
 
     // Create timeline renderer
     const canvas = $('canvas-practice');
@@ -2107,15 +2101,9 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
-    // Precompute per-action gaps (reuse if already computed in practice)
+    // Precompute per-action gaps + grouping (reuse if already computed in practice)
     if (!state.actionMeta || state.actionMeta.size === 0) {
-        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-        const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-        state.actionMeta = new Map();
-        for (let i = 0; i < sortedAll.length; i++) {
-            const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
-            state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
-        }
+        state.actionMeta = computeActionMeta(evt.timeline);
     }
 
     // Create timeline renderer
@@ -2169,6 +2157,34 @@ function checkCompletion(nowMs) {
 // Audio loop (shared by practice + live)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Pre-pass: derive per-action gapToNext, gapFromPrev, groupStartFlag, and
+// groupTexts from the timeline. Grouping rule: cues with gap-from-previous
+// ≤5s share the group's first prep; the group leader's prep enumerates up
+// to 3 member action texts ("Get ready to a, b and c").
+function computeActionMeta(timeline) {
+    const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+    const sorted = [...timeline].sort((a, b) => tsOf(a) - tsOf(b));
+    const meta = new Map();
+    for (let i = 0; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const curMs = tsOf(cur);
+        const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
+        const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
+        const groupStartFlag = gapFromPrev > 5000;
+        let groupTexts = null;
+        if (groupStartFlag) {
+            const texts = [cur.action];
+            for (let j = i + 1; j < sorted.length && texts.length < 3; j++) {
+                if (tsOf(sorted[j]) - tsOf(sorted[j - 1]) > 5000) break;
+                texts.push(sorted[j].action);
+            }
+            if (texts.length >= 2) groupTexts = texts;
+        }
+        meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag, groupTexts });
+    }
+    return meta;
+}
+
 function startAudioLoop(mode) {
     audioIntervalId = setInterval(() => {
         if (state.mode !== mode) return;
@@ -2183,19 +2199,7 @@ function startAudioLoop(mode) {
 
         const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
 
-        // Pre-pass: derive per-action gapToNext + groupStartFlag from timeline.
-        // Grouping rule: cues with gap-from-previous <5s share the group's first prep.
-        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-        const sorted = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-        const meta = new Map();
-        for (let i = 0; i < sorted.length; i++) {
-            const cur = sorted[i];
-            const curMs = tsOf(cur);
-            const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
-            const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
-            const groupStartFlag = gapFromPrev >= 5000;
-            meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag });
-        }
+        const meta = computeActionMeta(evt.timeline);
 
         // Suppress countdown beeps from audio loop when tab is visible —
         // the RAF-driven visual callback handles playback for precise sync.
@@ -2208,7 +2212,7 @@ function startAudioLoop(mode) {
             // Only process actions within announcement range
             if (secUntil < -2 || secUntil > Math.max(evt.defaultNoticeSeconds, action.noticeSeconds ?? 0) * speedMult + 2) continue;
 
-            const m = meta.get(action.id) || { gapToNext: Infinity, gapFromPrev: Infinity, groupStartFlag: true };
+            const m = meta.get(action.id) || { gapToNext: Infinity, gapFromPrev: Infinity, groupStartFlag: true, groupTexts: null };
 
             const result = audio.announceAction(
                 action, secUntil, evt.defaultNoticeSeconds, speedMult,
@@ -2220,7 +2224,8 @@ function startAudioLoop(mode) {
                 m.gapToNext,
                 m.groupStartFlag,
                 m.gapFromPrev,
-                suppressBeeps
+                suppressBeeps,
+                m.groupTexts
             );
 
             // Haptic feedback — respects event-level haptic mode
