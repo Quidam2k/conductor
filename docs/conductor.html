@@ -551,6 +551,17 @@
         }
         .ed-action-header .ed-btn-icon:hover { color: var(--text); }
 
+        .ed-action-details {
+            padding: 8px 12px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .ed-detail-row { display: flex; gap: 8px; font-size: 12px; }
+        .ed-detail-row .ed-detail-label { color: var(--text-dim); min-width: 110px; }
+        .ed-detail-row .ed-detail-value { color: var(--text-secondary); }
+
         .ed-action-edit {
             padding: 0 12px 12px;
             display: flex;
@@ -4471,6 +4482,7 @@ const state = {
         timezone: '',           // IANA timezone string
         actions: [],            // Array of { offsetSeconds, action, style, hapticPattern, countdown, audioAnnounce }
         editingIndex: -1,       // Which action card has edit form open (-1 = none)
+        expandedIndex: -1,      // Which action card shows read-only details (-1 = none)
     },
 };
 
@@ -5582,6 +5594,7 @@ function resetEditorState() {
         timezone: '',
         actions: [],
         editingIndex: -1,
+        expandedIndex: -1,
         draftId: null,
     };
 }
@@ -5671,10 +5684,22 @@ function saveEditorInfo() {
 // EDITOR — Timeline Builder (Step 2)
 // ═══════════════════════════════════════════════════════════════════════════
 
+function pruneEmptyEditorActions() {
+    // Drop textless actions except the one currently being edited.
+    // Track by object reference — indices shift as empties are removed.
+    const editing = state.editor.editingIndex >= 0 ? state.editor.actions[state.editor.editingIndex] : null;
+    const expanded = state.editor.expandedIndex >= 0 ? state.editor.actions[state.editor.expandedIndex] : null;
+    state.editor.actions = state.editor.actions.filter(a => (a.action && a.action.trim()) || a === editing);
+    state.editor.editingIndex = editing ? state.editor.actions.indexOf(editing) : -1;
+    state.editor.expandedIndex = expanded ? state.editor.actions.indexOf(expanded) : -1;
+}
+
 function renderEditorTimeline() {
     const list = $('ed-action-list');
     list.innerHTML = '';
     $('ed-timeline-error').textContent = '';
+
+    pruneEmptyEditorActions();
 
     // Sort actions by offset
     state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
@@ -5710,9 +5735,30 @@ function createActionCard(action, index) {
     // Show edit form if this card is being edited
     if (state.editor.editingIndex === index) {
         card.appendChild(createActionEditForm(action, index));
+    } else if (state.editor.expandedIndex === index) {
+        card.appendChild(createActionDetails(action));
     }
 
     return card;
+}
+
+function createActionDetails(action) {
+    const details = document.createElement('div');
+    details.className = 'ed-action-details';
+    const rows = [
+        ['Offset', formatOffset(action.offsetSeconds)],
+        ['Style', action.style || 'normal'],
+        ['Haptic', action.hapticPattern || 'double'],
+        ['Countdown beeps', action.countdown ? 'On' : 'Off'],
+    ];
+    if (action.pack && action.cue) {
+        rows.push(['Pack cue', `${action.pack} / ${action.cue}`]);
+        if (action.fallbackText) rows.push(['TTS fallback', action.fallbackText]);
+    }
+    details.innerHTML = rows.map(([label, value]) =>
+        `<div class="ed-detail-row"><span class="ed-detail-label">${escapeHtml(label)}</span><span class="ed-detail-value">${escapeHtml(String(value))}</span></div>`
+    ).join('');
+    return details;
 }
 
 function createActionEditForm(action, index) {
@@ -5848,6 +5894,7 @@ $('ed-action-list').addEventListener('click', (e) => {
     // Edit button
     if (e.target.closest('.ed-btn-edit')) {
         state.editor.editingIndex = (state.editor.editingIndex === index) ? -1 : index;
+        state.editor.expandedIndex = -1;
         renderEditorTimeline();
         return;
     }
@@ -5857,6 +5904,8 @@ $('ed-action-list').addEventListener('click', (e) => {
         state.editor.actions.splice(index, 1);
         if (state.editor.editingIndex === index) state.editor.editingIndex = -1;
         else if (state.editor.editingIndex > index) state.editor.editingIndex--;
+        if (state.editor.expandedIndex === index) state.editor.expandedIndex = -1;
+        else if (state.editor.expandedIndex > index) state.editor.expandedIndex--;
         renderEditorTimeline();
         return;
     }
@@ -5910,6 +5959,13 @@ $('ed-action-list').addEventListener('click', (e) => {
             state.editor.actions.splice(index, 1);
         }
         state.editor.editingIndex = -1;
+        renderEditorTimeline();
+        return;
+    }
+
+    // Tap on the card header → toggle read-only details
+    if (e.target.closest('.ed-action-header') && state.editor.editingIndex !== index) {
+        state.editor.expandedIndex = (state.editor.expandedIndex === index) ? -1 : index;
         renderEditorTimeline();
         return;
     }
@@ -6460,8 +6516,11 @@ async function loadDraft(id) {
     state.editor.description = draft.description || '';
     state.editor.startDateTime = draft.startDateTime || '';
     state.editor.timezone = draft.timezone || '';
-    state.editor.actions = (draft.actions || []).map(a => Object.assign({}, a));
+    state.editor.actions = (draft.actions || [])
+        .filter(a => a.action && a.action.trim())
+        .map(a => Object.assign({}, a));
     state.editor.editingIndex = -1;
+    state.editor.expandedIndex = -1;
     transitionTo('editor-info');
 }
 
@@ -6472,7 +6531,9 @@ function collectDraftFromEditor() {
         description: $('ed-description') ? $('ed-description').value.trim() : state.editor.description,
         startDateTime: $('ed-datetime') ? $('ed-datetime').value : state.editor.startDateTime,
         timezone: $('ed-timezone') ? $('ed-timezone').value : state.editor.timezone,
-        actions: state.editor.actions.map(a => Object.assign({}, a)),
+        actions: state.editor.actions
+            .filter(a => a.action && a.action.trim())
+            .map(a => Object.assign({}, a)),
     };
 }
 
@@ -6609,13 +6670,20 @@ $('btn-ed-cancel').addEventListener('click', () => {
 // Editor — Step 2
 $('btn-add-action').addEventListener('click', addNewAction);
 $('btn-ed-next2').addEventListener('click', () => {
-    if (state.editor.actions.length === 0 || state.editor.actions.some(a => !a.action)) {
-        $('ed-timeline-error').textContent = 'Add at least one action with text.';
+    // An abandoned empty edit form counts as nothing typed — prune and proceed
+    state.editor.actions = state.editor.actions.filter(a => a.action && a.action.trim());
+    state.editor.editingIndex = -1;
+    state.editor.expandedIndex = -1;
+    if (state.editor.actions.length === 0) {
+        $('ed-timeline-error').textContent = 'Add at least one action.';
         return;
     }
     transitionTo('editor-review');
 });
 $('btn-ed-back1').addEventListener('click', () => {
+    // Leaving the screen abandons any open edit form — an empty one gets pruned
+    state.editor.editingIndex = -1;
+    state.editor.expandedIndex = -1;
     transitionTo('editor-info');
 });
 

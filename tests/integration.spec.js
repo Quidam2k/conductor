@@ -98,7 +98,99 @@ test('editor: requires at least one action', async ({ page }) => {
 
     // Try to proceed with no actions
     await page.click('#btn-ed-next2');
-    await expect(page.locator('#ed-timeline-error')).toHaveText('Add at least one action with text.');
+    await expect(page.locator('#ed-timeline-error')).toHaveText('Add at least one action.');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 2b. Editor: abandoned empty action forms don't become zombies
+// ═════════════════════════════════════════════════════════════════════
+
+test('editor: abandoned empty action form leaves no zombie', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-create');
+    await waitForScreen(page, 'screen-editor-info');
+
+    await page.fill('#ed-title', 'Zombie Test');
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+
+    // Open a new action form, type nothing, then leave via Go Back
+    await page.click('#btn-add-action');
+    await expect(page.locator('.ed-action-edit')).toBeVisible();
+    await page.click('#btn-ed-back1');
+    await waitForScreen(page, 'screen-editor-info');
+
+    // Come back — the empty action must be gone
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+    await expect(page.locator('.ed-action-card')).toHaveCount(0);
+    expect(await page.evaluate('state.editor.actions.length')).toBe(0);
+});
+
+test('editor: abandoned empty form is pruned, real action proceeds to review', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-create');
+    await waitForScreen(page, 'screen-editor-info');
+
+    await page.fill('#ed-title', 'Prune Test');
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+
+    // Add one real action
+    await page.click('#btn-add-action');
+    const editForm = page.locator('.ed-action-edit');
+    await expect(editForm).toBeVisible();
+    await editForm.locator('.ed-action-text').fill('Wave');
+    await editForm.locator('.ed-btn-save').click();
+
+    // Open a second form and abandon it empty, then hit Review & Share
+    await page.click('#btn-add-action');
+    await expect(page.locator('.ed-action-edit')).toBeVisible();
+    await page.click('#btn-ed-next2');
+
+    // Proceeds — the empty form doesn't block, and only the real action survives
+    await waitForScreen(page, 'screen-editor-review');
+    await expect(page.locator('#review-count')).toHaveText('1 actions');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 2c. Editor: tap action card header to expand read-only details
+// ═════════════════════════════════════════════════════════════════════
+
+test('editor: action card expands read-only details on header tap', async ({ page }) => {
+    await page.goto('/');
+    await page.click('#btn-create');
+    await waitForScreen(page, 'screen-editor-info');
+
+    await page.fill('#ed-title', 'Expand Test');
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+
+    // Add and save an action
+    await page.click('#btn-add-action');
+    const editForm = page.locator('.ed-action-edit');
+    await expect(editForm).toBeVisible();
+    await editForm.locator('.ed-action-text').fill('Wave left');
+    await editForm.locator('.ed-btn-save').click();
+    await expect(page.locator('.ed-action-edit')).toHaveCount(0);
+
+    // Tap the header → read-only details appear
+    await page.click('.ed-action-header .action-name');
+    const details = page.locator('.ed-action-details');
+    await expect(details).toBeVisible();
+    await expect(details).toContainText('Offset');
+    await expect(details).toContainText('Style');
+
+    // Tap again → details collapse
+    await page.click('.ed-action-header .action-name');
+    await expect(page.locator('.ed-action-details')).toHaveCount(0);
+
+    // Expand, then hit ✎ — edit form replaces details
+    await page.click('.ed-action-header .action-name');
+    await expect(page.locator('.ed-action-details')).toBeVisible();
+    await page.click('.ed-action-header .ed-btn-edit');
+    await expect(page.locator('.ed-action-edit')).toBeVisible();
+    await expect(page.locator('.ed-action-details')).toHaveCount(0);
 });
 
 // ═════════════════════════════════════════════════════════════════════
