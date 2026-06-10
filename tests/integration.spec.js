@@ -1929,3 +1929,115 @@ test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not'
     expect(result.noticesBurst[0].id).toBe('b1');
     expect(result.noticesBurst[0].r).toBe('notice: "Get ready to freeze, wave and kick"');
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 58. Beep attempt log (2026-06-09 Jessica call item 6: NO countdown
+//     beeps heard on her iPhone while TTS was audible). Every playBeep
+//     attempt is recorded with the AudioContext state and TTS activity
+//     at that moment, and setOnBeep observers fire per attempt — the
+//     instrumentation her retest truth table relies on.
+// ═════════════════════════════════════════════════════════════════════
+
+test('beep log: attempts recorded with outcome; setOnBeep callback fires', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        // WebKit headless ships no AudioContext at all — stub the minimal
+        // node graph playBeep touches so 'scheduled' is reachable there.
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            const node = () => ({
+                connect: (n) => n,
+                start: () => {},
+                stop: () => {},
+                type: 'sine',
+                frequency: { value: 0 },
+                gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+            });
+            window.AudioContext = function () {
+                this.state = 'running';
+                this.currentTime = 0;
+                this.destination = {};
+                this.resume = () => {};
+                this.createOscillator = node;
+                this.createGain = node;
+            };
+        }
+        const a = createAudioService();
+        const seen = [];
+        a.setOnBeep(e => seen.push(e.outcome));
+        a.playCountdownBeep(3);
+        a.playTriggerBeep();
+        a.setMuted(true);
+        a.playCountdownBeep(1);
+        return { log: a.getBeepLog(), seen };
+    });
+
+    expect(result.log.length).toBe(3);
+    expect(result.log[0].freqHz).toBe(698);   // F5 — countdown "3"
+    expect(result.log[0].outcome).toBe('scheduled');
+    expect(typeof result.log[0].ctxState).toBe('string');
+    expect(typeof result.log[0].ctxTime).toBe('number');
+    expect(typeof result.log[0].speaking).toBe('boolean');
+    expect(result.log[1].freqHz).toBe(1320);  // E6 — trigger
+    expect(result.log[1].outcome).toBe('scheduled');
+    expect(result.log[2].outcome).toBe('muted');
+    expect(result.log[2].ctxState).toBe(null); // muted exits before touching the ctx
+    expect(result.seen).toEqual(['scheduled', 'scheduled', 'muted']);
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 59. Beep-fired dot: the practice screen carries a #beep-dot-practice
+//     indicator wired through audio.setOnBeep — a scheduled beep adds
+//     the .flash class. Flash + silence on a device = audio-output
+//     problem; no flash = the beep was never scheduled.
+// ═════════════════════════════════════════════════════════════════════
+
+test('beep dot: practice-screen dot flashes when a beep is scheduled', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+
+    const result = await page.evaluate(() => {
+        const dot = document.getElementById('beep-dot-practice');
+        if (!dot) return { exists: false };
+        // WebKit headless ships no AudioContext — stub the minimal node
+        // graph playBeep touches. packManager.getAudioContext() creates its
+        // context lazily, so the first beep picks up the stub.
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            const node = () => ({
+                connect: (n) => n,
+                start: () => {},
+                stop: () => {},
+                type: 'sine',
+                frequency: { value: 0 },
+                gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+            });
+            window.AudioContext = function () {
+                this.state = 'running';
+                this.currentTime = 0;
+                this.destination = {};
+                this.resume = () => {};
+                this.createOscillator = node;
+                this.createGain = node;
+            };
+        }
+        // Drive the app's shared audio service so the registered setOnBeep
+        // wiring (not a test stub) flashes the dot.
+        audio.playCountdownBeep(1);
+        const entries = audio.getBeepLog();
+        return {
+            exists: true,
+            flashAfter: dot.classList.contains('flash'),
+            lastOutcome: entries[entries.length - 1].outcome,
+        };
+    });
+
+    expect(result.exists).toBe(true);
+    expect(result.lastOutcome).toBe('scheduled');
+    expect(result.flashAfter).toBe(true);
+});

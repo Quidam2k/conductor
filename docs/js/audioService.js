@@ -69,6 +69,32 @@ function createAudioService() {
     /** @type {AudioContext|null} Fallback context if no provider is wired (tests, standalone). */
     let fallbackAudioCtx = null;
 
+    /**
+     * Ring buffer of recent playBeep attempts (cap 50). Each entry captures the
+     * AudioContext state BEFORE the resume kick and whether TTS was speaking —
+     * the two signals needed to tell "beep scheduled but inaudible" apart from
+     * "beep never fired" on devices we can't attach a debugger to (iOS Safari).
+     * @type {Array<{at: number, freqHz: number, ctxState: string|null, ctxTime: number|null, speaking: boolean, outcome: string}>}
+     */
+    const beepLog = [];
+    const BEEP_LOG_CAP = 50;
+
+    /** @type {function(Object): void|null} Optional per-attempt callback — drives the UI beep indicator. */
+    let onBeep = null;
+
+    /**
+     * Record a playBeep attempt and notify the indicator callback.
+     * The callback must never be able to break the audio path.
+     * @param {Object} entry
+     */
+    function recordBeepAttempt(entry) {
+        beepLog.push(entry);
+        if (beepLog.length > BEEP_LOG_CAP) beepLog.shift();
+        if (onBeep) {
+            try { onBeep(entry); } catch (e) { /* indicator errors must not kill audio */ }
+        }
+    }
+
     // ─── Initialization ─────────────────────────────────────────
 
     /**
@@ -197,9 +223,30 @@ function createAudioService() {
      * @param {number} durationMs - Total envelope length
      */
     function playBeep(freqHz, durationMs) {
-        if (muted) return;
+        const entry = {
+            at: Date.now(),
+            freqHz,
+            ctxState: null,
+            ctxTime: null,
+            speaking: !!(window.speechSynthesis && speechSynthesis.speaking),
+            outcome: 'scheduled',
+        };
+        if (muted) {
+            entry.outcome = 'muted';
+            recordBeepAttempt(entry);
+            return;
+        }
         const ctx = getAudioContext();
-        if (!ctx) return;
+        if (!ctx) {
+            entry.outcome = 'no-ctx';
+            recordBeepAttempt(entry);
+            return;
+        }
+        // Capture state BEFORE the resume kick — on iOS, 'suspended' or
+        // 'interrupted' here means the oscillator below gets scheduled into
+        // frozen context time and may never sound.
+        entry.ctxState = ctx.state;
+        entry.ctxTime = ctx.currentTime;
         if (ctx.state === 'suspended') {
             // Fire-and-forget — Safari needs this kickstarted on each
             // gesture path; we already swallow the promise elsewhere.
@@ -224,7 +271,9 @@ function createAudioService() {
         } catch (e) {
             // Don't break the audio loop if Web Audio rejects a node creation
             console.warn('playBeep failed:', e);
+            entry.outcome = (e && e.message) ? e.message : String(e);
         }
+        recordBeepAttempt(entry);
     }
 
     /**
@@ -567,6 +616,16 @@ function createAudioService() {
         audioContextProvider = provider;
     }
 
+    /**
+     * Register a callback invoked with each playBeep attempt entry
+     * ({at, freqHz, ctxState, ctxTime, speaking, outcome}). Drives the
+     * "beep fired" UI indicator without coupling this service to the DOM.
+     * @param {function(Object): void|null} cb
+     */
+    function setOnBeep(cb) {
+        onBeep = cb;
+    }
+
     // ─── Public API ─────────────────────────────────────────────
 
     return {
@@ -583,6 +642,7 @@ function createAudioService() {
         setMuted,
         setResourcePackResolver,
         setAudioContextProvider,
+        setOnBeep,
 
         // Getters
         getMode: () => mode,
@@ -590,5 +650,6 @@ function createAudioService() {
         isMuted: () => muted,
         getVoice: () => selectedVoice,
         getAnnouncedSet: () => announced, // Exposed for testing
+        getBeepLog: () => beepLog, // Diagnostics: recent playBeep attempts
     };
 }
