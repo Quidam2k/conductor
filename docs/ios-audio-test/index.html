@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iOS Audio Diagnostics — v37</title>
+<title>iOS Audio Diagnostics — v44</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -120,7 +120,7 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v37 — click Run on each test, then tap ✓ Heard or ✗ Silent.</p>
+<p class="sub">Build v44 — click Run on each test, then tap ✓ Heard or ✗ Silent.</p>
 
 <div class="note">
   After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
@@ -214,6 +214,15 @@
   </div>
 </div>
 
+<div class="test">
+  <div class="test-title">10. Beeps during TTS (the app's countdown path)</div>
+  <div class="test-desc">Speak "Get ready to freeze", then fire the app's ascending countdown beeps 1s apart while the voice may still be talking, then the trigger beep. The missing cell next to test 3: tone-during-TTS instead of tone alone.</div>
+  <div class="test-row">
+    <button onclick="test10()">Run</button>
+    <span class="result pending" id="r10">—</span>
+  </div>
+</div>
+
 <h2>Results log</h2>
 <div class="actions">
   <button class="btn-ghost" onclick="copyLog()">Copy results</button>
@@ -248,7 +257,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor iOS Audio Diagnostics v37 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor iOS Audio Diagnostics v44 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),
@@ -782,6 +791,72 @@ async function test9() {
   log('T9: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
   applyVerdict('r9', true, v);
   cleanup();
+}
+
+// Test 10 — the app's countdown path: beeps interleaved with active TTS.
+// Test 3 proved a bare tone is audible; the app fires its beeps while
+// "Get ready to X" speech is in flight. This is the missing truth-table cell
+// for the 2026-06-09 "no beeps on iPhone" report. Beep envelope/frequencies
+// copied from the app's playBeep (audioService.js) — tests here are
+// deliberately self-contained.
+async function test10() {
+  setResult('r10', 'running…', 'info');
+  log('--- Test 10: Beeps during TTS (app countdown path) ---');
+
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    log('T10: no AudioContext', 'err');
+    applyVerdict('r10', false, null, 'no AudioContext');
+    return;
+  }
+  const ctx = new Ctor();
+  try { await ctx.resume(); } catch (e) { log('T10: resume threw: ' + e.message, 'warn'); }
+  log('T10: ctx state=' + ctx.state, ctx.state === 'running' ? 'ok' : 'warn');
+
+  const beep = (freqHz, durationMs, label) => {
+    const speaking = typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking;
+    log(label + ': ctx.state=' + ctx.state + ', ctx.currentTime=' + ctx.currentTime.toFixed(3) +
+        ', speaking=' + speaking, ctx.state === 'running' ? 'ok' : 'warn');
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freqHz;
+      const now = ctx.currentTime;
+      const durS = durationMs / 1000;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.4, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + durS);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + durS + 0.02);
+      return true;
+    } catch (e) {
+      log(label + ': beep failed: ' + e.message, 'err');
+      return false;
+    }
+  };
+
+  // Speak WITHOUT awaiting completion so the beeps land while speech is active.
+  const speechPromise = speak('Get ready to freeze', 1.0, 'T10-tts');
+  await wait(400); // give speech a moment to actually start
+  let apiOk = true;
+  apiOk = beep(698, 150, 'T10-beep-3') && apiOk;   // F5 — "3"
+  await wait(1000);
+  apiOk = beep(784, 150, 'T10-beep-2') && apiOk;   // G5 — "2"
+  await wait(1000);
+  apiOk = beep(880, 150, 'T10-beep-1') && apiOk;   // A5 — "1"
+  await wait(1000);
+  apiOk = beep(1320, 300, 'T10-trigger') && apiOk; // E6 — trigger
+  await wait(600);
+  const t = await speechPromise;
+  if (!t.ok) log('T10: TTS never started (' + (t.reason || 'no onstart') + ') — beeps still ran', 'warn');
+  ctx.close().catch(() => {});
+
+  if (!apiOk) { applyVerdict('r10', false, null, 'beep scheduling failed'); return; }
+  const v = await awaitAudibility('r10', 'Did you hear the BEEPS (not just the voice)?');
+  log('T10: beep audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  applyVerdict('r10', true, v);
 }
 
 dumpEnv();

@@ -475,6 +475,25 @@
         .icon-btn:hover { box-shadow: var(--glow-blue); }
         .icon-btn.muted { opacity: 0.4; }
 
+        /* Beep-fired indicator: dim dot beside the mute button that pulses
+           whenever a countdown/trigger beep is actually scheduled. Flash with
+           no sound ⇒ audio output problem; no flash ⇒ beep never fired. */
+        .beep-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            align-self: center;
+            flex: 0 0 auto;
+        }
+        .beep-dot.flash {
+            animation: beep-flash 0.25s ease-out;
+        }
+        @keyframes beep-flash {
+            0% { background: #ffd54f; transform: scale(1.7); box-shadow: 0 0 10px #ffd54f; }
+            100% { background: rgba(255,255,255,0.15); transform: scale(1); box-shadow: none; }
+        }
+
         /* ─── Completed screen ─── */
         .done-wrap {
             flex: 1;
@@ -1008,6 +1027,7 @@
         </div>
         <div class="btn-row">
             <button id="btn-audio-toggle" class="icon-btn" title="Toggle audio" aria-label="Toggle audio" aria-pressed="false">&#x1f50a;</button>
+            <span id="beep-dot-practice" class="beep-dot" title="Flashes when a beep fires" aria-hidden="true"></span>
             <button id="btn-share-qr-practice" class="icon-btn" title="Share QR Code" aria-label="Share via QR code">&#x1f4e4;</button>
             <button id="btn-go-live" class="btn-red btn-small" style="flex:3">Go Live</button>
             <button id="btn-practice-stop" class="btn-outline btn-small">Stop</button>
@@ -1035,6 +1055,7 @@
     <div class="controls">
         <div class="btn-row">
             <button id="btn-audio-toggle-live" class="icon-btn" title="Toggle audio" aria-label="Toggle audio" aria-pressed="false">&#x1f50a;</button>
+            <span id="beep-dot-live" class="beep-dot" title="Flashes when a beep fires" aria-hidden="true"></span>
             <button id="btn-live-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
         </div>
     </div>
@@ -1301,6 +1322,18 @@ audio.setResourcePackResolver(packManager.getResolver());
 // Share the pack manager's AudioContext for tone beeps so iOS sees a single
 // unlocked context across BufferSource + OscillatorNode playback.
 audio.setAudioContextProvider(() => packManager.getAudioContext());
+// Beep-fired indicator: flash the dot beside the active screen's mute button
+// whenever a beep is actually scheduled. Lets a tester tell "beep scheduled
+// but inaudible" (flash, no sound) apart from "beep never fired" (no flash).
+audio.setOnBeep((entry) => {
+    if (entry.outcome !== 'scheduled') return;
+    const dot = document.getElementById(
+        state.mode === 'live' ? 'beep-dot-live' : 'beep-dot-practice');
+    if (!dot) return;
+    dot.classList.remove('flash');
+    void dot.offsetWidth; // restart the animation if a beep is already flashing
+    dot.classList.add('flash');
+});
 
 // Dev hook for console testing: window.importPack(arrayBuffer)
 window.importPack = async (arrayBuffer) => {
