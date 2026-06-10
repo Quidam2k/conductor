@@ -74,8 +74,8 @@ From now on, whenever the app needs to speak a cue that matches one in your reso
 ### The Demo Pack
 
 The Conductor Demo Pack includes:
-- **121 audio cues** — 1 system cue (countdown voice), 60 action cues, 60 notice cues
-- **7 event scripts** — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur
+- **120 audio cues** — 59 action cues, 59 notice cues, 2 system cues
+- **8 event scripts** — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur, The Cascade
 - Works with all demo events out of the box
 
 ---

@@ -14,7 +14,7 @@
 
 1. Launch **Android Studio**
 2. Select **File → Open**
-3. Navigate to: `H:\Development\conductor\conductor\conductor-mobile`
+3. Navigate to: `Q:\Development\conductor\conductor\conductor-mobile`
 4. Click **Open**
 5. Wait for indexing to complete (check status bar at bottom)
 
