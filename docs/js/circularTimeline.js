@@ -323,10 +323,42 @@ function createCircularTimeline(canvas) {
     }
 
     function drawCenterText(cx, cy, currentAction, timeline) {
-        if (currentAction) {
+        // Countdown tick detection runs every frame, independent of which
+        // branch is displayed — otherwise a previous action's NOW window
+        // would eat the next action's RAF-synced beeps.
+        const nextActions = getUpcomingActions(timeline, nowMs, windowSeconds);
+        const next = nextActions.length > 0 ? nextActions[0] : null;
+        let rounded = 0;
+        if (next) {
+            const secUntil = calculateTimeUntilPrecise(next, nowMs);
+            rounded = Math.ceil(secUntil);
+
+            if (rounded <= 10 && rounded > 0) {
+                if (rounded !== _lastTickSeconds || next.id !== _lastTickActionId) {
+                    _lastTickSeconds = rounded;
+                    _lastTickActionId = next.id;
+                    if (_onCountdownTick) {
+                        _onCountdownTick(rounded, next);
+                    }
+                }
+            } else {
+                _lastTickSeconds = null;
+                _lastTickActionId = null;
+            }
+        } else {
             _lastTickSeconds = null;
             _lastTickActionId = null;
+        }
 
+        // NOW only once the trigger moment has arrived. getCurrentAction's
+        // window opens 1s early (it also drives the trigger pulse) — gating
+        // here keeps the countdown's "1" visible through the final second
+        // and lands NOW exactly on the zero beat.
+        const currentMs = currentAction
+            ? (currentAction.timeMs ?? new Date(currentAction.time).getTime())
+            : null;
+
+        if (currentAction && nowMs >= currentMs) {
             // "NOW" in big red
             ctx.fillStyle = TimelineColors.triggerRed;
             ctx.font = 'bold 28px monospace';
@@ -344,65 +376,41 @@ function createCircularTimeline(canvas) {
             ctx.fillStyle = TimelineColors.textSecondary;
             ctx.font = '13px monospace';
             ctx.fillText(name, cx, cy + 14);
-        } else {
-            // Find next upcoming action for countdown
-            const nextActions = getUpcomingActions(timeline, nowMs, windowSeconds);
-            if (nextActions.length > 0) {
-                const next = nextActions[0];
-                const secUntil = calculateTimeUntilPrecise(next, nowMs);
-                const rounded = Math.ceil(secUntil);
-
-                if (rounded <= 10 && rounded > 0) {
-                    if (rounded !== _lastTickSeconds || next.id !== _lastTickActionId) {
-                        _lastTickSeconds = rounded;
-                        _lastTickActionId = next.id;
-                        if (_onCountdownTick) {
-                            _onCountdownTick(rounded, next);
-                        }
-                    }
-
-                    // Countdown number
-                    ctx.fillStyle = TimelineColors.countdownYellow;
-                    ctx.font = 'bold 36px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(String(rounded), cx, cy - 12);
-
-                    // Action name
-                    const name = next.action.length > 28
-                        ? next.action.substring(0, 25) + '...'
-                        : next.action;
-                    ctx.fillStyle = TimelineColors.textSecondary;
-                    ctx.font = '12px monospace';
-                    ctx.fillText(name, cx, cy + 14);
-                } else {
-                    _lastTickSeconds = null;
-                    _lastTickActionId = null;
-
-                    if (rounded > 0) {
-                        // Time until next
-                        ctx.fillStyle = TimelineColors.textPrimary;
-                        ctx.font = '20px monospace';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(formatCountdown(rounded), cx, cy - 8);
-
-                        ctx.fillStyle = TimelineColors.textDim;
-                        ctx.font = '11px monospace';
-                        ctx.fillText('until next action', cx, cy + 12);
-                    }
-                }
-            } else {
-                _lastTickSeconds = null;
-                _lastTickActionId = null;
-
-                // No upcoming actions
-                ctx.fillStyle = TimelineColors.textDim;
-                ctx.font = '14px monospace';
+        } else if (next) {
+            if (rounded <= 10 && rounded > 0) {
+                // Countdown number
+                ctx.fillStyle = TimelineColors.countdownYellow;
+                ctx.font = 'bold 36px monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('Waiting...', cx, cy);
+                ctx.fillText(String(rounded), cx, cy - 12);
+
+                // Action name
+                const name = next.action.length > 28
+                    ? next.action.substring(0, 25) + '...'
+                    : next.action;
+                ctx.fillStyle = TimelineColors.textSecondary;
+                ctx.font = '12px monospace';
+                ctx.fillText(name, cx, cy + 14);
+            } else if (rounded > 0) {
+                // Time until next
+                ctx.fillStyle = TimelineColors.textPrimary;
+                ctx.font = '20px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(formatCountdown(rounded), cx, cy - 8);
+
+                ctx.fillStyle = TimelineColors.textDim;
+                ctx.font = '11px monospace';
+                ctx.fillText('until next action', cx, cy + 12);
             }
+        } else {
+            // No upcoming actions
+            ctx.fillStyle = TimelineColors.textDim;
+            ctx.font = '14px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Waiting...', cx, cy);
         }
     }
 

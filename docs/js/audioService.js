@@ -251,8 +251,12 @@ function createAudioService() {
      *
      * @param {string} text
      * @param {number} [rate=1.2] - Speech rate (0.1 to 10)
+     * @param {boolean} [preempt=true] - Cancel in-flight speech first. Pass false
+     *     for low-priority utterances (notices) that should queue behind whatever
+     *     is currently speaking instead of killing it — e.g. a "Get ready to"
+     *     landing on the same tick as the previous action's trigger.
      */
-    function speak(text, rate = 1.2) {
+    function speak(text, rate = 1.2, preempt = true) {
         if (muted || mode !== AudioMode.TTS || !window.speechSynthesis) return;
 
         // iOS Safari: resume in case synth was auto-paused during idle
@@ -260,7 +264,7 @@ function createAudioService() {
 
         // Only cancel if actively speaking (iOS drops next utterance if cancel
         // is called when nothing is playing — known WebKit bug)
-        if (speechSynthesis.speaking || speechSynthesis.pending) {
+        if (preempt && (speechSynthesis.speaking || speechSynthesis.pending)) {
             speechSynthesis.cancel();
         }
 
@@ -331,9 +335,12 @@ function createAudioService() {
      * @param {boolean} [suppressBeepPlayback=false] - When true, countdown thresholds are still
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
+     * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
+     *     texts (≤3, leader first). With 2+ entries the prep enumerates the burst via TTS
+     *     ("Get ready to a, b and c"); pack notice cues are skipped for grouped preps.
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
-    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false) {
+    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
         if (!action.audioAnnounce) return null;
 
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
@@ -368,13 +375,25 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                if (text === null) {
-                    noticeResult = `notice-pack: "${action.cue || 'random'}"`;
-                } else {
-                    const noticeText = 'Get ready to ' + text.toLowerCase();
-                    speak(noticeText, 1.2 * speedMultiplier);
+                if (groupTexts && groupTexts.length >= 2) {
+                    // Grouped prep enumerates the burst — pack notice cues are
+                    // single-action, so grouped preps always go through TTS.
+                    const parts = groupTexts.map(t => t.toLowerCase());
+                    const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+                    const noticeText = 'Get ready to ' + listText;
+                    speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
+                } else {
+                    const text = resolveAudioCue(action, 'notice', speedMultiplier);
+                    if (text === null) {
+                        noticeResult = `notice-pack: "${action.cue || 'random'}"`;
+                    } else {
+                        const noticeText = 'Get ready to ' + text.toLowerCase();
+                        // preempt=false: a notice landing on the same tick as the
+                        // previous action's trigger queues behind it, not over it.
+                        speak(noticeText, 1.2 * speedMultiplier, false);
+                        noticeResult = `notice: "${noticeText}"`;
+                    }
                 }
             }
         }

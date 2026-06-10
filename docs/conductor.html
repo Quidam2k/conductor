@@ -2666,8 +2666,12 @@ function createAudioService() {
      *
      * @param {string} text
      * @param {number} [rate=1.2] - Speech rate (0.1 to 10)
+     * @param {boolean} [preempt=true] - Cancel in-flight speech first. Pass false
+     *     for low-priority utterances (notices) that should queue behind whatever
+     *     is currently speaking instead of killing it — e.g. a "Get ready to"
+     *     landing on the same tick as the previous action's trigger.
      */
-    function speak(text, rate = 1.2) {
+    function speak(text, rate = 1.2, preempt = true) {
         if (muted || mode !== AudioMode.TTS || !window.speechSynthesis) return;
 
         // iOS Safari: resume in case synth was auto-paused during idle
@@ -2675,7 +2679,7 @@ function createAudioService() {
 
         // Only cancel if actively speaking (iOS drops next utterance if cancel
         // is called when nothing is playing — known WebKit bug)
-        if (speechSynthesis.speaking || speechSynthesis.pending) {
+        if (preempt && (speechSynthesis.speaking || speechSynthesis.pending)) {
             speechSynthesis.cancel();
         }
 
@@ -2746,9 +2750,12 @@ function createAudioService() {
      * @param {boolean} [suppressBeepPlayback=false] - When true, countdown thresholds are still
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
+     * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
+     *     texts (≤3, leader first). With 2+ entries the prep enumerates the burst via TTS
+     *     ("Get ready to a, b and c"); pack notice cues are skipped for grouped preps.
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
-    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false) {
+    function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
         if (!action.audioAnnounce) return null;
 
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
@@ -2783,13 +2790,25 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                if (text === null) {
-                    noticeResult = `notice-pack: "${action.cue || 'random'}"`;
-                } else {
-                    const noticeText = 'Get ready to ' + text.toLowerCase();
-                    speak(noticeText, 1.2 * speedMultiplier);
+                if (groupTexts && groupTexts.length >= 2) {
+                    // Grouped prep enumerates the burst — pack notice cues are
+                    // single-action, so grouped preps always go through TTS.
+                    const parts = groupTexts.map(t => t.toLowerCase());
+                    const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+                    const noticeText = 'Get ready to ' + listText;
+                    speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
+                } else {
+                    const text = resolveAudioCue(action, 'notice', speedMultiplier);
+                    if (text === null) {
+                        noticeResult = `notice-pack: "${action.cue || 'random'}"`;
+                    } else {
+                        const noticeText = 'Get ready to ' + text.toLowerCase();
+                        // preempt=false: a notice landing on the same tick as the
+                        // previous action's trigger queues behind it, not over it.
+                        speak(noticeText, 1.2 * speedMultiplier, false);
+                        noticeResult = `notice: "${noticeText}"`;
+                    }
                 }
             }
         }
@@ -4262,10 +4281,42 @@ function createCircularTimeline(canvas) {
     }
 
     function drawCenterText(cx, cy, currentAction, timeline) {
-        if (currentAction) {
+        // Countdown tick detection runs every frame, independent of which
+        // branch is displayed — otherwise a previous action's NOW window
+        // would eat the next action's RAF-synced beeps.
+        const nextActions = getUpcomingActions(timeline, nowMs, windowSeconds);
+        const next = nextActions.length > 0 ? nextActions[0] : null;
+        let rounded = 0;
+        if (next) {
+            const secUntil = calculateTimeUntilPrecise(next, nowMs);
+            rounded = Math.ceil(secUntil);
+
+            if (rounded <= 10 && rounded > 0) {
+                if (rounded !== _lastTickSeconds || next.id !== _lastTickActionId) {
+                    _lastTickSeconds = rounded;
+                    _lastTickActionId = next.id;
+                    if (_onCountdownTick) {
+                        _onCountdownTick(rounded, next);
+                    }
+                }
+            } else {
+                _lastTickSeconds = null;
+                _lastTickActionId = null;
+            }
+        } else {
             _lastTickSeconds = null;
             _lastTickActionId = null;
+        }
 
+        // NOW only once the trigger moment has arrived. getCurrentAction's
+        // window opens 1s early (it also drives the trigger pulse) — gating
+        // here keeps the countdown's "1" visible through the final second
+        // and lands NOW exactly on the zero beat.
+        const currentMs = currentAction
+            ? (currentAction.timeMs ?? new Date(currentAction.time).getTime())
+            : null;
+
+        if (currentAction && nowMs >= currentMs) {
             // "NOW" in big red
             ctx.fillStyle = TimelineColors.triggerRed;
             ctx.font = 'bold 28px monospace';
@@ -4283,65 +4334,41 @@ function createCircularTimeline(canvas) {
             ctx.fillStyle = TimelineColors.textSecondary;
             ctx.font = '13px monospace';
             ctx.fillText(name, cx, cy + 14);
-        } else {
-            // Find next upcoming action for countdown
-            const nextActions = getUpcomingActions(timeline, nowMs, windowSeconds);
-            if (nextActions.length > 0) {
-                const next = nextActions[0];
-                const secUntil = calculateTimeUntilPrecise(next, nowMs);
-                const rounded = Math.ceil(secUntil);
-
-                if (rounded <= 10 && rounded > 0) {
-                    if (rounded !== _lastTickSeconds || next.id !== _lastTickActionId) {
-                        _lastTickSeconds = rounded;
-                        _lastTickActionId = next.id;
-                        if (_onCountdownTick) {
-                            _onCountdownTick(rounded, next);
-                        }
-                    }
-
-                    // Countdown number
-                    ctx.fillStyle = TimelineColors.countdownYellow;
-                    ctx.font = 'bold 36px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(String(rounded), cx, cy - 12);
-
-                    // Action name
-                    const name = next.action.length > 28
-                        ? next.action.substring(0, 25) + '...'
-                        : next.action;
-                    ctx.fillStyle = TimelineColors.textSecondary;
-                    ctx.font = '12px monospace';
-                    ctx.fillText(name, cx, cy + 14);
-                } else {
-                    _lastTickSeconds = null;
-                    _lastTickActionId = null;
-
-                    if (rounded > 0) {
-                        // Time until next
-                        ctx.fillStyle = TimelineColors.textPrimary;
-                        ctx.font = '20px monospace';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(formatCountdown(rounded), cx, cy - 8);
-
-                        ctx.fillStyle = TimelineColors.textDim;
-                        ctx.font = '11px monospace';
-                        ctx.fillText('until next action', cx, cy + 12);
-                    }
-                }
-            } else {
-                _lastTickSeconds = null;
-                _lastTickActionId = null;
-
-                // No upcoming actions
-                ctx.fillStyle = TimelineColors.textDim;
-                ctx.font = '14px monospace';
+        } else if (next) {
+            if (rounded <= 10 && rounded > 0) {
+                // Countdown number
+                ctx.fillStyle = TimelineColors.countdownYellow;
+                ctx.font = 'bold 36px monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('Waiting...', cx, cy);
+                ctx.fillText(String(rounded), cx, cy - 12);
+
+                // Action name
+                const name = next.action.length > 28
+                    ? next.action.substring(0, 25) + '...'
+                    : next.action;
+                ctx.fillStyle = TimelineColors.textSecondary;
+                ctx.font = '12px monospace';
+                ctx.fillText(name, cx, cy + 14);
+            } else if (rounded > 0) {
+                // Time until next
+                ctx.fillStyle = TimelineColors.textPrimary;
+                ctx.font = '20px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(formatCountdown(rounded), cx, cy - 8);
+
+                ctx.fillStyle = TimelineColors.textDim;
+                ctx.font = '11px monospace';
+                ctx.fillText('until next action', cx, cy + 12);
             }
+        } else {
+            // No upcoming actions
+            ctx.fillStyle = TimelineColors.textDim;
+            ctx.font = '14px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Waiting...', cx, cy);
         }
     }
 
@@ -5210,14 +5237,8 @@ async function enterPractice() {
     state.practiceStartEventMs = Math.max(eventStartMs, firstActionMs - 15000);
     state.speedMultiplier = parseFloat($('speed-slider').value);
 
-    // Precompute per-action gaps for countdown capping
-    const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-    const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-    state.actionMeta = new Map();
-    for (let i = 0; i < sortedAll.length; i++) {
-        const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
-        state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
-    }
+    // Precompute per-action gaps + grouping for countdown capping
+    state.actionMeta = computeActionMeta(evt.timeline);
 
     // Create timeline renderer
     const canvas = $('canvas-practice');
@@ -5307,15 +5328,9 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
-    // Precompute per-action gaps (reuse if already computed in practice)
+    // Precompute per-action gaps + grouping (reuse if already computed in practice)
     if (!state.actionMeta || state.actionMeta.size === 0) {
-        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-        const sortedAll = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-        state.actionMeta = new Map();
-        for (let i = 0; i < sortedAll.length; i++) {
-            const gapFromPrev = (i > 0) ? (tsOf(sortedAll[i]) - tsOf(sortedAll[i - 1])) : Infinity;
-            state.actionMeta.set(sortedAll[i].id, { gapFromPrev });
-        }
+        state.actionMeta = computeActionMeta(evt.timeline);
     }
 
     // Create timeline renderer
@@ -5369,6 +5384,34 @@ function checkCompletion(nowMs) {
 // Audio loop (shared by practice + live)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Pre-pass: derive per-action gapToNext, gapFromPrev, groupStartFlag, and
+// groupTexts from the timeline. Grouping rule: cues with gap-from-previous
+// ≤5s share the group's first prep; the group leader's prep enumerates up
+// to 3 member action texts ("Get ready to a, b and c").
+function computeActionMeta(timeline) {
+    const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+    const sorted = [...timeline].sort((a, b) => tsOf(a) - tsOf(b));
+    const meta = new Map();
+    for (let i = 0; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const curMs = tsOf(cur);
+        const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
+        const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
+        const groupStartFlag = gapFromPrev > 5000;
+        let groupTexts = null;
+        if (groupStartFlag) {
+            const texts = [cur.action];
+            for (let j = i + 1; j < sorted.length && texts.length < 3; j++) {
+                if (tsOf(sorted[j]) - tsOf(sorted[j - 1]) > 5000) break;
+                texts.push(sorted[j].action);
+            }
+            if (texts.length >= 2) groupTexts = texts;
+        }
+        meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag, groupTexts });
+    }
+    return meta;
+}
+
 function startAudioLoop(mode) {
     audioIntervalId = setInterval(() => {
         if (state.mode !== mode) return;
@@ -5383,19 +5426,7 @@ function startAudioLoop(mode) {
 
         const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
 
-        // Pre-pass: derive per-action gapToNext + groupStartFlag from timeline.
-        // Grouping rule: cues with gap-from-previous <5s share the group's first prep.
-        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
-        const sorted = [...evt.timeline].sort((a, b) => tsOf(a) - tsOf(b));
-        const meta = new Map();
-        for (let i = 0; i < sorted.length; i++) {
-            const cur = sorted[i];
-            const curMs = tsOf(cur);
-            const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
-            const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
-            const groupStartFlag = gapFromPrev >= 5000;
-            meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag });
-        }
+        const meta = computeActionMeta(evt.timeline);
 
         // Suppress countdown beeps from audio loop when tab is visible —
         // the RAF-driven visual callback handles playback for precise sync.
@@ -5408,7 +5439,7 @@ function startAudioLoop(mode) {
             // Only process actions within announcement range
             if (secUntil < -2 || secUntil > Math.max(evt.defaultNoticeSeconds, action.noticeSeconds ?? 0) * speedMult + 2) continue;
 
-            const m = meta.get(action.id) || { gapToNext: Infinity, gapFromPrev: Infinity, groupStartFlag: true };
+            const m = meta.get(action.id) || { gapToNext: Infinity, gapFromPrev: Infinity, groupStartFlag: true, groupTexts: null };
 
             const result = audio.announceAction(
                 action, secUntil, evt.defaultNoticeSeconds, speedMult,
@@ -5420,7 +5451,8 @@ function startAudioLoop(mode) {
                 m.gapToNext,
                 m.groupStartFlag,
                 m.gapFromPrev,
-                suppressBeeps
+                suppressBeeps,
+                m.groupTexts
             );
 
             // Haptic feedback — respects event-level haptic mode

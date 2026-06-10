@@ -1651,3 +1651,281 @@ test('rapid sequence: one prep at group start; per-cue beeps fire independently'
     expect(triggers.length).toBe(3);
     expect(triggers.map(x => x.id)).toEqual(['c1', 'c2', 'c3']);
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 54. Visual countdown correctness (2026-06-09 Jessica call: "it skips
+//     one" / "didn't give us the zero"). getCurrentAction's ±1s window
+//     used to win the center-text branch a full second BEFORE the
+//     trigger, eating the displayed "1" (and its RAF-synced beep) and
+//     showing NOW early. The countdown must run 10…1 with NOW landing
+//     exactly at the trigger moment — the zero beat.
+// ═════════════════════════════════════════════════════════════════════
+
+test('visual countdown: ticks 10…1 with no skip; NOW never before the trigger', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        document.body.appendChild(canvas);
+
+        const base = 1780000000000;
+        const actionMs = base + 12000;
+        const evt = {
+            timeline: [{ id: 'v1', action: 'Freeze', timeMs: actionMs, audioAnnounce: true, announceActionName: true }],
+            timeWindowSeconds: 60,
+        };
+
+        // Step nowMs through the trigger, recording countdown ticks and every
+        // string drawn to the canvas (with the nowMs it was drawn at).
+        function runPass(steps) {
+            const tl = createCircularTimeline(canvas);
+            tl.setEvent(evt);
+            const ticks = [];
+            tl.setOnCountdownTick((seconds, action) => ticks.push({ seconds, id: action.id }));
+
+            const drawn = [];
+            let cursor = base;
+            const origFillText = CanvasRenderingContext2D.prototype.fillText;
+            CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+                drawn.push({ text: String(text), nowMs: cursor });
+                return origFillText.call(this, text, ...rest);
+            };
+            try {
+                let i = 0;
+                while (cursor <= actionMs + 1500) {
+                    tl.setNowMs(cursor);
+                    tl.render();
+                    cursor += steps[i % steps.length];
+                    i++;
+                }
+            } finally {
+                CanvasRenderingContext2D.prototype.fillText = origFillText;
+            }
+            return { ticks, drawn };
+        }
+
+        return {
+            uniform: runPass([16]),
+            jittered: runPass([13, 31, 7, 23, 16, 41]),
+            actionMs,
+        };
+    });
+
+    for (const [name, pass] of [['uniform', result.uniform], ['jittered', result.jittered]]) {
+        const tickSecs = pass.ticks.map(t => t.seconds);
+        expect(tickSecs, `${name}: ticks must run 10…1 with no gap or dup`)
+            .toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+
+        const displayed = pass.drawn.map(d => d.text);
+        expect(displayed, `${name}: the final "1" must be displayed`).toContain('1');
+        expect(displayed, `${name}: NOW must be displayed`).toContain('NOW');
+
+        const earlyNow = pass.drawn.filter(d => d.text === 'NOW' && d.nowMs < result.actionMs);
+        expect(earlyNow, `${name}: NOW must never appear before the trigger`).toEqual([]);
+    }
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 55. Adjacent cues: the first action's NOW window (trigger → +1s) must
+//     not eat the second action's countdown ticks. Two cues 3s apart —
+//     the second's 3-2-1 all fire even though "3" lands inside the
+//     first cue's NOW display.
+// ═════════════════════════════════════════════════════════════════════
+
+test('adjacent cues: second action ticks 3,2,1 through the first action NOW window', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        document.body.appendChild(canvas);
+
+        const base = 1780000000000;
+        const aMs = base + 12000;
+        const bMs = aMs + 3000;
+        const evt = {
+            timeline: [
+                { id: 'adjA', action: 'Freeze', timeMs: aMs, audioAnnounce: true, announceActionName: true },
+                { id: 'adjB', action: 'Unfreeze', timeMs: bMs, audioAnnounce: true, announceActionName: true },
+            ],
+            timeWindowSeconds: 60,
+        };
+
+        const tl = createCircularTimeline(canvas);
+        tl.setEvent(evt);
+        const ticks = [];
+        tl.setOnCountdownTick((seconds, action) => ticks.push({ seconds, id: action.id }));
+
+        for (let cursor = base; cursor <= bMs + 1500; cursor += 16) {
+            tl.setNowMs(cursor);
+            tl.render();
+        }
+        return ticks;
+    });
+
+    const aTicks = result.filter(t => t.id === 'adjA').map(t => t.seconds);
+    const bTicks = result.filter(t => t.id === 'adjB').map(t => t.seconds);
+
+    expect(aTicks).toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    // B only becomes "next" once A passes (3s gap), so its countdown starts at 3
+    expect(bTicks).toEqual([3, 2, 1]);
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 56. TTS collision (2026-06-09: one action intermittently got no "Get
+//     ready to"). With a 10s notice lead, an action whose gap from the
+//     previous action ≈ noticeSeconds has its notice fire on the SAME
+//     tick as the previous action's trigger. The notice must queue
+//     behind the in-flight trigger speech, not cancel it.
+// ═════════════════════════════════════════════════════════════════════
+
+test('TTS collision: same-tick notice queues behind trigger instead of cancelling', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        const events = [];
+        const stub = {
+            speaking: false,
+            pending: false,
+            paused: false,
+            getVoices: () => [],
+            onvoiceschanged: null,
+            speak(u) {
+                events.push('speak:' + u.text);
+                if (this.speaking) this.pending = true;
+                this.speaking = true;
+            },
+            cancel() {
+                events.push('cancel');
+                this.speaking = false;
+                this.pending = false;
+            },
+            resume() {},
+        };
+        Object.defineProperty(window, 'speechSynthesis', { value: stub, configurable: true });
+        // Headless WebKit has no speech synthesis at all — stub the constructor too
+        if (typeof window.SpeechSynthesisUtterance === 'undefined') {
+            window.SpeechSynthesisUtterance = function (text) { this.text = text; };
+        }
+
+        const a = createAudioService();
+        a.initialize(); // speaks the 'Ready' warmup via the stub → TTS mode
+
+        const A = { id: 'colA', action: 'Freeze', noticeSeconds: 10, countdownSeconds: [], audioAnnounce: true, announceActionName: true };
+        const B = { id: 'colB', action: 'Unfreeze', noticeSeconds: 10, countdownSeconds: [], audioAnnounce: true, announceActionName: true };
+
+        // A triggers at t=0; B triggers at t=10. At t=0 A's trigger and B's
+        // 10s notice land on the same tick, in timeline order (A first).
+        for (let t = -11; t <= 0; t++) {
+            a.announceAction(A, 0 - t, 10, 1, {});
+            const bSec = 10 - t;
+            if (bSec <= 12) a.announceAction(B, bSec, 10, 1, {});
+        }
+        return events;
+    });
+
+    const triggerIdx = result.indexOf('speak:Freeze!');
+    const noticeIdx = result.indexOf('speak:Get ready to unfreeze');
+    expect(triggerIdx).toBeGreaterThan(-1);
+    expect(noticeIdx).toBeGreaterThan(triggerIdx);
+    // Nothing between the trigger and the queued notice — in particular no cancel
+    expect(result.slice(triggerIdx + 1, noticeIdx + 1)).toEqual(['speak:Get ready to unfreeze']);
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 57. Grouping boundary + multi-cue prep enumeration (2026-06-09:
+//     actions exactly 5s apart got back-to-back preps). Exactly-5s gaps
+//     now group; the group leader's prep enumerates up to 3 member
+//     actions ("Get ready to a, b and c").
+// ═════════════════════════════════════════════════════════════════════
+
+test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const result = await page.evaluate(() => {
+        const base = 1780000000000;
+        const mk = (id, action, tMs) => ({
+            id, action, timeMs: tMs, noticeSeconds: 10, countdownSeconds: [],
+            audioAnnounce: true, announceActionName: true,
+        });
+
+        const pairAt = [mk('p1', 'Freeze', base), mk('p2', 'Unfreeze', base + 5000)];
+        const pairOver = [mk('q1', 'Freeze', base), mk('q2', 'Unfreeze', base + 5001)];
+        const burst = [
+            mk('b1', 'Freeze', base), mk('b2', 'Wave', base + 2000),
+            mk('b3', 'Kick', base + 4000), mk('b4', 'Spin', base + 6000),
+        ];
+
+        const metaAt = computeActionMeta(pairAt);
+        const metaOver = computeActionMeta(pairOver);
+        const metaBurst = computeActionMeta(burst);
+
+        // Drive each scenario through announceAction the way the audio loop does
+        function run(timeline, meta) {
+            const a = createAudioService();
+            const tsOf = (x) => x.timeMs;
+            const t0 = Math.min(...timeline.map(tsOf));
+            const tEnd = Math.max(...timeline.map(tsOf));
+            const notices = [];
+            for (let now = t0 - 12000; now <= tEnd + 2000; now += 1000) {
+                for (const c of timeline) {
+                    const secUntil = (tsOf(c) - now) / 1000;
+                    if (secUntil < -2 || secUntil > 12) continue;
+                    const m = meta.get(c.id);
+                    const r = a.announceAction(c, secUntil, 10, 1, {},
+                        m.gapToNext, m.groupStartFlag, m.gapFromPrev, false, m.groupTexts);
+                    if (r && r.startsWith('notice:')) notices.push({ id: c.id, r });
+                }
+            }
+            return notices;
+        }
+
+        return {
+            metaAt: {
+                p2GroupStart: metaAt.get('p2').groupStartFlag,
+                p1GroupTexts: metaAt.get('p1').groupTexts,
+            },
+            metaOver: {
+                q2GroupStart: metaOver.get('q2').groupStartFlag,
+                q1GroupTexts: metaOver.get('q1').groupTexts,
+            },
+            metaBurst: {
+                b1GroupTexts: metaBurst.get('b1').groupTexts,
+            },
+            noticesAt: run(pairAt, metaAt),
+            noticesOver: run(pairOver, metaOver),
+            noticesBurst: run(burst, metaBurst),
+        };
+    });
+
+    // Pre-pass: exactly-5s gap is part of the group; 5.001s is not
+    expect(result.metaAt.p2GroupStart).toBe(false);
+    expect(result.metaAt.p1GroupTexts).toEqual(['Freeze', 'Unfreeze']);
+    expect(result.metaOver.q2GroupStart).toBe(true);
+    expect(result.metaOver.q1GroupTexts).toBe(null);
+    // Burst of 4 enumerates exactly 3
+    expect(result.metaBurst.b1GroupTexts).toEqual(['Freeze', 'Wave', 'Kick']);
+
+    // Exactly-5s pair: ONE prep, enumerating both
+    expect(result.noticesAt.length).toBe(1);
+    expect(result.noticesAt[0].id).toBe('p1');
+    expect(result.noticesAt[0].r).toBe('notice: "Get ready to freeze and unfreeze"');
+
+    // 5.001s pair: two independent preps
+    expect(result.noticesOver.length).toBe(2);
+    expect(result.noticesOver.map(n => n.id)).toEqual(['q1', 'q2']);
+    expect(result.noticesOver[0].r).toBe('notice: "Get ready to freeze"');
+    expect(result.noticesOver[1].r).toBe('notice: "Get ready to unfreeze"');
+
+    // Burst: one prep enumerating the first 3 members
+    expect(result.noticesBurst.length).toBe(1);
+    expect(result.noticesBurst[0].id).toBe('b1');
+    expect(result.noticesBurst[0].r).toBe('notice: "Get ready to freeze, wave and kick"');
+});
