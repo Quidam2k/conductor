@@ -35,6 +35,44 @@ test('demo event: load → preview → practice → stop', async ({ page }) => {
 });
 
 // ═════════════════════════════════════════════════════════════════════
+// 1b. Practice: start anchor clamps to event start (first action at +5s
+//     must be ≤5s away, not 15s)
+// ═════════════════════════════════════════════════════════════════════
+
+test('practice: start anchor never precedes event start', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const futureDate = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
+    const textEvent = `Title: Early First Action
+Start: ${futureDate}
+
+0:05  Wave left
+0:30  Jump!`;
+
+    await page.fill('#input-paste', textEvent);
+    await page.click('#btn-load');
+    await waitForScreen(page, 'screen-preview');
+
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+
+    const t = await page.evaluate(() => {
+        const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
+        return {
+            anchorMs: state.practiceStartEventMs,
+            eventStartMs: new Date(state.event.startTime).getTime(),
+            firstActionMs: Math.min(...state.event.timeline.map(tsOf)),
+        };
+    });
+    expect(t.anchorMs).toBeGreaterThanOrEqual(t.eventStartMs);
+    expect(t.firstActionMs - t.anchorMs).toBeLessThanOrEqual(5000);
+
+    await page.click('#btn-practice-stop');
+    await waitForScreen(page, 'screen-preview');
+});
+
+// ═════════════════════════════════════════════════════════════════════
 // 2. Editor validation: empty title, no actions
 // ═════════════════════════════════════════════════════════════════════
 
