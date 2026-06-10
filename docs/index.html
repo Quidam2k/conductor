@@ -876,7 +876,7 @@
             <div class="separator">already have an event?</div>
         </div>
 
-        <textarea id="input-paste" placeholder="Got an event code? Paste it here..."></textarea>
+        <textarea id="input-paste" placeholder="Paste an event code or event text here..."></textarea>
         <div id="input-error" class="error-msg"></div>
         <button id="btn-load" class="btn-primary">Load Event</button>
         <button id="btn-scan-qr" class="btn-outline">Scan QR Code</button>
@@ -931,7 +931,7 @@
         <button id="btn-import-pack" class="btn-primary" style="margin-top:16px;">Import Pack (.zip)</button>
         <div id="import-status" class="import-status"></div>
 
-        <button id="btn-packs-back" class="btn-outline" style="margin-top:10px;">Return</button>
+        <button id="btn-packs-back" class="btn-outline" style="margin-top:10px;">Go Back</button>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -966,7 +966,7 @@
             <button id="btn-start-practice" class="btn-green">Start Practice</button>
             <div class="btn-row">
                 <button id="btn-share-qr-preview" class="btn-primary" style="flex:2;">Share QR Code</button>
-                <button id="btn-preview-back" class="btn-outline" style="flex:1;">Return</button>
+                <button id="btn-preview-back" class="btn-outline" style="flex:1;">Go Back</button>
             </div>
         </div>
     </div>
@@ -1114,7 +1114,7 @@
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
             <button id="btn-ed-next2" class="btn-primary">Next: Review & Share</button>
             <button id="btn-save-draft" class="btn-outline">Save Draft</button>
-            <button id="btn-ed-back1" class="btn-outline">Return</button>
+            <button id="btn-ed-back1" class="btn-outline">Go Back</button>
         </div>
     </div>
     <div class="safe-bottom"></div>
@@ -1161,7 +1161,7 @@
         <div style="flex:1"></div>
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
             <button id="btn-preview-from-editor" class="btn-green">Preview Event</button>
-            <button id="btn-ed-back2" class="btn-outline">Return</button>
+            <button id="btn-ed-back2" class="btn-outline">Go Back</button>
         </div>
     </div>
     <div class="safe-bottom"></div>
@@ -1988,13 +1988,14 @@ async function enterPractice() {
     // Pre-load resource packs referenced by event actions (wait for audio buffers)
     await preloadEventPacks(evt);
 
-    // Set practice start: begin 15s before first action
+    // Set practice start: begin 15s before first action, but never before event start
     const sorted = [...evt.timeline].sort((a, b) =>
         (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime())
     );
     const firstActionMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
+    const eventStartMs = new Date(evt.startTime).getTime();
     state.practiceStartRealMs = Date.now();
-    state.practiceStartEventMs = firstActionMs - 15000;
+    state.practiceStartEventMs = Math.max(eventStartMs, firstActionMs - 15000);
     state.speedMultiplier = parseFloat($('speed-slider').value);
 
     // Precompute per-action gaps for countdown capping
@@ -3401,7 +3402,7 @@ $('btn-ed-next1').addEventListener('click', () => {
 });
 $('btn-ed-cancel').addEventListener('click', () => {
     const hasData = $('ed-title').value.trim() || $('ed-description').value.trim();
-    if (hasData && !confirm('Discard this event? Unsaved changes will be lost.')) return;
+    if (hasData && !confirm('Leave the editor? Your work so far is saved in Drafts.')) return;
     transitionTo('input');
 });
 

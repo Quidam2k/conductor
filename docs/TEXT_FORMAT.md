@@ -183,7 +183,7 @@ Tags placed **after** the action text still work but are deprecated:
 
 Two ways to get your text event into Conductor:
 
-1. **Paste it** — Copy the text, paste it into the "Got an event code?" field on the start screen, and tap **Load Event**
+1. **Paste it** — Copy the text, paste it into the "Paste an event code or event text" field on the start screen, and tap **Load Event**
 2. **Import a file** — Tap **Import Event File** and pick your `.txt` file
 
 The app auto-detects the format. The same input field also accepts JSON events and compressed `v1_` event codes.
