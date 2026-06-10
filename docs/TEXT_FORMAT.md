@@ -74,7 +74,7 @@ The timestamp is the offset from the event start time — `0:00` means "right wh
 Tags let you customize individual actions. There are four categories:
 
 - **Styles** (`normal`, `emphasis`, `alert`) — change how the action looks on screen
-- **Countdown** (`countdown`, `countdown:N`, `no-countdown`) — an audible "5, 4, 3, 2, 1" before the action
+- **Countdown** (`countdown`, `countdown:N`, `no-countdown`) — ascending countdown beeps in the final seconds before the action
 - **Haptic** (`haptic:single`, `haptic:double`, `haptic:triple`) — vibration pattern on the phone
 - **Notify** (`notify:N`, `no-notify`) — controls the "heads up" announcement before the action
 

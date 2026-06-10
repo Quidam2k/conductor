@@ -53,7 +53,7 @@ Conductor is built to be private by default:
 
 ## The Demo Pack
 
-The demo resource pack includes 7 event scripts and 121 voice cues:
+The demo resource pack includes 8 event scripts and 120 voice cues:
 
 - **The Stillness** — Freeze mob: sudden collective stillness, no props
 - **The Bloom** — Umbrella performance: raise, open, sway, light, close
@@ -62,6 +62,7 @@ The demo resource pack includes 7 event scripts and 121 voice cues:
 - **The Stand** — Stationary umbrella formation (pairs with The Walk)
 - **The Walk** — Movement with lights through the formation (pairs with The Stand)
 - **The Murmur** — Synchronized sound and movement, eerie and theatrical
+- **The Cascade** — Rapid-fire cue bursts in a one-minute run, a stress test for close-spaced timing
 
 Download the pack from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder. The app also has a built-in demo ("The Stillness") that works immediately with text-to-speech — no downloads needed.
 

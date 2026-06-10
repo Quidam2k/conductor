@@ -10,7 +10,7 @@
 
 ### Option 1: WiFi Install (Recommended)
 ```batch
-cd H:\Development\conductor\conductor\conductor-mobile
+cd Q:\Development\conductor\conductor\conductor-mobile
 scripts\serve-apk.bat
 ```
 Then on your phone:
@@ -31,7 +31,7 @@ adb install -r androidApp\build\outputs\apk\debug\androidApp-debug.apk
 The test event generator creates events with actions starting in the near future:
 
 ```batch
-cd H:\Development\conductor\conductor\conductor-mobile
+cd Q:\Development\conductor\conductor\conductor-mobile
 scripts\generate-test-event.bat 3
 ```
 This creates an event starting in 3 minutes with 6 actions spaced 15 seconds apart.
