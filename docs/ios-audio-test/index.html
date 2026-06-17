@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iOS Audio Diagnostics — v44</title>
+<title>iOS Audio Diagnostics — v44 (locked-screen probe)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -120,7 +120,7 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v44 — click Run on each test, then tap ✓ Heard or ✗ Silent.</p>
+<p class="sub">Build v44 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–12 are run with the phone LOCKED.</p>
 
 <div class="note">
   After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
@@ -223,6 +223,37 @@
   </div>
 </div>
 
+<h2>Locked-screen tests</h2>
+<div class="note">
+  <strong>These two are the important ones.</strong> They answer what screen-on tests can't:
+  does audio keep playing — <em>and stay on time</em> — when the phone is LOCKED in a pocket?
+  Procedure: tap Run, and the moment you hear the FIRST beep/number, <strong>lock your phone
+  and put it in your pocket</strong>. Listen for ~35 seconds. You should hear <strong>7 sounds,
+  one every 5 seconds</strong>, rising in pitch (test 11) or counting 1–7 (test 12). Then pull
+  the phone out, unlock, and tap what you actually heard.
+  <br><br>
+  Please run both <strong>twice</strong>: once in Safari, then again after adding this page to
+  your Home Screen and opening it from there (installed-PWA mode can behave differently).
+</div>
+
+<div class="test">
+  <div class="test-title">11. Continuous &lt;audio&gt; track survives lock</div>
+  <div class="test-desc">Plays ONE continuous audio file with 7 beeps baked 5s apart (the "render the whole event into one file" path). If you hear all 7 evenly spaced with the screen locked, a pre-rendered track survives the pocket.</div>
+  <div class="test-row">
+    <button onclick="test11()">Run</button>
+    <span class="result pending" id="r11">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">12. Reactive timer + TTS cadence under lock</div>
+  <div class="test-desc">Fires a spoken number every 5s via a JS timer (the "live TTS fallback" path). If iOS throttles timers when locked, the numbers bunch up or stall — that's the sync risk. The +ms deltas in the log show the real firing times.</div>
+  <div class="test-row">
+    <button onclick="test12()">Run</button>
+    <span class="result pending" id="r12">—</span>
+  </div>
+</div>
+
 <h2>Results log</h2>
 <div class="actions">
   <button class="btn-ghost" onclick="copyLog()">Copy results</button>
@@ -257,7 +288,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor iOS Audio Diagnostics v44 ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor iOS Audio Diagnostics v44 (locked-screen probe) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),
@@ -857,6 +888,154 @@ async function test10() {
   const v = await awaitAudibility('r10', 'Did you hear the BEEPS (not just the voice)?');
   log('T10: beep audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
   applyVerdict('r10', true, v);
+}
+
+// ─── Locked-screen tests (11–12) ────────────────────────────────────────────
+// These answer what screen-on tests can't: does audio keep playing — AND stay
+// on time — when the phone is locked in a pocket? Test 11 plays one continuous
+// <audio> stream with 7 beeps baked 5s apart (the "render the whole event into
+// one file" path). Test 12 fires the same cadence reactively via a JS timer +
+// TTS (the "live fallback" path) — if iOS throttles timers when locked, its
+// beats bunch up or stall, which is the second-by-second sync risk.
+
+// Build a 16-bit mono PCM WAV with short sine beeps at the given marker times.
+function makeBeepTrackWavBytes(markerTimesSec, beepDurSec, freqHzList, totalSec, sampleRate) {
+  const sr = sampleRate || 44100;
+  const numSamples = Math.floor(sr * totalSec);
+  const dataSize = numSamples * 2;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const v = new DataView(buf);
+  v.setUint32(0, 0x52494646, false);   // "RIFF"
+  v.setUint32(4, 36 + dataSize, true);
+  v.setUint32(8, 0x57415645, false);   // "WAVE"
+  v.setUint32(12, 0x666d7420, false);  // "fmt "
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);            // PCM
+  v.setUint16(22, 1, true);            // mono
+  v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true);       // byte rate
+  v.setUint16(32, 2, true);            // block align
+  v.setUint16(34, 16, true);           // bits per sample
+  v.setUint32(36, 0x64617461, false);  // "data"
+  v.setUint32(40, dataSize, true);
+  const atkRel = Math.max(1, Math.floor(sr * 0.01)); // 10ms attack/release, no clicks
+  for (let m = 0; m < markerTimesSec.length; m++) {
+    const startSample = Math.floor(markerTimesSec[m] * sr);
+    const freq = freqHzList[m % freqHzList.length];
+    const durSamples = Math.floor(beepDurSec * sr);
+    for (let i = 0; i < durSamples; i++) {
+      const s = startSample + i;
+      if (s < 0 || s >= numSamples) continue;
+      const env = Math.min(1, i / atkRel) * Math.min(1, (durSamples - i) / atkRel);
+      let sample = Math.sin(2 * Math.PI * freq * (i / sr)) * 0.4 * env;
+      if (sample > 1) sample = 1; else if (sample < -1) sample = -1;
+      v.setInt16(44 + s * 2, Math.round(sample * 32767), true);
+    }
+  }
+  return buf;
+}
+
+// Ascending tones so the listener can tell beep order by pitch (C5..B5).
+const LOCK_TEST_FREQS = [523, 587, 659, 698, 784, 880, 988];
+
+// Four-way report mounted after the locked listen: even / uneven / cutout / silent.
+function awaitLockedReport(resultId) {
+  return new Promise(resolve => {
+    setResult(resultId, 'Back? Tap what you heard while locked:', 'info');
+    const row = document.getElementById(resultId).parentElement;
+    const ctrl = document.createElement('span');
+    ctrl.className = 'audibility-ctrl';
+    const opts = [
+      ['even',   'All 7, even ✓', 'btn-heard'],
+      ['uneven', 'Uneven/bunched', ''],
+      ['cutout', 'Stopped partway', ''],
+      ['silent', 'Silent', 'btn-silent'],
+    ];
+    const btns = [];
+    opts.forEach(([val, text, cls]) => {
+      const b = document.createElement('button');
+      b.textContent = text;
+      if (cls) b.className = cls;
+      b.onclick = () => { btns.forEach(x => x.disabled = true); ctrl.remove(); resolve(val); };
+      btns.push(b);
+      ctrl.appendChild(b);
+    });
+    row.appendChild(ctrl);
+  });
+}
+
+function applyLockedVerdict(resultId, verdict) {
+  const map = {
+    even:   ['HEARD ALL 7, EVENLY SPACED ✓ (survives lock + on-time)', 'ok'],
+    uneven: ['HEARD but UNEVEN/BUNCHED ✗ (plays, timing broke)', 'fail'],
+    cutout: ['STOPPED PARTWAY ✗ (suspended mid-stream)', 'fail'],
+    silent: ['SILENT ✗ (no audio when locked)', 'fail'],
+  };
+  const [text, cls] = map[verdict] || ['(no report)', 'info'];
+  setResult(resultId, text, cls);
+}
+
+async function test11() {
+  setResult('r11', 'building track…', 'info');
+  log('--- Test 11: Continuous <audio> track survives lock ---');
+  const times = [3, 8, 13, 18, 23, 28, 33];
+  const wavBuf = makeBeepTrackWavBytes(times, 0.18, LOCK_TEST_FREQS, 35, 44100);
+  const blob = new Blob([wavBuf], { type: 'audio/wav' });
+  const blobUrl = URL.createObjectURL(blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+  let lastSec = -1;
+  audio.ontimeupdate = () => {
+    const t = Math.floor(audio.currentTime);
+    if (t !== lastSec) { lastSec = t; log('T11: timeupdate currentTime≈' + t + 's'); }
+  };
+  try {
+    log('T11: starting continuous beep track (7 beeps, 5s apart, 35s)…');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T11: play() resolved — LOCK YOUR PHONE NOW, pocket it', 'ok');
+  } catch (e) {
+    log('T11: play() rejected: ' + e.message, 'err');
+    setResult('r11', 'API FAIL: play() rejected: ' + e.message, 'fail');
+    URL.revokeObjectURL(blobUrl);
+    return;
+  }
+  setResult('r11', 'PLAYING — lock phone & pocket it (~35s, 7 rising beeps)', 'info');
+  const verdict = await awaitLockedReport('r11');
+  try { audio.pause(); } catch (e) {}
+  audio.removeAttribute('src');
+  URL.revokeObjectURL(blobUrl);
+  log('T11: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r11', verdict);
+}
+
+async function test12() {
+  setResult('r12', 'running…', 'info');
+  log('--- Test 12: Reactive timer + TTS cadence under lock ---');
+  if (typeof speechSynthesis === 'undefined') {
+    setResult('r12', 'API FAIL: no speechSynthesis', 'fail');
+    return;
+  }
+  const startTs = Date.now();
+  let n = 0;
+  const total = 7;
+  log('T12: speaking a number every 5s via setInterval — LOCK YOUR PHONE after you hear "one"', 'ok');
+  setResult('r12', 'RUNNING — lock phone after "one" (~35s, counts 1–7)', 'info');
+  await new Promise(resolve => {
+    const id = setInterval(() => {
+      n++;
+      const dt = Date.now() - startTs;
+      const drift = dt - n * 5000;
+      log('T12: timer fire #' + n + ' at +' + dt + 'ms (ideal +' + (n * 5000) + 'ms, drift ' + drift + 'ms)',
+          Math.abs(drift) < 1500 ? 'ok' : 'warn');
+      speak(String(n), 1.0, 'T12-' + n);
+      if (n >= total) { clearInterval(id); resolve(); }
+    }, 5000);
+  });
+  log('T12: all timers fired — check the +ms deltas above for throttling', 'ok');
+  const verdict = await awaitLockedReport('r12');
+  log('T12: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r12', verdict);
 }
 
 dumpEnv();

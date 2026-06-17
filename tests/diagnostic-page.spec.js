@@ -28,15 +28,17 @@ test.describe('iOS audio diagnostic page', () => {
         await expect(page.locator('#r1')).toHaveText(/HEARD/);
     });
 
-    test('all 10 tests are present with Run buttons', async ({ page }) => {
+    test('all 12 tests are present with Run buttons', async ({ page }) => {
         const runBtns = page.locator('.test button', { hasText: 'Run' });
-        await expect(runBtns).toHaveCount(10);
+        await expect(runBtns).toHaveCount(12);
     });
 
-    test('tests 8, 9, and 10 exist and have correct titles', async ({ page }) => {
+    test('tests 8, 9, 10, and the locked-screen tests exist with correct titles', async ({ page }) => {
         const titles = await page.locator('.test-title').allTextContents();
         expect(titles[7]).toContain('keepalive');
         expect(titles[8]).toContain('HTMLAudioElement');
         expect(titles[9]).toContain('Beeps during TTS');
+        expect(titles[10]).toContain('Continuous');
+        expect(titles[11]).toContain('Reactive timer');
     });
 });
