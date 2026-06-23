@@ -120,7 +120,7 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v44 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–12 are run with the phone LOCKED.</p>
+<p class="sub">Build v44 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–13 are run with the phone LOCKED.</p>
 
 <div class="note">
   After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
@@ -226,9 +226,10 @@
 <h2>Locked-screen tests</h2>
 <div class="note">
   <strong>These two are the important ones.</strong> They answer what screen-on tests can't:
-  does audio keep playing — <em>and stay on time</em> — when the phone is LOCKED in a pocket?
-  Procedure: tap Run, and the moment you hear the FIRST beep/number, <strong>lock your phone
-  and put it in your pocket</strong>. Listen for ~35 seconds. You should hear <strong>7 sounds,
+  does audio keep playing — <em>and stay on time</em> — when the phone's screen is off in a pocket?
+  Procedure: tap Run, and the moment you hear the FIRST beep/number, <strong>turn the screen off
+  (press the side button once) and put it in your pocket</strong>. You do NOT need to unlock with a
+  passcode afterward — "locked" here just means the screen is dark. Listen for ~35 seconds. You should hear <strong>7 sounds,
   one every 5 seconds</strong>, rising in pitch (test 11) or counting 1–7 (test 12). Then pull
   the phone out, unlock, and tap what you actually heard.
   <br><br>
@@ -251,6 +252,15 @@
   <div class="test-row">
     <button onclick="test12()">Run</button>
     <span class="result pending" id="r12">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">13. Reactive Web Audio beep via MediaStream tunnel under lock</div>
+  <div class="test-desc">The key one. Same every-5s timer as test 12, but instead of TTS it creates a fresh Web Audio beep each time, routed through a live <code>&lt;audio&gt;</code> stream (the WebRTC "tunnel" that may keep the audio engine alive when locked). If you hear all 7 rising beeps with the screen off, runtime-generated audio survives the pocket and we do NOT need to pre-bake one big file. Silent = the tunnel doesn't help, baked file it is.</div>
+  <div class="test-row">
+    <button onclick="test13()">Run</button>
+    <span class="result pending" id="r13">—</span>
   </div>
 </div>
 
@@ -993,14 +1003,14 @@ async function test11() {
     log('T11: starting continuous beep track (7 beeps, 5s apart, 35s)…');
     const p = audio.play();
     if (p && typeof p.then === 'function') await p;
-    log('T11: play() resolved — LOCK YOUR PHONE NOW, pocket it', 'ok');
+    log('T11: play() resolved — SCREEN OFF NOW (side button), pocket it', 'ok');
   } catch (e) {
     log('T11: play() rejected: ' + e.message, 'err');
     setResult('r11', 'API FAIL: play() rejected: ' + e.message, 'fail');
     URL.revokeObjectURL(blobUrl);
     return;
   }
-  setResult('r11', 'PLAYING — lock phone & pocket it (~35s, 7 rising beeps)', 'info');
+  setResult('r11', 'PLAYING — screen off (side button) & pocket it (~35s, 7 rising beeps)', 'info');
   const verdict = await awaitLockedReport('r11');
   try { audio.pause(); } catch (e) {}
   audio.removeAttribute('src');
@@ -1019,8 +1029,8 @@ async function test12() {
   const startTs = Date.now();
   let n = 0;
   const total = 7;
-  log('T12: speaking a number every 5s via setInterval — LOCK YOUR PHONE after you hear "one"', 'ok');
-  setResult('r12', 'RUNNING — lock phone after "one" (~35s, counts 1–7)', 'info');
+  log('T12: speaking a number every 5s via setInterval — SCREEN OFF (side button) after you hear "one"', 'ok');
+  setResult('r12', 'RUNNING — screen off after "one" (~35s, counts 1–7)', 'info');
   await new Promise(resolve => {
     const id = setInterval(() => {
       n++;
@@ -1036,6 +1046,101 @@ async function test12() {
   const verdict = await awaitLockedReport('r12');
   log('T12: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
   applyLockedVerdict('r12', verdict);
+}
+
+// Test 13: route a live AudioContext through an <audio> element's srcObject
+// (MediaStreamAudioDestinationNode) so WebKit's WebRTC background exemption keeps
+// the audio engine alive when locked. Then create a NEW beep node every 5s — the
+// strict-superset case (reactive node creation under lock). All output goes to the
+// stream dest, NEVER ctx.destination, plus a near-silent keepalive so iOS won't cull
+// an "idle" context. Mirror of test 12's cadence — only the channel differs.
+async function test13() {
+  setResult('r13', 'opening tunnel…', 'info');
+  log('--- Test 13: Reactive Web Audio beep via MediaStream tunnel under lock ---');
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    setResult('r13', 'API FAIL: no AudioContext', 'fail');
+    log('T13: no AudioContext constructor', 'err');
+    return;
+  }
+  const ctx = new Ctor();
+  try { await ctx.resume(); } catch (e) { log('T13: resume threw: ' + e.message, 'warn'); }
+  log('T13: ctx state=' + ctx.state + ', sampleRate=' + ctx.sampleRate,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  // The tunnel: ctx -> MediaStreamDestination -> <audio>.srcObject, played in this gesture.
+  const dest = ctx.createMediaStreamDestination();
+  const sink = document.createElement('audio');
+  sink.setAttribute('playsinline', '');
+  sink.muted = false;
+  sink.volume = 1;
+  sink.style.display = 'none';
+  document.body.appendChild(sink);
+  sink.srcObject = dest.stream;
+
+  // Near-silent keepalive so the graph never looks "idle" (1 Hz @ ~0.0001).
+  const keepOsc = ctx.createOscillator();
+  const keepGain = ctx.createGain();
+  keepOsc.frequency.value = 1;
+  keepGain.gain.value = 0.0001;
+  keepOsc.connect(keepGain);
+  keepGain.connect(dest);
+  keepOsc.start();
+
+  const teardown = () => {
+    try { keepOsc.stop(); } catch (e) {}
+    try { sink.pause(); } catch (e) {}
+    sink.srcObject = null;
+    sink.remove();
+    try { ctx.close(); } catch (e) {}
+  };
+
+  ctx.onstatechange = () => log('T13: ctx.onstatechange -> ' + ctx.state,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  try {
+    const p = sink.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T13: tunnel <audio>.play() resolved — SCREEN OFF (side button) after you hear "one"', 'ok');
+  } catch (e) {
+    log('T13: tunnel play() rejected: ' + e.message, 'err');
+    setResult('r13', 'API FAIL: tunnel play() rejected: ' + e.message, 'fail');
+    teardown();
+    return;
+  }
+  setResult('r13', 'RUNNING — screen off after first beep (~35s, 7 rising beeps)', 'info');
+
+  const startTs = Date.now();
+  let n = 0;
+  const total = 7;
+  await new Promise(resolve => {
+    const id = setInterval(() => {
+      n++;
+      const dt = Date.now() - startTs;
+      const drift = dt - n * 5000;
+      // Fresh node each fire, started immediately — the reactive-under-lock case.
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = LOCK_TEST_FREQS[(n - 1) % LOCK_TEST_FREQS.length];
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.5, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(dest);              // tunnel, NOT ctx.destination
+      osc.start(now);
+      osc.stop(now + 0.2);
+      log('T13: beep #' + n + ' at +' + dt + 'ms (ideal +' + (n * 5000) + 'ms, drift ' + drift +
+          'ms) freq=' + osc.frequency.value + 'Hz ctxState=' + ctx.state,
+          Math.abs(drift) < 1500 ? 'ok' : 'warn');
+      if (n >= total) { clearInterval(id); resolve(); }
+    }, 5000);
+  });
+  log('T13: all 7 beeps scheduled on the tunneled context — final ctxState=' + ctx.state, 'ok');
+  const verdict = await awaitLockedReport('r13');
+  teardown();
+  log('T13: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r13', verdict);
 }
 
 dumpEnv();
