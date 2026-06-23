@@ -264,6 +264,15 @@
   </div>
 </div>
 
+<div class="test">
+  <div class="test-title">14. Multi-minute tunnel — survives a long lock?</div>
+  <div class="test-desc">Same tunnel as test 13, stretched to <strong>~4 minutes</strong> (a beep every 20s, 12 total). Some reports say iOS stops Web Audio after "a few minutes" locked — this is the probe that would catch that. Tap Run, hear the first beep, then <strong>turn the screen off and pocket it for the full ~4 minutes</strong> before reporting. All 12 rising beeps evenly spaced → the tunnel holds for real event lengths. Stops partway → note roughly when (the log timestamps every beep with the context state).</div>
+  <div class="test-row">
+    <button onclick="test14()">Run</button>
+    <span class="result pending" id="r14">—</span>
+  </div>
+</div>
+
 <h2>Results log</h2>
 <div class="actions">
   <button class="btn-ghost" onclick="copyLog()">Copy results</button>
@@ -1141,6 +1150,101 @@ async function test13() {
   teardown();
   log('T13: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
   applyLockedVerdict('r13', verdict);
+}
+
+// Test 14: identical tunnel mechanism to test 13 (ctx -> MediaStreamDestination ->
+// <audio>.srcObject + silent keepalive, fresh beep node each fire), but stretched to
+// a MULTI-MINUTE run — a beep every 20s for ~4 minutes. Tone.js #235 reports Web Audio
+// can stop "after a few minutes" when locked; the 35s test 13 can't catch a late
+// suspension, this can. Only the duration differs, so the result is apples-to-apples.
+// Watch the per-beep ctxState in the log for where (if) it dies.
+async function test14() {
+  setResult('r14', 'opening tunnel…', 'info');
+  log('--- Test 14: Multi-minute MediaStream tunnel under lock (~4 min) ---');
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    setResult('r14', 'API FAIL: no AudioContext', 'fail');
+    log('T14: no AudioContext constructor', 'err');
+    return;
+  }
+  const ctx = new Ctor();
+  try { await ctx.resume(); } catch (e) { log('T14: resume threw: ' + e.message, 'warn'); }
+  log('T14: ctx state=' + ctx.state + ', sampleRate=' + ctx.sampleRate,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  const dest = ctx.createMediaStreamDestination();
+  const sink = document.createElement('audio');
+  sink.setAttribute('playsinline', '');
+  sink.muted = false;
+  sink.volume = 1;
+  sink.style.display = 'none';
+  document.body.appendChild(sink);
+  sink.srcObject = dest.stream;
+
+  // Near-silent keepalive so the graph never looks "idle".
+  const keepOsc = ctx.createOscillator();
+  const keepGain = ctx.createGain();
+  keepOsc.frequency.value = 1;
+  keepGain.gain.value = 0.0001;
+  keepOsc.connect(keepGain);
+  keepGain.connect(dest);
+  keepOsc.start();
+
+  const teardown = () => {
+    try { keepOsc.stop(); } catch (e) {}
+    try { sink.pause(); } catch (e) {}
+    sink.srcObject = null;
+    sink.remove();
+    try { ctx.close(); } catch (e) {}
+  };
+
+  ctx.onstatechange = () => log('T14: ctx.onstatechange -> ' + ctx.state,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  try {
+    const p = sink.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T14: tunnel <audio>.play() resolved — SCREEN OFF (side button) after the first beep', 'ok');
+  } catch (e) {
+    log('T14: tunnel play() rejected: ' + e.message, 'err');
+    setResult('r14', 'API FAIL: tunnel play() rejected: ' + e.message, 'fail');
+    teardown();
+    return;
+  }
+
+  const intervalMs = 20000;
+  const total = 12;            // ~4 minutes
+  setResult('r14', 'RUNNING — screen off after first beep (~4 min, ' + total + ' beeps 20s apart)', 'info');
+
+  const startTs = Date.now();
+  let n = 0;
+  await new Promise(resolve => {
+    const id = setInterval(() => {
+      n++;
+      const dt = Date.now() - startTs;
+      const drift = dt - n * intervalMs;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = LOCK_TEST_FREQS[(n - 1) % LOCK_TEST_FREQS.length];
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.5, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(dest);              // tunnel, NOT ctx.destination
+      osc.start(now);
+      osc.stop(now + 0.2);
+      log('T14: beep #' + n + '/' + total + ' at +' + Math.round(dt / 1000) + 's (drift ' + drift +
+          'ms) freq=' + osc.frequency.value + 'Hz ctxState=' + ctx.state,
+          Math.abs(drift) < 2000 ? 'ok' : 'warn');
+      if (n >= total) { clearInterval(id); resolve(); }
+    }, intervalMs);
+  });
+  log('T14: all ' + total + ' beeps scheduled — final ctxState=' + ctx.state, 'ok');
+  const verdict = await awaitLockedReport('r14');
+  teardown();
+  log('T14: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r14', verdict);
 }
 
 dumpEnv();
