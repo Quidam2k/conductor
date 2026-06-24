@@ -273,6 +273,15 @@
   </div>
 </div>
 
+<div class="test">
+  <div class="test-title">15. Pre-scheduled beeps on the audio clock — does the throttle go away?</div>
+  <div class="test-desc">Test 14 showed reactive beeps drift badly after ~2 min locked because the <strong>JS timer</strong> that fires each beep gets throttled — the audio context itself stayed alive. This test removes the timer: at Run it <strong>pre-schedules all 12 beeps at once on the Web Audio clock</strong> (<code>osc.start(audioTime+offset)</code>), 20s apart over ~4 min, through the same tunnel. If iOS only throttles JS timers (not the audio scheduler), these should stay <strong>perfectly even</strong> even past 2 min. Tap Run, hear the first beep at +20s, then <strong>screen off + pocket for the full ~4 minutes</strong>, then report. Even → we keep live audio and just pre-schedule (no baking). Uneven/bunched → the audio scheduler throttles too, and we bake.</div>
+  <div class="test-row">
+    <button onclick="test15()">Run</button>
+    <span class="result pending" id="r15">—</span>
+  </div>
+</div>
+
 <h2>Results log</h2>
 <div class="actions">
   <button class="btn-ghost" onclick="copyLog()">Copy results</button>
@@ -1245,6 +1254,112 @@ async function test14() {
   teardown();
   log('T14: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
   applyLockedVerdict('r14', verdict);
+}
+
+// Test 15: same tunnel + keepalive as test 14, but ZERO JS timers driving playback.
+// At Run we pre-schedule all 12 oscillators on the Web Audio clock
+// (osc.start(baseAudioTime + i*20s)). Test 14 proved the JS setInterval that fired
+// each beep gets throttled to ~1Hz after ~2 min locked (drift 700→2700ms) while
+// ctxState stayed 'running' — i.e. the AUDIO engine was fine, the DISPATCH wasn't.
+// If iOS throttles only JS timers and not the audio render clock, these pre-scheduled
+// beeps fire sample-accurately regardless of lock. Objective signal: a heartbeat logs
+// wall-elapsed vs ctx-clock-elapsed; if they stay aligned, the audio clock kept real
+// time so the beeps landed on time even when JS was throttled. Her ears confirm spacing.
+async function test15() {
+  setResult('r15', 'opening tunnel…', 'info');
+  log('--- Test 15: Pre-scheduled beeps on the audio clock under lock (~4 min) ---');
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) {
+    setResult('r15', 'API FAIL: no AudioContext', 'fail');
+    log('T15: no AudioContext constructor', 'err');
+    return;
+  }
+  const ctx = new Ctor();
+  try { await ctx.resume(); } catch (e) { log('T15: resume threw: ' + e.message, 'warn'); }
+  log('T15: ctx state=' + ctx.state + ', sampleRate=' + ctx.sampleRate,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  const dest = ctx.createMediaStreamDestination();
+  const sink = document.createElement('audio');
+  sink.setAttribute('playsinline', '');
+  sink.muted = false;
+  sink.volume = 1;
+  sink.style.display = 'none';
+  document.body.appendChild(sink);
+  sink.srcObject = dest.stream;
+
+  // Near-silent keepalive so the graph never looks "idle".
+  const keepOsc = ctx.createOscillator();
+  const keepGain = ctx.createGain();
+  keepOsc.frequency.value = 1;
+  keepGain.gain.value = 0.0001;
+  keepOsc.connect(keepGain);
+  keepGain.connect(dest);
+  keepOsc.start();
+
+  let heartbeatId = null;
+  const teardown = () => {
+    if (heartbeatId) clearInterval(heartbeatId);
+    try { keepOsc.stop(); } catch (e) {}
+    try { sink.pause(); } catch (e) {}
+    sink.srcObject = null;
+    sink.remove();
+    try { ctx.close(); } catch (e) {}
+  };
+
+  ctx.onstatechange = () => log('T15: ctx.onstatechange -> ' + ctx.state,
+      ctx.state === 'running' ? 'ok' : 'warn');
+
+  try {
+    const p = sink.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T15: tunnel <audio>.play() resolved — SCREEN OFF (side button) right after the first beep', 'ok');
+  } catch (e) {
+    log('T15: tunnel play() rejected: ' + e.message, 'err');
+    setResult('r15', 'API FAIL: tunnel play() rejected: ' + e.message, 'fail');
+    teardown();
+    return;
+  }
+
+  const intervalS = 20;
+  const total = 12;            // ~4 minutes
+  // Pre-schedule EVERY beep now, on the audio clock — no JS timer fires them.
+  const baseAudio = ctx.currentTime + intervalS; // first beep at +20s
+  for (let i = 0; i < total; i++) {
+    const when = baseAudio + i * intervalS;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = LOCK_TEST_FREQS[i % LOCK_TEST_FREQS.length];
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.exponentialRampToValueAtTime(0.5, when + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+    osc.connect(gain);
+    gain.connect(dest);              // tunnel, NOT ctx.destination
+    osc.start(when);
+    osc.stop(when + 0.2);
+  }
+  log('T15: pre-scheduled all ' + total + ' beeps on the audio clock (+20s … +' +
+      (total * intervalS) + 's), no JS timer involved', 'ok');
+  setResult('r15', 'RUNNING — screen off after first beep (~4 min). No JS timer; audio clock fires the beeps.', 'info');
+
+  // Heartbeat: NOT driving audio — just samples wall-vs-audio-clock alignment.
+  // Throttled under lock (fewer samples), but each sample reads both clocks at the
+  // same instant, so a near-zero gap proves the audio clock held real time.
+  const startWall = Date.now();
+  const startAudio = ctx.currentTime;
+  heartbeatId = setInterval(() => {
+    const wallEl = (Date.now() - startWall) / 1000;
+    const audioEl = ctx.currentTime - startAudio;
+    const gap = (wallEl - audioEl) * 1000;
+    log('T15: heartbeat +' + Math.round(wallEl) + 's — audioClock +' + audioEl.toFixed(2) +
+        's, wall−audio gap=' + Math.round(gap) + 'ms, ctxState=' + ctx.state,
+        Math.abs(gap) < 500 ? 'ok' : 'warn');
+  }, 10000);
+
+  const verdict = await awaitLockedReport('r15');
+  teardown();
+  log('T15: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r15', verdict);
 }
 
 dumpEnv();
