@@ -120,7 +120,7 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v44 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–13 are run with the phone LOCKED.</p>
+<p class="sub">Build v44 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–16 are run with the phone LOCKED.</p>
 
 <div class="note">
   After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
@@ -282,6 +282,15 @@
   </div>
 </div>
 
+<div class="test">
+  <div class="test-title">16. Real pipeline bake under lock</div>
+  <div class="test-desc">The ship-gate test. Builds a real ~3-minute multi-cue timeline and bakes it through the <strong>app's own pipeline</strong> (<code>computeCueSchedule</code> → <code>bakeScheduleToWavBlob</code>, the exact code the live app uses), then plays the one WAV from <code>&lt;audio&gt;</code>. Tests 11–15 used a hand-built beep track; this proves the production bake survives lock. Tap Run, hear the first beep, then <strong>screen off (side button), no passcode needed — pocket it for the full ~3 minutes</strong>, then report. Even → the real pipeline survives the pocket and we ship. (Beep-only: a real pack isn't needed on your phone to prove the pipeline — pack-voice baking is exercised separately by playing a real packed event.)</div>
+  <div class="test-row">
+    <button onclick="test16()">Run</button>
+    <span class="result pending" id="r16">—</span>
+  </div>
+</div>
+
 <h2>Results log</h2>
 <div class="actions">
   <button class="btn-ghost" onclick="copyLog()">Copy results</button>
@@ -292,6 +301,13 @@
 </div>
 
 <script src="../js/resourcePackManager.js"></script>
+<!-- Test 16 drives the real app pipeline: models (createTimelineAction),
+     audioService (computeCueSchedule), audioBake (bakeScheduleToWavBlob).
+     audioService/audioBake are local snapshots — the v44 SW serves ../js/
+     cache-first from a stale precache; repoint to ../js/ at v45. -->
+<script src="../js/models.js"></script>
+<script src="./audioService.js"></script>
+<script src="./audioBake.js"></script>
 <script>
 const logEl = document.getElementById('log');
 const envEl = document.getElementById('env');
@@ -1360,6 +1376,93 @@ async function test15() {
   teardown();
   log('T15: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
   applyLockedVerdict('r15', verdict);
+}
+
+// Test 16: bake a real ~3-min multi-cue timeline through the PRODUCTION pipeline
+// (createTimelineAction → audioService.computeCueSchedule → audioBake.bakeScheduleToWavBlob)
+// and play the resulting WAV from <audio>. This is the ship-gate: tests 11–15 used a
+// hand-built track, this proves the app's own bake survives multi-minute lock. Beep-only
+// (getBuffer=null) so it needs no pack installed on her device.
+async function test16() {
+  setResult('r16', 'baking…', 'info');
+  log('--- Test 16: Real pipeline bake under lock ---');
+  if (typeof createTimelineAction !== 'function' ||
+      typeof createAudioService !== 'function' ||
+      typeof bakeScheduleToWavBlob !== 'function') {
+    setResult('r16', 'API FAIL: app modules not loaded (models/audioService/audioBake)', 'fail');
+    log('T16: required app modules missing — check the <script> includes', 'err');
+    return;
+  }
+  if (typeof canBake === 'function' && !canBake()) {
+    setResult('r16', 'API FAIL: OfflineAudioContext unavailable', 'fail');
+    log('T16: OfflineAudioContext unavailable in this browser', 'err');
+    return;
+  }
+
+  // Synthetic ~3-minute timeline: a beep cue every 20s, each with a 5s notice so the
+  // pipeline emits its real countdown beeps + trigger beep (no pack → beep-only schedule).
+  const startMs = Date.now();
+  const leadSec = 10;
+  const gapSec = 20;
+  const count = 9; // 10s lead + 8×20s ≈ 170s of cues, last beeps land near ~2.8 min
+  const timeline = [];
+  for (let i = 0; i < count; i++) {
+    timeline.push(createTimelineAction({
+      timeMs: startMs + (leadSec + i * gapSec) * 1000,
+      action: 'Cue ' + (i + 1),
+      noticeSeconds: 5,
+      audioAnnounce: true,
+    }));
+  }
+
+  const svc = createAudioService();
+  const schedule = svc.computeCueSchedule(timeline, 10, null, startMs, {});
+  log('T16: real pipeline produced ' + schedule.length + ' bakeable events (beeps) over ~' +
+      (leadSec + (count - 1) * gapSec) + 's');
+
+  let baked;
+  try {
+    baked = await bakeScheduleToWavBlob(schedule, null); // null getBuffer → beep-only bake
+  } catch (e) {
+    setResult('r16', 'API FAIL: bake threw: ' + e.message, 'fail');
+    log('T16: bakeScheduleToWavBlob threw: ' + e.message, 'err');
+    return;
+  }
+  if (!baked) {
+    setResult('r16', 'API FAIL: bake returned null (no OfflineAudioContext)', 'fail');
+    log('T16: bake returned null', 'err');
+    return;
+  }
+  log('T16: baked ' + baked.durationSec.toFixed(1) + 's WAV, ' +
+      (baked.wavBytes.byteLength / 1024 / 1024).toFixed(1) + ' MB, ' +
+      baked.eventCount + ' events @ ' + baked.sampleRate + ' Hz', 'ok');
+
+  const blobUrl = URL.createObjectURL(baked.blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+  let lastSec = -1;
+  audio.ontimeupdate = () => {
+    const t = Math.floor(audio.currentTime);
+    if (t !== lastSec) { lastSec = t; log('T16: timeupdate currentTime≈' + t + 's'); }
+  };
+  try {
+    log('T16: playing real-pipeline baked track (~3 min)…');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T16: play() resolved — SCREEN OFF NOW (side button, no passcode needed), pocket it ~3 min', 'ok');
+  } catch (e) {
+    log('T16: play() rejected: ' + e.message, 'err');
+    setResult('r16', 'API FAIL: play() rejected: ' + e.message, 'fail');
+    URL.revokeObjectURL(blobUrl);
+    return;
+  }
+  setResult('r16', 'PLAYING — screen off (side button) & pocket it ~3 min, listen for even beeps', 'info');
+  const verdict = await awaitLockedReport('r16');
+  try { audio.pause(); } catch (e) {}
+  audio.removeAttribute('src');
+  URL.revokeObjectURL(blobUrl);
+  log('T16: report = ' + verdict.toUpperCase(), verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r16', verdict);
 }
 
 dumpEnv();
