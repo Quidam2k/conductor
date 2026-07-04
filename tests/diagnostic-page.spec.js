@@ -28,9 +28,9 @@ test.describe('iOS audio diagnostic page', () => {
         await expect(page.locator('#r1')).toHaveText(/HEARD/);
     });
 
-    test('all 15 tests are present with Run buttons', async ({ page }) => {
+    test('all 16 tests are present with Run buttons', async ({ page }) => {
         const runBtns = page.locator('.test button', { hasText: 'Run' });
-        await expect(runBtns).toHaveCount(15);
+        await expect(runBtns).toHaveCount(16);
     });
 
     test('tests 8, 9, 10, and the locked-screen tests exist with correct titles', async ({ page }) => {
@@ -43,5 +43,6 @@ test.describe('iOS audio diagnostic page', () => {
         expect(titles[12]).toContain('MediaStream tunnel');
         expect(titles[13]).toContain('Multi-minute');
         expect(titles[14]).toContain('Pre-scheduled');
+        expect(titles[15]).toContain('Real pipeline bake');
     });
 });
