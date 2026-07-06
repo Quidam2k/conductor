@@ -855,7 +855,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v45</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v46</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -863,13 +863,13 @@
             <div class="about-body">
                 Conductor coordinates groups of people using their phones. An organizer creates a timed sequence of <strong>cues</strong> &mdash; spoken announcements, vibrations, or audio clips that play at specific times &mdash; and shares the event as a link or QR code. Every participant's device plays the same cues at the same time.
                 <br><br>
-                Tap <strong>Try the Demo</strong> below to try it right now &mdash; no downloads or setup needed. The app uses your phone's text-to-speech to play each cue.
+                Tap <strong>Try the Demo</strong> below to try it right now &mdash; no downloads or setup needed. Cues play as beep countdowns and resource-pack voices; your phone's text-to-speech reads cue text aloud while the screen is on.
                 <br><br>
                 Events can be password-protected with AES-256 encryption. No data is ever sent to a server &mdash; everything stays on your device. No accounts, no app store, no server required.
                 <br><br>
                 Designed for peaceful coordination &mdash; performances, community events, demonstrations. No telemetry, no tracking. By design.
                 <br><br>
-                <strong>Tip:</strong> For live events, disable battery saver and keep your screen on.
+                <strong>Tip:</strong> Once your event is live, lock your phone and pocket it &mdash; beeps and resource-pack voices keep playing. Spoken text cues only play while the screen is on.
                 <br><br>
                 <a href="start.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; downloads, tutorial, and how to create your own events.
                 <br>
@@ -1048,6 +1048,7 @@
         <div class="briefing-panel"></div>
     </details>
     <div id="live-banner" class="info-banner" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
+    <div id="live-pocket-banner" class="info-banner" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-live"></canvas>
     </div>
@@ -5677,6 +5678,29 @@ function showBanner(id, text, variant) {
 }
 function hideBanner(id) { $(id).style.display = 'none'; }
 
+// One-shot pocket-readiness note on the live screen. Which message depends on
+// whether the bake took over (state.bakedActive); each variant shows once per
+// device (localStorage), since it's orientation, not a per-run status.
+function showPocketBanner() {
+    const variant = state.bakedActive ? 'baked' : 'fallback';
+    const key = 'conductor-pocket-banner-' + variant;
+    let seen = false;
+    try {
+        seen = !!localStorage.getItem(key);
+        if (!seen) localStorage.setItem(key, '1');
+    } catch (e) { /* private mode etc. — just show it */ }
+    if (seen) { hideBanner('live-pocket-banner'); return; }
+    if (variant === 'baked') {
+        showBanner('live-pocket-banner',
+            'Pocket-ready: beeps & pack voices keep playing with the screen off. Spoken text needs the screen on.',
+            'info');
+    } else {
+        showBanner('live-pocket-banner',
+            'Keep your screen on — this browser can’t pre-render audio for locked playback.',
+            'warning');
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PRACTICE mode
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5797,10 +5821,10 @@ async function enterLive() {
     audio.reset();
     audio.setMuted(state.audioMuted);
 
-    // iOS: unlock the baked-track <audio> NOW, while we're still inside the
+    // Unlock the baked-track <audio> NOW, while we're still inside the
     // entering user gesture (before any await), so the post-bake programmatic
     // .play() is permitted by the autoplay policy.
-    if (isIOS() && canBake()) {
+    if (canBake()) {
         unlockBakedTrack();
     }
 
@@ -5851,13 +5875,14 @@ async function enterLive() {
         }
     });
 
-    // iOS: bake the whole event's beeps + pack voice into one continuous WAV and
+    // Bake the whole event's beeps + pack voice into one continuous WAV and
     // play it from the hidden <audio>. A decoded media file is the only audio
     // channel proven to survive iOS screen lock (test 11); live Web Audio is
-    // throttled under multi-minute lock (tests 14/15). Non-iOS keeps the live
-    // path — it has no equivalent lock problem. Falls back to live if the bake
-    // fails. See cascades/2026-06-23-locked-screen-bake.md.
-    if (isIOS() && canBake()) {
+    // throttled under multi-minute lock (tests 14/15). As of v46 the bake runs
+    // on every platform that can — Android/desktop background-timer throttling
+    // is sidestepped the same way. Falls back to live if the bake fails.
+    // See cascades/2026-06-23-locked-screen-bake.md.
+    if (canBake()) {
         await startBakedTrack(evt, evtDefs);
         if (gen !== enterGen) {
             // User left live while baking — the transition's stopBakedTrack ran
@@ -5866,6 +5891,7 @@ async function enterLive() {
             return;
         }
     }
+    showPocketBanner();
 
     // Start loops
     startLiveLoop();

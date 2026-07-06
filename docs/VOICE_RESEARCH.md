@@ -6,7 +6,9 @@
 
 ## Background
 
-Conductor uses the browser's Web Speech API for all spoken cues. This works reliably -- even on iOS with screen locked -- but voice quality varies by platform. Safari in particular exposes only low-quality "compact" TTS voices. This document evaluates options for improving voice quality.
+Conductor uses the browser's Web Speech API for all spoken cues. This works reliably while the screen is on, but voice quality varies by platform. Safari in particular exposes only low-quality "compact" TTS voices. This document evaluates options for improving voice quality.
+
+> **Correction (2026-07-06):** this document originally claimed TTS "works reliably -- even on iOS with screen locked." The June 2026 locked-screen test arc (diagnostic tests 11–16) refuted that: live TTS and live Web Audio both die under multi-minute lock. Only a pre-rendered ("baked") audio file playing from an `<audio>` element survives lock — which is why on-device synthesis (e.g. Piper WASM, below) matters: synthesized speech is a decodable buffer that CAN be baked, unlike system TTS.
 
 ---
 

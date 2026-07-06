@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iOS Audio Diagnostics — v45 (locked-screen probe)</title>
+<title>iOS Audio Diagnostics — v46 (locked-screen probe)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -120,7 +120,7 @@
 <div class="wrap">
 
 <h1>iOS Audio Diagnostics</h1>
-<p class="sub">Build v45 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–16 are run with the phone LOCKED.</p>
+<p class="sub">Build v46 (locked-screen probe) — click Run on each test, then tap ✓ Heard or ✗ Silent. Tests 11–16 are run with the phone LOCKED.</p>
 
 <div class="note">
   After each test fires, two buttons appear: <strong>✓ Heard</strong> and <strong>✗ Silent</strong>.
@@ -330,7 +330,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor iOS Audio Diagnostics v45 (locked-screen probe) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor iOS Audio Diagnostics v46 (locked-screen probe) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),

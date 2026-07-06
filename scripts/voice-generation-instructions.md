@@ -31,6 +31,13 @@ needs extra coaxing — the redundant trailing modifiers ("Freeze. Don't move.",
 below in this file are kept for historical reference; if a row disagrees with
 wav-manifest.md, wav-manifest.md wins.
 
+## Do NOT Record Countdown Clips — Added 2026-07-06
+
+Countdowns are **app-generated ascending tonal beeps** (since v40). Packs
+cannot provide or override them. Do not record `countdown-voice`,
+`countdown-and`, numbered countdown clips, or any other countdown audio —
+the audio service ignores them.
+
 ## Folder Structure
 
 Place output in the same folder structure as the existing files:

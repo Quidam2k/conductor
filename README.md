@@ -30,14 +30,15 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 - **No Accounts** — No signup, no tracking, no data collection
 - **Encryption** — Events can be password-protected with AES-256-GCM encryption (`v1e_` prefix)
 - **Event Editor** — Built-in 3-step wizard with timeline builder, live preview, and practice mode
-- **Resource Packs** — Optional zip files with higher-quality audio cues, falls back to TTS gracefully
+- **Resource Packs** — Optional zip files with real voice cues (spoken cues that work even from a pocket), falls back to TTS gracefully
 - **Briefing Blocks** — Pre-event briefings displayed before coordination begins
 - **QR Scanning** — Camera-based QR scanning for phone-to-phone event sharing
 - **Event Drafts** — Save work-in-progress events to IndexedDB, resume editing later
 - **Bundle Sharing** — Download a self-contained HTML file with both the app and your event baked in
 - **Multi-Format Input** — Paste event codes, use the text editor format, import JSON, or open files
 - **Practice Mode** — Rehearse at variable speed (1-5x) before the real event
-- **Audio & Haptics** — TTS announcements, vibration patterns, resource pack audio fallback
+- **Pocket-Ready Audio** — When you go live, beeps and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket
+- **Audio & Haptics** — Countdown and trigger beeps, resource pack voice cues, vibration patterns; text-to-speech reads cue text while the screen is on
 - **Cross-Platform** — Works on Android, iPhone, desktop — anything with a browser
 
 ## Privacy & Security

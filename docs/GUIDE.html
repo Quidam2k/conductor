@@ -512,6 +512,27 @@ Countdown: true      # event-level: all actions get a countdown by default
     <hr>
 
     <section>
+        <h2 id="phone-in-your-pocket">Phone in Your Pocket</h2>
+        <p>The realistic live-event posture is phone locked, in a pocket — eyes on your surroundings, hands free. Conductor is built for that: when an event goes live, the app pre-renders every countdown beep, trigger beep, and resource-pack voice cue into one continuous audio track that keeps playing with the screen off.</p>
+        <p>What keeps playing from a pocket:</p>
+        <ul>
+            <li><strong>Countdown beeps</strong> — the ascending beeps before each action.</li>
+            <li><strong>Trigger beeps</strong> — the "go" beep at the action moment.</li>
+            <li><strong>Resource-pack voice cues</strong> — spoken cues from an imported pack.</li>
+        </ul>
+        <p>What does <strong>not</strong> play under lock: text-to-speech. The "Get ready to…" notices and any cue text read aloud by the phone's own voice only play while the screen is on. The app shows a note about this when you go live.</p>
+        <p>For organizers:</p>
+        <ul>
+            <li><strong>Want spoken cues in pockets? Use a resource pack.</strong> Pack voices are the only spoken audio that survives the pocket. Cover your event's cues with pack audio and the pocketed experience is fully voiced.</li>
+            <li><strong>No pack? Beeps carry the event.</strong> Every action still gets its countdown and trigger beeps under lock — brief participants beforehand on what the sequence means.</li>
+            <li><strong>Brief before pockets.</strong> Briefing blocks are read on screen before phones are put away — put roles, sequence, and signals there.</li>
+        </ul>
+        <p>On the rare browser that can't pre-render audio, the app warns you when you go live — keep the screen on there.</p>
+    </section>
+
+    <hr>
+
+    <section>
         <h2 id="reference">Reference</h2>
         <ul>
             <li><a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md"><strong>Text Format Reference</strong></a> — Complete reference for the text event format (all tags, briefing blocks, config headers).</li>
@@ -523,7 +544,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         <h2 id="tips">Tips</h2>
         <ul>
             <li><strong>Practice first</strong> — Always run through your event in practice mode before the real thing. Use the speed slider to go fast.</li>
-            <li><strong>Battery matters</strong> — For live events, disable battery saver and keep your screen on. The app shows a reminder about this.</li>
+            <li><strong>Pocket it</strong> — Once you're live, lock the phone and pocket it. Beeps and pack voices keep playing; spoken text needs the screen on. Disable battery saver so the browser isn't killed mid-event.</li>
             <li><strong>Encryption</strong> — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device.</li>
             <li><strong>Offline works</strong> — Once you've opened the app in your browser, it caches itself. Works without internet after that.</li>
             <li><strong>Phone-to-phone</strong> — Show a QR code on your screen, others scan it with their camera. No internet needed for the transfer.</li>
@@ -543,7 +564,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         &nbsp;&middot;&nbsp;
         <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
     </p>
-    <p class="build">build v45 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+    <p class="build">build v46 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
 </footer>
 
 </body>

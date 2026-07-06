@@ -6,11 +6,16 @@ Technical discoveries from Plans 1-14 of Conductor development (Feb 10-13, 2026)
 
 ## iOS Audio Behavior
 
-- **TTS (Web Speech API) works through screen lock** on iOS Safari — this is our reliable audio channel.
+> **Superseded 2026-07-06:** the first and last bullets below were refuted by the
+> June 2026 locked-screen test arc (diagnostic tests 11–16). Live TTS does NOT
+> survive multi-minute lock. The reliable locked-screen channel is a pre-rendered
+> ("baked") WAV playing from an `<audio>` element — see `docs/js/audioBake.js`.
+
+- ~~**TTS (Web Speech API) works through screen lock** on iOS Safari — this is our reliable audio channel.~~ (Refuted June 2026 — dies under multi-minute lock.)
 - **Web Audio API gets suspended** by iOS when the screen locks. Tones queue up and dump when unlocked.
 - A silent `<audio>` element playing in a loop keeps the page alive in the background.
 - Safari's `getVoices()` hides the good system voices — only exposes low-quality ones. Apple restricts quality voices to native apps.
-- **Decision:** Use Web Speech API for all coordination cues. Web Audio is OK for on-screen UI feedback only.
+- ~~**Decision:** Use Web Speech API for all coordination cues. Web Audio is OK for on-screen UI feedback only.~~ (Superseded: coordination cues are baked beeps + pack voices; TTS is a screen-on extra.)
 
 ## HTML Parsing Gotcha
 
