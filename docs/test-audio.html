@@ -889,7 +889,10 @@
     function demoLog(text, cls) {
         const logEl = document.getElementById('demo-log');
         if (logEl) {
-            logEl.innerHTML += `<div class="log-entry ${cls || ''}">${text}</div>`;
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + (cls || '');
+            entry.textContent = text;
+            logEl.appendChild(entry);
             logEl.scrollTop = logEl.scrollHeight;
         }
     }

@@ -114,12 +114,10 @@ When the system needs to play audio for an action, it tries these sources in ord
 2. **TTS** — speak "Get ready to [action text]"
 
 ### For countdown:
-1. **Countdown cue** — look for `countdown-N` in `cues` map → play the WAV
-2. **TTS** — speak the number (first countdown number includes context: "[action] in 5")
+Countdowns are always app-generated ascending tonal beeps (Web Audio) — pack audio is never consulted. Legacy `countdown-N` cues in a pack are ignored (see "System Cues" above).
 
 ### For trigger:
-1. **Trigger cue** — look for `trigger` in `cues` map → play the WAV
-2. **TTS** — speak "Now!"
+At the trigger moment, the action's own cue plays (or TTS speaks the action text as fallback). There is no separate trigger cue — a legacy `trigger` cue in a pack is ignored.
 
 ## Event Bundling
 

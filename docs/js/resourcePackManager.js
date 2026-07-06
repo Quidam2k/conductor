@@ -575,6 +575,25 @@ function createResourcePackManager() {
         };
     }
 
+    /**
+     * True if a decoded buffer for (packId, cueId) is loaded — checks existence
+     * without playing. Used by baked mode and the offline bake's cue schedule.
+     * @returns {boolean}
+     */
+    function hasCue(packId, cueId) {
+        return bufferCache.has(packId + ':' + cueId);
+    }
+
+    /**
+     * Return the decoded AudioBuffer for a "packId:cueId" key, or undefined.
+     * Consumed by audioBake's offline render (getBuffer callback).
+     * @param {string} key - "packId:cueId"
+     * @returns {AudioBuffer|undefined}
+     */
+    function getBuffer(key) {
+        return bufferCache.get(key);
+    }
+
     // ─── Public API ──────────────────────────────────────────────
 
     /**
@@ -762,6 +781,8 @@ function createResourcePackManager() {
         hasPack,
         ensurePackLoaded,
         getResolver,
+        hasCue,
+        getBuffer,
         getAudioContext,
         getPackInfo,
         getCueList,

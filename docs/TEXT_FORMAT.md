@@ -96,8 +96,8 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 
 | Tag | What it does |
 |-----|-------------|
-| `countdown` | Announces "5, 4, 3, 2, 1" before the action |
-| `countdown:N` | Custom countdown duration (e.g. `countdown:3` announces "3, 2, 1") |
+| `countdown` | Plays ascending countdown beeps before the action |
+| `countdown:N` | Custom countdown duration (e.g. `countdown:3` plays 3 beeps) |
 | `no-countdown` | Suppress countdown for this action |
 
 ### Notification Tags
