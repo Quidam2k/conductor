@@ -31,7 +31,7 @@ Test on the hosted version: https://quidam2k.github.io/conductor/
 - [ ] Demo event loads, preview shows correct info
 - [ ] Practice mode: circular timeline renders and animates
 - [ ] Practice mode: TTS announces actions (screen on)
-- [ ] **TTS works with screen locked** (the critical test)
+- [ ] **Baked track plays beeps + pack voices with screen locked** (the critical test — live mode, lock the phone for 3+ minutes; TTS is screen-on only and is NOT expected under lock)
 - [ ] Practice mode: speed slider changes playback speed
 - [ ] Practice mode: mute button silences TTS
 - [ ] Live mode: real-time countdown works

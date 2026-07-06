@@ -5,29 +5,32 @@ Complete list of WAV files needed for the `conductor-demo` resource pack.
 
 ## How It Works
 
+> **Updated 2026-07-06.** Countdowns are **app-generated ascending tonal beeps**
+> (since v40) — packs cannot provide or override them, and no countdown clips
+> should be recorded. The "countdown-voice clip + haptic pulses" flow described
+> in the legacy section below never shipped in that form.
+
 When a resource pack is installed, Conductor's audio service resolves cues in this order:
-1. **Countdown**: `countdown-voice` clip plays at T-5 ("Five. Four. Three."), then haptic pulses at T-2 and T-1
+1. **Countdown**: app-generated ascending beeps fire on the authored countdown beats (not pack audio)
 2. **Trigger**: action cue plays at T-0 (the actual command)
 3. **Notice**: looks for `notice-{cueId}` in the pack — the "Get ready to [action]" phrase
 
-If any cue is missing from the pack, the system falls back to TTS automatically.
+If any voice cue is missing from the pack, the system falls back to TTS automatically
+(TTS plays while the screen is on; beeps and pack voices also play locked/pocketed).
 
 ---
 
-## Category 1: System Cues (2 files)
+## Category 1: System Cues (2 files) — LEGACY, superseded
 
-Single countdown voice clip. The timing engine plays this at T-5 before a
-countdown action. Final 2 seconds handled by haptic pulses (device-generated,
-precise) with TTS fallback on iOS.
+**Historical — do not regenerate.** These two clips predate the v40 tone-countdown
+pivot. The audio service no longer consults `countdown-voice` or `countdown-and`;
+packs may still contain them, they are ignored. Countdown and single-beat timing
+is app-generated beeps now.
 
 | Cue ID | Spoken Text | File Path |
 |--------|-------------|-----------|
 | `countdown-voice` | "Five. Four. Three." | `audio/countdown-voice.wav` |
 | `countdown-and` | "And." | `audio/countdown-and.wav` |
-
-`countdown-and` is the single beat that fires when adjacent cues are <3s apart
-(close-cue tier 3 — dance-conductor cadence). Until this file ships in the
-pack, the audio service falls back to TTS for the word "and".
 
 ---
 

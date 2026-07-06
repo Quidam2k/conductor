@@ -2041,3 +2041,89 @@ test('beep dot: practice-screen dot flashes when a beep is scheduled', async ({ 
     expect(result.lastOutcome).toBe('scheduled');
     expect(result.flashAfter).toBe(true);
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// 55. v46: the locked-screen bake runs on EVERY platform that can render
+//     offline (was iOS-only in v45). Entering live must hand audio to the
+//     baked <audio> track and suppress the live Web Audio beep path.
+// ═════════════════════════════════════════════════════════════════════
+
+test('live bake (v46): baked track active on chromium; live beeps suppressed; pocket banner shown', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+    await page.click('#btn-go-live');
+    await waitForScreen(page, 'screen-live');
+
+    // The bake happens async inside enterLive — poll until it takes over.
+    await expect.poll(
+        () => page.evaluate(() => state.bakedActive),
+        { timeout: 15000 }
+    ).toBe(true);
+
+    const r = await page.evaluate(() => {
+        const el = document.getElementById('baked-track');
+        const before = audio.getBeepLog().length;
+        audio.playCountdownBeep(3);
+        audio.playTriggerBeep();
+        const after = audio.getBeepLog().length;
+        return { src: el ? el.src : '', before, after };
+    });
+    expect(r.src).toMatch(/^blob:/);
+    // bakedActive short-circuits playCountdownBeep/playTriggerBeep before any
+    // playBeep attempt is logged — the beeps live in the baked WAV instead.
+    expect(r.after).toBe(r.before);
+
+    // Pocket-first orientation banner (baked variant)
+    await expect(page.locator('#live-pocket-banner')).toBeVisible();
+    await expect(page.locator('#live-pocket-banner span')).toContainText('Pocket-ready');
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 55b. Bake-unavailable fallback: with OfflineAudioContext gone, live
+//      mode must still run on the live audio path and warn the user to
+//      keep the screen on. Banner is one-shot per device (localStorage).
+// ═════════════════════════════════════════════════════════════════════
+
+test('live bake fallback: no OfflineAudioContext → live path + screen-on banner, one-shot', async ({ page }) => {
+    await page.addInitScript(() => {
+        delete window.OfflineAudioContext;
+        delete window.webkitOfflineAudioContext;
+    });
+
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+    await page.click('#btn-go-live');
+    await waitForScreen(page, 'screen-live');
+
+    await expect(page.locator('#live-pocket-banner')).toBeVisible();
+    await expect(page.locator('#live-pocket-banner span')).toContainText('Keep your screen on');
+
+    const r = await page.evaluate(() => ({
+        baked: state.bakedActive,
+        mode: state.mode,
+        src: document.getElementById('baked-track').src,
+    }));
+    expect(r.baked).toBe(false);
+    expect(r.mode).toBe('live');
+    expect(r.src).not.toMatch(/^blob:/); // no bake ran
+
+    // One-shot: leave live and re-enter — the banner must not reappear.
+    page.once('dialog', dialog => dialog.accept());
+    await page.click('#btn-live-stop');
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+    await page.click('#btn-go-live');
+    await waitForScreen(page, 'screen-live');
+    await expect(page.locator('#live-pocket-banner')).toBeHidden();
+});

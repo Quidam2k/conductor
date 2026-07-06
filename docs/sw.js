@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conductor-v45';
+const CACHE_NAME = 'conductor-v46';
 const ASSETS = [
     './index.html',
     './conductor.html',

@@ -319,6 +319,28 @@ If something's missing, you'll see a warning with details about what's not cover
 
 ---
 
+## Phone in Your Pocket
+
+The realistic live-event posture is phone locked, in a pocket — eyes on your surroundings, hands free. Conductor is built for that: when an event goes live, the app pre-renders every countdown beep, trigger beep, and resource-pack voice cue into one continuous audio track that keeps playing with the screen off.
+
+What keeps playing from a pocket:
+
+- **Countdown beeps** — the ascending beeps before each action
+- **Trigger beeps** — the "go" beep at the action moment
+- **Resource-pack voice cues** — spoken cues from an imported pack
+
+What does **not** play under lock: text-to-speech. The "Get ready to…" notices and any cue text read aloud by the phone's own voice only play while the screen is on. The app shows a note about this when you go live.
+
+For organizers:
+
+- **Want spoken cues in pockets? Use a resource pack.** Pack voices are the only spoken audio that survives the pocket. Cover your event's cues with pack audio and the pocketed experience is fully voiced.
+- **No pack? Beeps carry the event.** Every action still gets its countdown and trigger beeps under lock — brief participants beforehand on what the sequence means.
+- **Brief before pockets.** Briefing blocks are read on screen before phones are put away — put roles, sequence, and signals there.
+
+On the rare browser that can't pre-render audio, the app warns you when you go live — keep the screen on there.
+
+---
+
 ## Reference
 
 - **[TEXT_FORMAT.md](TEXT_FORMAT.md)** — Complete reference for the text event format (all tags, briefing blocks, config headers)
@@ -329,7 +351,7 @@ If something's missing, you'll see a warning with details about what's not cover
 ## Tips
 
 - **Practice first** — Always run through your event in practice mode before the real thing. Use the speed slider to go fast
-- **Battery matters** — For live events, disable battery saver and keep your screen on. The app shows a reminder about this
+- **Pocket it** — Once you're live, lock the phone and pocket it. Beeps and pack voices keep playing; spoken text needs the screen on. Disable battery saver so the browser isn't killed mid-event
 - **Encryption** — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device
 - **Offline works** — Once you've opened the app in your browser, it caches itself. Works without internet after that
 - **Phone-to-phone** — Show a QR code on your screen, others scan it with their camera. No internet needed for the transfer
