@@ -109,7 +109,10 @@ Shipped (working tree, uncommitted):
 timeupdate ticked 1/s for all 170s, zero drift) — the production `computeCueSchedule → bakeScheduleToWavBlob`
 pipeline survives lock. Ship gate cleared; checklist below executed same day: sw.js → `conductor-v45`,
 snapshots deleted + diagnostic page repointed to `../js/`, standalone rebuilt, full suite 229 pass / 1 skip /
-known webkit flake only, single commit pushed to `main`.
+known webkit flake only, pushed to `main` as `aa454a6` + label follow-up `1cf3458` (the checklist missed the
+hardcoded build-label text in index/start/GUIDE/diagnostic pages — add "bump visible labels" to future ship
+checklists). Post-deploy verified: Pages serves v45 sw.js + label; headless smoke on the live site (demo →
+preview → practice → live) clean.
 
 **2026-07-03: Test 16 deployed as a diagnostic-only commit `7e272ad`** (same precedent as tests 11–15; app stays
 v44, deploy gate intact). Commit contains ONLY: `docs/ios-audio-test/index.html` (Test 16 + repointed script tags +
