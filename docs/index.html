@@ -1255,6 +1255,12 @@
     </div>
 </div>
 
+<!-- Hidden media element for the on-the-fly baked audio track. At Start we
+     render the whole event's beeps + pack voice into one WAV and play it here;
+     a decoded media file in <audio>.src is the only channel that survives iOS
+     screen lock (diagnostic test 11). See cascades/2026-06-23-locked-screen-bake.md -->
+<audio id="baked-track" playsinline preload="auto" style="display:none"></audio>
+
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
@@ -1266,6 +1272,7 @@
 <script src="js/timingEngine.js"></script>
 <script src="js/audioService.js"></script>
 <script src="js/resourcePackManager.js"></script>
+<script src="js/audioBake.js"></script>
 <script src="js/draftManager.js"></script>
 <script src="js/circularTimeline.js"></script>
 
@@ -1293,6 +1300,10 @@ const state = {
     practiceStartRealMs: 0,     // Wall clock when practice started
     practiceStartEventMs: 0,    // Event time practice started from
     wakeLock: null,             // Wake Lock sentinel
+    bakedActive: false,         // True while the pre-baked <audio> track is driving cues (iOS lock)
+    bakedTrackUrl: null,        // Object URL for the current baked WAV (revoked on exit)
+    bakedStartWallMs: 0,        // Wall clock the baked schedule is anchored to (for resync seeks)
+    bakedDurationSec: 0,        // Baked WAV length in seconds
     previewReturnTo: 'input',   // Where preview "Back" returns to
     qrScanner: null,            // QrScanner instance when scanning
     sharePassword: null,        // Set when password-protect checkbox is checked
@@ -1319,6 +1330,9 @@ let timelineLive = null;        // CircularTimeline for live canvas
 
 // Wire resource pack resolver into audio service
 audio.setResourcePackResolver(packManager.getResolver());
+// Existence check (no playback) — lets baked mode know which pack clips are
+// already in the baked track so the live path doesn't double them.
+audio.setResourcePackHasCue((cueId, packId) => packManager.hasCue(packId, cueId));
 // Share the pack manager's AudioContext for tone beeps so iOS sees a single
 // unlocked context across BufferSource + OscillatorNode playback.
 audio.setAudioContextProvider(() => packManager.getAudioContext());
@@ -1412,15 +1426,29 @@ const screens = {
 
 const screenDepth = { 'input': 0, 'packs': 1, 'preview': 1, 'practice': 2, 'live': 3, 'completed': 4, 'editor-info': 1, 'editor-timeline': 2, 'editor-review': 3 };
 
+// Generation counter for async enter continuations. enterPractice/enterLive
+// await mid-flight (pack preload, bake); if the user leaves the mode during
+// that await, the stale continuation must not keep mutating state or start
+// a ghost baked track. Every transition bumps the generation; continuations
+// bail when their captured generation is no longer current.
+let enterGen = 0;
+
+// Set when a new Service Worker takes over while the user is mid-performance
+// (practice/live) — reloading then would kill the show. The reload is deferred
+// until the next transition to a shallow screen.
+let pendingSwReload = false;
+
 function transitionTo(newMode) {
+    enterGen++;
     const isBack = (screenDepth[newMode] || 0) < (screenDepth[state.mode] || 0);
 
     // 1. Stop any running loops
     stopLoops();
 
-    // 2. Release wake lock if leaving practice/live
+    // 2. Release wake lock + stop the baked track if leaving practice/live
     if (state.mode === 'practice' || state.mode === 'live') {
         releaseWakeLock();
+        stopBakedTrack();
     }
 
     // 3. Hide all screens
@@ -1435,6 +1463,13 @@ function transitionTo(newMode) {
     void content.offsetHeight;
     content.style.animation = isBack ? 'screen-slide-in-back 0.25s ease-out' : 'screen-slide-in 0.25s ease-out';
     state.mode = newMode;
+
+    // Deferred SW-update reload: safe now that we're on a shallow screen
+    // (input/preview/packs/editor-info) — nothing time-critical is running.
+    if (pendingSwReload && (screenDepth[newMode] || 0) <= 1) {
+        location.reload();
+        return;
+    }
 
     // 5. Focus management — announce new screen to assistive tech
     const heading = screens[newMode].querySelector('h1');
@@ -2010,6 +2045,7 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function enterPractice() {
+    const gen = enterGen;
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -2032,6 +2068,7 @@ async function enterPractice() {
 
     // Pre-load resource packs referenced by event actions (wait for audio buffers)
     await preloadEventPacks(evt);
+    if (gen !== enterGen) return; // user left practice during the await
 
     // Set practice start: begin 15s before first action, but never before event start
     const sorted = [...evt.timeline].sort((a, b) =>
@@ -2073,6 +2110,7 @@ async function enterPractice() {
 }
 
 function startPracticeLoop() {
+    const endMs = new Date(state.event.endTime).getTime();
     function frame() {
         if (state.mode !== 'practice') return;
         const virtualNow = getPracticeNow(
@@ -2083,6 +2121,13 @@ function startPracticeLoop() {
         );
         timelinePractice.setNowMs(virtualNow);
         timelinePractice.render();
+
+        // Auto-complete on the virtual clock, mirroring live's checkCompletion
+        if (endMs && virtualNow > endMs) {
+            transitionTo('completed');
+            return;
+        }
+
         rafId = requestAnimationFrame(frame);
     }
     rafId = requestAnimationFrame(frame);
@@ -2093,6 +2138,7 @@ function startPracticeLoop() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function enterLive() {
+    const gen = enterGen;
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -2114,6 +2160,13 @@ async function enterLive() {
     audio.reset();
     audio.setMuted(state.audioMuted);
 
+    // iOS: unlock the baked-track <audio> NOW, while we're still inside the
+    // entering user gesture (before any await), so the post-bake programmatic
+    // .play() is permitted by the autoplay policy.
+    if (isIOS() && canBake()) {
+        unlockBakedTrack();
+    }
+
     // Show banners for speech unavailable / late joiner
     const speechUnavailable = audio.getMode() === 'VISUAL_ONLY';
     const pastCount = evt.timeline.filter(a => (a.timeMs ?? new Date(a.time).getTime()) < now).length;
@@ -2130,6 +2183,7 @@ async function enterLive() {
 
     // Pre-load resource packs referenced by event actions (wait for audio buffers)
     await preloadEventPacks(evt);
+    if (gen !== enterGen) return; // user left live during the await
 
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
@@ -2151,6 +2205,7 @@ async function enterLive() {
         defaultCountdown: evt.defaultCountdown,
     };
     timelineLive.setOnCountdownTick((seconds, action) => {
+        if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
@@ -2158,6 +2213,22 @@ async function enterLive() {
             audio.playCountdownBeep(seconds);
         }
     });
+
+    // iOS: bake the whole event's beeps + pack voice into one continuous WAV and
+    // play it from the hidden <audio>. A decoded media file is the only audio
+    // channel proven to survive iOS screen lock (test 11); live Web Audio is
+    // throttled under multi-minute lock (tests 14/15). Non-iOS keeps the live
+    // path — it has no equivalent lock problem. Falls back to live if the bake
+    // fails. See cascades/2026-06-23-locked-screen-bake.md.
+    if (isIOS() && canBake()) {
+        await startBakedTrack(evt, evtDefs);
+        if (gen !== enterGen) {
+            // User left live while baking — the transition's stopBakedTrack ran
+            // before the bake finished, so stop the ghost track it just started.
+            stopBakedTrack();
+            return;
+        }
+    }
 
     // Start loops
     startLiveLoop();
@@ -2304,6 +2375,135 @@ function stopLoops() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Baked audio track (iOS lock-screen survival)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @returns {boolean} iOS Safari (incl. iPadOS reporting as MacIntel). */
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// A tiny silent WAV, built once at load, used to "unlock" the baked-track
+// element inside the entering gesture so its later programmatic .play() is
+// allowed by iOS autoplay policy.
+const SILENT_WAV_URL = (function makeSilentWavUrl() {
+    try {
+        const sr = 8000, secs = 0.1, n = Math.floor(sr * secs);
+        const buf = new ArrayBuffer(44 + n * 2);
+        const v = new DataView(buf);
+        v.setUint32(0, 0x52494646, false);  v.setUint32(4, 36 + n * 2, true);
+        v.setUint32(8, 0x57415645, false);  v.setUint32(12, 0x666d7420, false);
+        v.setUint32(16, 16, true);          v.setUint16(20, 1, true);
+        v.setUint16(22, 1, true);           v.setUint32(24, sr, true);
+        v.setUint32(28, sr * 2, true);      v.setUint16(32, 2, true);
+        v.setUint16(34, 16, true);          v.setUint32(36, 0x64617461, false);
+        v.setUint32(40, n * 2, true);       // data already zeroed = silence
+        return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    } catch (e) {
+        return null;
+    }
+})();
+
+/** Play the silent clip to unlock the element for later programmatic playback. */
+function unlockBakedTrack() {
+    const el = document.getElementById('baked-track');
+    if (!el || !SILENT_WAV_URL) return;
+    try {
+        el.src = SILENT_WAV_URL;
+        const p = el.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) { /* unlock is best-effort */ }
+}
+
+/**
+ * Render the event's bakeable cues (beeps + pack voice) to one WAV and play it
+ * from the hidden <audio>. Returns true if the baked track took over.
+ * @param {Event} evt
+ * @param {{defaultCountdownSeconds:number, defaultCountdown:boolean}} evtDefs
+ * @returns {Promise<boolean>}
+ */
+async function startBakedTrack(evt, evtDefs) {
+    const el = document.getElementById('baked-track');
+    if (!el) return false;
+    try {
+        const startWallMs = Date.now();
+        const schedule = audio.computeCueSchedule(
+            evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
+            startWallMs, evtDefs,
+            (packId, cueId) => packManager.hasCue(packId, cueId));
+        const baked = await bakeScheduleToWavBlob(
+            schedule, (key) => packManager.getBuffer(key));
+        if (!baked) return false; // OfflineAudioContext unavailable → live path
+
+        if (state.bakedTrackUrl) URL.revokeObjectURL(state.bakedTrackUrl);
+        state.bakedTrackUrl = URL.createObjectURL(baked.blob);
+        el.src = state.bakedTrackUrl;
+
+        // Wait for metadata so currentTime is settable, then skip the head that
+        // already elapsed while baking — keeps cues aligned to the wall clock.
+        await new Promise((resolve) => {
+            const onReady = () => { el.removeEventListener('loadedmetadata', onReady); resolve(); };
+            el.addEventListener('loadedmetadata', onReady);
+            el.load();
+        });
+        const elapsed = (Date.now() - startWallMs) / 1000;
+        try { el.currentTime = Math.max(0, Math.min(elapsed, baked.durationSec || 0)); } catch (e) {}
+
+        el.muted = state.audioMuted;
+        state.bakedStartWallMs = startWallMs;
+        state.bakedDurationSec = baked.durationSec || 0;
+        await el.play();
+        state.bakedActive = true;
+        audio.setBakedActive(true);
+        return true;
+    } catch (e) {
+        console.warn('Baked track failed; falling back to live audio:', e);
+        stopBakedTrack();
+        return false;
+    }
+}
+
+/** Stop and tear down the baked track; return to the live audio path. */
+function stopBakedTrack() {
+    // Clear bakedActive BEFORE pausing — the element's 'pause' listener
+    // (resyncBakedTrack) uses it to tell interruptions from intentional stops.
+    state.bakedActive = false;
+    audio.setBakedActive(false);
+    const el = document.getElementById('baked-track');
+    if (el) { try { el.pause(); } catch (e) {} }
+    if (state.bakedTrackUrl) {
+        URL.revokeObjectURL(state.bakedTrackUrl);
+        state.bakedTrackUrl = null;
+    }
+}
+
+/**
+ * Recover from an external interruption (phone call, Siri, another app taking
+ * the audio session) that paused the baked track. A naive resume would replay
+ * from the pause point and run late by the interruption's length — instead,
+ * re-seek to where the wall clock says we should be, then resume. No-op for
+ * intentional stops (bakedActive already false) and natural track end.
+ */
+function resyncBakedTrack() {
+    const el = document.getElementById('baked-track');
+    if (!el) return;
+    if (!state.bakedActive || state.mode !== 'live' || !el.paused || el.ended) return;
+    const elapsed = (Date.now() - state.bakedStartWallMs) / 1000;
+    if (elapsed >= state.bakedDurationSec) return; // event's audio is over anyway
+    try { el.currentTime = elapsed; } catch (e) {}
+    // Rejection is fine — iOS may refuse play() mid-call; retried on visibilitychange.
+    const p = el.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+}
+
+// Any pause while the baked track should be driving cues is an interruption.
+(function wireBakedTrackRecovery() {
+    const el = document.getElementById('baked-track');
+    if (el) el.addEventListener('pause', resyncBakedTrack);
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Wake Lock
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2334,6 +2534,9 @@ document.addEventListener('visibilitychange', () => {
         if (state.mode === 'practice' || state.mode === 'live') {
             requestWakeLock();
         }
+        // If an interruption paused the baked track and the mid-call play()
+        // was rejected, retry now that we're back in the foreground.
+        resyncBakedTrack();
     }
 });
 
@@ -2368,6 +2571,8 @@ function updateMuteButtons() {
 function toggleMute() {
     state.audioMuted = !state.audioMuted;
     audio.setMuted(state.audioMuted);
+    const bakedEl = document.getElementById('baked-track');
+    if (bakedEl) bakedEl.muted = state.audioMuted;
     updateMuteButtons();
 }
 
@@ -3289,7 +3494,9 @@ async function importPackFromFile(file) {
         }
     } catch (e) {
         statusEl.className = 'import-status error';
-        statusEl.textContent = e.message || 'Import failed.';
+        statusEl.textContent = (e && e.name === 'QuotaExceededError')
+            ? 'Storage full — delete a resource pack or an old draft to free space, then try again.'
+            : (e.message || 'Import failed.');
     }
 }
 
@@ -3383,11 +3590,13 @@ async function saveDraftFromEditor() {
     return saved;
 }
 
-function showDraftSavedIndicator() {
+function showDraftSavedIndicator(errorMsg) {
     const el = $('draft-saved-indicator');
     if (!el) return;
+    el.textContent = errorMsg || 'Draft saved';
+    el.style.color = errorMsg ? 'var(--accent-red)' : '';
     el.classList.add('visible');
-    setTimeout(() => el.classList.remove('visible'), 1500);
+    setTimeout(() => el.classList.remove('visible'), errorMsg ? 4000 : 1500);
 }
 
 async function deleteDraftUI(id) {
@@ -3527,7 +3736,11 @@ $('btn-ed-back1').addEventListener('click', () => {
 
 // Editor — Save Draft
 $('btn-save-draft').addEventListener('click', () => {
-    saveDraftFromEditor();
+    saveDraftFromEditor().catch((e) => {
+        showDraftSavedIndicator((e && e.name === 'QuotaExceededError')
+            ? 'Storage full — delete a resource pack or an old draft.'
+            : 'Could not save draft.');
+    });
 });
 
 // Drafts — click delegation for load/delete
@@ -3767,6 +3980,12 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     if (hadController) {
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (reloading) return;
+            // Never yank the page out from under a running performance —
+            // defer the reload until the user is back on a shallow screen.
+            if (state.mode === 'live' || state.mode === 'practice') {
+                pendingSwReload = true;
+                return;
+            }
             reloading = true;
             location.reload();
         });

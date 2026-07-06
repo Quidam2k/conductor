@@ -1254,6 +1254,12 @@
     </div>
 </div>
 
+<!-- Hidden media element for the on-the-fly baked audio track. At Start we
+     render the whole event's beeps + pack voice into one WAV and play it here;
+     a decoded media file in <audio>.src is the only channel that survives iOS
+     screen lock (diagnostic test 11). See cascades/2026-06-23-locked-screen-bake.md -->
+<audio id="baked-track" playsinline preload="auto" style="display:none"></audio>
+
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
@@ -2495,6 +2501,38 @@ function createAudioService() {
     let resourcePackResolver = null;
 
     /**
+     * Resource pack existence check — (cueId, packId) → true if a decoded buffer
+     * is present WITHOUT playing it. Used while a baked track is active so the
+     * live path can branch identically to a live play (pack present → no TTS)
+     * without emitting live Web Audio that would double the baked track.
+     * @type {function(string, string): boolean}
+     */
+    let resourcePackHasCue = null;
+
+    /**
+     * True while a pre-baked <audio> track is carrying all Web-Audio cues
+     * (countdown beeps, trigger beeps, pack voice clips) for the event. When
+     * set, the live path suppresses those — the track plays them at the media
+     * layer so they survive iOS screen lock (diagnostic test 11). Live TTS for
+     * no-pack actions still fires (it can't be baked). See
+     * cascades/2026-06-23-locked-screen-bake.md.
+     */
+    let bakedActive = false;
+
+    /**
+     * Resolve a pack cue, honoring baked mode. Live: plays via the resolver and
+     * returns whether it played. Baked: returns whether the clip exists (so
+     * callers branch the same way) but plays nothing — the baked track has it.
+     * @returns {boolean} true if the cue is present/played
+     */
+    function playPackCue(cueId, packId, speed) {
+        if (bakedActive) {
+            return resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+        }
+        return !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+    }
+
+    /**
      * AudioContext provider. Lets us share the pack manager's AudioContext so
      * tones and pack BufferSources hit the same destination — important on
      * iOS where each AudioContext needs its own user-gesture unlock.
@@ -2717,6 +2755,7 @@ function createAudioService() {
      * @param {number} secondsRemaining - 1..8 (clamped)
      */
     function playCountdownBeep(secondsRemaining) {
+        if (bakedActive) return; // beep is in the baked track
         const key = Math.max(1, Math.min(8, Math.round(secondsRemaining)));
         playBeep(COUNTDOWN_FREQ_HZ[key], 150);
     }
@@ -2726,6 +2765,7 @@ function createAudioService() {
      * can tell "downbeat" from "preparation."
      */
     function playTriggerBeep() {
+        if (bakedActive) return; // beep is in the baked track
         playBeep(TRIGGER_FREQ_HZ, 300);
     }
 
@@ -2796,6 +2836,102 @@ function createAudioService() {
             if (result.length === 0) result = null;
         }
         return result;
+    }
+
+    // Beep envelope lengths — kept here so the live path (playCountdownBeep /
+    // playTriggerBeep) and the offline bake share one definition.
+    const COUNTDOWN_BEEP_MS = 150;
+    const TRIGGER_BEEP_MS = 300;
+
+    /**
+     * Compute the full static audio schedule for an entire timeline — every
+     * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
+     * trigger beeps, and pack voice cues. This is the single source of truth
+     * for "what sound fires at what time," shared by the live announcement path
+     * (via resolveCountdownBeeps + the pack-cue rules below) and the offline
+     * bake (audioBake.js renders this list through an OfflineAudioContext).
+     *
+     * Deliberately omits anything that can't be baked — live TTS ("Get ready to
+     * X", the spoken trigger word) doesn't route through Web Audio and is left
+     * to the live path (screen-on only; silent under lock per diagnostic test
+     * 12). For no-pack actions that means the bake carries beeps only.
+     *
+     * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
+     * @param {number} defaultNoticeSeconds - event-level notice default
+     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null)}>|null} actionMeta
+     *     per-action grouping/gap metadata from computeActionMeta(); null → treat
+     *     every action as an isolated group leader with an infinite prev-gap.
+     * @param {number} startMs - epoch ms of the moment the baked track starts
+     *     (offsets are measured from here; cues already in the past are dropped)
+     * @param {Object} [eventDefaults={}] - { defaultCountdown, defaultCountdownSeconds }
+     * @param {function(string, string): boolean} [hasCue=null] - (packId, cueId) →
+     *     true if a decoded buffer exists. Gates pack cues exactly as the live
+     *     resolver does: present → bake the clip; absent → live speaks TTS, so
+     *     the bake emits nothing (the trigger beep still covers the downbeat).
+     * @returns {Array<{offsetSec:number, kind:('beep'|'packCue'), freqHz?:number, durMs?:number, bufferKey?:string, packId?:string, cueId?:string}>}
+     *     sorted by offsetSec, future-only.
+     */
+    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null) {
+        const events = [];
+        const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
+
+        for (const action of sorted) {
+            if (action.audioAnnounce === false) continue;
+            const triggerMs = action.timeMs;
+            if (typeof triggerMs !== 'number') continue;
+
+            const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
+            const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
+            const groupStartFlag = meta ? meta.groupStartFlag : true;
+            const groupTexts = meta ? meta.groupTexts : null;
+            const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+
+            // Countdown beeps — same resolution (and gap capping) as the live path.
+            const beeps = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
+            if (beeps) {
+                for (const s of beeps) {
+                    const key = Math.max(1, Math.min(8, Math.round(s)));
+                    events.push({
+                        offsetSec: (triggerMs - s * 1000 - startMs) / 1000,
+                        kind: 'beep', freqHz: COUNTDOWN_FREQ_HZ[key], durMs: COUNTDOWN_BEEP_MS,
+                    });
+                }
+            }
+
+            // Trigger beep — fires unconditionally at the downbeat (mirrors playTriggerBeep).
+            events.push({
+                offsetSec: (triggerMs - startMs) / 1000,
+                kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
+            });
+
+            // Trigger pack cue — plays alongside the trigger beep, exactly as the
+            // live trigger path does when the resolver has the cue.
+            if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
+                events.push({
+                    offsetSec: (triggerMs - startMs) / 1000,
+                    kind: 'packCue', packId: action.pack, cueId: action.cue,
+                    bufferKey: action.pack + ':' + action.cue,
+                });
+            }
+
+            // Notice pack cue (notice-<cue>) at the prep moment. Only single-action
+            // group leaders use a pack notice; grouped preps enumerate via TTS
+            // (not bakeable) and no-pack notices speak via TTS (not bakeable).
+            const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
+            const grouped = groupTexts && groupTexts.length >= 2;
+            if (wantNotice && !grouped && action.cue && action.pack &&
+                hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
+                events.push({
+                    offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
+                    kind: 'packCue', packId: action.pack, cueId: 'notice-' + action.cue,
+                    bufferKey: action.pack + ':notice-' + action.cue,
+                });
+            }
+        }
+
+        return events
+            .filter(e => e.offsetSec >= 0)
+            .sort((a, b) => a.offsetSec - b.offsetSec);
     }
 
     /**
@@ -2923,7 +3059,7 @@ function createAudioService() {
                     }
                 }
                 playTriggerBeep();
-                if (action.cue && action.pack && resourcePackResolver && resourcePackResolver(action.cue, action.pack, speedMultiplier)) {
+                if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + action.cue + '"';
                 }
                 const triggerText = action.action || 'Go';
@@ -2954,8 +3090,8 @@ function createAudioService() {
         // Notice context: try notice-prefixed cue first
         if (context === 'notice' && action.cue && action.pack) {
             const noticeCueId = 'notice-' + action.cue;
-            if (resourcePackResolver && resourcePackResolver(noticeCueId, action.pack, speed)) {
-                return null; // Resource pack played the notice cue
+            if (playPackCue(noticeCueId, action.pack, speed)) {
+                return null; // Resource pack played the notice cue (or it's in the baked track)
             }
             // No notice cue in pack — fall through to TTS fallback
             // (DON'T try the main action cue for notices — that would be confusing)
@@ -2976,8 +3112,8 @@ function createAudioService() {
 
         // Single cue
         if (action.cue && action.pack) {
-            if (resourcePackResolver && resourcePackResolver(action.cue, action.pack, speed)) {
-                return null; // Resource pack played it
+            if (playPackCue(action.cue, action.pack, speed)) {
+                return null; // Resource pack played it (or it's in the baked track)
             }
         }
 
@@ -3014,6 +3150,7 @@ function createAudioService() {
     function reset() {
         announced.clear();
         lastAdjustedSecondsMap.clear();
+        bakedActive = false;
         if (window.speechSynthesis) speechSynthesis.cancel();
     }
 
@@ -3044,6 +3181,26 @@ function createAudioService() {
     }
 
     /**
+     * Set the resource pack existence check — (cueId, packId) → true if a
+     * decoded buffer is present, without playing it. Used by baked mode.
+     * @param {function(string, string): boolean} fn
+     */
+    function setResourcePackHasCue(fn) {
+        resourcePackHasCue = fn;
+    }
+
+    /**
+     * Enter/leave baked mode. When true, the live path stops emitting Web Audio
+     * cues (countdown beeps, trigger beeps, pack clips) — a pre-baked <audio>
+     * track is playing them instead so they survive iOS screen lock. Live TTS
+     * for no-pack actions is unaffected (it can't be baked).
+     * @param {boolean} v
+     */
+    function setBakedActive(v) {
+        bakedActive = !!v;
+    }
+
+    /**
      * Wire up an AudioContext provider — typically the pack manager's, so
      * tones and pack BufferSources share a single iOS-unlocked context.
      * @param {function(): AudioContext|null} provider
@@ -3070,6 +3227,7 @@ function createAudioService() {
         announceAction,
         resolveAudioCue,
         resolveCountdownBeeps,
+        computeCueSchedule,
         haptic,
         playCountdownBeep,
         playTriggerBeep,
@@ -3077,6 +3235,8 @@ function createAudioService() {
         shutdown,
         setMuted,
         setResourcePackResolver,
+        setResourcePackHasCue,
+        setBakedActive,
         setAudioContextProvider,
         setOnBeep,
 
@@ -3669,6 +3829,25 @@ function createResourcePackManager() {
         };
     }
 
+    /**
+     * True if a decoded buffer for (packId, cueId) is loaded — checks existence
+     * without playing. Used by baked mode and the offline bake's cue schedule.
+     * @returns {boolean}
+     */
+    function hasCue(packId, cueId) {
+        return bufferCache.has(packId + ':' + cueId);
+    }
+
+    /**
+     * Return the decoded AudioBuffer for a "packId:cueId" key, or undefined.
+     * Consumed by audioBake's offline render (getBuffer callback).
+     * @param {string} key - "packId:cueId"
+     * @returns {AudioBuffer|undefined}
+     */
+    function getBuffer(key) {
+        return bufferCache.get(key);
+    }
+
     // ─── Public API ──────────────────────────────────────────────
 
     /**
@@ -3856,6 +4035,8 @@ function createResourcePackManager() {
         hasPack,
         ensurePackLoaded,
         getResolver,
+        hasCue,
+        getBuffer,
         getAudioContext,
         getPackInfo,
         getCueList,
@@ -3864,6 +4045,181 @@ function createResourcePackManager() {
         // For testing/debugging
         getBufferCache: () => bufferCache,
         getLoadedPacks: () => loadedPacks,
+    };
+}
+
+</script>
+<script>/* js/audioBake.js */
+/**
+ * Conductor PWA - Offline Audio Bake
+ *
+ * Renders a static cue schedule (from audioService.computeCueSchedule) into one
+ * continuous WAV via OfflineAudioContext, so the whole event's audio can play
+ * from a single <audio> element.
+ *
+ * WHY: a decoded media file playing from <audio>.src is the ONLY audio channel
+ * proven to survive iOS screen lock (Jessica's diagnostic test 11). Live Web
+ * Audio does NOT — neither reactively fired (test 14, drift cliff at ~2 min)
+ * nor pre-scheduled on the audio clock (test 15, uneven at ~2 min even with the
+ * context clock provably accurate). So we bake everything that routes through
+ * Web Audio (beeps + pack voice clips) into a file and let the media layer play
+ * it. System TTS can't be baked (it doesn't route through Web Audio); it stays
+ * on the live path, screen-on only. See cascades/2026-06-23-locked-screen-bake.md.
+ *
+ * Pure and app-agnostic: depends only on OfflineAudioContext + a getBuffer
+ * callback for pack clips. No DOM, no AudioContext, no pack manager.
+ *
+ * Requires: nothing (consumes the plain-data schedule from audioService).
+ */
+
+/**
+ * Default render params. Mono 24 kHz: beeps top out at ~880 Hz and pack voice is
+ * speech, both well under the 12 kHz Nyquist; pack buffers recorded at 44.1/48 k
+ * resample automatically through the BufferSource. Halves the transient WAV vs
+ * 44.1 k (~48 KB/s; a 5-minute event ≈ 14 MB) held only until the Blob URL exists.
+ */
+const BAKE_DEFAULTS = Object.freeze({
+    sampleRate: 24000,
+    tailSec: 0.5,   // trailing silence so the last cue isn't clipped
+    gain: 0.4,      // beep peak — matches playBeep's 0.4 envelope target
+});
+
+/**
+ * Soft ceiling (seconds): past this, warn the estimated transient size and render
+ * anyway. Never truncate or crash — a long event must still bake completely. At
+ * 24 kHz mono 16-bit, 30 min ≈ 86 MB. Real events are minutes, not hours.
+ */
+const BAKE_WARN_OVER_SEC = 30 * 60;
+
+/** @returns {(typeof OfflineAudioContext)|null} */
+function _offlineCtor() {
+    return window.OfflineAudioContext || window.webkitOfflineAudioContext || null;
+}
+
+/** True when this browser can run the offline render. */
+function canBake() {
+    return !!_offlineCtor();
+}
+
+/**
+ * Render a cue schedule to a mono AudioBuffer via OfflineAudioContext.
+ *
+ * @param {Array<{offsetSec:number, kind:string, freqHz?:number, durMs?:number, bufferKey?:string, playbackRate?:number}>} schedule
+ * @param {function(string): (AudioBuffer|null|undefined)} [getBuffer=null] - resolves a
+ *     packCue bufferKey to a decoded AudioBuffer; missing buffers are skipped.
+ * @param {Object} [opts] - { sampleRate, tailSec, gain }
+ * @returns {Promise<AudioBuffer>}
+ */
+async function renderScheduleToAudioBuffer(schedule, getBuffer = null, opts = {}) {
+    const o = Object.assign({}, BAKE_DEFAULTS, opts);
+    const Ctor = _offlineCtor();
+    if (!Ctor) throw new Error('OfflineAudioContext unavailable');
+
+    // Total length = end of the last-finishing cue + tail.
+    let endSec = 0;
+    for (const ev of schedule) {
+        let evEnd = Math.max(0, ev.offsetSec);
+        if (ev.kind === 'beep') {
+            evEnd += (ev.durMs || 150) / 1000;
+        } else if (ev.kind === 'packCue' && getBuffer) {
+            const b = getBuffer(ev.bufferKey);
+            if (b) evEnd += b.duration / (ev.playbackRate || 1);
+        }
+        if (evEnd > endSec) endSec = evEnd;
+    }
+    const totalSec = Math.max(o.tailSec, endSec + o.tailSec);
+    if (totalSec > BAKE_WARN_OVER_SEC) {
+        const estMB = (totalSec * o.sampleRate * 2) / (1024 * 1024);
+        console.warn(
+            `audioBake: long event (${Math.round(totalSec)}s) → ~${estMB.toFixed(1)} MB ` +
+            `transient WAV at ${o.sampleRate} Hz mono; rendering in full (not truncated).`);
+    }
+    const frames = Math.max(1, Math.ceil(totalSec * o.sampleRate));
+    const ctx = new Ctor(1, frames, o.sampleRate);
+
+    for (const ev of schedule) {
+        const when = Math.max(0, ev.offsetSec);
+        if (ev.kind === 'beep') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = ev.freqHz;
+            const durS = (ev.durMs || 150) / 1000;
+            // Same quick-attack / exponential-decay envelope as playBeep.
+            gain.gain.setValueAtTime(0.0001, when);
+            gain.gain.exponentialRampToValueAtTime(o.gain, when + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, when + durS);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(when);
+            osc.stop(when + durS + 0.02);
+        } else if (ev.kind === 'packCue' && getBuffer) {
+            const buf = getBuffer(ev.bufferKey);
+            if (!buf) continue; // missing clip → silent skip (live path handled it, or it's absent)
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            if (ev.playbackRate) src.playbackRate.value = ev.playbackRate;
+            src.connect(ctx.destination);
+            src.start(when);
+        }
+    }
+
+    return await ctx.startRendering();
+}
+
+/**
+ * Encode a mono AudioBuffer's first channel to a 16-bit PCM WAV.
+ * (Generalizes the test-11 makeBeepTrackWavBytes encoder to arbitrary samples.)
+ *
+ * @param {AudioBuffer} audioBuffer
+ * @returns {ArrayBuffer} RIFF/WAVE bytes
+ */
+function encodeAudioBufferToWav(audioBuffer) {
+    const sr = audioBuffer.sampleRate;
+    const ch = audioBuffer.getChannelData(0);
+    const numSamples = ch.length;
+    const dataSize = numSamples * 2; // 16-bit mono
+    const buf = new ArrayBuffer(44 + dataSize);
+    const v = new DataView(buf);
+    v.setUint32(0, 0x52494646, false);   // "RIFF"
+    v.setUint32(4, 36 + dataSize, true);
+    v.setUint32(8, 0x57415645, false);   // "WAVE"
+    v.setUint32(12, 0x666d7420, false);  // "fmt "
+    v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true);            // PCM
+    v.setUint16(22, 1, true);            // mono
+    v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true);       // byte rate (sr * blockAlign)
+    v.setUint16(32, 2, true);            // block align
+    v.setUint16(34, 16, true);           // bits per sample
+    v.setUint32(36, 0x64617461, false);  // "data"
+    v.setUint32(40, dataSize, true);
+    for (let i = 0; i < numSamples; i++) {
+        let s = ch[i];
+        if (s > 1) s = 1; else if (s < -1) s = -1;
+        v.setInt16(44 + i * 2, Math.round(s * 32767), true);
+    }
+    return buf;
+}
+
+/**
+ * Full bake: schedule → rendered WAV Blob (+ metadata). Returns null when the
+ * browser can't run an offline render, so callers fall back to live scheduling.
+ *
+ * @param {Array} schedule - from audioService.computeCueSchedule
+ * @param {function(string): (AudioBuffer|null|undefined)} [getBuffer=null]
+ * @param {Object} [opts] - { sampleRate, tailSec, gain }
+ * @returns {Promise<{blob:Blob, wavBytes:ArrayBuffer, durationSec:number, sampleRate:number, eventCount:number}|null>}
+ */
+async function bakeScheduleToWavBlob(schedule, getBuffer = null, opts = {}) {
+    if (!canBake()) return null;
+    const rendered = await renderScheduleToAudioBuffer(schedule, getBuffer, opts);
+    const wavBytes = encodeAudioBufferToWav(rendered);
+    return {
+        blob: new Blob([wavBytes], { type: 'audio/wav' }),
+        wavBytes,
+        durationSec: rendered.duration,
+        sampleRate: rendered.sampleRate,
+        eventCount: schedule.length,
     };
 }
 
@@ -4581,6 +4937,10 @@ const state = {
     practiceStartRealMs: 0,     // Wall clock when practice started
     practiceStartEventMs: 0,    // Event time practice started from
     wakeLock: null,             // Wake Lock sentinel
+    bakedActive: false,         // True while the pre-baked <audio> track is driving cues (iOS lock)
+    bakedTrackUrl: null,        // Object URL for the current baked WAV (revoked on exit)
+    bakedStartWallMs: 0,        // Wall clock the baked schedule is anchored to (for resync seeks)
+    bakedDurationSec: 0,        // Baked WAV length in seconds
     previewReturnTo: 'input',   // Where preview "Back" returns to
     qrScanner: null,            // QrScanner instance when scanning
     sharePassword: null,        // Set when password-protect checkbox is checked
@@ -4607,6 +4967,9 @@ let timelineLive = null;        // CircularTimeline for live canvas
 
 // Wire resource pack resolver into audio service
 audio.setResourcePackResolver(packManager.getResolver());
+// Existence check (no playback) — lets baked mode know which pack clips are
+// already in the baked track so the live path doesn't double them.
+audio.setResourcePackHasCue((cueId, packId) => packManager.hasCue(packId, cueId));
 // Share the pack manager's AudioContext for tone beeps so iOS sees a single
 // unlocked context across BufferSource + OscillatorNode playback.
 audio.setAudioContextProvider(() => packManager.getAudioContext());
@@ -4700,15 +5063,29 @@ const screens = {
 
 const screenDepth = { 'input': 0, 'packs': 1, 'preview': 1, 'practice': 2, 'live': 3, 'completed': 4, 'editor-info': 1, 'editor-timeline': 2, 'editor-review': 3 };
 
+// Generation counter for async enter continuations. enterPractice/enterLive
+// await mid-flight (pack preload, bake); if the user leaves the mode during
+// that await, the stale continuation must not keep mutating state or start
+// a ghost baked track. Every transition bumps the generation; continuations
+// bail when their captured generation is no longer current.
+let enterGen = 0;
+
+// Set when a new Service Worker takes over while the user is mid-performance
+// (practice/live) — reloading then would kill the show. The reload is deferred
+// until the next transition to a shallow screen.
+let pendingSwReload = false;
+
 function transitionTo(newMode) {
+    enterGen++;
     const isBack = (screenDepth[newMode] || 0) < (screenDepth[state.mode] || 0);
 
     // 1. Stop any running loops
     stopLoops();
 
-    // 2. Release wake lock if leaving practice/live
+    // 2. Release wake lock + stop the baked track if leaving practice/live
     if (state.mode === 'practice' || state.mode === 'live') {
         releaseWakeLock();
+        stopBakedTrack();
     }
 
     // 3. Hide all screens
@@ -4723,6 +5100,13 @@ function transitionTo(newMode) {
     void content.offsetHeight;
     content.style.animation = isBack ? 'screen-slide-in-back 0.25s ease-out' : 'screen-slide-in 0.25s ease-out';
     state.mode = newMode;
+
+    // Deferred SW-update reload: safe now that we're on a shallow screen
+    // (input/preview/packs/editor-info) — nothing time-critical is running.
+    if (pendingSwReload && (screenDepth[newMode] || 0) <= 1) {
+        location.reload();
+        return;
+    }
 
     // 5. Focus management — announce new screen to assistive tech
     const heading = screens[newMode].querySelector('h1');
@@ -5298,6 +5682,7 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function enterPractice() {
+    const gen = enterGen;
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -5320,6 +5705,7 @@ async function enterPractice() {
 
     // Pre-load resource packs referenced by event actions (wait for audio buffers)
     await preloadEventPacks(evt);
+    if (gen !== enterGen) return; // user left practice during the await
 
     // Set practice start: begin 15s before first action, but never before event start
     const sorted = [...evt.timeline].sort((a, b) =>
@@ -5361,6 +5747,7 @@ async function enterPractice() {
 }
 
 function startPracticeLoop() {
+    const endMs = new Date(state.event.endTime).getTime();
     function frame() {
         if (state.mode !== 'practice') return;
         const virtualNow = getPracticeNow(
@@ -5371,6 +5758,13 @@ function startPracticeLoop() {
         );
         timelinePractice.setNowMs(virtualNow);
         timelinePractice.render();
+
+        // Auto-complete on the virtual clock, mirroring live's checkCompletion
+        if (endMs && virtualNow > endMs) {
+            transitionTo('completed');
+            return;
+        }
+
         rafId = requestAnimationFrame(frame);
     }
     rafId = requestAnimationFrame(frame);
@@ -5381,6 +5775,7 @@ function startPracticeLoop() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function enterLive() {
+    const gen = enterGen;
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
 
@@ -5402,6 +5797,13 @@ async function enterLive() {
     audio.reset();
     audio.setMuted(state.audioMuted);
 
+    // iOS: unlock the baked-track <audio> NOW, while we're still inside the
+    // entering user gesture (before any await), so the post-bake programmatic
+    // .play() is permitted by the autoplay policy.
+    if (isIOS() && canBake()) {
+        unlockBakedTrack();
+    }
+
     // Show banners for speech unavailable / late joiner
     const speechUnavailable = audio.getMode() === 'VISUAL_ONLY';
     const pastCount = evt.timeline.filter(a => (a.timeMs ?? new Date(a.time).getTime()) < now).length;
@@ -5418,6 +5820,7 @@ async function enterLive() {
 
     // Pre-load resource packs referenced by event actions (wait for audio buffers)
     await preloadEventPacks(evt);
+    if (gen !== enterGen) return; // user left live during the await
 
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
@@ -5439,6 +5842,7 @@ async function enterLive() {
         defaultCountdown: evt.defaultCountdown,
     };
     timelineLive.setOnCountdownTick((seconds, action) => {
+        if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
@@ -5446,6 +5850,22 @@ async function enterLive() {
             audio.playCountdownBeep(seconds);
         }
     });
+
+    // iOS: bake the whole event's beeps + pack voice into one continuous WAV and
+    // play it from the hidden <audio>. A decoded media file is the only audio
+    // channel proven to survive iOS screen lock (test 11); live Web Audio is
+    // throttled under multi-minute lock (tests 14/15). Non-iOS keeps the live
+    // path — it has no equivalent lock problem. Falls back to live if the bake
+    // fails. See cascades/2026-06-23-locked-screen-bake.md.
+    if (isIOS() && canBake()) {
+        await startBakedTrack(evt, evtDefs);
+        if (gen !== enterGen) {
+            // User left live while baking — the transition's stopBakedTrack ran
+            // before the bake finished, so stop the ghost track it just started.
+            stopBakedTrack();
+            return;
+        }
+    }
 
     // Start loops
     startLiveLoop();
@@ -5592,6 +6012,135 @@ function stopLoops() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Baked audio track (iOS lock-screen survival)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @returns {boolean} iOS Safari (incl. iPadOS reporting as MacIntel). */
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// A tiny silent WAV, built once at load, used to "unlock" the baked-track
+// element inside the entering gesture so its later programmatic .play() is
+// allowed by iOS autoplay policy.
+const SILENT_WAV_URL = (function makeSilentWavUrl() {
+    try {
+        const sr = 8000, secs = 0.1, n = Math.floor(sr * secs);
+        const buf = new ArrayBuffer(44 + n * 2);
+        const v = new DataView(buf);
+        v.setUint32(0, 0x52494646, false);  v.setUint32(4, 36 + n * 2, true);
+        v.setUint32(8, 0x57415645, false);  v.setUint32(12, 0x666d7420, false);
+        v.setUint32(16, 16, true);          v.setUint16(20, 1, true);
+        v.setUint16(22, 1, true);           v.setUint32(24, sr, true);
+        v.setUint32(28, sr * 2, true);      v.setUint16(32, 2, true);
+        v.setUint16(34, 16, true);          v.setUint32(36, 0x64617461, false);
+        v.setUint32(40, n * 2, true);       // data already zeroed = silence
+        return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    } catch (e) {
+        return null;
+    }
+})();
+
+/** Play the silent clip to unlock the element for later programmatic playback. */
+function unlockBakedTrack() {
+    const el = document.getElementById('baked-track');
+    if (!el || !SILENT_WAV_URL) return;
+    try {
+        el.src = SILENT_WAV_URL;
+        const p = el.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) { /* unlock is best-effort */ }
+}
+
+/**
+ * Render the event's bakeable cues (beeps + pack voice) to one WAV and play it
+ * from the hidden <audio>. Returns true if the baked track took over.
+ * @param {Event} evt
+ * @param {{defaultCountdownSeconds:number, defaultCountdown:boolean}} evtDefs
+ * @returns {Promise<boolean>}
+ */
+async function startBakedTrack(evt, evtDefs) {
+    const el = document.getElementById('baked-track');
+    if (!el) return false;
+    try {
+        const startWallMs = Date.now();
+        const schedule = audio.computeCueSchedule(
+            evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
+            startWallMs, evtDefs,
+            (packId, cueId) => packManager.hasCue(packId, cueId));
+        const baked = await bakeScheduleToWavBlob(
+            schedule, (key) => packManager.getBuffer(key));
+        if (!baked) return false; // OfflineAudioContext unavailable → live path
+
+        if (state.bakedTrackUrl) URL.revokeObjectURL(state.bakedTrackUrl);
+        state.bakedTrackUrl = URL.createObjectURL(baked.blob);
+        el.src = state.bakedTrackUrl;
+
+        // Wait for metadata so currentTime is settable, then skip the head that
+        // already elapsed while baking — keeps cues aligned to the wall clock.
+        await new Promise((resolve) => {
+            const onReady = () => { el.removeEventListener('loadedmetadata', onReady); resolve(); };
+            el.addEventListener('loadedmetadata', onReady);
+            el.load();
+        });
+        const elapsed = (Date.now() - startWallMs) / 1000;
+        try { el.currentTime = Math.max(0, Math.min(elapsed, baked.durationSec || 0)); } catch (e) {}
+
+        el.muted = state.audioMuted;
+        state.bakedStartWallMs = startWallMs;
+        state.bakedDurationSec = baked.durationSec || 0;
+        await el.play();
+        state.bakedActive = true;
+        audio.setBakedActive(true);
+        return true;
+    } catch (e) {
+        console.warn('Baked track failed; falling back to live audio:', e);
+        stopBakedTrack();
+        return false;
+    }
+}
+
+/** Stop and tear down the baked track; return to the live audio path. */
+function stopBakedTrack() {
+    // Clear bakedActive BEFORE pausing — the element's 'pause' listener
+    // (resyncBakedTrack) uses it to tell interruptions from intentional stops.
+    state.bakedActive = false;
+    audio.setBakedActive(false);
+    const el = document.getElementById('baked-track');
+    if (el) { try { el.pause(); } catch (e) {} }
+    if (state.bakedTrackUrl) {
+        URL.revokeObjectURL(state.bakedTrackUrl);
+        state.bakedTrackUrl = null;
+    }
+}
+
+/**
+ * Recover from an external interruption (phone call, Siri, another app taking
+ * the audio session) that paused the baked track. A naive resume would replay
+ * from the pause point and run late by the interruption's length — instead,
+ * re-seek to where the wall clock says we should be, then resume. No-op for
+ * intentional stops (bakedActive already false) and natural track end.
+ */
+function resyncBakedTrack() {
+    const el = document.getElementById('baked-track');
+    if (!el) return;
+    if (!state.bakedActive || state.mode !== 'live' || !el.paused || el.ended) return;
+    const elapsed = (Date.now() - state.bakedStartWallMs) / 1000;
+    if (elapsed >= state.bakedDurationSec) return; // event's audio is over anyway
+    try { el.currentTime = elapsed; } catch (e) {}
+    // Rejection is fine — iOS may refuse play() mid-call; retried on visibilitychange.
+    const p = el.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+}
+
+// Any pause while the baked track should be driving cues is an interruption.
+(function wireBakedTrackRecovery() {
+    const el = document.getElementById('baked-track');
+    if (el) el.addEventListener('pause', resyncBakedTrack);
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Wake Lock
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -5622,6 +6171,9 @@ document.addEventListener('visibilitychange', () => {
         if (state.mode === 'practice' || state.mode === 'live') {
             requestWakeLock();
         }
+        // If an interruption paused the baked track and the mid-call play()
+        // was rejected, retry now that we're back in the foreground.
+        resyncBakedTrack();
     }
 });
 
@@ -5656,6 +6208,8 @@ function updateMuteButtons() {
 function toggleMute() {
     state.audioMuted = !state.audioMuted;
     audio.setMuted(state.audioMuted);
+    const bakedEl = document.getElementById('baked-track');
+    if (bakedEl) bakedEl.muted = state.audioMuted;
     updateMuteButtons();
 }
 
@@ -6254,7 +6808,7 @@ function renderEditorReview() {
             $('share-feedback').style.opacity = '1';
             return;
         }
-    } catch (e) { console.warn('Event encoding failed for URL length check:', e); }
+    } catch { /* encoding can fail on edge cases */ }
 
     $('share-feedback').textContent = '';
 }
@@ -6577,7 +7131,9 @@ async function importPackFromFile(file) {
         }
     } catch (e) {
         statusEl.className = 'import-status error';
-        statusEl.textContent = e.message || 'Import failed.';
+        statusEl.textContent = (e && e.name === 'QuotaExceededError')
+            ? 'Storage full — delete a resource pack or an old draft to free space, then try again.'
+            : (e.message || 'Import failed.');
     }
 }
 
@@ -6671,11 +7227,13 @@ async function saveDraftFromEditor() {
     return saved;
 }
 
-function showDraftSavedIndicator() {
+function showDraftSavedIndicator(errorMsg) {
     const el = $('draft-saved-indicator');
     if (!el) return;
+    el.textContent = errorMsg || 'Draft saved';
+    el.style.color = errorMsg ? 'var(--accent-red)' : '';
     el.classList.add('visible');
-    setTimeout(() => el.classList.remove('visible'), 1500);
+    setTimeout(() => el.classList.remove('visible'), errorMsg ? 4000 : 1500);
 }
 
 async function deleteDraftUI(id) {
@@ -6815,7 +7373,11 @@ $('btn-ed-back1').addEventListener('click', () => {
 
 // Editor — Save Draft
 $('btn-save-draft').addEventListener('click', () => {
-    saveDraftFromEditor();
+    saveDraftFromEditor().catch((e) => {
+        showDraftSavedIndicator((e && e.name === 'QuotaExceededError')
+            ? 'Storage full — delete a resource pack or an old draft.'
+            : 'Could not save draft.');
+    });
 });
 
 // Drafts — click delegation for load/delete

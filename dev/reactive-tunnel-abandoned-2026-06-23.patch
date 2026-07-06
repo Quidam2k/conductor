@@ -1,0 +1,365 @@
+diff --git a/docs/index.html b/docs/index.html
+index e0b1b08..f705f27 100644
+--- a/docs/index.html
++++ b/docs/index.html
+@@ -1322,6 +1322,9 @@ audio.setResourcePackResolver(packManager.getResolver());
+ // Share the pack manager's AudioContext for tone beeps so iOS sees a single
+ // unlocked context across BufferSource + OscillatorNode playback.
+ audio.setAudioContextProvider(() => packManager.getAudioContext());
++// Route beeps through the pack manager's iOS lock-screen tunnel (when active)
++// so countdown tones survive screen lock alongside pack audio.
++audio.setOutputNodeProvider(() => packManager.getOutputNode());
+ // Beep-fired indicator: flash the dot beside the active screen's mute button
+ // whenever a beep is actually scheduled. Lets a tester tell "beep scheduled
+ // but inaudible" (flash, no sound) apart from "beep never fired" (no flash).
+@@ -1421,6 +1424,7 @@ function transitionTo(newMode) {
+     // 2. Release wake lock if leaving practice/live
+     if (state.mode === 'practice' || state.mode === 'live') {
+         releaseWakeLock();
++        packManager.deactivateAudioTunnel();
+     }
+ 
+     // 3. Hide all screens
+@@ -2070,6 +2074,9 @@ async function enterPractice() {
+     startPracticeLoop();
+     startAudioLoop('practice');
+     requestWakeLock();
++    // iOS: open the lock-screen audio tunnel from this user gesture so beeps
++    // and pack audio survive the screen locking mid-event.
++    packManager.activateAudioTunnel();
+ }
+ 
+ function startPracticeLoop() {
+@@ -2163,6 +2170,9 @@ async function enterLive() {
+     startLiveLoop();
+     startAudioLoop('live');
+     requestWakeLock();
++    // iOS: open the lock-screen audio tunnel from this user gesture so beeps
++    // and pack audio survive the screen locking mid-event.
++    packManager.activateAudioTunnel();
+ }
+ 
+ function startLiveLoop() {
+@@ -2333,6 +2343,9 @@ document.addEventListener('visibilitychange', () => {
+         // Re-request wake lock (released on page hide)
+         if (state.mode === 'practice' || state.mode === 'live') {
+             requestWakeLock();
++            // The OS may have paused the tunnel sink while backgrounded —
++            // re-attach it so returning to the app reconnects the audio path.
++            packManager.resumeAudioTunnel();
+         }
+     }
+ });
+diff --git a/docs/js/audioService.js b/docs/js/audioService.js
+index 7220a64..b688505 100644
+--- a/docs/js/audioService.js
++++ b/docs/js/audioService.js
+@@ -69,6 +69,14 @@ function createAudioService() {
+     /** @type {AudioContext|null} Fallback context if no provider is wired (tests, standalone). */
+     let fallbackAudioCtx = null;
+ 
++    /**
++     * Output-node provider. Lets beeps route through the pack manager's iOS
++     * lock-screen tunnel (a MediaStream destination) instead of ctx.destination
++     * while a live/practice event is running. Returns null/destination otherwise.
++     * @type {function(): AudioNode|null}
++     */
++    let outputNodeProvider = null;
++
+     /**
+      * Ring buffer of recent playBeep attempts (cap 50). Each entry captures the
+      * AudioContext state BEFORE the resume kick and whether TTS was speaking —
+@@ -265,7 +273,8 @@ function createAudioService() {
+             gain.gain.exponentialRampToValueAtTime(0.4, now + 0.01);
+             gain.gain.exponentialRampToValueAtTime(0.0001, now + durS);
+ 
+-            osc.connect(gain).connect(ctx.destination);
++            const outNode = (outputNodeProvider && outputNodeProvider()) || ctx.destination;
++            osc.connect(gain).connect(outNode);
+             osc.start(now);
+             osc.stop(now + durS + 0.02);
+         } catch (e) {
+@@ -362,6 +371,102 @@ function createAudioService() {
+         return result;
+     }
+ 
++    // Beep envelope lengths — kept here so the live path (playCountdownBeep /
++    // playTriggerBeep) and the offline bake share one definition.
++    const COUNTDOWN_BEEP_MS = 150;
++    const TRIGGER_BEEP_MS = 300;
++
++    /**
++     * Compute the full static audio schedule for an entire timeline — every
++     * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
++     * trigger beeps, and pack voice cues. This is the single source of truth
++     * for "what sound fires at what time," shared by the live announcement path
++     * (via resolveCountdownBeeps + the pack-cue rules below) and the offline
++     * bake (audioBake.js renders this list through an OfflineAudioContext).
++     *
++     * Deliberately omits anything that can't be baked — live TTS ("Get ready to
++     * X", the spoken trigger word) doesn't route through Web Audio and is left
++     * to the live path (screen-on only; silent under lock per diagnostic test
++     * 12). For no-pack actions that means the bake carries beeps only.
++     *
++     * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
++     * @param {number} defaultNoticeSeconds - event-level notice default
++     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null)}>|null} actionMeta
++     *     per-action grouping/gap metadata from computeActionMeta(); null → treat
++     *     every action as an isolated group leader with an infinite prev-gap.
++     * @param {number} startMs - epoch ms of the moment the baked track starts
++     *     (offsets are measured from here; cues already in the past are dropped)
++     * @param {Object} [eventDefaults={}] - { defaultCountdown, defaultCountdownSeconds }
++     * @param {function(string, string): boolean} [hasCue=null] - (packId, cueId) →
++     *     true if a decoded buffer exists. Gates pack cues exactly as the live
++     *     resolver does: present → bake the clip; absent → live speaks TTS, so
++     *     the bake emits nothing (the trigger beep still covers the downbeat).
++     * @returns {Array<{offsetSec:number, kind:('beep'|'packCue'), freqHz?:number, durMs?:number, bufferKey?:string, packId?:string, cueId?:string}>}
++     *     sorted by offsetSec, future-only.
++     */
++    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null) {
++        const events = [];
++        const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
++
++        for (const action of sorted) {
++            if (action.audioAnnounce === false) continue;
++            const triggerMs = action.timeMs;
++            if (typeof triggerMs !== 'number') continue;
++
++            const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
++            const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
++            const groupStartFlag = meta ? meta.groupStartFlag : true;
++            const groupTexts = meta ? meta.groupTexts : null;
++            const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
++
++            // Countdown beeps — same resolution (and gap capping) as the live path.
++            const beeps = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
++            if (beeps) {
++                for (const s of beeps) {
++                    const key = Math.max(1, Math.min(8, Math.round(s)));
++                    events.push({
++                        offsetSec: (triggerMs - s * 1000 - startMs) / 1000,
++                        kind: 'beep', freqHz: COUNTDOWN_FREQ_HZ[key], durMs: COUNTDOWN_BEEP_MS,
++                    });
++                }
++            }
++
++            // Trigger beep — fires unconditionally at the downbeat (mirrors playTriggerBeep).
++            events.push({
++                offsetSec: (triggerMs - startMs) / 1000,
++                kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
++            });
++
++            // Trigger pack cue — plays alongside the trigger beep, exactly as the
++            // live trigger path does when the resolver has the cue.
++            if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
++                events.push({
++                    offsetSec: (triggerMs - startMs) / 1000,
++                    kind: 'packCue', packId: action.pack, cueId: action.cue,
++                    bufferKey: action.pack + ':' + action.cue,
++                });
++            }
++
++            // Notice pack cue (notice-<cue>) at the prep moment. Only single-action
++            // group leaders use a pack notice; grouped preps enumerate via TTS
++            // (not bakeable) and no-pack notices speak via TTS (not bakeable).
++            const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
++            const grouped = groupTexts && groupTexts.length >= 2;
++            if (wantNotice && !grouped && action.cue && action.pack &&
++                hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
++                events.push({
++                    offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
++                    kind: 'packCue', packId: action.pack, cueId: 'notice-' + action.cue,
++                    bufferKey: action.pack + ':notice-' + action.cue,
++                });
++            }
++        }
++
++        return events
++            .filter(e => e.offsetSec >= 0)
++            .sort((a, b) => a.offsetSec - b.offsetSec);
++    }
++
+     /**
+      * Process an action for announcement. Call this each tick.
+      * Handles the full announcement chain: notice → countdown → trigger.
+@@ -616,6 +721,16 @@ function createAudioService() {
+         audioContextProvider = provider;
+     }
+ 
++    /**
++     * Wire up an output-node provider — typically the pack manager's
++     * getOutputNode, so beeps route through the iOS lock-screen tunnel during
++     * a live/practice event and fall back to ctx.destination otherwise.
++     * @param {function(): AudioNode|null} provider
++     */
++    function setOutputNodeProvider(provider) {
++        outputNodeProvider = provider;
++    }
++
+     /**
+      * Register a callback invoked with each playBeep attempt entry
+      * ({at, freqHz, ctxState, ctxTime, speaking, outcome}). Drives the
+@@ -634,6 +749,7 @@ function createAudioService() {
+         announceAction,
+         resolveAudioCue,
+         resolveCountdownBeeps,
++        computeCueSchedule,
+         haptic,
+         playCountdownBeep,
+         playTriggerBeep,
+@@ -642,6 +758,7 @@ function createAudioService() {
+         setMuted,
+         setResourcePackResolver,
+         setAudioContextProvider,
++        setOutputNodeProvider,
+         setOnBeep,
+ 
+         // Getters
+diff --git a/docs/js/resourcePackManager.js b/docs/js/resourcePackManager.js
+index f785a79..e1b0145 100644
+--- a/docs/js/resourcePackManager.js
++++ b/docs/js/resourcePackManager.js
+@@ -263,6 +263,22 @@ function createResourcePackManager() {
+     /** @type {AudioContext|null} */
+     let audioCtx = null;
+ 
++    /**
++     * iOS lock-screen audio tunnel state. iOS suspends Web Audio output to
++     * ctx.destination when the screen locks. Routing the context through a
++     * MediaStreamAudioDestinationNode → hidden <audio>.srcObject ("WebRTC
++     * tunnel") plus a near-silent keepalive oscillator keeps the engine
++     * running under lock (Jessica's diagnostic test 13, iOS 18.7).
++     * @type {MediaStreamAudioDestinationNode|null}
++     */
++    let tunnelDest = null;
++    /** @type {HTMLAudioElement|null} Hidden sink that plays the tunnel stream. */
++    let tunnelSink = null;
++    /** @type {OscillatorNode|null} Near-silent keepalive so the stream never goes idle. */
++    let tunnelKeepalive = null;
++    /** @type {boolean} True while the tunnel is the active output path. */
++    let tunnelActive = false;
++
+     /** @type {Map<string, AudioBuffer>} key = "packId:cueId" */
+     const bufferCache = new Map();
+ 
+@@ -289,6 +305,100 @@ function createResourcePackManager() {
+         return audioCtx;
+     }
+ 
++    // ─── iOS lock-screen audio tunnel ────────────────────────────
++
++    /** @returns {boolean} */
++    function isIOS() {
++        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
++            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
++    }
++
++    /**
++     * The node sources should connect to instead of ctx.destination.
++     * Returns the tunnel's MediaStream destination when active, else the
++     * normal ctx.destination. Any tunnel failure leaves this at destination,
++     * so output is never worse than today.
++     * @returns {AudioNode|null}
++     */
++    function getOutputNode() {
++        const ctx = getAudioContext();
++        if (!ctx) return null;
++        if (tunnelActive && tunnelDest) return tunnelDest;
++        return ctx.destination;
++    }
++
++    /**
++     * Build (once) and start the iOS lock-screen audio tunnel. iOS-gated and
++     * idempotent. Must be called from a user gesture (enter practice/live) so
++     * the hidden <audio>.play() is allowed. Any failure is swallowed and leaves
++     * output on ctx.destination — never worse than today.
++     */
++    function activateAudioTunnel() {
++        if (!isIOS()) return;
++        const ctx = getAudioContext();
++        if (!ctx) return;
++        try {
++            if (typeof ctx.createMediaStreamDestination !== 'function') return;
++            if (!tunnelDest) {
++                tunnelDest = ctx.createMediaStreamDestination();
++
++                tunnelSink = document.createElement('audio');
++                tunnelSink.setAttribute('playsinline', '');
++                tunnelSink.playsInline = true;
++                tunnelSink.volume = 1;
++                tunnelSink.srcObject = tunnelDest.stream;
++                tunnelSink.style.display = 'none';
++                document.body.appendChild(tunnelSink);
++            }
++            // Near-silent keepalive so the MediaStream never goes idle and
++            // gets torn down by the OS under lock. OscillatorNodes are
++            // single-use, so (re)create it each activation.
++            if (!tunnelKeepalive) {
++                tunnelKeepalive = ctx.createOscillator();
++                const keepGain = ctx.createGain();
++                tunnelKeepalive.frequency.value = 1;
++                keepGain.gain.value = 0.0001;
++                tunnelKeepalive.connect(keepGain).connect(tunnelDest);
++                tunnelKeepalive.start();
++            }
++            tunnelActive = true;
++            const p = tunnelSink.play();
++            if (p && typeof p.catch === 'function') p.catch(() => {});
++        } catch (e) {
++            console.warn('activateAudioTunnel failed; falling back to destination:', e);
++            tunnelActive = false;
++        }
++    }
++
++    /**
++     * Stop routing through the tunnel. Pauses the sink and stops the keepalive;
++     * the nodes are kept for reuse on the next activation.
++     */
++    function deactivateAudioTunnel() {
++        tunnelActive = false;
++        try {
++            if (tunnelSink) tunnelSink.pause();
++            if (tunnelKeepalive) {
++                tunnelKeepalive.stop();
++                tunnelKeepalive = null;
++            }
++        } catch (e) {
++            console.warn('deactivateAudioTunnel failed:', e);
++        }
++    }
++
++    /**
++     * Re-attach the tunnel sink after returning from the background (the
++     * <audio> element may have been paused by the OS). No-op when inactive.
++     */
++    function resumeAudioTunnel() {
++        if (!tunnelActive || !tunnelSink) return;
++        try {
++            const p = tunnelSink.play();
++            if (p && typeof p.catch === 'function') p.catch(() => {});
++        } catch (e) { /* ignore */ }
++    }
++
+     // ─── Import pipeline ─────────────────────────────────────────
+ 
+     /**
+@@ -549,7 +659,7 @@ function createResourcePackManager() {
+             const source = ctx.createBufferSource();
+             source.buffer = buffer;
+             source.playbackRate.value = playbackRate;
+-            source.connect(ctx.destination);
++            source.connect(getOutputNode() || ctx.destination);
+             source.start(0);
+             return true;
+         } catch (e) {
+@@ -763,6 +873,10 @@ function createResourcePackManager() {
+         ensurePackLoaded,
+         getResolver,
+         getAudioContext,
++        getOutputNode,
++        activateAudioTunnel,
++        deactivateAudioTunnel,
++        resumeAudioTunnel,
+         getPackInfo,
+         getCueList,
+         getPackEvents,

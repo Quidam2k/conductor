@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Audio Bake Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .test.skip { background: #2a2a1a; color: #cc9; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        .skip .icon::before { content: "SKIP "; color: #cc9; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Audio Bake Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="js/models.js"></script>
+    <script src="js/audioService.js"></script>
+    <script src="js/audioBake.js"></script>
+    <script>
+    (async function() {
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0, skipped = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+        function skip(name, why) {
+            skipped++;
+            log(`<div class="test skip"><span class="icon"></span>${esc(name)} — ${esc(why)}</div>`);
+        }
+
+        const COUNT = { 1:880, 2:784, 3:698, 4:622, 5:587, 6:523, 7:494, 8:440 };
+        const TRIG = 1320;
+        const BASE = new Date('2026-06-15T12:00:00.000Z').getTime();
+        function actionAt(offsetSec, text, extras = {}) {
+            return createTimelineAction({
+                action: text,
+                time: new Date(BASE + offsetSec * 1000).toISOString(),
+                ...extras,
+            });
+        }
+        const svc = createAudioService();
+
+        function rms(data, startSec, endSec, sr) {
+            const a = Math.max(0, Math.floor(startSec * sr));
+            const b = Math.min(data.length, Math.floor(endSec * sr));
+            let sum = 0, n = 0;
+            for (let i = a; i < b; i++) { sum += data[i] * data[i]; n++; }
+            return n ? Math.sqrt(sum / n) : 0;
+        }
+        function offsets(sched) { return sched.map(e => +e.offsetSec.toFixed(3)); }
+
+        try {
+            // ═══════════════════════════════════════════════════════════
+            // 1. computeCueSchedule — beeps only (no pack)
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>1. computeCueSchedule — beeps (no pack)</h2>');
+
+            const a = actionAt(20, 'Freeze', { noticeSeconds: 10, countdownSeconds: [3, 2, 1] });
+            let s = svc.computeCueSchedule([a], 10, null, BASE);
+            assert('4 events (3 countdown + 1 trigger)', s.length === 4, JSON.stringify(offsets(s)));
+            assert('all are beeps', s.every(e => e.kind === 'beep'));
+            assert('offsets sorted [17,18,19,20]',
+                JSON.stringify(offsets(s)) === JSON.stringify([17, 18, 19, 20]), JSON.stringify(offsets(s)));
+            assert('countdown 3 @17s → 698 Hz, 150ms',
+                s[0].offsetSec === 17 && s[0].freqHz === COUNT[3] && s[0].durMs === 150);
+            assert('countdown 1 @19s → 880 Hz', s[2].offsetSec === 19 && s[2].freqHz === COUNT[1]);
+            assert('trigger @20s → 1320 Hz, 300ms',
+                s[3].offsetSec === 20 && s[3].freqHz === TRIG && s[3].durMs === 300);
+            assert('no-pack schedule has zero packCue events', s.every(e => e.kind !== 'packCue'));
+
+            // ═══════════════════════════════════════════════════════════
+            // 2. computeCueSchedule — future-only filtering
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>2. Future-only (mid-event start drops past cues)</h2>');
+
+            // Start 19s into the event — only the s=1 beep (@19s) and trigger (@20s) remain.
+            s = svc.computeCueSchedule([a], 10, null, BASE + 19000);
+            assert('mid-start: 2 events survive', s.length === 2, JSON.stringify(offsets(s)));
+            assert('offsets are [0,1]', JSON.stringify(offsets(s)) === JSON.stringify([0, 1]), JSON.stringify(offsets(s)));
+            assert('no negative offsets', s.every(e => e.offsetSec >= 0));
+
+            // ═══════════════════════════════════════════════════════════
+            // 3. computeCueSchedule — pack cues (trigger + notice)
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>3. Pack cues — trigger + notice-&lt;cue&gt;</h2>');
+
+            const b = actionAt(30, 'Freeze', { cue: 'freeze', pack: 'demo', noticeSeconds: 10 });
+            const hasAll = (pack, cue) => pack === 'demo' && (cue === 'freeze' || cue === 'notice-freeze');
+            s = svc.computeCueSchedule([b], 10, null, BASE, {}, hasAll);
+            const packCues = s.filter(e => e.kind === 'packCue');
+            assert('2 pack cues (trigger + notice)', packCues.length === 2, JSON.stringify(s));
+            const notice = s.find(e => e.bufferKey === 'demo:notice-freeze');
+            const trig = s.find(e => e.bufferKey === 'demo:freeze');
+            assert('notice cue at offset 20s (30 − noticeSeconds 10)', notice && notice.offsetSec === 20);
+            assert('trigger cue at offset 30s', trig && trig.offsetSec === 30);
+            assert('trigger beep still present at 30s alongside pack cue',
+                s.some(e => e.kind === 'beep' && e.offsetSec === 30 && e.freqHz === TRIG));
+            // auto countdown beeps from noticeSeconds=10 → [3,2,1] at 27/28/29
+            assert('auto countdown beeps present (27,28,29)',
+                [27, 28, 29].every(t => s.some(e => e.kind === 'beep' && e.offsetSec === t)), JSON.stringify(offsets(s)));
+
+            // hasCue=null → pack conditions fail → beeps only
+            s = svc.computeCueSchedule([b], 10, null, BASE);
+            assert('no resolver → zero pack cues (beeps only)', s.every(e => e.kind !== 'packCue'), JSON.stringify(s));
+            assert('no resolver → 4 beeps (3 countdown + trigger)', s.length === 4, JSON.stringify(offsets(s)));
+
+            // ═══════════════════════════════════════════════════════════
+            // 4. computeCueSchedule — grouped prep skips pack notice (TTS-only)
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>4. Grouped prep → no pack notice (TTS enumerates)</h2>');
+
+            const meta = new Map();
+            meta.set(b.id, { gapFromPrev: Infinity, groupStartFlag: true, groupTexts: ['freeze', 'wave'] });
+            s = svc.computeCueSchedule([b], 10, meta, BASE, {}, hasAll);
+            assert('grouped: no notice pack cue baked',
+                !s.some(e => e.bufferKey === 'demo:notice-freeze'), JSON.stringify(s));
+            assert('grouped: trigger pack cue still baked',
+                s.some(e => e.bufferKey === 'demo:freeze'));
+
+            // ═══════════════════════════════════════════════════════════
+            // 5. computeCueSchedule — audioAnnounce=false skipped
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>5. audioAnnounce=false contributes nothing</h2>');
+
+            const silent = actionAt(20, 'Hidden', { audioAnnounce: false, countdownSeconds: [3, 2, 1] });
+            s = svc.computeCueSchedule([silent], 10, null, BASE);
+            assert('audioAnnounce=false → 0 events', s.length === 0, JSON.stringify(s));
+
+            // ═══════════════════════════════════════════════════════════
+            // 6. encodeAudioBufferToWav — header + sample round-trip
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>6. encodeAudioBufferToWav</h2>');
+
+            if (typeof AudioBuffer !== 'function') {
+                skip('WAV encoder tests', 'AudioBuffer constructor unavailable in this browser');
+            } else {
+                const ab = new AudioBuffer({ length: 100, sampleRate: 44100, numberOfChannels: 1 });
+                const data = ab.getChannelData(0);
+                data[10] = 1.0; data[20] = -1.0; // known peaks
+                const wav = encodeAudioBufferToWav(ab);
+                const v = new DataView(wav);
+                const tag = (o) => String.fromCharCode(v.getUint8(o), v.getUint8(o+1), v.getUint8(o+2), v.getUint8(o+3));
+                assert('byte length = 44 + 100*2', wav.byteLength === 244, String(wav.byteLength));
+                assert('RIFF/WAVE/fmt /data tags', tag(0) === 'RIFF' && tag(8) === 'WAVE' && tag(12) === 'fmt ' && tag(36) === 'data');
+                assert('PCM mono 44100 16-bit',
+                    v.getUint16(20, true) === 1 && v.getUint16(22, true) === 1 &&
+                    v.getUint32(24, true) === 44100 && v.getUint16(34, true) === 16);
+                assert('data chunk size = 200', v.getUint32(40, true) === 200);
+                assert('sample[10] round-trips to +32767', v.getInt16(44 + 10 * 2, true) === 32767, String(v.getInt16(44 + 20, true)));
+                assert('sample[20] round-trips to −32767', v.getInt16(44 + 20 * 2, true) === -32767);
+                assert('sample[0] is silence (0)', v.getInt16(44, true) === 0);
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // 7. renderScheduleToAudioBuffer — beeps land at the right times
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>7. Offline render — beep timing</h2>');
+
+            if (!canBake()) {
+                skip('Offline render tests', 'OfflineAudioContext unavailable in this browser');
+            } else {
+                const sr = 44100;
+                const sched = [
+                    { offsetSec: 0.0, kind: 'beep', freqHz: 880, durMs: 150 },
+                    { offsetSec: 0.5, kind: 'beep', freqHz: 1320, durMs: 300 },
+                ];
+                const rendered = await renderScheduleToAudioBuffer(sched, null, { sampleRate: sr });
+                const ch = rendered.getChannelData(0);
+                assert('render is mono', rendered.numberOfChannels === 1);
+                assert('duration ≈ last end + tail (1.3s ±0.05)',
+                    Math.abs(rendered.duration - 1.3) < 0.05, String(rendered.duration));
+                assert('energy during beep 1 (0–0.14s)', rms(ch, 0.0, 0.14, sr) > 0.01, String(rms(ch, 0.0, 0.14, sr)));
+                assert('silence between beeps (0.25–0.45s)', rms(ch, 0.25, 0.45, sr) < 0.005, String(rms(ch, 0.25, 0.45, sr)));
+                assert('energy during beep 2 (0.5–0.64s)', rms(ch, 0.5, 0.64, sr) > 0.01, String(rms(ch, 0.5, 0.64, sr)));
+
+                // ── pack cue mixed in via getBuffer ──
+                log('<h2>8. Offline render — pack cue mixed in</h2>');
+                const clipLen = Math.floor(0.2 * sr);
+                const clip = new AudioBuffer({ length: clipLen, sampleRate: sr, numberOfChannels: 1 });
+                clip.getChannelData(0).fill(0.5); // 0.2s of DC-0.5 so it's unambiguous energy
+                const sched2 = [{ offsetSec: 0.3, kind: 'packCue', bufferKey: 'k' }];
+                const getBuf = (key) => (key === 'k' ? clip : null);
+                const r2 = await renderScheduleToAudioBuffer(sched2, getBuf, { sampleRate: sr });
+                const ch2 = r2.getChannelData(0);
+                assert('silence before pack cue (0–0.28s)', rms(ch2, 0.0, 0.28, sr) < 0.005, String(rms(ch2, 0.0, 0.28, sr)));
+                assert('energy during pack cue (0.31–0.49s)', rms(ch2, 0.31, 0.49, sr) > 0.4, String(rms(ch2, 0.31, 0.49, sr)));
+
+                // ── full bake → Blob ──
+                log('<h2>9. bakeScheduleToWavBlob</h2>');
+                const baked = await bakeScheduleToWavBlob(sched, null, { sampleRate: sr });
+                assert('bake returns an object', baked && typeof baked === 'object');
+                assert('blob is audio/wav', baked.blob instanceof Blob && baked.blob.type === 'audio/wav');
+                assert('eventCount matches schedule', baked.eventCount === 2, String(baked.eventCount));
+                assert('durationSec > 0', baked.durationSec > 0, String(baked.durationSec));
+                const hdr = new DataView(baked.wavBytes);
+                assert('wavBytes starts with RIFF',
+                    String.fromCharCode(hdr.getUint8(0), hdr.getUint8(1), hdr.getUint8(2), hdr.getUint8(3)) === 'RIFF');
+                assert('blob byte size = wavBytes byte size', baked.blob.size === baked.wavBytes.byteLength);
+
+                // ── default sample rate is 24 kHz (render guard) ──
+                log('<h2>10. Default render params — 24 kHz mono</h2>');
+                const dflt = await bakeScheduleToWavBlob(sched, null); // no opts → BAKE_DEFAULTS
+                assert('default bake sampleRate = 24000', dflt.sampleRate === 24000, String(dflt.sampleRate));
+                assert('default WAV header sampleRate = 24000',
+                    new DataView(dflt.wavBytes).getUint32(24, true) === 24000,
+                    String(new DataView(dflt.wavBytes).getUint32(24, true)));
+
+                // ── late joiner: baking a future-filtered schedule yields a shorter track ──
+                log('<h2>11. Late joiner — bake only future cues</h2>');
+                // `a` = Freeze @20s, notice 10, countdown [3,2,1]. Full schedule spans 17–20s;
+                // starting 19s in leaves only the s=1 beep (@0) and trigger (@1).
+                const full = svc.computeCueSchedule([a], 10, null, BASE);
+                const late = svc.computeCueSchedule([a], 10, null, BASE + 19000);
+                assert('late schedule is future-only (offsets [0,1])',
+                    JSON.stringify(offsets(late)) === JSON.stringify([0, 1]), JSON.stringify(offsets(late)));
+                assert('late schedule is beeps-only (no packCue)', late.every(e => e.kind !== 'packCue'));
+                const bakedFull = await bakeScheduleToWavBlob(full, null, { sampleRate: sr });
+                const bakedLate = await bakeScheduleToWavBlob(late, null, { sampleRate: sr });
+                assert('late bake duration ≈ 1s + tail (< 2s)', bakedLate.durationSec < 2, String(bakedLate.durationSec));
+                assert('late bake much shorter than full bake (≥15s less)',
+                    bakedLate.durationSec < bakedFull.durationSec - 15,
+                    `late=${bakedLate.durationSec} full=${bakedFull.durationSec}`);
+                assert('late bake eventCount = 2 (s1 beep + trigger)', bakedLate.eventCount === 2, String(bakedLate.eventCount));
+
+                // ── stereo pack clip downmixes into the mono bake ──
+                log('<h2>12. Stereo pack cue — auto-downmix to mono</h2>');
+                const stLen = Math.floor(0.2 * sr);
+                const stereo = new AudioBuffer({ length: stLen, sampleRate: sr, numberOfChannels: 2 });
+                stereo.getChannelData(0).fill(0.5);
+                stereo.getChannelData(1).fill(0.25); // unequal channels — downmix averages them
+                const stSched = [{ offsetSec: 0.3, kind: 'packCue', bufferKey: 'st' }];
+                const rSt = await renderScheduleToAudioBuffer(stSched, (k) => (k === 'st' ? stereo : null), { sampleRate: sr });
+                const chSt = rSt.getChannelData(0);
+                assert('stereo clip renders mono', rSt.numberOfChannels === 1);
+                assert('stereo bake duration ≈ clip end + tail (1.0s ±0.05)',
+                    Math.abs(rSt.duration - 1.0) < 0.05, String(rSt.duration));
+                assert('silence before stereo cue (0–0.28s)', rms(chSt, 0.0, 0.28, sr) < 0.005, String(rms(chSt, 0.0, 0.28, sr)));
+                assert('energy during stereo cue (0.31–0.49s)', rms(chSt, 0.31, 0.49, sr) > 0.2, String(rms(chSt, 0.31, 0.49, sr)));
+                const bakedSt = await bakeScheduleToWavBlob(stSched, (k) => (k === 'st' ? stereo : null), { sampleRate: sr });
+                assert('stereo bake WAV is mono', new DataView(bakedSt.wavBytes).getUint16(22, true) === 1);
+            }
+        } catch (err) {
+            assert('Unexpected exception during tests', false, (err && err.stack) || String(err));
+        } finally {
+            const summaryEl = document.getElementById('summary');
+            const total = passed + failed;
+            if (failed === 0) {
+                summaryEl.className = 'summary pass';
+                summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED` +
+                    (skipped ? ` (${skipped} skipped)` : '');
+            } else {
+                summaryEl.className = 'summary fail';
+                summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+            }
+        }
+    })();
+    </script>
+</body>
+</html>

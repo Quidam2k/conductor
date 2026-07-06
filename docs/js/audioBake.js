@@ -1,5 +1,3 @@
-// Snapshot of docs/js/audioBake.js for the v44-era diagnostic page (Test 16). Kept local because the v44 service worker serves js/ modules cache-first from a stale precache.
-// Refresh or repoint back to ../js/audioBake.js at the v45 CACHE_NAME bump.
 /**
  * Conductor PWA - Offline Audio Bake
  *

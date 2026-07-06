@@ -59,6 +59,38 @@ function createAudioService() {
     let resourcePackResolver = null;
 
     /**
+     * Resource pack existence check — (cueId, packId) → true if a decoded buffer
+     * is present WITHOUT playing it. Used while a baked track is active so the
+     * live path can branch identically to a live play (pack present → no TTS)
+     * without emitting live Web Audio that would double the baked track.
+     * @type {function(string, string): boolean}
+     */
+    let resourcePackHasCue = null;
+
+    /**
+     * True while a pre-baked <audio> track is carrying all Web-Audio cues
+     * (countdown beeps, trigger beeps, pack voice clips) for the event. When
+     * set, the live path suppresses those — the track plays them at the media
+     * layer so they survive iOS screen lock (diagnostic test 11). Live TTS for
+     * no-pack actions still fires (it can't be baked). See
+     * cascades/2026-06-23-locked-screen-bake.md.
+     */
+    let bakedActive = false;
+
+    /**
+     * Resolve a pack cue, honoring baked mode. Live: plays via the resolver and
+     * returns whether it played. Baked: returns whether the clip exists (so
+     * callers branch the same way) but plays nothing — the baked track has it.
+     * @returns {boolean} true if the cue is present/played
+     */
+    function playPackCue(cueId, packId, speed) {
+        if (bakedActive) {
+            return resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+        }
+        return !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+    }
+
+    /**
      * AudioContext provider. Lets us share the pack manager's AudioContext so
      * tones and pack BufferSources hit the same destination — important on
      * iOS where each AudioContext needs its own user-gesture unlock.
@@ -281,6 +313,7 @@ function createAudioService() {
      * @param {number} secondsRemaining - 1..8 (clamped)
      */
     function playCountdownBeep(secondsRemaining) {
+        if (bakedActive) return; // beep is in the baked track
         const key = Math.max(1, Math.min(8, Math.round(secondsRemaining)));
         playBeep(COUNTDOWN_FREQ_HZ[key], 150);
     }
@@ -290,6 +323,7 @@ function createAudioService() {
      * can tell "downbeat" from "preparation."
      */
     function playTriggerBeep() {
+        if (bakedActive) return; // beep is in the baked track
         playBeep(TRIGGER_FREQ_HZ, 300);
     }
 
@@ -360,6 +394,102 @@ function createAudioService() {
             if (result.length === 0) result = null;
         }
         return result;
+    }
+
+    // Beep envelope lengths — kept here so the live path (playCountdownBeep /
+    // playTriggerBeep) and the offline bake share one definition.
+    const COUNTDOWN_BEEP_MS = 150;
+    const TRIGGER_BEEP_MS = 300;
+
+    /**
+     * Compute the full static audio schedule for an entire timeline — every
+     * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
+     * trigger beeps, and pack voice cues. This is the single source of truth
+     * for "what sound fires at what time," shared by the live announcement path
+     * (via resolveCountdownBeeps + the pack-cue rules below) and the offline
+     * bake (audioBake.js renders this list through an OfflineAudioContext).
+     *
+     * Deliberately omits anything that can't be baked — live TTS ("Get ready to
+     * X", the spoken trigger word) doesn't route through Web Audio and is left
+     * to the live path (screen-on only; silent under lock per diagnostic test
+     * 12). For no-pack actions that means the bake carries beeps only.
+     *
+     * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
+     * @param {number} defaultNoticeSeconds - event-level notice default
+     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null)}>|null} actionMeta
+     *     per-action grouping/gap metadata from computeActionMeta(); null → treat
+     *     every action as an isolated group leader with an infinite prev-gap.
+     * @param {number} startMs - epoch ms of the moment the baked track starts
+     *     (offsets are measured from here; cues already in the past are dropped)
+     * @param {Object} [eventDefaults={}] - { defaultCountdown, defaultCountdownSeconds }
+     * @param {function(string, string): boolean} [hasCue=null] - (packId, cueId) →
+     *     true if a decoded buffer exists. Gates pack cues exactly as the live
+     *     resolver does: present → bake the clip; absent → live speaks TTS, so
+     *     the bake emits nothing (the trigger beep still covers the downbeat).
+     * @returns {Array<{offsetSec:number, kind:('beep'|'packCue'), freqHz?:number, durMs?:number, bufferKey?:string, packId?:string, cueId?:string}>}
+     *     sorted by offsetSec, future-only.
+     */
+    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null) {
+        const events = [];
+        const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
+
+        for (const action of sorted) {
+            if (action.audioAnnounce === false) continue;
+            const triggerMs = action.timeMs;
+            if (typeof triggerMs !== 'number') continue;
+
+            const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
+            const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
+            const groupStartFlag = meta ? meta.groupStartFlag : true;
+            const groupTexts = meta ? meta.groupTexts : null;
+            const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+
+            // Countdown beeps — same resolution (and gap capping) as the live path.
+            const beeps = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
+            if (beeps) {
+                for (const s of beeps) {
+                    const key = Math.max(1, Math.min(8, Math.round(s)));
+                    events.push({
+                        offsetSec: (triggerMs - s * 1000 - startMs) / 1000,
+                        kind: 'beep', freqHz: COUNTDOWN_FREQ_HZ[key], durMs: COUNTDOWN_BEEP_MS,
+                    });
+                }
+            }
+
+            // Trigger beep — fires unconditionally at the downbeat (mirrors playTriggerBeep).
+            events.push({
+                offsetSec: (triggerMs - startMs) / 1000,
+                kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
+            });
+
+            // Trigger pack cue — plays alongside the trigger beep, exactly as the
+            // live trigger path does when the resolver has the cue.
+            if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
+                events.push({
+                    offsetSec: (triggerMs - startMs) / 1000,
+                    kind: 'packCue', packId: action.pack, cueId: action.cue,
+                    bufferKey: action.pack + ':' + action.cue,
+                });
+            }
+
+            // Notice pack cue (notice-<cue>) at the prep moment. Only single-action
+            // group leaders use a pack notice; grouped preps enumerate via TTS
+            // (not bakeable) and no-pack notices speak via TTS (not bakeable).
+            const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
+            const grouped = groupTexts && groupTexts.length >= 2;
+            if (wantNotice && !grouped && action.cue && action.pack &&
+                hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
+                events.push({
+                    offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
+                    kind: 'packCue', packId: action.pack, cueId: 'notice-' + action.cue,
+                    bufferKey: action.pack + ':notice-' + action.cue,
+                });
+            }
+        }
+
+        return events
+            .filter(e => e.offsetSec >= 0)
+            .sort((a, b) => a.offsetSec - b.offsetSec);
     }
 
     /**
@@ -487,7 +617,7 @@ function createAudioService() {
                     }
                 }
                 playTriggerBeep();
-                if (action.cue && action.pack && resourcePackResolver && resourcePackResolver(action.cue, action.pack, speedMultiplier)) {
+                if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + action.cue + '"';
                 }
                 const triggerText = action.action || 'Go';
@@ -518,8 +648,8 @@ function createAudioService() {
         // Notice context: try notice-prefixed cue first
         if (context === 'notice' && action.cue && action.pack) {
             const noticeCueId = 'notice-' + action.cue;
-            if (resourcePackResolver && resourcePackResolver(noticeCueId, action.pack, speed)) {
-                return null; // Resource pack played the notice cue
+            if (playPackCue(noticeCueId, action.pack, speed)) {
+                return null; // Resource pack played the notice cue (or it's in the baked track)
             }
             // No notice cue in pack — fall through to TTS fallback
             // (DON'T try the main action cue for notices — that would be confusing)
@@ -540,8 +670,8 @@ function createAudioService() {
 
         // Single cue
         if (action.cue && action.pack) {
-            if (resourcePackResolver && resourcePackResolver(action.cue, action.pack, speed)) {
-                return null; // Resource pack played it
+            if (playPackCue(action.cue, action.pack, speed)) {
+                return null; // Resource pack played it (or it's in the baked track)
             }
         }
 
@@ -578,6 +708,7 @@ function createAudioService() {
     function reset() {
         announced.clear();
         lastAdjustedSecondsMap.clear();
+        bakedActive = false;
         if (window.speechSynthesis) speechSynthesis.cancel();
     }
 
@@ -608,6 +739,26 @@ function createAudioService() {
     }
 
     /**
+     * Set the resource pack existence check — (cueId, packId) → true if a
+     * decoded buffer is present, without playing it. Used by baked mode.
+     * @param {function(string, string): boolean} fn
+     */
+    function setResourcePackHasCue(fn) {
+        resourcePackHasCue = fn;
+    }
+
+    /**
+     * Enter/leave baked mode. When true, the live path stops emitting Web Audio
+     * cues (countdown beeps, trigger beeps, pack clips) — a pre-baked <audio>
+     * track is playing them instead so they survive iOS screen lock. Live TTS
+     * for no-pack actions is unaffected (it can't be baked).
+     * @param {boolean} v
+     */
+    function setBakedActive(v) {
+        bakedActive = !!v;
+    }
+
+    /**
      * Wire up an AudioContext provider — typically the pack manager's, so
      * tones and pack BufferSources share a single iOS-unlocked context.
      * @param {function(): AudioContext|null} provider
@@ -634,6 +785,7 @@ function createAudioService() {
         announceAction,
         resolveAudioCue,
         resolveCountdownBeeps,
+        computeCueSchedule,
         haptic,
         playCountdownBeep,
         playTriggerBeep,
@@ -641,6 +793,8 @@ function createAudioService() {
         shutdown,
         setMuted,
         setResourcePackResolver,
+        setResourcePackHasCue,
+        setBakedActive,
         setAudioContextProvider,
         setOnBeep,
 

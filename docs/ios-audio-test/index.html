@@ -302,12 +302,10 @@
 
 <script src="../js/resourcePackManager.js"></script>
 <!-- Test 16 drives the real app pipeline: models (createTimelineAction),
-     audioService (computeCueSchedule), audioBake (bakeScheduleToWavBlob).
-     audioService/audioBake are local snapshots — the v44 SW serves ../js/
-     cache-first from a stale precache; repoint to ../js/ at v45. -->
+     audioService (computeCueSchedule), audioBake (bakeScheduleToWavBlob). -->
 <script src="../js/models.js"></script>
-<script src="./audioService.js"></script>
-<script src="./audioBake.js"></script>
+<script src="../js/audioService.js"></script>
+<script src="../js/audioBake.js"></script>
 <script>
 const logEl = document.getElementById('log');
 const envEl = document.getElementById('env');
