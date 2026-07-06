@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android Audio Diagnostics — v46 (locked-screen check)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #aaa; font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 16px; margin: 18px 0 10px; color: #4fc3f7; }
+  .card {
+    background: #0d0d1a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .env-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  .env-row:last-child { border-bottom: none; }
+  .env-key { color: #888; }
+  .env-val { color: #ddd; font-family: monospace; text-align: right; word-break: break-all; }
+  .test {
+    background: #0d0d1a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .test-title { font-weight: bold; margin-bottom: 4px; }
+  .test-desc { color: #aaa; font-size: 12px; margin-bottom: 8px; }
+  .test-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .test-row + .test-row { margin-top: 8px; }
+  .row-label { font-size: 12px; color: #aaa; min-width: 100%; }
+  button {
+    font-size: 14px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #4fc3f7;
+    color: #0d0d1a;
+  }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .result {
+    flex: 1;
+    min-width: 120px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .result.pending { color: #888; }
+  .result.ok { color: #81c784; }
+  .result.fail { color: #ef5350; }
+  .result.info { color: #ffb74d; }
+  .audibility-ctrl {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 4px;
+    flex-wrap: wrap;
+  }
+  .audibility-ctrl button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .btn-heard { background: #81c784; color: #0d0d1a; }
+  .btn-silent { background: #ef5350; color: #0d0d1a; }
+  .btn-small { padding: 6px 10px; font-size: 12px; background: #2a2a3e; color: #eee; }
+  .log-box {
+    background: #0d0d1a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: monospace;
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .log-line { padding: 2px 0; }
+  .log-line.err { color: #ef5350; }
+  .log-line.ok { color: #81c784; }
+  .log-line.warn { color: #ffb74d; }
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .btn-ghost {
+    background: #2a2a3e;
+    color: #eee;
+  }
+  .note {
+    background: #2a1f00;
+    border-left: 3px solid #ffb74d;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  a { color: #4fc3f7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Android Audio Diagnostics</h1>
+<p class="sub">Build v46 (locked-screen check) — run the tests in order, then tap <strong>Copy results</strong> at the bottom and paste the output back into chat.</p>
+
+<div class="note">
+  <strong>What this answers:</strong> does Conductor's baked audio track keep playing —
+  <em>and stay on time</em> — when this Android phone's screen is off in a pocket?
+  Unlike iOS, Android usually keeps the page's JavaScript alive while audio plays, so a
+  monitor logs objective evidence (media clock vs wall clock every 5s) alongside what you
+  hear. Run in <strong>Chrome</strong> on the phone you'll actually use.
+  <br><br>
+  "Screen off" here = press the <strong>power button once</strong> so the screen goes dark.
+  You do not need to unlock afterward until it's time to report.
+  <br><br>
+  <strong>Battery saver is the prime failure suspect.</strong> If a locked test fails,
+  turn battery saver OFF (Settings → Battery → Battery Saver) and retry once before
+  calling it real.
+</div>
+
+<h2>Environment</h2>
+<div class="card" id="env"></div>
+
+<h2>Tests</h2>
+
+<div class="test">
+  <div class="test-title">1. Bake sanity — screen on (~15s)</div>
+  <div class="test-desc">Runs the app's real pipeline (<code>createTimelineAction → computeCueSchedule → bakeScheduleToWavBlob</code>) on a tiny ~12s schedule and plays the result. If this browser can't bake at all, that's the finding by itself — it means the main app shows the "Keep your screen on" warning here instead of going pocket-ready.</div>
+  <div class="test-row">
+    <button onclick="test1()">Run</button>
+    <span class="result pending" id="r1">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">2. Quick locked check (~35s)</div>
+  <div class="test-desc">Plays one continuous audio file with <strong>7 rising beeps, 5s apart</strong>. Tap Run, and the moment you hear the FIRST beep, <strong>screen off (power button) and pocket it</strong>. Listen ~35s, then pull it out and tap what you heard. The monitor logs the media clock the whole time, so the log corroborates your ears.</div>
+  <div class="test-row">
+    <button onclick="test2()">Run</button>
+    <span class="result pending" id="r2">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">3. THE GATE — real pipeline bake under lock (~3 min)</div>
+  <div class="test-desc">The Android mirror of the iOS ship-gate test. Bakes a real ~170s multi-cue timeline through the <strong>app's own pipeline</strong> and plays the one WAV from <code>&lt;audio&gt;</code>. Tap Run, hear the first beep, then <strong>screen off + pocket it for the full ~3 minutes</strong>, then report. Beeps come in short 3-2-1 clusters every 20s, rising in pitch. <strong>If it fails: battery saver OFF, retry once</strong> — only a failure with battery saver off counts as real.</div>
+  <div class="test-row">
+    <button onclick="test3()">Run</button>
+    <span class="result pending" id="r3">—</span>
+  </div>
+</div>
+
+<div class="test">
+  <div class="test-title">4. Main-app spot check — record what happened (no audio)</div>
+  <div class="test-desc">After tests 1–3, run the real app once: open Conductor (footer must say <strong>build v46</strong>), Try the Demo → Start Practice → Go Live, note which banner appears, then lock + pocket for 3+ minutes and listen. Record both halves here so ONE paste carries the synthetic tests and the real-app result.</div>
+  <div class="test-row">
+    <span class="row-label">Which banner appeared when you went live?</span>
+    <button class="btn-small" onclick="recordBanner('pocket-ready')">Pocket-ready ✓</button>
+    <button class="btn-small" onclick="recordBanner('keep-screen-on')">"Keep your screen on" ⚠</button>
+    <button class="btn-small" onclick="recordBanner('none')">No banner</button>
+    <span class="result pending" id="r4a">—</span>
+  </div>
+  <div class="test-row">
+    <span class="row-label">What did you hear while locked (3+ min)?</span>
+    <button class="btn-small" onclick="recordAppVerdict('even')">All even ✓</button>
+    <button class="btn-small" onclick="recordAppVerdict('uneven')">Uneven/bunched</button>
+    <button class="btn-small" onclick="recordAppVerdict('cutout')">Stopped partway</button>
+    <button class="btn-small" onclick="recordAppVerdict('silent')">Silent</button>
+    <span class="result pending" id="r4b">—</span>
+  </div>
+</div>
+
+<h2>Results log</h2>
+<div class="actions">
+  <button class="btn-ghost" onclick="copyLog()">Copy results</button>
+  <button class="btn-ghost" onclick="clearLog()">Clear</button>
+</div>
+<div class="log-box" id="log"></div>
+
+</div>
+
+<!-- Tests 1 & 3 drive the real app pipeline: models (createTimelineAction),
+     audioService (computeCueSchedule), audioBake (canBake/bakeScheduleToWavBlob). -->
+<script src="../js/models.js"></script>
+<script src="../js/audioService.js"></script>
+<script src="../js/audioBake.js"></script>
+<script>
+const logEl = document.getElementById('log');
+const envEl = document.getElementById('env');
+
+function log(msg, cls) {
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const line = document.createElement('div');
+  line.className = 'log-line' + (cls ? ' ' + cls : '');
+  line.textContent = '[' + ts + '] ' + msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setResult(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'result ' + (cls || 'info');
+}
+
+function copyLog() {
+  const text = Array.from(logEl.querySelectorAll('.log-line'))
+    .map(l => l.textContent).join('\n');
+  const env = Array.from(envEl.querySelectorAll('.env-row'))
+    .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
+  const full = '=== Conductor Android Audio Diagnostics v46 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(full).then(
+      () => log('Results copied to clipboard.', 'ok'),
+      e => log('Copy failed: ' + e.message, 'err')
+    );
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = full;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); log('Results copied (legacy fallback).', 'ok'); }
+    catch (e) { log('Copy failed: ' + e.message, 'err'); }
+    document.body.removeChild(ta);
+  }
+}
+
+function clearLog() {
+  logEl.innerHTML = '';
+}
+
+// ─── Environment dump ───────────────────────────────────────────────────────
+
+function envRow(key, val) {
+  const row = document.createElement('div');
+  row.className = 'env-row';
+  const k = document.createElement('span'); k.className = 'env-key'; k.textContent = key;
+  const v = document.createElement('span'); v.className = 'env-val'; v.textContent = val;
+  row.appendChild(k); row.appendChild(v);
+  envEl.appendChild(row);
+}
+
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
+}
+
+function chromeVersion() {
+  const m = navigator.userAgent.match(/Chrome\/([\d.]+)/);
+  return m ? m[1] : null;
+}
+
+function dumpEnv() {
+  envRow('User agent', navigator.userAgent);
+  envRow('Platform', navigator.platform || '(unknown)');
+  envRow('Detected Android', isAndroid() ? 'yes' : 'no');
+  envRow('Chrome version', chromeVersion() || '(not Chrome)');
+  envRow('AudioContext', typeof AudioContext);
+  envRow('OfflineAudioContext', typeof OfflineAudioContext);
+  envRow('canBake()', typeof canBake === 'function' ? String(canBake()) : 'audioBake.js not loaded');
+  envRow('speechSynthesis', typeof speechSynthesis);
+  envRow('Visibility', document.visibilityState);
+
+  // Battery saver is the prime failure suspect for locked playback — snapshot it.
+  if (navigator.getBattery) {
+    navigator.getBattery().then(b => {
+      envRow('Battery', Math.round(b.level * 100) + '%' + (b.charging ? ', charging' : ', not charging'));
+    }).catch(e => {
+      envRow('Battery', 'getBattery failed: ' + e.message);
+    });
+  } else {
+    envRow('Battery', 'navigator.getBattery unavailable');
+  }
+}
+
+async function logBattery(label) {
+  if (!navigator.getBattery) {
+    log(label + ': battery API unavailable', 'warn');
+    return;
+  }
+  try {
+    const b = await navigator.getBattery();
+    log(label + ': battery ' + Math.round(b.level * 100) + '%' +
+        (b.charging ? ', charging' : ', not charging') +
+        ' (battery saver state is not readable — note it manually if ON)');
+  } catch (e) {
+    log(label + ': getBattery failed: ' + e.message, 'warn');
+  }
+}
+
+// ─── Audibility prompt (screen-on tests) ────────────────────────────────────
+
+function awaitAudibility(resultId, prompt) {
+  return new Promise(resolve => {
+    setResult(resultId, prompt, 'info');
+    const resultEl = document.getElementById(resultId);
+    const row = resultEl.parentElement;
+
+    const ctrl = document.createElement('span');
+    ctrl.className = 'audibility-ctrl';
+
+    const heardBtn = document.createElement('button');
+    heardBtn.textContent = '✓ Heard';
+    heardBtn.className = 'btn-heard';
+
+    const silentBtn = document.createElement('button');
+    silentBtn.textContent = '✗ Silent';
+    silentBtn.className = 'btn-silent';
+
+    ctrl.appendChild(heardBtn);
+    ctrl.appendChild(silentBtn);
+    row.appendChild(ctrl);
+
+    const finish = (v) => {
+      heardBtn.disabled = true;
+      silentBtn.disabled = true;
+      ctrl.remove();
+      resolve(v);
+    };
+    heardBtn.onclick = () => finish('heard');
+    silentBtn.onclick = () => finish('silent');
+  });
+}
+
+// ─── Locked-test report (4-way) ─────────────────────────────────────────────
+
+function awaitLockedReport(resultId, evenLabel) {
+  return new Promise(resolve => {
+    setResult(resultId, 'Back? Tap what you heard while locked:', 'info');
+    const row = document.getElementById(resultId).parentElement;
+    const ctrl = document.createElement('span');
+    ctrl.className = 'audibility-ctrl';
+    const opts = [
+      ['even',   evenLabel || 'All even ✓', 'btn-heard'],
+      ['uneven', 'Uneven/bunched', ''],
+      ['cutout', 'Stopped partway', ''],
+      ['silent', 'Silent', 'btn-silent'],
+    ];
+    const btns = [];
+    opts.forEach(([val, text, cls]) => {
+      const b = document.createElement('button');
+      b.textContent = text;
+      if (cls) b.className = cls;
+      b.onclick = () => { btns.forEach(x => x.disabled = true); ctrl.remove(); resolve(val); };
+      btns.push(b);
+      ctrl.appendChild(b);
+    });
+    row.appendChild(ctrl);
+  });
+}
+
+function applyLockedVerdict(resultId, verdict) {
+  const map = {
+    even:   ['EVEN ✓ (survives lock + on-time)', 'ok'],
+    uneven: ['HEARD but UNEVEN/BUNCHED ✗ (plays, timing broke)', 'fail'],
+    cutout: ['STOPPED PARTWAY ✗ (suspended mid-stream)', 'fail'],
+    silent: ['SILENT ✗ (no audio when locked)', 'fail'],
+  };
+  const [text, cls] = map[verdict] || ['(no report)', 'info'];
+  setResult(resultId, text, cls);
+}
+
+// ─── Objective playback monitor ─────────────────────────────────────────────
+// Android usually keeps page JS alive while audio plays screen-off, so the log
+// itself can prove the verdict. Every 5s a sample reads wall clock and
+// audio.currentTime at the same instant — even if the sampler gets throttled
+// (fewer samples), each sample stays valid: a near-zero wall−media gap proves
+// the media clock kept real time (the test-15 heartbeat trick). Media element
+// stall/pause/ended events and visibilitychange are logged as they happen.
+
+function attachPlaybackMonitor(audio, label) {
+  const startWall = Date.now();
+  const startMedia = audio.currentTime;
+  let stopped = false;
+
+  const sample = () => {
+    const wallEl = (Date.now() - startWall) / 1000;
+    const mediaEl = audio.currentTime - startMedia;
+    const gap = (wallEl - mediaEl) * 1000;
+    log(label + ': monitor +' + Math.round(wallEl) + 's — currentTime=' +
+        audio.currentTime.toFixed(2) + 's, wall−media gap=' + Math.round(gap) + 'ms' +
+        (audio.paused ? ' [PAUSED]' : ''),
+        (Math.abs(gap) < 1000 && !audio.paused) ? 'ok' : 'warn');
+  };
+  let sampleId = setInterval(sample, 5000);
+
+  const handlers = {};
+  const evts = ['playing', 'pause', 'stalled', 'waiting', 'suspend', 'ended', 'error'];
+  evts.forEach(ev => {
+    handlers[ev] = () => {
+      const wallEl = ((Date.now() - startWall) / 1000).toFixed(1);
+      const bad = (ev === 'pause' || ev === 'stalled' || ev === 'waiting' || ev === 'error');
+      log(label + ': <audio> "' + ev + '" at +' + wallEl + 's (currentTime=' +
+          audio.currentTime.toFixed(2) + 's)', bad ? 'warn' : (ev === 'ended' ? 'ok' : undefined));
+      if (ev === 'ended') {
+        // Final sample, then stop the clock comparison — it's meaningless post-playback.
+        sample();
+        clearInterval(sampleId);
+        sampleId = null;
+        log(label + ': playback ended cleanly — monitor sampling stopped', 'ok');
+      }
+    };
+    audio.addEventListener(ev, handlers[ev]);
+  });
+
+  const onVis = () => {
+    log(label + ': visibilitychange -> ' + document.visibilityState +
+        ' (currentTime=' + audio.currentTime.toFixed(2) + 's)');
+  };
+  document.addEventListener('visibilitychange', onVis);
+
+  return {
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      if (sampleId) clearInterval(sampleId);
+      evts.forEach(ev => audio.removeEventListener(ev, handlers[ev]));
+      document.removeEventListener('visibilitychange', onVis);
+    }
+  };
+}
+
+// ─── WAV helpers ────────────────────────────────────────────────────────────
+
+// Build a 16-bit mono PCM WAV with short sine beeps at the given marker times
+// (same generator as iOS test 11).
+function makeBeepTrackWavBytes(markerTimesSec, beepDurSec, freqHzList, totalSec, sampleRate) {
+  const sr = sampleRate || 44100;
+  const numSamples = Math.floor(sr * totalSec);
+  const dataSize = numSamples * 2;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const v = new DataView(buf);
+  v.setUint32(0, 0x52494646, false);   // "RIFF"
+  v.setUint32(4, 36 + dataSize, true);
+  v.setUint32(8, 0x57415645, false);   // "WAVE"
+  v.setUint32(12, 0x666d7420, false);  // "fmt "
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);            // PCM
+  v.setUint16(22, 1, true);            // mono
+  v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true);       // byte rate
+  v.setUint16(32, 2, true);            // block align
+  v.setUint16(34, 16, true);           // bits per sample
+  v.setUint32(36, 0x64617461, false);  // "data"
+  v.setUint32(40, dataSize, true);
+  const atkRel = Math.max(1, Math.floor(sr * 0.01)); // 10ms attack/release, no clicks
+  for (let m = 0; m < markerTimesSec.length; m++) {
+    const startSample = Math.floor(markerTimesSec[m] * sr);
+    const freq = freqHzList[m % freqHzList.length];
+    const durSamples = Math.floor(beepDurSec * sr);
+    for (let i = 0; i < durSamples; i++) {
+      const s = startSample + i;
+      if (s < 0 || s >= numSamples) continue;
+      const env = Math.min(1, i / atkRel) * Math.min(1, (durSamples - i) / atkRel);
+      let sample = Math.sin(2 * Math.PI * freq * (i / sr)) * 0.4 * env;
+      if (sample > 1) sample = 1; else if (sample < -1) sample = -1;
+      v.setInt16(44 + s * 2, Math.round(sample * 32767), true);
+    }
+  }
+  return buf;
+}
+
+// Ascending tones so the listener can tell beep order by pitch (C5..B5).
+const LOCK_TEST_FREQS = [523, 587, 659, 698, 784, 880, 988];
+
+// Bake a synthetic timeline through the PRODUCTION pipeline
+// (createTimelineAction → computeCueSchedule → bakeScheduleToWavBlob, beep-only).
+// Returns { baked, spanSec } or throws with a loggable message.
+async function bakeSyntheticTimeline(label, leadSec, gapSec, count) {
+  if (typeof createTimelineAction !== 'function' ||
+      typeof createAudioService !== 'function' ||
+      typeof bakeScheduleToWavBlob !== 'function') {
+    throw new Error('app modules not loaded (models/audioService/audioBake)');
+  }
+  log(label + ': canBake() = ' + canBake());
+  if (!canBake()) {
+    throw new Error('OfflineAudioContext unavailable — this browser cannot bake. ' +
+        'The main app would show the "Keep your screen on" warning here.');
+  }
+  const startMs = Date.now();
+  const timeline = [];
+  for (let i = 0; i < count; i++) {
+    timeline.push(createTimelineAction({
+      timeMs: startMs + (leadSec + i * gapSec) * 1000,
+      action: 'Cue ' + (i + 1),
+      noticeSeconds: 5,
+      audioAnnounce: true,
+    }));
+  }
+  const spanSec = leadSec + (count - 1) * gapSec;
+  const svc = createAudioService();
+  const schedule = svc.computeCueSchedule(timeline, 10, null, startMs, {});
+  log(label + ': real pipeline produced ' + schedule.length +
+      ' bakeable events (beeps) over ~' + spanSec + 's');
+  const baked = await bakeScheduleToWavBlob(schedule, null); // null getBuffer → beep-only bake
+  if (!baked) throw new Error('bake returned null (no OfflineAudioContext)');
+  log(label + ': baked ' + baked.durationSec.toFixed(1) + 's WAV, ' +
+      (baked.wavBytes.byteLength / 1024).toFixed(0) + ' KB, ' +
+      baked.eventCount + ' events @ ' + baked.sampleRate + ' Hz', 'ok');
+  return { baked, spanSec };
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+// Test 1: bake sanity, screen on. Proves the production pipeline bakes and the
+// result is audible on this browser BEFORE spending 3 locked minutes on the gate.
+async function test1() {
+  setResult('r1', 'baking…', 'info');
+  log('--- Test 1: Bake sanity — real pipeline, screen on (~15s) ---');
+
+  let baked;
+  try {
+    // 2 cues at +5s and +10s → countdown beeps + trigger beeps over ~12s.
+    ({ baked } = await bakeSyntheticTimeline('T1', 5, 5, 2));
+  } catch (e) {
+    log('T1: ' + e.message, 'err');
+    setResult('r1', 'API FAIL: ' + e.message, 'fail');
+    return;
+  }
+
+  const blobUrl = URL.createObjectURL(baked.blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+  const monitor = attachPlaybackMonitor(audio, 'T1');
+  const cleanup = () => {
+    monitor.stop();
+    try { audio.pause(); } catch (e) {}
+    audio.removeAttribute('src');
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  try {
+    log('T1: playing baked track (~' + baked.durationSec.toFixed(0) + 's) — keep the screen ON, just listen');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T1: play() resolved', 'ok');
+  } catch (e) {
+    log('T1: play() rejected: ' + e.message, 'err');
+    setResult('r1', 'API FAIL: play() rejected: ' + e.message, 'fail');
+    cleanup();
+    return;
+  }
+  setResult('r1', 'PLAYING — listen for beep clusters (~' + baked.durationSec.toFixed(0) + 's)', 'info');
+
+  await new Promise(resolve => {
+    let done = false;
+    const finish = (reason) => {
+      if (done) return;
+      done = true;
+      log('T1: playback finished (' + reason + ')');
+      resolve();
+    };
+    audio.addEventListener('ended', () => finish('ended event'));
+    audio.addEventListener('error', () => finish('error event'));
+    setTimeout(() => finish('timeout'), (baked.durationSec + 4) * 1000);
+  });
+
+  const v = await awaitAudibility('r1', 'Track finished — did you hear the beeps?');
+  log('T1: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
+  cleanup();
+  if (v === 'heard') {
+    setResult('r1', 'BAKE OK + HEARD ✓', 'ok');
+  } else {
+    setResult('r1', 'INAUDIBLE ✗ (bake API ok)', 'fail');
+  }
+}
+
+// Test 2: quick locked check — hand-built 7-beep track, 35s, screen off + pocket.
+async function test2() {
+  setResult('r2', 'building track…', 'info');
+  log('--- Test 2: Quick locked check — continuous 7-beep track (~35s) ---');
+  await logBattery('T2');
+
+  const times = [3, 8, 13, 18, 23, 28, 33];
+  const wavBuf = makeBeepTrackWavBytes(times, 0.18, LOCK_TEST_FREQS, 35, 44100);
+  const blob = new Blob([wavBuf], { type: 'audio/wav' });
+  const blobUrl = URL.createObjectURL(blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+  const monitor = attachPlaybackMonitor(audio, 'T2');
+  const cleanup = () => {
+    monitor.stop();
+    try { audio.pause(); } catch (e) {}
+    audio.removeAttribute('src');
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  try {
+    log('T2: starting continuous beep track (7 beeps, 5s apart, 35s)…');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T2: play() resolved — SCREEN OFF NOW (power button), pocket it', 'ok');
+  } catch (e) {
+    log('T2: play() rejected: ' + e.message, 'err');
+    setResult('r2', 'API FAIL: play() rejected: ' + e.message, 'fail');
+    cleanup();
+    return;
+  }
+  setResult('r2', 'PLAYING — screen off (power button) & pocket it (~35s, 7 rising beeps)', 'info');
+  const verdict = await awaitLockedReport('r2', 'All 7, even ✓');
+  cleanup();
+  log('T2: report = ' + verdict.toUpperCase() + ' — check the monitor lines above for corroboration',
+      verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r2', verdict);
+}
+
+// Test 3: THE GATE. Android mirror of iOS test 16 — real-pipeline bake of a
+// ~170s multi-cue timeline played from <audio> under lock, with the objective
+// monitor running throughout. If it fails, retry once with battery saver OFF
+// before calling it real.
+async function test3() {
+  setResult('r3', 'baking…', 'info');
+  log('--- Test 3: THE GATE — real pipeline bake under lock (~3 min) ---');
+  await logBattery('T3');
+
+  let baked;
+  try {
+    // 10s lead + 8×20s ≈ 170s of cues — same shape as iOS test 16.
+    ({ baked } = await bakeSyntheticTimeline('T3', 10, 20, 9));
+  } catch (e) {
+    log('T3: ' + e.message, 'err');
+    setResult('r3', 'API FAIL: ' + e.message, 'fail');
+    return;
+  }
+
+  const blobUrl = URL.createObjectURL(baked.blob);
+  const audio = new Audio(blobUrl);
+  audio.volume = 1;
+  const monitor = attachPlaybackMonitor(audio, 'T3');
+  const cleanup = () => {
+    monitor.stop();
+    try { audio.pause(); } catch (e) {}
+    audio.removeAttribute('src');
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  try {
+    log('T3: playing real-pipeline baked track (~3 min)…');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') await p;
+    log('T3: play() resolved — SCREEN OFF NOW (power button), pocket it for the FULL ~3 minutes', 'ok');
+  } catch (e) {
+    log('T3: play() rejected: ' + e.message, 'err');
+    setResult('r3', 'API FAIL: play() rejected: ' + e.message, 'fail');
+    cleanup();
+    return;
+  }
+  setResult('r3', 'PLAYING — screen off (power button) & pocket ~3 min, listen for even beep clusters', 'info');
+  const verdict = await awaitLockedReport('r3', 'All even ✓');
+  cleanup();
+  log('T3: report = ' + verdict.toUpperCase() + ' — monitor lines above are the objective record',
+      verdict === 'even' ? 'ok' : 'err');
+  if (verdict !== 'even') {
+    log('T3: if battery saver was ON, turn it OFF and run Test 3 once more before calling this real', 'warn');
+  }
+  applyLockedVerdict('r3', verdict);
+}
+
+// Test 4: no audio — records the REAL-APP spot-check outcome into this log so a
+// single Copy Results paste carries both the synthetic tests and the app run.
+function recordBanner(which) {
+  const map = {
+    'pocket-ready':   ['POCKET-READY banner shown ("beeps & pack voices keep playing…")', 'ok'],
+    'keep-screen-on': ['"KEEP YOUR SCREEN ON" warning shown — bake failed/unavailable in the app', 'err'],
+    'none':           ['NO banner appeared — unexpected (one-shot banner may have fired on an earlier run; check localStorage)', 'warn'],
+  };
+  const [text, cls] = map[which];
+  log('T4: main-app go-live banner = ' + text, cls);
+  setResult('r4a', text, cls === 'ok' ? 'ok' : (cls === 'err' ? 'fail' : 'info'));
+}
+
+function recordAppVerdict(verdict) {
+  log('T4: main-app locked run (3+ min demo) = ' + verdict.toUpperCase(),
+      verdict === 'even' ? 'ok' : 'err');
+  applyLockedVerdict('r4b', verdict);
+}
+
+dumpEnv();
+log('Page loaded. Run tests 1 → 2 → 3, then do the main-app run and record it in 4. Finish with Copy results.');
+</script>
+
+</body>
+</html>

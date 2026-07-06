@@ -1,5 +1,15 @@
 # Android Locked-Screen Spot Check (~2 minutes) — v46
 
+> **Run the diagnostic page FIRST:** `https://quidam2k.github.io/conductor/android-audio-test/`
+> — it runs a bake sanity check, a 35s locked check, and the ~3-min gate test with an
+> objective playback monitor, then **Copy results** pastes everything back into chat.
+> The recipe below is the real-app half; record its outcome with the page's Test 4
+> buttons so one paste carries both.
+>
+> (SW note: the page is NOT in `sw.js` ASSETS yet — adding it mid-version does nothing
+> for existing installs. Add `./android-audio-test/index.html` at the next CACHE_NAME
+> bump, v47. Works fine online meanwhile.)
+
 v46 extends the locked-screen bake to all platforms; Android live playback under lock
 has never been field-confirmed. This is the last promotion gate alongside the
 multi-phone test.
