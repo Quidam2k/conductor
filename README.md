@@ -8,6 +8,8 @@ No app to install, no account to make, no server in the middle. You open a link 
 
 Designed for peaceful coordination. No telemetry, no tracking, no data collection. By design.
 
+> 🚧 **Work in progress.** Conductor already works — and it gets better every week. If something breaks or you wish it did something it doesn't, [open an issue](https://github.com/Quidam2k/conductor/issues) — bug reports and feature requests genuinely shape what gets built next.
+
 ## How It Works
 
 1. **Create** — Build a timed sequence of spoken cues, vibrations, and audio in your browser
