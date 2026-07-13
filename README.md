@@ -4,7 +4,7 @@
 
 Conductor is a free web app for coordinating groups of people in real time — performances, community events, demonstrations, art installations. An organizer creates a timed sequence of cues, shares it as a link, and every participant's phone plays the same cues at the same moment.
 
-No app to install, no account to make, no server in the middle. You open a link in your browser and you're in. (For the technically inclined: it's a serverless progressive web app — the whole event lives inside the link itself.)
+No app to install, no account to make, no server in the middle. You open a link in your browser and you're in. (The whole app and your event live inside a single link — no servers, no accounts, no app store.)
 
 Designed for peaceful coordination. No telemetry, no tracking, no data collection. By design.
 
@@ -30,7 +30,7 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 - **No Accounts** — No signup, no tracking, no data collection
 - **Encryption** — Events can be password-protected with AES-256-GCM encryption (`v1e_` prefix)
 - **Event Editor** — Built-in 3-step wizard with timeline builder, live preview, and practice mode
-- **Resource Packs** — Optional zip files with real voice cues (spoken cues that work even from a pocket), falls back to TTS gracefully
+- **Resource Packs** — Optional zip files with real voice cues (spoken cues that work even from a pocket). Record cues in your own voice right in the editor and share them as a pack. Falls back to TTS gracefully
 - **Briefing Blocks** — Pre-event briefings displayed before coordination begins
 - **QR Scanning** — Camera-based QR scanning for phone-to-phone event sharing
 - **Event Drafts** — Save work-in-progress events to IndexedDB, resume editing later
@@ -65,7 +65,7 @@ The demo resource pack includes 8 event scripts and 120 voice cues:
 - **The Murmur** — Synchronized sound and movement, eerie and theatrical
 - **The Cascade** — Rapid-fire cue bursts in a one-minute run, a stress test for close-spaced timing
 
-Download the pack from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder. The app also has a built-in demo ("The Stillness") that works immediately with text-to-speech — no downloads needed.
+Download the pack from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder. The app also has a built-in demo ("The Stillness") that works immediately with beep countdowns and text-to-speech (which reads cues aloud while the screen is on) — beeps keep sounding even with the phone locked in a pocket.
 
 ## Concepts & Techniques
 

@@ -628,6 +628,16 @@
         }
         .btn-add-action:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
+        /* ─── Voice share card ─── */
+        .voice-share-card {
+            display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
+            background: var(--bg-surface); border: 1px solid var(--border-subtle);
+            border-radius: var(--radius); padding: 16px;
+        }
+        .voice-share-card h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+        .voice-share-card p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+        .voice-share-hint { font-style: italic; color: var(--text-dim); }
+
         .share-section {
             display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
             background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -664,6 +674,94 @@
             width: 18px; height: 18px; accent-color: var(--accent-blue);
         }
         .ed-checkbox-row label { font-size: 13px; color: var(--text-dim); }
+
+        /* ─── Recording section (per-action) ─── */
+        .ed-recording-section {
+            margin-top: 12px; padding: 12px; background: var(--bg-input);
+            border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+        }
+        .ed-recording-section-title {
+            font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .ed-recording-state-idle,
+        .ed-recording-state-recording,
+        .ed-recording-state-preview,
+        .ed-recording-state-unsupported,
+        .ed-recording-state-error {
+            display: none;
+        }
+        .ed-recording-section.idle .ed-recording-state-idle { display: block; }
+        .ed-recording-section.recording .ed-recording-state-recording { display: block; }
+        .ed-recording-section.preview .ed-recording-state-preview { display: block; }
+        .ed-recording-section.unsupported .ed-recording-state-unsupported { display: block; }
+        .ed-recording-section.error .ed-recording-state-error { display: block; }
+
+        .ed-recording-hint {
+            font-size: 11px; color: var(--text-dim); margin-top: 6px;
+        }
+        .ed-recording-indicator {
+            display: inline-block; width: 8px; height: 8px; background: var(--accent-red);
+            border-radius: 50%; margin-right: 4px; animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        .ed-preview-audio {
+            width: 100%; margin-top: 8px; height: 32px;
+        }
+        .ed-recording-buttons {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .ed-recording-buttons button {
+            flex: 1; min-height: 36px; font-size: 13px;
+        }
+        .ed-recording-error-msg {
+            font-size: 12px; color: var(--accent-red); margin-top: 6px;
+        }
+
+        /* ─── Batch recorder overlay ─── */
+        .batch-recorder-overlay {
+            position: fixed; inset: 0; z-index: 101; background: var(--bg); display: flex;
+            flex-direction: column;
+        }
+        .batch-recorder-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: linear-gradient(135deg, #0d1b3e, #0a1530);
+            border-bottom: 1px solid rgba(91, 163, 255, 0.08);
+        }
+        .batch-recorder-header h2 {
+            font-size: 18px; font-weight: 600;
+        }
+        .batch-close-btn {
+            background: none; border: none; color: var(--text);
+            font-size: 20px; cursor: pointer; padding: 4px;
+        }
+        .batch-close-btn:hover { color: var(--accent-red); }
+
+        .batch-recorder-content {
+            flex: 1; display: flex; flex-direction: column; overflow-y: auto;
+            align-items: center; justify-content: center; padding: 16px;
+        }
+        .batch-teleprompter-text {
+            font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 16px;
+            line-height: 1.4;
+        }
+        .batch-progress {
+            font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;
+        }
+        .batch-record-button {
+            min-height: 56px; min-width: 160px; font-size: 16px;
+            border-radius: var(--radius-lg); cursor: pointer;
+        }
+        .batch-preview-audio {
+            width: 80%; max-width: 400px; margin-top: 16px; height: 32px;
+        }
+        .batch-action-buttons {
+            display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center;
+        }
+        .batch-action-buttons button {
+            min-height: 44px; font-size: 13px;
+        }
 
         /* ─── Pack Manager screen ─── */
         .header-packs { background: linear-gradient(135deg, #1a2e0d, #121f08); border-bottom: 1px solid rgba(240,180,41,0.08); }
@@ -855,7 +953,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v46</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v47</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1137,6 +1235,7 @@
 
         <div id="ed-action-list" class="ed-action-list"></div>
         <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
+        <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all missing cues</button>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1172,6 +1271,13 @@
         </div>
 
         <ul id="review-actions" class="action-list"></ul>
+
+        <div id="ed-voice-share-card" class="voice-share-card" style="display:none;">
+            <h3>📦 Share Your Voice Pack</h3>
+            <p id="ed-voice-share-count">0 recorded cues</p>
+            <p class="voice-share-hint">Import the zip file via Manage Packs to use these recordings in other events.</p>
+            <button id="btn-share-voice-pack" class="btn-primary">Share Voice Pack</button>
+        </div>
 
         <div class="share-section">
             <label class="pwd-toggle">
@@ -1252,6 +1358,29 @@
             <button id="btn-pwd-unlock" class="btn-primary" style="flex:1;">Unlock</button>
             <button id="btn-pwd-cancel" class="btn-outline" style="flex:1;">Cancel</button>
         </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- Batch Voice Recorder Overlay                                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="batch-recorder-overlay" class="batch-recorder-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="batch-recorder-header">
+        <h2>Record Your Cues</h2>
+        <button id="btn-batch-close" class="batch-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="batch-recorder-content">
+        <div class="batch-teleprompter-text" id="batch-cue-text"></div>
+        <div class="batch-progress" id="batch-progress"></div>
+        <button id="btn-batch-record" class="batch-record-button btn-primary">🎤 Record</button>
+        <audio id="batch-preview-audio" class="batch-preview-audio" controls style="display:none;"></audio>
+        <div class="batch-action-buttons" id="batch-action-buttons" style="display:none;">
+            <button id="btn-batch-use" class="btn-primary">✓ Use & Next</button>
+            <button id="btn-batch-skip" class="btn-outline">Skip</button>
+            <button id="btn-batch-rerecord" class="btn-outline">Re-record</button>
+            <button id="btn-batch-done" class="btn-outline">Done</button>
+        </div>
+        <div id="batch-error-msg" style="color:var(--accent-red); font-size:13px; margin-top:16px; display:none;"></div>
     </div>
 </div>
 
@@ -4026,6 +4155,347 @@ function createResourcePackManager() {
         return { manifest, validation };
     }
 
+    // ─── Synthetic Pack API (My Voice) ────────────────────────────────
+
+    /**
+     * Get or create the per-device synthetic pack ID (e.g. "voice-xxxx").
+     * Persisted in localStorage so the same ID is reused across sessions.
+     * @returns {string}
+     */
+    function getSyntheticPackId() {
+        const STORAGE_KEY = 'conductor-voice-pack-id';
+        let packId = localStorage.getItem(STORAGE_KEY);
+        if (!packId) {
+            // Generate a unique ID: "voice-" + 4 random base36 chars
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+            let suffix = '';
+            for (let i = 0; i < 4; i++) {
+                suffix += chars.charAt(Math.floor(Math.random() * 36));
+            }
+            packId = 'voice-' + suffix;
+            localStorage.setItem(STORAGE_KEY, packId);
+        }
+        return packId;
+    }
+
+    /**
+     * Generate a cue ID from action text: lowercase, strip punctuation,
+     * spaces → hyphens, ≤30 chars, with deduplication via -2, -3, etc.
+     * @param {string} actionText
+     * @returns {string}
+     */
+    function generateCueId(actionText) {
+        // Lowercase, strip punctuation, spaces → hyphens
+        let slug = actionText
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')  // Remove non-word/space/hyphen
+            .replace(/\s+/g, '-')       // Spaces → hyphens
+            .replace(/-+/g, '-')        // Collapse multiple hyphens
+            .replace(/^-+|-+$/g, '');   // Trim hyphens
+
+        // Clamp to 30 chars
+        if (slug.length > 30) {
+            slug = slug.substring(0, 30);
+        }
+
+        // Default if empty
+        if (!slug) slug = 'cue';
+
+        // Deduplicate against existing cues in the synthetic pack
+        const packId = getSyntheticPackId();
+        const syncManifest = bufferCache.get(packId + ':_manifest_') ||
+                              (_lastSyntheticManifest);  // Check in-memory cache
+
+        if (!syncManifest || !syncManifest.cues) {
+            return slug;  // No existing cues to check
+        }
+
+        let candidate = slug;
+        let suffix = 2;
+        while (candidate in syncManifest.cues) {
+            candidate = slug + '-' + suffix;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    /** @type {Object|null} In-memory cache for synthetic manifest (faster than IDB for immediate re-records) */
+    let _lastSyntheticManifest = null;
+
+    /**
+     * Save a recorded cue into the synthetic pack.
+     * WAV-encodes the AudioBuffer, stores it in IDB, updates/creates the "My Voice" manifest.
+     * @param {string} cueId
+     * @param {AudioBuffer} audioBuffer
+     * @returns {Promise<Object>} The updated manifest.
+     * @throws {Error} If encoding fails or no encodeAudioBufferToWav available.
+     */
+    async function saveSyntheticCue(cueId, audioBuffer) {
+        if (typeof encodeAudioBufferToWav === 'undefined') {
+            throw new Error('saveSyntheticCue: encodeAudioBufferToWav not available (audioBake.js must load first)');
+        }
+
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // WAV-encode the AudioBuffer
+        const wavBytes = encodeAudioBufferToWav(audioBuffer);
+
+        // Get or create manifest
+        let manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) {
+            manifest = {
+                id: packId,
+                name: 'My Voice',
+                version: '1.0.0',
+                cues: {},
+            };
+        }
+
+        // Update cues map and bump patch version
+        const filePath = 'voices/' + cueId + '.wav';
+        manifest.cues[cueId] = filePath;
+
+        // Bump patch version
+        const versionParts = (manifest.version || '1.0.0').split('.');
+        const patch = parseInt(versionParts[2] || 0) + 1;
+        manifest.version = versionParts[0] + '.' + versionParts[1] + '.' + patch;
+
+        // Write to IDB in one transaction
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction(
+                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO],
+                'readwrite'
+            );
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+            tx.objectStore(RPM_STORE_AUDIO).put(wavBytes, packId + ':' + cueId);
+        });
+
+        // Update cache
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));  // Deep copy
+        loadedPacks.delete(packId);  // Invalidate cache so re-records refresh
+        const key = packId + ':' + cueId;
+        bufferCache.delete(key);
+
+        return manifest;
+    }
+
+    /**
+     * Delete a cue from the synthetic pack.
+     * Removes audio record + manifest entry + cache entries.
+     * If last cue removed, manifest is kept (empty cues object).
+     * @param {string} cueId
+     * @returns {Promise<void>}
+     */
+    async function deleteSyntheticCue(cueId) {
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // Get manifest
+        let manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) return;
+
+        // Remove cue
+        delete manifest.cues[cueId];
+
+        // Update IDB
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction(
+                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO],
+                'readwrite'
+            );
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+            tx.objectStore(RPM_STORE_AUDIO).delete(packId + ':' + cueId);
+        });
+
+        // Update cache
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));
+        bufferCache.delete(packId + ':' + cueId);
+    }
+
+    /**
+     * Export the synthetic pack as a valid zip file (ArrayBuffer).
+     * Includes manifest.json + voices/<cueId>.wav for each cue.
+     * Uses STORE-only entries (no compression) with real CRC32 checksums.
+     * @returns {Promise<ArrayBuffer>}
+     * @throws {Error} If pack is empty or export fails.
+     */
+    async function exportSyntheticPackZip() {
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // Get manifest
+        const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest || Object.keys(manifest.cues || {}).length === 0) {
+            throw new Error('No synthetic cues to export');
+        }
+
+        // Collect manifest and audio files
+        const files = [];
+
+        // Add manifest.json
+        const manifestJson = JSON.stringify(manifest, null, 2);
+        const manifestBytes = new TextEncoder().encode(manifestJson);
+        files.push({ name: 'manifest.json', data: manifestBytes });
+
+        // Add audio files
+        const cueIds = Object.keys(manifest.cues);
+        for (const cueId of cueIds) {
+            const key = packId + ':' + cueId;
+            const wavArrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
+            if (wavArrayBuffer) {
+                const wavData = new Uint8Array(wavArrayBuffer);
+                files.push({
+                    name: 'voices/' + cueId + '.wav',
+                    data: wavData,
+                });
+            }
+        }
+
+        // Build zip with CRC32
+        return buildZipWithCrc32(files);
+    }
+
+    // ─── Zip building ────────────────────────────────────────────────────
+
+    /**
+     * Build a zip file from files, with real CRC32 checksums.
+     * Uses STORE (no compression) for all entries.
+     * @param {Array<{name: string, data: Uint8Array}>} files
+     * @returns {ArrayBuffer}
+     */
+    function buildZipWithCrc32(files) {
+        const localHeaders = [];
+        const centralHeaders = [];
+        let offset = 0;
+
+        for (const file of files) {
+            const nameBytes = new TextEncoder().encode(file.name);
+            const crc32 = calculateCrc32(file.data);
+
+            // Local file header (30 bytes + name + data)
+            const localHeader = new Uint8Array(30 + nameBytes.length + file.data.length);
+            const lhView = new DataView(localHeader.buffer);
+
+            lhView.setUint32(0, 0x04034b50, true);    // signature
+            lhView.setUint16(4, 20, true);            // version needed
+            lhView.setUint16(6, 0, true);             // flags
+            lhView.setUint16(8, 0, true);             // compression: stored
+            lhView.setUint16(10, 0, true);            // mod time
+            lhView.setUint16(12, 0, true);            // mod date
+            lhView.setUint32(14, crc32, true);        // CRC32
+            lhView.setUint32(18, file.data.length, true);  // compressed size
+            lhView.setUint32(22, file.data.length, true);  // uncompressed size
+            lhView.setUint16(26, nameBytes.length, true);  // name length
+            lhView.setUint16(28, 0, true);            // extra length
+
+            localHeader.set(nameBytes, 30);
+            localHeader.set(file.data, 30 + nameBytes.length);
+
+            localHeaders.push(localHeader);
+
+            // Central directory entry (46 bytes + name)
+            const centralEntry = new Uint8Array(46 + nameBytes.length);
+            const ceView = new DataView(centralEntry.buffer);
+
+            ceView.setUint32(0, 0x02014b50, true);    // signature
+            ceView.setUint16(4, 20, true);            // version made by
+            ceView.setUint16(6, 20, true);            // version needed
+            ceView.setUint16(8, 0, true);             // flags
+            ceView.setUint16(10, 0, true);            // compression: stored
+            ceView.setUint16(12, 0, true);            // mod time
+            ceView.setUint16(14, 0, true);            // mod date
+            ceView.setUint32(16, crc32, true);        // CRC32
+            ceView.setUint32(20, file.data.length, true);  // compressed
+            ceView.setUint32(24, file.data.length, true);  // uncompressed
+            ceView.setUint16(28, nameBytes.length, true);  // name length
+            ceView.setUint16(30, 0, true);            // extra length
+            ceView.setUint16(32, 0, true);            // comment length
+            ceView.setUint16(34, 0, true);            // disk start
+            ceView.setUint16(36, 0, true);            // internal attrs
+            ceView.setUint32(38, 0, true);            // external attrs
+            ceView.setUint32(42, offset, true);       // local header offset
+
+            centralEntry.set(nameBytes, 46);
+            centralHeaders.push(centralEntry);
+
+            offset += localHeader.length;
+        }
+
+        // Assemble: local headers + central directory + EOCD
+        const centralDirOffset = offset;
+        let centralDirSize = 0;
+        for (const ch of centralHeaders) centralDirSize += ch.length;
+
+        // End of Central Directory (22 bytes)
+        const eocd = new Uint8Array(22);
+        const eocdView = new DataView(eocd.buffer);
+        eocdView.setUint32(0, 0x06054b50, true);     // signature
+        eocdView.setUint16(4, 0, true);               // disk number
+        eocdView.setUint16(6, 0, true);               // central dir disk
+        eocdView.setUint16(8, files.length, true);    // entries on disk
+        eocdView.setUint16(10, files.length, true);   // total entries
+        eocdView.setUint32(12, centralDirSize, true); // central dir size
+        eocdView.setUint32(16, centralDirOffset, true); // central dir offset
+        eocdView.setUint16(20, 0, true);              // comment length
+
+        // Concatenate
+        const totalSize = offset + centralDirSize + 22;
+        const result = new Uint8Array(totalSize);
+        let pos = 0;
+
+        for (const lh of localHeaders) {
+            result.set(lh, pos);
+            pos += lh.length;
+        }
+        for (const ch of centralHeaders) {
+            result.set(ch, pos);
+            pos += ch.length;
+        }
+        result.set(eocd, pos);
+
+        return result.buffer;
+    }
+
+    /**
+     * Calculate CRC32 of a byte array using a lookup table.
+     * Vector: CRC32("123456789") = 0xCBF43926
+     * @param {Uint8Array} data
+     * @returns {number}
+     */
+    function calculateCrc32(data) {
+        const table = makeCrc32Table();
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < data.length; i++) {
+            const byte = data[i];
+            crc = (crc >>> 8) ^ table[(crc ^ byte) & 0xFF];
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;  // Unsigned
+    }
+
+    /**
+     * Build a CRC32 lookup table (256 entries).
+     * @returns {Uint32Array}
+     */
+    function makeCrc32Table() {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let k = 0; k < 8; k++) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c >>> 0;
+        }
+        return table;
+    }
+
     return {
         peekManifest,
         importPack,
@@ -4042,6 +4512,13 @@ function createResourcePackManager() {
         getPackInfo,
         getCueList,
         getPackEvents,
+
+        // Synthetic pack API
+        getSyntheticPackId,
+        generateCueId,
+        saveSyntheticCue,
+        deleteSyntheticCue,
+        exportSyntheticPackZip,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,
@@ -4222,6 +4699,418 @@ async function bakeScheduleToWavBlob(schedule, getBuffer = null, opts = {}) {
         sampleRate: rendered.sampleRate,
         eventCount: schedule.length,
     };
+}
+
+</script>
+<script>/* js/voiceRecorder.js */
+/**
+ * Conductor PWA - Voice Recorder Module
+ *
+ * Records user voice via MediaRecorder, processes recordings into trimmed mono-24k AudioBuffers.
+ * Part of the "My Voice" synthetic pack system for recording custom cues.
+ *
+ * Requires: audioContext provider (wired by app), audioBake.js for encodeAudioBufferToWav.
+ * Does not require: any external libraries.
+ */
+
+// ─── Module state ───────────────────────────────────────────────────────────
+
+/** @type {function(): AudioContext|null} */
+let _audioContextProvider = null;
+
+/** @type {MediaRecorder|null} */
+let _currentRecorder = null;
+
+/** @type {MediaStream|null} */
+let _currentStream = null;
+
+/** @type {Blob[]|null} Chunks collected during recording */
+let _recordingChunks = null;
+
+/** @type {string} 'idle' | 'recording' | 'stopping' */
+let _state = 'idle';
+
+// ─── Public API ──────────────────────────────────────────────────────────
+
+/**
+ * Set the AudioContext provider function.
+ * Call this once at app boot to wire the shared AudioContext.
+ * @param {function(): AudioContext|null} providerFn
+ */
+function setAudioContextProvider(providerFn) {
+    _audioContextProvider = providerFn;
+}
+
+/**
+ * Check whether this browser supports voice recording.
+ * @returns {boolean}
+ */
+function isVoiceRecorderSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+              typeof MediaRecorder !== 'undefined');
+}
+
+/**
+ * Factory: create a voice recorder instance.
+ * @returns {VoiceRecorder}
+ */
+function createVoiceRecorder() {
+    return {
+        isSupported: isVoiceRecorderSupported,
+        start: voiceRecorderStart,
+        stop: voiceRecorderStop,
+        cancel: voiceRecorderCancel,
+        getState: voiceRecorderGetState,
+    };
+}
+
+/**
+ * Start recording from the user's microphone.
+ * @returns {Promise<void>} Resolves when recording has begun.
+ * @throws {Error} If mic access is denied or not available.
+ */
+async function voiceRecorderStart() {
+    if (_state !== 'idle') {
+        throw new Error('Cannot start recording: state is ' + _state);
+    }
+
+    try {
+        _state = 'recording';
+        _recordingChunks = [];
+
+        // Request microphone access
+        _currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Create MediaRecorder with MIME type negotiation
+        const mimeType = negotiateMimeType();
+        _currentRecorder = new MediaRecorder(_currentStream, { mimeType });
+
+        // Collect chunks
+        _currentRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                _recordingChunks.push(e.data);
+            }
+        };
+
+        _currentRecorder.start();
+    } catch (e) {
+        _state = 'idle';
+        _currentStream = null;
+        _currentRecorder = null;
+        _recordingChunks = null;
+        throw e;
+    }
+}
+
+/**
+ * Stop recording and return the recorded Blob.
+ * @returns {Promise<Blob>} The recorded audio as a Blob.
+ * @throws {Error} If not currently recording.
+ */
+async function voiceRecorderStop() {
+    if (_state !== 'recording') {
+        throw new Error('Cannot stop recording: not in recording state');
+    }
+
+    _state = 'stopping';
+
+    return new Promise((resolve, reject) => {
+        if (!_currentRecorder) {
+            _state = 'idle';
+            reject(new Error('No active recorder'));
+            return;
+        }
+
+        _currentRecorder.onstop = () => {
+            _state = 'idle';
+            const blob = new Blob(_recordingChunks, { type: _currentRecorder.mimeType });
+
+            // Release mic tracks
+            if (_currentStream) {
+                for (const track of _currentStream.getTracks()) {
+                    track.stop();
+                }
+            }
+
+            _currentRecorder = null;
+            _currentStream = null;
+            _recordingChunks = null;
+
+            resolve(blob);
+        };
+
+        _currentRecorder.onerror = (e) => {
+            _state = 'idle';
+            if (_currentStream) {
+                for (const track of _currentStream.getTracks()) {
+                    track.stop();
+                }
+            }
+            _currentRecorder = null;
+            _currentStream = null;
+            _recordingChunks = null;
+            reject(e.error);
+        };
+
+        _currentRecorder.stop();
+    });
+}
+
+/**
+ * Cancel recording without saving.
+ * Immediately stops and discards data.
+ * @returns {void}
+ */
+function voiceRecorderCancel() {
+    if (_currentRecorder && _state !== 'idle') {
+        _currentRecorder.stop();
+    }
+    if (_currentStream) {
+        for (const track of _currentStream.getTracks()) {
+            track.stop();
+        }
+    }
+    _state = 'idle';
+    _currentRecorder = null;
+    _currentStream = null;
+    _recordingChunks = null;
+}
+
+/**
+ * Get current recording state.
+ * @returns {'idle' | 'recording' | 'stopping'}
+ */
+function voiceRecorderGetState() {
+    return _state;
+}
+
+// ─── Processing helpers ──────────────────────────────────────────────────────
+
+/**
+ * Decode a recorded Blob (any browser-native container) to an AudioBuffer.
+ * The browser always decodes its own recording format.
+ * @param {Blob} blob
+ * @returns {Promise<AudioBuffer>}
+ * @throws {Error} If decoding fails or no AudioContext available.
+ */
+async function decodeRecordingBlob(blob) {
+    const ctx = _audioContextProvider ? _audioContextProvider() : null;
+    if (!ctx) {
+        throw new Error('No AudioContext available');
+    }
+
+    const arrayBuffer = await blob.arrayBuffer();
+    return await ctx.decodeAudioData(arrayBuffer);
+}
+
+/**
+ * Trim leading/trailing silence from an AudioBuffer using RMS-based detection.
+ * Applies ~50ms linear fade-in/out at trimmed edges.
+ *
+ * Error contract: If all audio is below the silence threshold, throws an error
+ * with message containing "No audio detected" (UI phase can catch and display).
+ *
+ * @param {AudioBuffer} audioBuffer
+ * @param {Object} opts - { rmsThreshold: 0.01, windowMs: 50, fadeMs: 50 }
+ * @returns {AudioBuffer} Trimmed buffer (mono-channel extraction, or pass-through if stereo used as-is).
+ * @throws {Error} If the audio is entirely silent.
+ */
+function trimSilence(audioBuffer, opts = {}) {
+    const threshold = opts.rmsThreshold ?? 0.01;
+    const windowMs = opts.windowMs ?? 50;
+    const fadeMs = opts.fadeMs ?? 50;
+
+    const sr = audioBuffer.sampleRate;
+    const ch = audioBuffer.getChannelData(0);
+    const windowSamples = Math.max(1, Math.round(sr * windowMs / 1000));
+    const fadeSamples = Math.max(1, Math.round(sr * fadeMs / 1000));
+
+    // Find first non-silent window
+    let startIdx = 0;
+    let foundAudio = false;
+    for (let i = 0; i + windowSamples <= ch.length; i++) {
+        const rms = calculateRMS(ch, i, windowSamples);
+        if (rms > threshold) {
+            startIdx = Math.max(0, i - windowSamples);
+            foundAudio = true;
+            break;
+        }
+    }
+
+    // If no audio found in first scan, the entire buffer is silent
+    if (!foundAudio) {
+        throw new Error('No audio detected: entire recording is below silence threshold');
+    }
+
+    // Find last non-silent window
+    let endIdx = ch.length;
+    for (let i = ch.length - windowSamples; i >= 0; i--) {
+        const rms = calculateRMS(ch, i, windowSamples);
+        if (rms > threshold) {
+            endIdx = Math.min(ch.length, i + windowSamples * 2);
+            break;
+        }
+    }
+
+    // Check if anything is left (second check as safety)
+    if (startIdx >= endIdx) {
+        throw new Error('No audio detected: entire recording is below silence threshold');
+    }
+
+    // Require at least 100ms of audio
+    const durationMs = (endIdx - startIdx) / sr * 1000;
+    if (durationMs < 100) {
+        throw new Error('No audio detected: recording too short after silence trim (' + Math.round(durationMs) + 'ms)');
+    }
+
+    const newLength = endIdx - startIdx;
+    const ctx = _audioContextProvider ? _audioContextProvider() : null;
+    if (!ctx) {
+        throw new Error('No AudioContext available');
+    }
+
+    const trimmed = ctx.createBuffer(1, newLength, sr);
+    const outCh = trimmed.getChannelData(0);
+
+    // Copy trimmed audio
+    for (let i = 0; i < newLength; i++) {
+        outCh[i] = ch[startIdx + i];
+    }
+
+    // Apply fade-in
+    for (let i = 0; i < Math.min(fadeSamples, newLength); i++) {
+        const t = i / fadeSamples;
+        outCh[i] *= t;
+    }
+
+    // Apply fade-out
+    for (let i = Math.max(0, newLength - fadeSamples); i < newLength; i++) {
+        const t = (newLength - i) / fadeSamples;
+        outCh[i] *= t;
+    }
+
+    return trimmed;
+}
+
+/**
+ * Resample and downmix an AudioBuffer to mono 24 kHz.
+ * @param {AudioBuffer} audioBuffer
+ * @returns {Promise<AudioBuffer>} Mono 24 kHz buffer.
+ * @throws {Error} If no AudioContext available or resampling fails.
+ */
+async function resampleToMono24k(audioBuffer) {
+    const ctx = _audioContextProvider ? _audioContextProvider() : null;
+    if (!ctx) {
+        throw new Error('No AudioContext available');
+    }
+
+    const sr = audioBuffer.sampleRate;
+    const targetSr = 24000;
+
+    // If already mono 24k, return as-is
+    if (audioBuffer.numberOfChannels === 1 && sr === targetSr) {
+        return audioBuffer;
+    }
+
+    // OfflineAudioContext for resampling + downmix
+    const framesToRender = Math.ceil(audioBuffer.duration * targetSr);
+    const Ctor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Ctor) {
+        throw new Error('OfflineAudioContext not available');
+    }
+
+    const offlineCtx = new Ctor(1, framesToRender, targetSr);
+
+    // Create buffer source and connect to stereo-to-mono gainNode
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+
+    // Downmix by connecting each channel and averaging
+    if (audioBuffer.numberOfChannels === 1) {
+        // Already mono, just connect
+        source.connect(offlineCtx.destination);
+    } else {
+        // Stereo → mono: create gains for each channel and average
+        const gains = [];
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+            const gain = offlineCtx.createGain();
+            gain.gain.value = 1 / audioBuffer.numberOfChannels;
+            gain.connect(offlineCtx.destination);
+            gains.push(gain);
+        }
+
+        // Connect source channels to gains
+        for (let i = 0; i < Math.min(audioBuffer.numberOfChannels, 2); i++) {
+            source.connect(gains[i], i);
+        }
+    }
+
+    source.start(0);
+    return await offlineCtx.startRendering();
+}
+
+/**
+ * Process a recording in one call: decode → trim → resample.
+ * @param {Blob} recordingBlob
+ * @returns {Promise<{audioBuffer: AudioBuffer, wavBytes: ArrayBuffer}>}
+ * @throws {Error} If any step fails (including "No audio detected").
+ */
+async function processRecording(recordingBlob) {
+    const decoded = await decodeRecordingBlob(recordingBlob);
+    const trimmed = trimSilence(decoded);
+    const resampled = await resampleToMono24k(trimmed);
+
+    // WAV-encode using the existing global function from audioBake.js
+    if (typeof encodeAudioBufferToWav === 'undefined') {
+        throw new Error('encodeAudioBufferToWav not available: audioBake.js must load first');
+    }
+
+    const wavBytes = encodeAudioBufferToWav(resampled);
+
+    return {
+        audioBuffer: resampled,
+        wavBytes: wavBytes,
+    };
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Calculate RMS energy of a slice.
+ * @param {Float32Array} samples
+ * @param {number} startIdx
+ * @param {number} length
+ * @returns {number}
+ */
+function calculateRMS(samples, startIdx, length) {
+    let sum = 0;
+    for (let i = 0; i < length; i++) {
+        const s = samples[startIdx + i];
+        sum += s * s;
+    }
+    return Math.sqrt(sum / length);
+}
+
+/**
+ * Negotiate a MIME type for MediaRecorder.
+ * Tries common formats in order of preference.
+ * @returns {string} A MIME type string, or empty for browser default.
+ */
+function negotiateMimeType() {
+    const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+    ];
+
+    for (const mime of candidates) {
+        if (MediaRecorder.isTypeSupported(mime)) {
+            return mime;
+        }
+    }
+
+    // Fall back to browser default (empty string)
+    return '';
 }
 
 </script>
@@ -4974,6 +5863,8 @@ audio.setResourcePackHasCue((cueId, packId) => packManager.hasCue(packId, cueId)
 // Share the pack manager's AudioContext for tone beeps so iOS sees a single
 // unlocked context across BufferSource + OscillatorNode playback.
 audio.setAudioContextProvider(() => packManager.getAudioContext());
+// Wire the same AudioContext to voice recorder for recording/processing
+setAudioContextProvider(() => packManager.getAudioContext());
 // Beep-fired indicator: flash the dot beside the active screen's mute button
 // whenever a beep is actually scheduled. Lets a tester tell "beep scheduled
 // but inaudible" (flash, no sound) apart from "beep never fired" (no flash).
@@ -6414,6 +7305,9 @@ function renderEditorTimeline() {
         const card = createActionCard(action, index);
         list.appendChild(card);
     });
+
+    // Update batch recorder button visibility
+    updateBatchRecorderButtonVisibility();
 }
 
 function formatOffset(totalSec) {
@@ -6515,6 +7409,47 @@ function createActionEditForm(action, index) {
         </select>
         <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
 
+        <div class="ed-recording-section idle" data-action-index="${index}">
+            <div class="ed-recording-section-title">🎤 Record Your Voice</div>
+
+            <div class="ed-recording-state-idle">
+                <button type="button" class="btn-primary btn-small ed-btn-record">🎤 Record</button>
+                <div class="ed-recording-hint">Record a cue in your own voice. Keep it short and clear.</div>
+            </div>
+
+            <div class="ed-recording-state-recording">
+                <div style="display:flex; align-items:center;">
+                    <span class="ed-recording-indicator"></span>
+                    <span style="font-size:13px;">Recording...</span>
+                </div>
+                <div class="ed-recording-buttons">
+                    <button type="button" class="btn-primary btn-small ed-btn-stop-record">⏹ Stop</button>
+                    <button type="button" class="btn-outline btn-small ed-btn-cancel-record">Cancel</button>
+                </div>
+            </div>
+
+            <div class="ed-recording-state-preview">
+                <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">Your recording:</div>
+                <audio class="ed-preview-audio" controls></audio>
+                <div class="ed-recording-buttons">
+                    <button type="button" class="btn-primary btn-small ed-btn-use-recording">✓ Use This Recording</button>
+                    <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                </div>
+                <div class="ed-recording-error-msg" style="display:none;"></div>
+            </div>
+
+            <div class="ed-recording-state-unsupported">
+                <div style="font-size:12px; color:var(--text-dim);">Recording not supported in this browser.</div>
+            </div>
+
+            <div class="ed-recording-state-error">
+                <div class="ed-recording-error-msg"></div>
+                <div class="ed-recording-buttons" style="margin-top:8px;">
+                    <button type="button" class="btn-outline btn-small ed-btn-retry-record">Try Again</button>
+                </div>
+            </div>
+        </div>
+
         <div class="ed-form-actions">
             <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
             <button type="button" class="btn-outline btn-small ed-btn-form-cancel">Cancel</button>
@@ -6523,6 +7458,25 @@ function createActionEditForm(action, index) {
 
     // Populate pack dropdown async
     populatePackDropdown(form, action);
+
+    // Initialize recording section: check browser support and existing cue state
+    const recordingSection = form.querySelector('.ed-recording-section');
+    if (recordingSection) {
+        (async () => {
+            const isSupported = isVoiceRecorderSupported();
+            if (!isSupported) {
+                updateRecordingSectionState(recordingSection, 'unsupported');
+            } else if (action.pack && action.cue && action.pack === packManager.getSyntheticPackId()) {
+                // Show "recorded" state if already has a synthetic cue
+                recordingSection.innerHTML = `
+                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
+                    <div class="ed-recording-buttons">
+                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                    </div>
+                `;
+            }
+        })();
+    }
 
     return form;
 }
@@ -6583,11 +7537,485 @@ async function populateCueDropdown(cueSelect, packId, selectedCue) {
     }
 }
 
+// Per-action recorder state tracking
+// Format: { [actionIndex]: { recorder, blob, objectUrl } }
+const _actionRecorders = {};
+
+/**
+ * Initialize or retrieve recorder state for an action.
+ */
+function getActionRecorderState(actionIndex) {
+    if (!_actionRecorders[actionIndex]) {
+        _actionRecorders[actionIndex] = {
+            recorder: createVoiceRecorder(),
+            blob: null,
+            objectUrl: null,
+        };
+    }
+    return _actionRecorders[actionIndex];
+}
+
+/**
+ * Update the recording section UI state.
+ */
+function updateRecordingSectionState(section, state, errorMsg = '') {
+    section.className = `ed-recording-section ${state}`;
+    if (state === 'error' && errorMsg) {
+        // Scope to the error-state block: the preview state has its own
+        // (hidden) .ed-recording-error-msg earlier in the DOM.
+        const errorEl = section.querySelector('.ed-recording-state-error .ed-recording-error-msg');
+        if (errorEl) errorEl.textContent = errorMsg;
+    }
+}
+
+/**
+ * Set the preview audio source and show it.
+ */
+function showRecordingPreview(section, blob) {
+    const audio = section.querySelector('.ed-preview-audio');
+    const recorderState = section.dataset.recorderState ? JSON.parse(section.dataset.recorderState) : {};
+
+    // Revoke old URL if it exists
+    if (recorderState.objectUrl) {
+        URL.revokeObjectURL(recorderState.objectUrl);
+    }
+
+    const newUrl = URL.createObjectURL(blob);
+    audio.src = newUrl;
+    recorderState.objectUrl = newUrl;
+    section.dataset.recorderState = JSON.stringify(recorderState);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Batch Voice Recorder Flow
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _batchRecorderState = {
+    isActive: false,
+    uncuedIndices: [],
+    currentIdx: 0,
+    recorder: null,
+    blob: null,
+    objectUrl: null,
+};
+
+/**
+ * Find all actions that don't have a cue.
+ * (Note: async validation skipped for sync iteration; hasCue check happens at use time)
+ */
+function findUncuedActions() {
+    const uncued = [];
+    state.editor.actions.forEach((action, index) => {
+        // Simple check: no cue at all
+        if (!action.cue) {
+            uncued.push(index);
+        }
+    });
+    return uncued;
+}
+
+/**
+ * Update the batch recorder button visibility and state.
+ */
+function updateBatchRecorderButtonVisibility() {
+    const btn = $('btn-record-batch');
+    if (!btn) return;
+
+    const isSupported = isVoiceRecorderSupported();
+    const uncued = findUncuedActions();
+
+    if (isSupported && uncued.length > 0) {
+        btn.style.display = '';
+        btn.title = `Record missing cues (${uncued.length} action${uncued.length !== 1 ? 's' : ''})`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+/**
+ * Start the batch recorder flow.
+ */
+function startBatchRecorder() {
+    const uncued = findUncuedActions();
+    if (uncued.length === 0) return;
+
+    _batchRecorderState = {
+        isActive: true,
+        uncuedIndices: uncued,
+        currentIdx: 0,
+        recorder: createVoiceRecorder(),
+        blob: null,
+        objectUrl: null,
+    };
+
+    showBatchRecorderUI();
+}
+
+/**
+ * Show the batch recorder overlay and initialize the first action.
+ */
+function showBatchRecorderUI() {
+    const overlay = $('batch-recorder-overlay');
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+    showBatchRecorderAction();
+}
+
+/**
+ * Display the current action in the batch recorder.
+ */
+function showBatchRecorderAction() {
+    const state_local = _batchRecorderState;
+    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+        closeBatchRecorder();
+        return;
+    }
+
+    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
+    const action = state.editor.actions[actionIndex];
+
+    $('batch-cue-text').textContent = action.action;
+    $('batch-progress').textContent = `${state_local.currentIdx + 1} of ${state_local.uncuedIndices.length}`;
+
+    // Reset UI to idle (record button visible, preview hidden)
+    $('btn-batch-record').style.display = '';
+    $('batch-preview-audio').style.display = 'none';
+    $('batch-action-buttons').style.display = 'none';
+    $('batch-error-msg').style.display = 'none';
+
+    // Reset state
+    state_local.blob = null;
+    if (state_local.objectUrl) {
+        URL.revokeObjectURL(state_local.objectUrl);
+        state_local.objectUrl = null;
+    }
+}
+
+/**
+ * Update batch recorder button UI for recording state.
+ */
+function setBatchRecorderRecording(isRecording) {
+    const btn = $('btn-batch-record');
+    if (isRecording) {
+        btn.textContent = '⏹ Stop';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    } else {
+        btn.textContent = '🎤 Record';
+        btn.classList.remove('btn-outline');
+        btn.classList.add('btn-primary');
+    }
+}
+
+/**
+ * Close the batch recorder overlay and return to editor.
+ */
+function closeBatchRecorder() {
+    const overlay = $('batch-recorder-overlay');
+    overlay.style.display = 'none';
+
+    if (_batchRecorderState.recorder) {
+        _batchRecorderState.recorder.cancel();
+    }
+    if (_batchRecorderState.objectUrl) {
+        URL.revokeObjectURL(_batchRecorderState.objectUrl);
+    }
+
+    _batchRecorderState = {
+        isActive: false,
+        uncuedIndices: [],
+        currentIdx: 0,
+        recorder: null,
+        blob: null,
+        objectUrl: null,
+    };
+
+    // Re-render to update UI
+    renderEditorTimeline();
+}
+
+// Wire batch recorder button
+$('btn-record-batch').addEventListener('click', () => {
+    startBatchRecorder();
+});
+
+// Wire batch overlay close button
+$('btn-batch-close').addEventListener('click', () => {
+    closeBatchRecorder();
+});
+
+// Wire batch record button
+$('btn-batch-record').addEventListener('click', async () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    const btn = $('btn-batch-record');
+    if (btn.textContent.includes('Record')) {
+        // Start recording
+        try {
+            setBatchRecorderRecording(true);
+            await state_local.recorder.start();
+        } catch (err) {
+            setBatchRecorderRecording(false);
+            $('batch-error-msg').textContent = err.message;
+            $('batch-error-msg').style.display = '';
+        }
+    } else {
+        // Stop recording
+        try {
+            const blob = await state_local.recorder.stop();
+            state_local.blob = blob;
+            setBatchRecorderRecording(false);
+
+            // Show preview and action buttons
+            const audio = $('batch-preview-audio');
+            const newUrl = URL.createObjectURL(blob);
+            audio.src = newUrl;
+            state_local.objectUrl = newUrl;
+            audio.style.display = '';
+            $('batch-action-buttons').style.display = 'flex';
+        } catch (err) {
+            setBatchRecorderRecording(false);
+            $('batch-error-msg').textContent = err.message;
+            $('batch-error-msg').style.display = '';
+        }
+    }
+});
+
+// Wire batch use button
+$('btn-batch-use').addEventListener('click', async () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive || !state_local.blob) return;
+
+    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
+    const action = state.editor.actions[actionIndex];
+
+    try {
+        const processed = await processRecording(state_local.blob);
+        const syntheticPackId = packManager.getSyntheticPackId();
+        const cueId = packManager.generateCueId(action.action);
+
+        // If action already has a cue from this pack, reuse the cueId
+        if (action.pack === syntheticPackId && action.cue) {
+            await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+        } else {
+            await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
+            action.cue = cueId;
+        }
+
+        // Set the pack
+        action.pack = syntheticPackId;
+        action.fallbackText = action.fallbackText || action.action;
+
+        // Move to next action
+        state_local.currentIdx++;
+        if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+            // All done! Close and save draft.
+            closeBatchRecorder();
+            saveDraftFromEditor().catch(() => {});
+        } else {
+            // Show next action
+            showBatchRecorderAction();
+        }
+    } catch (err) {
+        $('batch-error-msg').textContent = err.message;
+        $('batch-error-msg').style.display = '';
+    }
+});
+
+// Wire batch skip button
+$('btn-batch-skip').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    state_local.currentIdx++;
+    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+        closeBatchRecorder();
+        saveDraftFromEditor().catch(() => {});
+    } else {
+        showBatchRecorderAction();
+    }
+});
+
+// Wire batch re-record button
+$('btn-batch-rerecord').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.objectUrl) return;
+
+    URL.revokeObjectURL(state_local.objectUrl);
+    state_local.objectUrl = null;
+    state_local.blob = null;
+    showBatchRecorderAction();
+});
+
+// Wire batch done button
+$('btn-batch-done').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    closeBatchRecorder();
+    saveDraftFromEditor().catch(() => {});
+});
+
 // Event delegation for timeline editor actions
 $('ed-action-list').addEventListener('click', (e) => {
     const card = e.target.closest('.ed-action-card');
     if (!card) return;
     const index = parseInt(card.dataset.index);
+
+    // ═══════════════════════════════════════════════════════════════
+    // Recording Section Handlers
+    // ═══════════════════════════════════════════════════════════════
+
+    // Record button (start recording)
+    if (e.target.closest('.ed-btn-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        (async () => {
+            try {
+                updateRecordingSectionState(section, 'recording');
+                await recState.recorder.start();
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Stop recording button
+    if (e.target.closest('.ed-btn-stop-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        (async () => {
+            try {
+                const blob = await recState.recorder.stop();
+                recState.blob = blob;
+                showRecordingPreview(section, blob);
+                updateRecordingSectionState(section, 'preview');
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Cancel recording button
+    if (e.target.closest('.ed-btn-cancel-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+        recState.recorder.cancel();
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
+
+    // Use this recording button
+    if (e.target.closest('.ed-btn-use-recording')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+        const action = state.editor.actions[actionIndex];
+
+        if (!recState.blob) {
+            updateRecordingSectionState(section, 'error', 'No recording to save');
+            return;
+        }
+
+        (async () => {
+            try {
+                const processed = await processRecording(recState.blob);
+                const syntheticPackId = packManager.getSyntheticPackId();
+                const cueId = packManager.generateCueId(action.action);
+
+                // If action already has a cue from this pack, reuse the cueId
+                if (action.pack === syntheticPackId && action.cue) {
+                    // Overwrite existing cue
+                    await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+                } else {
+                    // Save as new cue
+                    await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
+                    action.cue = cueId;
+                }
+
+                // Set the pack to synthetic pack
+                action.pack = syntheticPackId;
+                action.fallbackText = action.fallbackText || action.action;
+
+                // Refresh the form's pack/cue dropdowns
+                const editForm = section.closest('.ed-action-edit');
+                if (editForm) {
+                    const packSelect = editForm.querySelector('.ed-pack-select');
+                    const cueSelect = editForm.querySelector('.ed-cue-select');
+
+                    // Reload pack list
+                    await populatePackDropdown(editForm, action);
+
+                    // Select the synthetic pack
+                    if (packSelect) packSelect.value = syntheticPackId;
+
+                    // Show and populate cue dropdown
+                    if (cueSelect) {
+                        await populateCueDropdown(cueSelect, syntheticPackId, action.cue);
+                        cueSelect.style.display = '';
+                    }
+
+                    // Show fallback input
+                    const fallbackInput = editForm.querySelector('.ed-fallback-text');
+                    if (fallbackInput) {
+                        fallbackInput.value = action.fallbackText;
+                        fallbackInput.style.display = '';
+                    }
+
+                    // Hide TTS hint
+                    const ttsHint = editForm.querySelector('.ed-tts-hint');
+                    if (ttsHint) ttsHint.style.display = 'none';
+                }
+
+                // Show success and reset to idle
+                updateRecordingSectionState(section, 'idle');
+                section.innerHTML = `
+                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
+                    <div class="ed-recording-buttons">
+                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                    </div>
+                `;
+
+                // Trigger draft save
+                saveDraftFromEditor().catch(() => {});
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Re-record button
+    if (e.target.closest('.ed-btn-rerecord')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        // Revoke old URL
+        if (recState.objectUrl) {
+            URL.revokeObjectURL(recState.objectUrl);
+            recState.objectUrl = null;
+        }
+        recState.blob = null;
+
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
+
+    // Retry button (from error state)
+    if (e.target.closest('.ed-btn-retry-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
 
     // Toggle buttons (style / haptic)
     if (e.target.classList.contains('ed-toggle-btn')) {
@@ -6824,6 +8252,23 @@ function renderEditorReview() {
         $('btn-web-share').style.display = '';
     }
 
+    // Voice pack share card: count used cues from synthetic pack
+    const syntheticPackId = packManager.getSyntheticPackId();
+    const usedVoiceCues = new Set();
+    for (const action of evt.timeline) {
+        if (action.pack === syntheticPackId && action.cue) {
+            usedVoiceCues.add(action.cue);
+        }
+    }
+    const voiceCard = $('ed-voice-share-card');
+    if (usedVoiceCues.size > 0) {
+        $('ed-voice-share-count').textContent = usedVoiceCues.size + ' recorded ' +
+            (usedVoiceCues.size === 1 ? 'cue' : 'cues');
+        voiceCard.style.display = '';
+    } else {
+        voiceCard.style.display = 'none';
+    }
+
     // URL length warning
     try {
         const encoded = encodeEvent(evt);
@@ -6969,6 +8414,39 @@ async function buildBundledHTML(encoded) {
     }
 
     return html;
+}
+
+async function shareVoicePackZip(triggerBtn) {
+    const origText = triggerBtn ? triggerBtn.textContent : '';
+    if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Preparing...'; }
+    try {
+        const zipBuffer = await packManager.exportSyntheticPackZip();
+        const filename = 'my-voice-pack.zip';
+        const file = new File([zipBuffer], filename, { type: 'application/zip' });
+
+        // Try native file sharing
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+        }
+
+        // Fallback: blob download
+        const blob = new Blob([zipBuffer], { type: 'application/zip' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showShareFeedback('Download started!');
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            showShareFeedback('Share failed — ' + (e.message || 'could not export pack.'));
+        }
+    } finally {
+        if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = origText; }
+    }
 }
 
 async function shareBundleFile(includeEvent, triggerBtn) {
@@ -7516,6 +8994,7 @@ $('btn-copy-code').addEventListener('click', copyEventCode);
 $('btn-copy-link').addEventListener('click', copyShareableLink);
 $('btn-web-share').addEventListener('click', webShareEvent);
 $('btn-download-html').addEventListener('click', function() { shareBundleFile(true, this); });
+$('btn-share-voice-pack').addEventListener('click', function() { shareVoicePackZip(this); });
 $('btn-preview-from-editor').addEventListener('click', () => {
     state.previewReturnTo = 'editor-review';
     transitionTo('preview');

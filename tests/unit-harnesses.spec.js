@@ -8,12 +8,13 @@ const harnesses = [
     { name: 'packs', url: '/test-packs.html' },
     { name: 'drafts', url: '/test-drafts.html' },
     { name: 'audiobake', url: '/test-audiobake.html' },
+    { name: 'voicerecorder', url: '/test-voicerecorder.html' },
 ];
 
 for (const harness of harnesses) {
     test(`unit harness: ${harness.name}`, async ({ page, browserName }) => {
-        // WebKit headless doesn't support AudioContext.decodeAudioData — packs test hangs
-        test.skip(harness.name === 'packs' && browserName === 'webkit',
+        // WebKit headless doesn't support AudioContext.decodeAudioData — packs & voicerecorder test hangs
+        test.skip((harness.name === 'packs' || harness.name === 'voicerecorder') && browserName === 'webkit',
             'WebKit headless lacks Web Audio decodeAudioData support');
 
         await page.goto(harness.url);

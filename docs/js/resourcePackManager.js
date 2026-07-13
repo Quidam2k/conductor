@@ -771,6 +771,347 @@ function createResourcePackManager() {
         return { manifest, validation };
     }
 
+    // ─── Synthetic Pack API (My Voice) ────────────────────────────────
+
+    /**
+     * Get or create the per-device synthetic pack ID (e.g. "voice-xxxx").
+     * Persisted in localStorage so the same ID is reused across sessions.
+     * @returns {string}
+     */
+    function getSyntheticPackId() {
+        const STORAGE_KEY = 'conductor-voice-pack-id';
+        let packId = localStorage.getItem(STORAGE_KEY);
+        if (!packId) {
+            // Generate a unique ID: "voice-" + 4 random base36 chars
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+            let suffix = '';
+            for (let i = 0; i < 4; i++) {
+                suffix += chars.charAt(Math.floor(Math.random() * 36));
+            }
+            packId = 'voice-' + suffix;
+            localStorage.setItem(STORAGE_KEY, packId);
+        }
+        return packId;
+    }
+
+    /**
+     * Generate a cue ID from action text: lowercase, strip punctuation,
+     * spaces → hyphens, ≤30 chars, with deduplication via -2, -3, etc.
+     * @param {string} actionText
+     * @returns {string}
+     */
+    function generateCueId(actionText) {
+        // Lowercase, strip punctuation, spaces → hyphens
+        let slug = actionText
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')  // Remove non-word/space/hyphen
+            .replace(/\s+/g, '-')       // Spaces → hyphens
+            .replace(/-+/g, '-')        // Collapse multiple hyphens
+            .replace(/^-+|-+$/g, '');   // Trim hyphens
+
+        // Clamp to 30 chars
+        if (slug.length > 30) {
+            slug = slug.substring(0, 30);
+        }
+
+        // Default if empty
+        if (!slug) slug = 'cue';
+
+        // Deduplicate against existing cues in the synthetic pack
+        const packId = getSyntheticPackId();
+        const syncManifest = bufferCache.get(packId + ':_manifest_') ||
+                              (_lastSyntheticManifest);  // Check in-memory cache
+
+        if (!syncManifest || !syncManifest.cues) {
+            return slug;  // No existing cues to check
+        }
+
+        let candidate = slug;
+        let suffix = 2;
+        while (candidate in syncManifest.cues) {
+            candidate = slug + '-' + suffix;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    /** @type {Object|null} In-memory cache for synthetic manifest (faster than IDB for immediate re-records) */
+    let _lastSyntheticManifest = null;
+
+    /**
+     * Save a recorded cue into the synthetic pack.
+     * WAV-encodes the AudioBuffer, stores it in IDB, updates/creates the "My Voice" manifest.
+     * @param {string} cueId
+     * @param {AudioBuffer} audioBuffer
+     * @returns {Promise<Object>} The updated manifest.
+     * @throws {Error} If encoding fails or no encodeAudioBufferToWav available.
+     */
+    async function saveSyntheticCue(cueId, audioBuffer) {
+        if (typeof encodeAudioBufferToWav === 'undefined') {
+            throw new Error('saveSyntheticCue: encodeAudioBufferToWav not available (audioBake.js must load first)');
+        }
+
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // WAV-encode the AudioBuffer
+        const wavBytes = encodeAudioBufferToWav(audioBuffer);
+
+        // Get or create manifest
+        let manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) {
+            manifest = {
+                id: packId,
+                name: 'My Voice',
+                version: '1.0.0',
+                cues: {},
+            };
+        }
+
+        // Update cues map and bump patch version
+        const filePath = 'voices/' + cueId + '.wav';
+        manifest.cues[cueId] = filePath;
+
+        // Bump patch version
+        const versionParts = (manifest.version || '1.0.0').split('.');
+        const patch = parseInt(versionParts[2] || 0) + 1;
+        manifest.version = versionParts[0] + '.' + versionParts[1] + '.' + patch;
+
+        // Write to IDB in one transaction
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction(
+                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO],
+                'readwrite'
+            );
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+            tx.objectStore(RPM_STORE_AUDIO).put(wavBytes, packId + ':' + cueId);
+        });
+
+        // Update cache
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));  // Deep copy
+        loadedPacks.delete(packId);  // Invalidate cache so re-records refresh
+        const key = packId + ':' + cueId;
+        bufferCache.delete(key);
+
+        return manifest;
+    }
+
+    /**
+     * Delete a cue from the synthetic pack.
+     * Removes audio record + manifest entry + cache entries.
+     * If last cue removed, manifest is kept (empty cues object).
+     * @param {string} cueId
+     * @returns {Promise<void>}
+     */
+    async function deleteSyntheticCue(cueId) {
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // Get manifest
+        let manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) return;
+
+        // Remove cue
+        delete manifest.cues[cueId];
+
+        // Update IDB
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction(
+                [RPM_STORE_MANIFESTS, RPM_STORE_AUDIO],
+                'readwrite'
+            );
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+            tx.objectStore(RPM_STORE_AUDIO).delete(packId + ':' + cueId);
+        });
+
+        // Update cache
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));
+        bufferCache.delete(packId + ':' + cueId);
+    }
+
+    /**
+     * Export the synthetic pack as a valid zip file (ArrayBuffer).
+     * Includes manifest.json + voices/<cueId>.wav for each cue.
+     * Uses STORE-only entries (no compression) with real CRC32 checksums.
+     * @returns {Promise<ArrayBuffer>}
+     * @throws {Error} If pack is empty or export fails.
+     */
+    async function exportSyntheticPackZip() {
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        // Get manifest
+        const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest || Object.keys(manifest.cues || {}).length === 0) {
+            throw new Error('No synthetic cues to export');
+        }
+
+        // Collect manifest and audio files
+        const files = [];
+
+        // Add manifest.json
+        const manifestJson = JSON.stringify(manifest, null, 2);
+        const manifestBytes = new TextEncoder().encode(manifestJson);
+        files.push({ name: 'manifest.json', data: manifestBytes });
+
+        // Add audio files
+        const cueIds = Object.keys(manifest.cues);
+        for (const cueId of cueIds) {
+            const key = packId + ':' + cueId;
+            const wavArrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
+            if (wavArrayBuffer) {
+                const wavData = new Uint8Array(wavArrayBuffer);
+                files.push({
+                    name: 'voices/' + cueId + '.wav',
+                    data: wavData,
+                });
+            }
+        }
+
+        // Build zip with CRC32
+        return buildZipWithCrc32(files);
+    }
+
+    // ─── Zip building ────────────────────────────────────────────────────
+
+    /**
+     * Build a zip file from files, with real CRC32 checksums.
+     * Uses STORE (no compression) for all entries.
+     * @param {Array<{name: string, data: Uint8Array}>} files
+     * @returns {ArrayBuffer}
+     */
+    function buildZipWithCrc32(files) {
+        const localHeaders = [];
+        const centralHeaders = [];
+        let offset = 0;
+
+        for (const file of files) {
+            const nameBytes = new TextEncoder().encode(file.name);
+            const crc32 = calculateCrc32(file.data);
+
+            // Local file header (30 bytes + name + data)
+            const localHeader = new Uint8Array(30 + nameBytes.length + file.data.length);
+            const lhView = new DataView(localHeader.buffer);
+
+            lhView.setUint32(0, 0x04034b50, true);    // signature
+            lhView.setUint16(4, 20, true);            // version needed
+            lhView.setUint16(6, 0, true);             // flags
+            lhView.setUint16(8, 0, true);             // compression: stored
+            lhView.setUint16(10, 0, true);            // mod time
+            lhView.setUint16(12, 0, true);            // mod date
+            lhView.setUint32(14, crc32, true);        // CRC32
+            lhView.setUint32(18, file.data.length, true);  // compressed size
+            lhView.setUint32(22, file.data.length, true);  // uncompressed size
+            lhView.setUint16(26, nameBytes.length, true);  // name length
+            lhView.setUint16(28, 0, true);            // extra length
+
+            localHeader.set(nameBytes, 30);
+            localHeader.set(file.data, 30 + nameBytes.length);
+
+            localHeaders.push(localHeader);
+
+            // Central directory entry (46 bytes + name)
+            const centralEntry = new Uint8Array(46 + nameBytes.length);
+            const ceView = new DataView(centralEntry.buffer);
+
+            ceView.setUint32(0, 0x02014b50, true);    // signature
+            ceView.setUint16(4, 20, true);            // version made by
+            ceView.setUint16(6, 20, true);            // version needed
+            ceView.setUint16(8, 0, true);             // flags
+            ceView.setUint16(10, 0, true);            // compression: stored
+            ceView.setUint16(12, 0, true);            // mod time
+            ceView.setUint16(14, 0, true);            // mod date
+            ceView.setUint32(16, crc32, true);        // CRC32
+            ceView.setUint32(20, file.data.length, true);  // compressed
+            ceView.setUint32(24, file.data.length, true);  // uncompressed
+            ceView.setUint16(28, nameBytes.length, true);  // name length
+            ceView.setUint16(30, 0, true);            // extra length
+            ceView.setUint16(32, 0, true);            // comment length
+            ceView.setUint16(34, 0, true);            // disk start
+            ceView.setUint16(36, 0, true);            // internal attrs
+            ceView.setUint32(38, 0, true);            // external attrs
+            ceView.setUint32(42, offset, true);       // local header offset
+
+            centralEntry.set(nameBytes, 46);
+            centralHeaders.push(centralEntry);
+
+            offset += localHeader.length;
+        }
+
+        // Assemble: local headers + central directory + EOCD
+        const centralDirOffset = offset;
+        let centralDirSize = 0;
+        for (const ch of centralHeaders) centralDirSize += ch.length;
+
+        // End of Central Directory (22 bytes)
+        const eocd = new Uint8Array(22);
+        const eocdView = new DataView(eocd.buffer);
+        eocdView.setUint32(0, 0x06054b50, true);     // signature
+        eocdView.setUint16(4, 0, true);               // disk number
+        eocdView.setUint16(6, 0, true);               // central dir disk
+        eocdView.setUint16(8, files.length, true);    // entries on disk
+        eocdView.setUint16(10, files.length, true);   // total entries
+        eocdView.setUint32(12, centralDirSize, true); // central dir size
+        eocdView.setUint32(16, centralDirOffset, true); // central dir offset
+        eocdView.setUint16(20, 0, true);              // comment length
+
+        // Concatenate
+        const totalSize = offset + centralDirSize + 22;
+        const result = new Uint8Array(totalSize);
+        let pos = 0;
+
+        for (const lh of localHeaders) {
+            result.set(lh, pos);
+            pos += lh.length;
+        }
+        for (const ch of centralHeaders) {
+            result.set(ch, pos);
+            pos += ch.length;
+        }
+        result.set(eocd, pos);
+
+        return result.buffer;
+    }
+
+    /**
+     * Calculate CRC32 of a byte array using a lookup table.
+     * Vector: CRC32("123456789") = 0xCBF43926
+     * @param {Uint8Array} data
+     * @returns {number}
+     */
+    function calculateCrc32(data) {
+        const table = makeCrc32Table();
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < data.length; i++) {
+            const byte = data[i];
+            crc = (crc >>> 8) ^ table[(crc ^ byte) & 0xFF];
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;  // Unsigned
+    }
+
+    /**
+     * Build a CRC32 lookup table (256 entries).
+     * @returns {Uint32Array}
+     */
+    function makeCrc32Table() {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let k = 0; k < 8; k++) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c >>> 0;
+        }
+        return table;
+    }
+
     return {
         peekManifest,
         importPack,
@@ -787,6 +1128,13 @@ function createResourcePackManager() {
         getPackInfo,
         getCueList,
         getPackEvents,
+
+        // Synthetic pack API
+        getSyntheticPackId,
+        generateCueId,
+        saveSyntheticCue,
+        deleteSyntheticCue,
+        exportSyntheticPackZip,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,
