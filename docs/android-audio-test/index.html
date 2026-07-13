@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Android Audio Diagnostics — v46 (locked-screen check)</title>
+<title>Android Audio Diagnostics — v47 (locked-screen check)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -124,7 +124,7 @@
 <div class="wrap">
 
 <h1>Android Audio Diagnostics</h1>
-<p class="sub">Build v46 (locked-screen check) — run the tests in order, then tap <strong>Copy results</strong> at the bottom and paste the output back into chat.</p>
+<p class="sub">Build v47 (locked-screen check) — run the tests in order, then tap <strong>Copy results</strong> at the bottom and paste the output back into chat.</p>
 
 <div class="note">
   <strong>What this answers:</strong> does Conductor's baked audio track keep playing —
@@ -175,7 +175,7 @@
 
 <div class="test">
   <div class="test-title">4. Main-app spot check — record what happened (no audio)</div>
-  <div class="test-desc">After tests 1–3, run the real app once: open Conductor (footer must say <strong>build v46</strong>), Try the Demo → Start Practice → Go Live, note which banner appears, then lock + pocket for 3+ minutes and listen. Record both halves here so ONE paste carries the synthetic tests and the real-app result.</div>
+  <div class="test-desc">After tests 1–3, run the real app once: open Conductor (footer must say <strong>build v47</strong>), Try the Demo → Start Practice → Go Live, note which banner appears, then lock + pocket for 3+ minutes and listen. Record both halves here so ONE paste carries the synthetic tests and the real-app result.</div>
   <div class="test-row">
     <span class="row-label">Which banner appeared when you went live?</span>
     <button class="btn-small" onclick="recordBanner('pocket-ready')">Pocket-ready ✓</button>
@@ -231,7 +231,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor Android Audio Diagnostics v46 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor Android Audio Diagnostics v47 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),

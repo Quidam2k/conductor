@@ -217,3 +217,24 @@ This replaces "Now!" with a beep for every action. Everything else falls back to
 - Total pack size: no hard limit, but consider mobile data
 - WAV is largest but most compatible; MP3/OGG significantly smaller
 - A resource pack for a 3-minute event with 20 phrases: ~2-5 MB depending on format
+
+## Packs Recorded In-App
+
+The Conductor editor lets you record cues in your own voice directly in the app. These recordings are stored locally as a synthetic pack called "My Voice" (automatically assigned a unique per-device ID like `voice-xxxx`).
+
+### How It Works
+
+1. **Record** — While editing an action, tap the 🎤 Record button, speak your cue, tap Stop
+2. **Use** — The app processes your recording, saves it to local storage, and assigns it to the action
+3. **Share** — On the Review & Share step, a "Share Your Voice Pack" card appears if the event uses any recordings
+4. **Import** — Recipients can import the zip file via Manage Packs, and the recordings integrate into their local pack library
+
+### Storage & Export
+
+- Recordings are stored in your browser's local IndexedDB storage
+- Exporting generates a 100% standard resource pack zip file (manifest.json + voices/{cueId}.wav)
+- The exported zip is identical to any other Conductor resource pack — it can be re-imported elsewhere, shared, or published
+
+### Fallback
+
+Participants without your pack still get the standard fallback: the action text read by TTS while the screen is on, and countdown/trigger beeps from a pocket. The event continues without interruption.

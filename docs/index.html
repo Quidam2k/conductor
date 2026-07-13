@@ -629,6 +629,16 @@
         }
         .btn-add-action:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
+        /* ─── Voice share card ─── */
+        .voice-share-card {
+            display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
+            background: var(--bg-surface); border: 1px solid var(--border-subtle);
+            border-radius: var(--radius); padding: 16px;
+        }
+        .voice-share-card h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+        .voice-share-card p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+        .voice-share-hint { font-style: italic; color: var(--text-dim); }
+
         .share-section {
             display: flex; flex-direction: column; gap: 10px; margin-top: 16px;
             background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -665,6 +675,94 @@
             width: 18px; height: 18px; accent-color: var(--accent-blue);
         }
         .ed-checkbox-row label { font-size: 13px; color: var(--text-dim); }
+
+        /* ─── Recording section (per-action) ─── */
+        .ed-recording-section {
+            margin-top: 12px; padding: 12px; background: var(--bg-input);
+            border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+        }
+        .ed-recording-section-title {
+            font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .ed-recording-state-idle,
+        .ed-recording-state-recording,
+        .ed-recording-state-preview,
+        .ed-recording-state-unsupported,
+        .ed-recording-state-error {
+            display: none;
+        }
+        .ed-recording-section.idle .ed-recording-state-idle { display: block; }
+        .ed-recording-section.recording .ed-recording-state-recording { display: block; }
+        .ed-recording-section.preview .ed-recording-state-preview { display: block; }
+        .ed-recording-section.unsupported .ed-recording-state-unsupported { display: block; }
+        .ed-recording-section.error .ed-recording-state-error { display: block; }
+
+        .ed-recording-hint {
+            font-size: 11px; color: var(--text-dim); margin-top: 6px;
+        }
+        .ed-recording-indicator {
+            display: inline-block; width: 8px; height: 8px; background: var(--accent-red);
+            border-radius: 50%; margin-right: 4px; animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        .ed-preview-audio {
+            width: 100%; margin-top: 8px; height: 32px;
+        }
+        .ed-recording-buttons {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .ed-recording-buttons button {
+            flex: 1; min-height: 36px; font-size: 13px;
+        }
+        .ed-recording-error-msg {
+            font-size: 12px; color: var(--accent-red); margin-top: 6px;
+        }
+
+        /* ─── Batch recorder overlay ─── */
+        .batch-recorder-overlay {
+            position: fixed; inset: 0; z-index: 101; background: var(--bg); display: flex;
+            flex-direction: column;
+        }
+        .batch-recorder-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: linear-gradient(135deg, #0d1b3e, #0a1530);
+            border-bottom: 1px solid rgba(91, 163, 255, 0.08);
+        }
+        .batch-recorder-header h2 {
+            font-size: 18px; font-weight: 600;
+        }
+        .batch-close-btn {
+            background: none; border: none; color: var(--text);
+            font-size: 20px; cursor: pointer; padding: 4px;
+        }
+        .batch-close-btn:hover { color: var(--accent-red); }
+
+        .batch-recorder-content {
+            flex: 1; display: flex; flex-direction: column; overflow-y: auto;
+            align-items: center; justify-content: center; padding: 16px;
+        }
+        .batch-teleprompter-text {
+            font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 16px;
+            line-height: 1.4;
+        }
+        .batch-progress {
+            font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;
+        }
+        .batch-record-button {
+            min-height: 56px; min-width: 160px; font-size: 16px;
+            border-radius: var(--radius-lg); cursor: pointer;
+        }
+        .batch-preview-audio {
+            width: 80%; max-width: 400px; margin-top: 16px; height: 32px;
+        }
+        .batch-action-buttons {
+            display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center;
+        }
+        .batch-action-buttons button {
+            min-height: 44px; font-size: 13px;
+        }
 
         /* ─── Pack Manager screen ─── */
         .header-packs { background: linear-gradient(135deg, #1a2e0d, #121f08); border-bottom: 1px solid rgba(240,180,41,0.08); }
@@ -856,7 +954,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v46</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v47</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1138,6 +1236,7 @@
 
         <div id="ed-action-list" class="ed-action-list"></div>
         <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
+        <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all missing cues</button>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1173,6 +1272,13 @@
         </div>
 
         <ul id="review-actions" class="action-list"></ul>
+
+        <div id="ed-voice-share-card" class="voice-share-card" style="display:none;">
+            <h3>📦 Share Your Voice Pack</h3>
+            <p id="ed-voice-share-count">0 recorded cues</p>
+            <p class="voice-share-hint">Import the zip file via Manage Packs to use these recordings in other events.</p>
+            <button id="btn-share-voice-pack" class="btn-primary">Share Voice Pack</button>
+        </div>
 
         <div class="share-section">
             <label class="pwd-toggle">
@@ -1256,6 +1362,29 @@
     </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- Batch Voice Recorder Overlay                                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="batch-recorder-overlay" class="batch-recorder-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="batch-recorder-header">
+        <h2>Record Your Cues</h2>
+        <button id="btn-batch-close" class="batch-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="batch-recorder-content">
+        <div class="batch-teleprompter-text" id="batch-cue-text"></div>
+        <div class="batch-progress" id="batch-progress"></div>
+        <button id="btn-batch-record" class="batch-record-button btn-primary">🎤 Record</button>
+        <audio id="batch-preview-audio" class="batch-preview-audio" controls style="display:none;"></audio>
+        <div class="batch-action-buttons" id="batch-action-buttons" style="display:none;">
+            <button id="btn-batch-use" class="btn-primary">✓ Use & Next</button>
+            <button id="btn-batch-skip" class="btn-outline">Skip</button>
+            <button id="btn-batch-rerecord" class="btn-outline">Re-record</button>
+            <button id="btn-batch-done" class="btn-outline">Done</button>
+        </div>
+        <div id="batch-error-msg" style="color:var(--accent-red); font-size:13px; margin-top:16px; display:none;"></div>
+    </div>
+</div>
+
 <!-- Hidden media element for the on-the-fly baked audio track. At Start we
      render the whole event's beeps + pack voice into one WAV and play it here;
      a decoded media file in <audio>.src is the only channel that survives iOS
@@ -1274,6 +1403,7 @@
 <script src="js/audioService.js"></script>
 <script src="js/resourcePackManager.js"></script>
 <script src="js/audioBake.js"></script>
+<script src="js/voiceRecorder.js"></script>
 <script src="js/draftManager.js"></script>
 <script src="js/circularTimeline.js"></script>
 
@@ -1337,6 +1467,8 @@ audio.setResourcePackHasCue((cueId, packId) => packManager.hasCue(packId, cueId)
 // Share the pack manager's AudioContext for tone beeps so iOS sees a single
 // unlocked context across BufferSource + OscillatorNode playback.
 audio.setAudioContextProvider(() => packManager.getAudioContext());
+// Wire the same AudioContext to voice recorder for recording/processing
+setAudioContextProvider(() => packManager.getAudioContext());
 // Beep-fired indicator: flash the dot beside the active screen's mute button
 // whenever a beep is actually scheduled. Lets a tester tell "beep scheduled
 // but inaudible" (flash, no sound) apart from "beep never fired" (no flash).
@@ -2777,6 +2909,9 @@ function renderEditorTimeline() {
         const card = createActionCard(action, index);
         list.appendChild(card);
     });
+
+    // Update batch recorder button visibility
+    updateBatchRecorderButtonVisibility();
 }
 
 function formatOffset(totalSec) {
@@ -2878,6 +3013,47 @@ function createActionEditForm(action, index) {
         </select>
         <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
 
+        <div class="ed-recording-section idle" data-action-index="${index}">
+            <div class="ed-recording-section-title">🎤 Record Your Voice</div>
+
+            <div class="ed-recording-state-idle">
+                <button type="button" class="btn-primary btn-small ed-btn-record">🎤 Record</button>
+                <div class="ed-recording-hint">Record a cue in your own voice. Keep it short and clear.</div>
+            </div>
+
+            <div class="ed-recording-state-recording">
+                <div style="display:flex; align-items:center;">
+                    <span class="ed-recording-indicator"></span>
+                    <span style="font-size:13px;">Recording...</span>
+                </div>
+                <div class="ed-recording-buttons">
+                    <button type="button" class="btn-primary btn-small ed-btn-stop-record">⏹ Stop</button>
+                    <button type="button" class="btn-outline btn-small ed-btn-cancel-record">Cancel</button>
+                </div>
+            </div>
+
+            <div class="ed-recording-state-preview">
+                <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">Your recording:</div>
+                <audio class="ed-preview-audio" controls></audio>
+                <div class="ed-recording-buttons">
+                    <button type="button" class="btn-primary btn-small ed-btn-use-recording">✓ Use This Recording</button>
+                    <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                </div>
+                <div class="ed-recording-error-msg" style="display:none;"></div>
+            </div>
+
+            <div class="ed-recording-state-unsupported">
+                <div style="font-size:12px; color:var(--text-dim);">Recording not supported in this browser.</div>
+            </div>
+
+            <div class="ed-recording-state-error">
+                <div class="ed-recording-error-msg"></div>
+                <div class="ed-recording-buttons" style="margin-top:8px;">
+                    <button type="button" class="btn-outline btn-small ed-btn-retry-record">Try Again</button>
+                </div>
+            </div>
+        </div>
+
         <div class="ed-form-actions">
             <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
             <button type="button" class="btn-outline btn-small ed-btn-form-cancel">Cancel</button>
@@ -2886,6 +3062,25 @@ function createActionEditForm(action, index) {
 
     // Populate pack dropdown async
     populatePackDropdown(form, action);
+
+    // Initialize recording section: check browser support and existing cue state
+    const recordingSection = form.querySelector('.ed-recording-section');
+    if (recordingSection) {
+        (async () => {
+            const isSupported = isVoiceRecorderSupported();
+            if (!isSupported) {
+                updateRecordingSectionState(recordingSection, 'unsupported');
+            } else if (action.pack && action.cue && action.pack === packManager.getSyntheticPackId()) {
+                // Show "recorded" state if already has a synthetic cue
+                recordingSection.innerHTML = `
+                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
+                    <div class="ed-recording-buttons">
+                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                    </div>
+                `;
+            }
+        })();
+    }
 
     return form;
 }
@@ -2946,11 +3141,485 @@ async function populateCueDropdown(cueSelect, packId, selectedCue) {
     }
 }
 
+// Per-action recorder state tracking
+// Format: { [actionIndex]: { recorder, blob, objectUrl } }
+const _actionRecorders = {};
+
+/**
+ * Initialize or retrieve recorder state for an action.
+ */
+function getActionRecorderState(actionIndex) {
+    if (!_actionRecorders[actionIndex]) {
+        _actionRecorders[actionIndex] = {
+            recorder: createVoiceRecorder(),
+            blob: null,
+            objectUrl: null,
+        };
+    }
+    return _actionRecorders[actionIndex];
+}
+
+/**
+ * Update the recording section UI state.
+ */
+function updateRecordingSectionState(section, state, errorMsg = '') {
+    section.className = `ed-recording-section ${state}`;
+    if (state === 'error' && errorMsg) {
+        // Scope to the error-state block: the preview state has its own
+        // (hidden) .ed-recording-error-msg earlier in the DOM.
+        const errorEl = section.querySelector('.ed-recording-state-error .ed-recording-error-msg');
+        if (errorEl) errorEl.textContent = errorMsg;
+    }
+}
+
+/**
+ * Set the preview audio source and show it.
+ */
+function showRecordingPreview(section, blob) {
+    const audio = section.querySelector('.ed-preview-audio');
+    const recorderState = section.dataset.recorderState ? JSON.parse(section.dataset.recorderState) : {};
+
+    // Revoke old URL if it exists
+    if (recorderState.objectUrl) {
+        URL.revokeObjectURL(recorderState.objectUrl);
+    }
+
+    const newUrl = URL.createObjectURL(blob);
+    audio.src = newUrl;
+    recorderState.objectUrl = newUrl;
+    section.dataset.recorderState = JSON.stringify(recorderState);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Batch Voice Recorder Flow
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _batchRecorderState = {
+    isActive: false,
+    uncuedIndices: [],
+    currentIdx: 0,
+    recorder: null,
+    blob: null,
+    objectUrl: null,
+};
+
+/**
+ * Find all actions that don't have a cue.
+ * (Note: async validation skipped for sync iteration; hasCue check happens at use time)
+ */
+function findUncuedActions() {
+    const uncued = [];
+    state.editor.actions.forEach((action, index) => {
+        // Simple check: no cue at all
+        if (!action.cue) {
+            uncued.push(index);
+        }
+    });
+    return uncued;
+}
+
+/**
+ * Update the batch recorder button visibility and state.
+ */
+function updateBatchRecorderButtonVisibility() {
+    const btn = $('btn-record-batch');
+    if (!btn) return;
+
+    const isSupported = isVoiceRecorderSupported();
+    const uncued = findUncuedActions();
+
+    if (isSupported && uncued.length > 0) {
+        btn.style.display = '';
+        btn.title = `Record missing cues (${uncued.length} action${uncued.length !== 1 ? 's' : ''})`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+/**
+ * Start the batch recorder flow.
+ */
+function startBatchRecorder() {
+    const uncued = findUncuedActions();
+    if (uncued.length === 0) return;
+
+    _batchRecorderState = {
+        isActive: true,
+        uncuedIndices: uncued,
+        currentIdx: 0,
+        recorder: createVoiceRecorder(),
+        blob: null,
+        objectUrl: null,
+    };
+
+    showBatchRecorderUI();
+}
+
+/**
+ * Show the batch recorder overlay and initialize the first action.
+ */
+function showBatchRecorderUI() {
+    const overlay = $('batch-recorder-overlay');
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+    showBatchRecorderAction();
+}
+
+/**
+ * Display the current action in the batch recorder.
+ */
+function showBatchRecorderAction() {
+    const state_local = _batchRecorderState;
+    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+        closeBatchRecorder();
+        return;
+    }
+
+    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
+    const action = state.editor.actions[actionIndex];
+
+    $('batch-cue-text').textContent = action.action;
+    $('batch-progress').textContent = `${state_local.currentIdx + 1} of ${state_local.uncuedIndices.length}`;
+
+    // Reset UI to idle (record button visible, preview hidden)
+    $('btn-batch-record').style.display = '';
+    $('batch-preview-audio').style.display = 'none';
+    $('batch-action-buttons').style.display = 'none';
+    $('batch-error-msg').style.display = 'none';
+
+    // Reset state
+    state_local.blob = null;
+    if (state_local.objectUrl) {
+        URL.revokeObjectURL(state_local.objectUrl);
+        state_local.objectUrl = null;
+    }
+}
+
+/**
+ * Update batch recorder button UI for recording state.
+ */
+function setBatchRecorderRecording(isRecording) {
+    const btn = $('btn-batch-record');
+    if (isRecording) {
+        btn.textContent = '⏹ Stop';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    } else {
+        btn.textContent = '🎤 Record';
+        btn.classList.remove('btn-outline');
+        btn.classList.add('btn-primary');
+    }
+}
+
+/**
+ * Close the batch recorder overlay and return to editor.
+ */
+function closeBatchRecorder() {
+    const overlay = $('batch-recorder-overlay');
+    overlay.style.display = 'none';
+
+    if (_batchRecorderState.recorder) {
+        _batchRecorderState.recorder.cancel();
+    }
+    if (_batchRecorderState.objectUrl) {
+        URL.revokeObjectURL(_batchRecorderState.objectUrl);
+    }
+
+    _batchRecorderState = {
+        isActive: false,
+        uncuedIndices: [],
+        currentIdx: 0,
+        recorder: null,
+        blob: null,
+        objectUrl: null,
+    };
+
+    // Re-render to update UI
+    renderEditorTimeline();
+}
+
+// Wire batch recorder button
+$('btn-record-batch').addEventListener('click', () => {
+    startBatchRecorder();
+});
+
+// Wire batch overlay close button
+$('btn-batch-close').addEventListener('click', () => {
+    closeBatchRecorder();
+});
+
+// Wire batch record button
+$('btn-batch-record').addEventListener('click', async () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    const btn = $('btn-batch-record');
+    if (btn.textContent.includes('Record')) {
+        // Start recording
+        try {
+            setBatchRecorderRecording(true);
+            await state_local.recorder.start();
+        } catch (err) {
+            setBatchRecorderRecording(false);
+            $('batch-error-msg').textContent = err.message;
+            $('batch-error-msg').style.display = '';
+        }
+    } else {
+        // Stop recording
+        try {
+            const blob = await state_local.recorder.stop();
+            state_local.blob = blob;
+            setBatchRecorderRecording(false);
+
+            // Show preview and action buttons
+            const audio = $('batch-preview-audio');
+            const newUrl = URL.createObjectURL(blob);
+            audio.src = newUrl;
+            state_local.objectUrl = newUrl;
+            audio.style.display = '';
+            $('batch-action-buttons').style.display = 'flex';
+        } catch (err) {
+            setBatchRecorderRecording(false);
+            $('batch-error-msg').textContent = err.message;
+            $('batch-error-msg').style.display = '';
+        }
+    }
+});
+
+// Wire batch use button
+$('btn-batch-use').addEventListener('click', async () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive || !state_local.blob) return;
+
+    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
+    const action = state.editor.actions[actionIndex];
+
+    try {
+        const processed = await processRecording(state_local.blob);
+        const syntheticPackId = packManager.getSyntheticPackId();
+        const cueId = packManager.generateCueId(action.action);
+
+        // If action already has a cue from this pack, reuse the cueId
+        if (action.pack === syntheticPackId && action.cue) {
+            await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+        } else {
+            await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
+            action.cue = cueId;
+        }
+
+        // Set the pack
+        action.pack = syntheticPackId;
+        action.fallbackText = action.fallbackText || action.action;
+
+        // Move to next action
+        state_local.currentIdx++;
+        if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+            // All done! Close and save draft.
+            closeBatchRecorder();
+            saveDraftFromEditor().catch(() => {});
+        } else {
+            // Show next action
+            showBatchRecorderAction();
+        }
+    } catch (err) {
+        $('batch-error-msg').textContent = err.message;
+        $('batch-error-msg').style.display = '';
+    }
+});
+
+// Wire batch skip button
+$('btn-batch-skip').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    state_local.currentIdx++;
+    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
+        closeBatchRecorder();
+        saveDraftFromEditor().catch(() => {});
+    } else {
+        showBatchRecorderAction();
+    }
+});
+
+// Wire batch re-record button
+$('btn-batch-rerecord').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.objectUrl) return;
+
+    URL.revokeObjectURL(state_local.objectUrl);
+    state_local.objectUrl = null;
+    state_local.blob = null;
+    showBatchRecorderAction();
+});
+
+// Wire batch done button
+$('btn-batch-done').addEventListener('click', () => {
+    const state_local = _batchRecorderState;
+    if (!state_local.isActive) return;
+
+    closeBatchRecorder();
+    saveDraftFromEditor().catch(() => {});
+});
+
 // Event delegation for timeline editor actions
 $('ed-action-list').addEventListener('click', (e) => {
     const card = e.target.closest('.ed-action-card');
     if (!card) return;
     const index = parseInt(card.dataset.index);
+
+    // ═══════════════════════════════════════════════════════════════
+    // Recording Section Handlers
+    // ═══════════════════════════════════════════════════════════════
+
+    // Record button (start recording)
+    if (e.target.closest('.ed-btn-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        (async () => {
+            try {
+                updateRecordingSectionState(section, 'recording');
+                await recState.recorder.start();
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Stop recording button
+    if (e.target.closest('.ed-btn-stop-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        (async () => {
+            try {
+                const blob = await recState.recorder.stop();
+                recState.blob = blob;
+                showRecordingPreview(section, blob);
+                updateRecordingSectionState(section, 'preview');
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Cancel recording button
+    if (e.target.closest('.ed-btn-cancel-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+        recState.recorder.cancel();
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
+
+    // Use this recording button
+    if (e.target.closest('.ed-btn-use-recording')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+        const action = state.editor.actions[actionIndex];
+
+        if (!recState.blob) {
+            updateRecordingSectionState(section, 'error', 'No recording to save');
+            return;
+        }
+
+        (async () => {
+            try {
+                const processed = await processRecording(recState.blob);
+                const syntheticPackId = packManager.getSyntheticPackId();
+                const cueId = packManager.generateCueId(action.action);
+
+                // If action already has a cue from this pack, reuse the cueId
+                if (action.pack === syntheticPackId && action.cue) {
+                    // Overwrite existing cue
+                    await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+                } else {
+                    // Save as new cue
+                    await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
+                    action.cue = cueId;
+                }
+
+                // Set the pack to synthetic pack
+                action.pack = syntheticPackId;
+                action.fallbackText = action.fallbackText || action.action;
+
+                // Refresh the form's pack/cue dropdowns
+                const editForm = section.closest('.ed-action-edit');
+                if (editForm) {
+                    const packSelect = editForm.querySelector('.ed-pack-select');
+                    const cueSelect = editForm.querySelector('.ed-cue-select');
+
+                    // Reload pack list
+                    await populatePackDropdown(editForm, action);
+
+                    // Select the synthetic pack
+                    if (packSelect) packSelect.value = syntheticPackId;
+
+                    // Show and populate cue dropdown
+                    if (cueSelect) {
+                        await populateCueDropdown(cueSelect, syntheticPackId, action.cue);
+                        cueSelect.style.display = '';
+                    }
+
+                    // Show fallback input
+                    const fallbackInput = editForm.querySelector('.ed-fallback-text');
+                    if (fallbackInput) {
+                        fallbackInput.value = action.fallbackText;
+                        fallbackInput.style.display = '';
+                    }
+
+                    // Hide TTS hint
+                    const ttsHint = editForm.querySelector('.ed-tts-hint');
+                    if (ttsHint) ttsHint.style.display = 'none';
+                }
+
+                // Show success and reset to idle
+                updateRecordingSectionState(section, 'idle');
+                section.innerHTML = `
+                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
+                    <div class="ed-recording-buttons">
+                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                    </div>
+                `;
+
+                // Trigger draft save
+                saveDraftFromEditor().catch(() => {});
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Re-record button
+    if (e.target.closest('.ed-btn-rerecord')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const recState = getActionRecorderState(actionIndex);
+
+        // Revoke old URL
+        if (recState.objectUrl) {
+            URL.revokeObjectURL(recState.objectUrl);
+            recState.objectUrl = null;
+        }
+        recState.blob = null;
+
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
+
+    // Retry button (from error state)
+    if (e.target.closest('.ed-btn-retry-record')) {
+        const section = e.target.closest('.ed-recording-section');
+        updateRecordingSectionState(section, 'idle');
+        return;
+    }
 
     // Toggle buttons (style / haptic)
     if (e.target.classList.contains('ed-toggle-btn')) {
@@ -3187,6 +3856,23 @@ function renderEditorReview() {
         $('btn-web-share').style.display = '';
     }
 
+    // Voice pack share card: count used cues from synthetic pack
+    const syntheticPackId = packManager.getSyntheticPackId();
+    const usedVoiceCues = new Set();
+    for (const action of evt.timeline) {
+        if (action.pack === syntheticPackId && action.cue) {
+            usedVoiceCues.add(action.cue);
+        }
+    }
+    const voiceCard = $('ed-voice-share-card');
+    if (usedVoiceCues.size > 0) {
+        $('ed-voice-share-count').textContent = usedVoiceCues.size + ' recorded ' +
+            (usedVoiceCues.size === 1 ? 'cue' : 'cues');
+        voiceCard.style.display = '';
+    } else {
+        voiceCard.style.display = 'none';
+    }
+
     // URL length warning
     try {
         const encoded = encodeEvent(evt);
@@ -3332,6 +4018,39 @@ async function buildBundledHTML(encoded) {
     }
 
     return html;
+}
+
+async function shareVoicePackZip(triggerBtn) {
+    const origText = triggerBtn ? triggerBtn.textContent : '';
+    if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Preparing...'; }
+    try {
+        const zipBuffer = await packManager.exportSyntheticPackZip();
+        const filename = 'my-voice-pack.zip';
+        const file = new File([zipBuffer], filename, { type: 'application/zip' });
+
+        // Try native file sharing
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+        }
+
+        // Fallback: blob download
+        const blob = new Blob([zipBuffer], { type: 'application/zip' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showShareFeedback('Download started!');
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            showShareFeedback('Share failed — ' + (e.message || 'could not export pack.'));
+        }
+    } finally {
+        if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = origText; }
+    }
 }
 
 async function shareBundleFile(includeEvent, triggerBtn) {
@@ -3879,6 +4598,7 @@ $('btn-copy-code').addEventListener('click', copyEventCode);
 $('btn-copy-link').addEventListener('click', copyShareableLink);
 $('btn-web-share').addEventListener('click', webShareEvent);
 $('btn-download-html').addEventListener('click', function() { shareBundleFile(true, this); });
+$('btn-share-voice-pack').addEventListener('click', function() { shareVoicePackZip(this); });
 $('btn-preview-from-editor').addEventListener('click', () => {
     state.previewReturnTo = 'editor-review';
     transitionTo('preview');

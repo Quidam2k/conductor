@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Voice Recorder Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .summary.running { background: #3d3d0a; border: 1px solid #ff0; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — Voice Recorder Tests</h1>
+    <div id="summary" class="summary running">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="lib/pako.min.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/timingEngine.js"></script>
+    <script src="js/audioService.js"></script>
+    <script src="js/audioBake.js"></script>
+    <script src="js/resourcePackManager.js"></script>
+    <script src="js/voiceRecorder.js"></script>
+    <script>
+    (async function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // Helper: create a synthetic AudioBuffer (silent)
+        function makeSilentAudioBuffer(durationMs, sampleRate = 24000) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const samples = Math.floor(sampleRate * durationMs / 1000);
+            const buf = ctx.createBuffer(1, samples, sampleRate);
+            return buf;  // zeroed/silent
+        }
+
+        // Helper: create an audio buffer with some actual content (sine wave)
+        async function makeSineAudioBuffer(freqHz, durationMs, sampleRate = 24000) {
+            const Ctor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            if (!Ctor) throw new Error('OfflineAudioContext not available');
+            const frames = Math.floor(sampleRate * durationMs / 1000);
+            const offlineCtx = new Ctor(1, frames, sampleRate);
+
+            const osc = offlineCtx.createOscillator();
+            osc.frequency.value = freqHz;
+            osc.connect(offlineCtx.destination);
+            osc.start(0);
+            osc.stop(durationMs / 1000);
+
+            return await offlineCtx.startRendering();
+        }
+
+        try {
+            // ═════════════════════════════════════════════════════════════
+            // 1. Module detection
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>1. Module Detection</h2>');
+
+            assert('createVoiceRecorder is defined', typeof createVoiceRecorder === 'function');
+            assert('setAudioContextProvider is defined', typeof setAudioContextProvider === 'function');
+            assert('isVoiceRecorderSupported is defined', typeof isVoiceRecorderSupported === 'function');
+            assert('decodeRecordingBlob is defined', typeof decodeRecordingBlob === 'function');
+            assert('trimSilence is defined', typeof trimSilence === 'function');
+            assert('resampleToMono24k is defined', typeof resampleToMono24k === 'function');
+            assert('processRecording is defined', typeof processRecording === 'function');
+
+            // ═════════════════════════════════════════════════════════════
+            // 2. AudioContext provider
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>2. AudioContext Provider</h2>');
+
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            setAudioContextProvider(() => audioCtx);
+            assert('setAudioContextProvider accepts function', true);
+
+            // ═════════════════════════════════════════════════════════════
+            // 3. CueId generation (slug)
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>3. CueId Generation (Slug)</h2>');
+
+            const rpm = createResourcePackManager();
+
+            const slug1 = rpm.generateCueId('Wave Your Hand');
+            assert('Slug: spacing → hyphens', slug1 === 'wave-your-hand', `Got: ${slug1}`);
+
+            const slug2 = rpm.generateCueId('Say "Hello!"');
+            assert('Slug: punctuation removed', !slug2.includes('"') && !slug2.includes('!'));
+
+            const slug3 = rpm.generateCueId('A very long action text that goes on and on and on forever');
+            assert('Slug: clamped to ≤30 chars', slug3.length <= 30, `Got: ${slug3.length}`);
+
+            const slug4 = rpm.generateCueId('Go!');
+            assert('Slug: short action', slug4.length > 0, `Got: ${slug4}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // 4. Silence trimming
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>4. Silence Trimming</h2>');
+
+            // Create a buffer with signal
+            const sineBuffer = await makeSineAudioBuffer(440, 100);  // 100ms 440 Hz sine
+            const trimmed = trimSilence(sineBuffer);
+            assert('Trimmed buffer returns AudioBuffer', trimmed instanceof AudioBuffer);
+            assert('Trimmed buffer has audio', trimmed.duration > 0, `Duration: ${trimmed.duration}s`);
+
+            // Test all-silence rejection
+            const silentBuffer = makeSilentAudioBuffer(100);
+            try {
+                trimSilence(silentBuffer);
+                assert('All-silence throws error', false);
+            } catch (e) {
+                assert('All-silence throws error', e.message.includes('No audio detected'));
+            }
+
+            // ═════════════════════════════════════════════════════════════
+            // 5. Resampling
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>5. Resampling to 24kHz Mono</h2>');
+
+            const sineBuffer44k = await makeSineAudioBuffer(440, 50, 44100);
+            assert('Input is 44.1kHz', sineBuffer44k.sampleRate === 44100);
+
+            const resampled = await resampleToMono24k(sineBuffer44k);
+            assert('Resampled is 24kHz', resampled.sampleRate === 24000, `Got: ${resampled.sampleRate}`);
+            assert('Resampled is mono', resampled.numberOfChannels === 1, `Got: ${resampled.numberOfChannels}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // 6. WAV encoding header checks
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>6. WAV Encoding Header</h2>');
+
+            const testBuf = await makeSineAudioBuffer(440, 50, 24000);
+            const wavBytes = encodeAudioBufferToWav(testBuf);
+            const view = new DataView(wavBytes);
+
+            // Check RIFF header
+            const riff = String.fromCharCode(
+                view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)
+            );
+            assert('WAV: RIFF magic', riff === 'RIFF', `Got: ${riff}`);
+
+            // Check WAVE format
+            const wave = String.fromCharCode(
+                view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11)
+            );
+            assert('WAV: WAVE magic', wave === 'WAVE', `Got: ${wave}`);
+
+            // Check sample rate (24000 at offset 24)
+            const sr = view.getUint32(24, true);
+            assert('WAV: sample rate is 24000', sr === 24000, `Got: ${sr}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // 7. Synthetic pack ID
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>7. Synthetic Pack ID</h2>');
+
+            const packId = rpm.getSyntheticPackId();
+            assert('Pack ID is string', typeof packId === 'string');
+            assert('Pack ID starts with "voice-"', packId.startsWith('voice-'));
+            assert('Pack ID is stable', rpm.getSyntheticPackId() === packId);
+
+            // ═════════════════════════════════════════════════════════════
+            // 8. Save and retrieve cue
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>8. Save Synthetic Cue</h2>');
+
+            const testAudioBuf = await makeSineAudioBuffer(440, 50, 24000);
+            const savedManifest = await rpm.saveSyntheticCue('test-cue-1', testAudioBuf);
+
+            assert('Saved manifest has correct pack ID', savedManifest.id === packId);
+            assert('Saved manifest has "test-cue-1"', 'test-cue-1' in savedManifest.cues);
+            assert('Saved manifest file path is correct',
+                savedManifest.cues['test-cue-1'] === 'voices/test-cue-1.wav');
+
+            // ═════════════════════════════════════════════════════════════
+            // 9. Re-record overwrites
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>9. Re-record Overwrites</h2>');
+
+            const newAudioBuf = await makeSineAudioBuffer(880, 50, 24000);
+            const rerecordManifest = await rpm.saveSyntheticCue('test-cue-1', newAudioBuf);
+
+            assert('Re-record updates manifest', 'test-cue-1' in rerecordManifest.cues);
+            assert('Version bumped', rerecordManifest.version !== savedManifest.version);
+
+            // ═════════════════════════════════════════════════════════════
+            // 10. Delete cue
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>10. Delete Synthetic Cue</h2>');
+
+            await rpm.deleteSyntheticCue('test-cue-1');
+            const afterDelete = await rpm.listPacks();
+            const packAfterDel = afterDelete.find(p => p.id === packId);
+
+            // Manifest should be gone or cue should be removed
+            assert('Cue deleted from manifest',
+                packAfterDel === undefined || !('test-cue-1' in (packAfterDel.cues || {})));
+
+            // ═════════════════════════════════════════════════════════════
+            // 11. Zip export round-trip
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>11. Zip Export & Round-Trip</h2>');
+
+            // Repopulate with a few cues for export
+            const cue1 = await makeSineAudioBuffer(440, 50, 24000);
+            const cue2 = await makeSineAudioBuffer(880, 50, 24000);
+            await rpm.saveSyntheticCue('cue-a', cue1);
+            await rpm.saveSyntheticCue('cue-b', cue2);
+
+            // Export the zip
+            let exportedZip;
+            try {
+                exportedZip = await rpm.exportSyntheticPackZip();
+                assert('Zip export succeeds', exportedZip instanceof ArrayBuffer);
+                assert('Zip has content', exportedZip.byteLength > 100, `Size: ${exportedZip.byteLength}`);
+            } catch (e) {
+                assert('Zip export succeeds', false, e.message);
+                exportedZip = null;
+            }
+
+            if (exportedZip) {
+                // Parse the zip to verify structure
+                try {
+                    const entries = parseZipCentralDirectory(exportedZip);
+                    assert('Zip has manifest entry', entries.some(e => e.name === 'manifest.json'));
+                    assert('Zip has audio entries', entries.some(e => e.name.startsWith('voices/')));
+                    assert('Zip has 3+ entries (manifest + 2 audio)', entries.length >= 3,
+                        `Got: ${entries.length}`);
+
+                    // Extract and validate manifest
+                    const manifestEntry = entries.find(e => e.name === 'manifest.json');
+                    const manifestData = await extractZipFile(exportedZip, manifestEntry);
+                    const manifestText = new TextDecoder().decode(manifestData);
+                    const exportedManifest = JSON.parse(manifestText);
+
+                    assert('Exported manifest has cues', 'cue-a' in exportedManifest.cues && 'cue-b' in exportedManifest.cues);
+                    assert('Exported manifest is valid JSON', exportedManifest.id && exportedManifest.name);
+                } catch (e) {
+                    assert('Zip structure is valid', false, e.message);
+                }
+            }
+
+            // ═════════════════════════════════════════════════════════════
+            // Clean up synthetic pack
+            // ═════════════════════════════════════════════════════════════
+            try {
+                await rpm.deletePack(packId);
+            } catch {}
+
+        } catch (e) {
+            // Catch any top-level errors
+            failed++;
+            log(`<div class="test fail"><span class="icon"></span>Unhandled error: ${esc(e.message)}</div>`);
+            console.error(e);
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+    })();
+    </script>
+</body>
+</html>
