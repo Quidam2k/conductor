@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Android Audio Diagnostics — v48 (locked-screen check)</title>
+<title>Android Audio Diagnostics — v49 (locked-screen check)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -132,7 +132,7 @@
 <div class="wrap">
 
 <h1>Android Audio Diagnostics</h1>
-<p class="sub">Build v48 — do the tests in order. When you're done, tap <strong>Copy results</strong> at the bottom and send it to Todd.</p>
+<p class="sub">Build v49 — do the tests in order. When you're done, tap <strong>Copy results</strong> at the bottom and send it to Todd.</p>
 
 <div class="note">
   Before you start: <strong>turn media volume all the way up</strong>, and <strong>turn Battery Saver off</strong>.
@@ -167,7 +167,7 @@
 
 <div class="test">
   <div class="test-title">Test 4 — Real app check</div>
-  <div class="test-desc">Open the app (footer must say <strong>build v48</strong>): Try the Demo → Start Practice → Go Live. Tap which banner you saw below. Then lock the phone, pocket it 3+ minutes, and tap what you heard.</div>
+  <div class="test-desc">Open the app (footer must say <strong>build v49</strong>): Try the Demo → Start Practice → Go Live. Tap which banner you saw below. Then lock the phone, pocket it 3+ minutes, and tap what you heard.</div>
   <div class="test-row">
     <span class="row-label">Which banner appeared when you went live?</span>
     <button class="btn-small" onclick="recordBanner('pocket-ready')">Pocket-ready ✓</button>
@@ -226,7 +226,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor Android Audio Diagnostics v48 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor Android Audio Diagnostics v49 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),
