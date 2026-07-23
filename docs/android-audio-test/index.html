@@ -13,11 +13,13 @@
     min-height: 100vh;
     padding: 20px;
     line-height: 1.5;
+    font-size: 18px;
   }
   .wrap { max-width: 600px; margin: 0 auto; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  .sub { color: #aaa; font-size: 13px; margin-bottom: 24px; }
-  h2 { font-size: 16px; margin: 18px 0 10px; color: #4fc3f7; }
+  h1 { font-size: 25px; margin-bottom: 4px; }
+  .sub { color: #cfcfcf; font-size: 15px; margin-bottom: 22px; }
+  h2 { font-size: 17px; margin: 18px 0 10px; color: #4fc3f7; }
+  h2.minor { font-size: 13px; color: #777; font-weight: normal; margin-top: 26px; }
   .card {
     background: #0d0d1a;
     border-radius: 10px;
@@ -41,8 +43,8 @@
     padding: 12px 14px;
     margin-bottom: 10px;
   }
-  .test-title { font-weight: bold; margin-bottom: 4px; }
-  .test-desc { color: #aaa; font-size: 12px; margin-bottom: 8px; }
+  .test-title { font-weight: bold; font-size: 19px; margin-bottom: 6px; }
+  .test-desc { color: #d0d0d0; font-size: 16px; line-height: 1.45; margin-bottom: 12px; }
   .test-row {
     display: flex;
     align-items: center;
@@ -52,8 +54,8 @@
   .test-row + .test-row { margin-top: 8px; }
   .row-label { font-size: 12px; color: #aaa; min-width: 100%; }
   button {
-    font-size: 14px;
-    padding: 10px 16px;
+    font-size: 16px;
+    padding: 13px 20px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -109,13 +111,19 @@
     background: #2a2a3e;
     color: #eee;
   }
+  .btn-copy {
+    background: #4fc3f7;
+    color: #0d0d1a;
+    font-size: 17px;
+    padding: 14px 24px;
+  }
   .note {
     background: #2a1f00;
     border-left: 3px solid #ffb74d;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-radius: 6px;
-    font-size: 13px;
-    margin: 12px 0;
+    font-size: 16px;
+    margin: 14px 0 20px;
   }
   a { color: #4fc3f7; }
 </style>
@@ -124,31 +132,15 @@
 <div class="wrap">
 
 <h1>Android Audio Diagnostics</h1>
-<p class="sub">Build v48 (locked-screen check) — run the tests in order, then tap <strong>Copy results</strong> at the bottom and paste the output back into chat.</p>
+<p class="sub">Build v48 — do the tests in order. When you're done, tap <strong>Copy results</strong> at the bottom and send it to Todd.</p>
 
 <div class="note">
-  <strong>What this answers:</strong> does Conductor's baked audio track keep playing —
-  <em>and stay on time</em> — when this Android phone's screen is off in a pocket?
-  Unlike iOS, Android usually keeps the page's JavaScript alive while audio plays, so a
-  monitor logs objective evidence (media clock vs wall clock every 5s) alongside what you
-  hear. Run in <strong>Chrome</strong> on the phone you'll actually use.
-  <br><br>
-  "Screen off" here = press the <strong>power button once</strong> so the screen goes dark.
-  You do not need to unlock afterward until it's time to report.
-  <br><br>
-  <strong>Battery saver is the prime failure suspect.</strong> If a locked test fails,
-  turn battery saver OFF (Settings → Battery → Battery Saver) and retry once before
-  calling it real.
+  Before you start: <strong>turn media volume all the way up</strong>, and <strong>turn Battery Saver off</strong>.
 </div>
 
-<h2>Environment</h2>
-<div class="card" id="env"></div>
-
-<h2>Tests</h2>
-
 <div class="test">
-  <div class="test-title">1. Bake sanity — screen on (~15s)</div>
-  <div class="test-desc">Runs the app's real pipeline (<code>createTimelineAction → computeCueSchedule → bakeScheduleToWavBlob</code>) on a tiny ~12s schedule and plays the result. If this browser can't bake at all, that's the finding by itself — it means the main app shows the "Keep your screen on" warning here instead of going pocket-ready.</div>
+  <div class="test-title">Test 1 — Sound check (screen stays on)</div>
+  <div class="test-desc">Tap <strong>Run</strong> and keep the screen on. Listen for the beeps, then tap whether you heard them.</div>
   <div class="test-row">
     <button onclick="test1()">Run</button>
     <span class="result pending" id="r1">—</span>
@@ -156,8 +148,8 @@
 </div>
 
 <div class="test">
-  <div class="test-title">2. Quick locked check (~35s)</div>
-  <div class="test-desc">Plays one continuous audio file with <strong>7 rising beeps, 5s apart</strong>. Tap Run, and the moment you hear the FIRST beep, <strong>screen off (power button) and pocket it</strong>. Listen ~35s, then pull it out and tap what you heard. The monitor logs the media clock the whole time, so the log corroborates your ears.</div>
+  <div class="test-title">Test 2 — Quick pocket check (about 35 seconds)</div>
+  <div class="test-desc">Tap <strong>Run</strong>. The moment you hear the first beep, press the power button to turn the screen off and slide the phone into your pocket. When the beeps stop, take it out and tap what you heard.</div>
   <div class="test-row">
     <button onclick="test2()">Run</button>
     <span class="result pending" id="r2">—</span>
@@ -165,8 +157,8 @@
 </div>
 
 <div class="test">
-  <div class="test-title">3. THE GATE — real pipeline bake under lock (~3 min)</div>
-  <div class="test-desc">The Android mirror of the iOS ship-gate test. Bakes a real ~170s multi-cue timeline through the <strong>app's own pipeline</strong> and plays the one WAV from <code>&lt;audio&gt;</code>. Tap Run, hear the first beep, then <strong>screen off + pocket it for the full ~3 minutes</strong>, then report. Beeps come in short 3-2-1 clusters every 20s, rising in pitch. <strong>If it fails: battery saver OFF, retry once</strong> — only a failure with battery saver off counts as real.</div>
+  <div class="test-title">Test 3 — The main test (about 3 minutes)</div>
+  <div class="test-desc">Tap <strong>Run</strong>. When you hear the first beep, turn the screen off (power button) and keep the phone in your pocket for the full 3 minutes. Take it out and tap what you heard. If it comes back bad, turn Battery Saver off and run this one more time.</div>
   <div class="test-row">
     <button onclick="test3()">Run</button>
     <span class="result pending" id="r3">—</span>
@@ -174,8 +166,8 @@
 </div>
 
 <div class="test">
-  <div class="test-title">4. Main-app spot check — record what happened (no audio)</div>
-  <div class="test-desc">After tests 1–3, run the real app once: open Conductor (footer must say <strong>build v48</strong>), Try the Demo → Start Practice → Go Live, note which banner appears, then lock + pocket for 3+ minutes and listen. Record both halves here so ONE paste carries the synthetic tests and the real-app result.</div>
+  <div class="test-title">Test 4 — Real app check</div>
+  <div class="test-desc">Open the app (footer must say <strong>build v48</strong>): Try the Demo → Start Practice → Go Live. Tap which banner you saw below. Then lock the phone, pocket it 3+ minutes, and tap what you heard.</div>
   <div class="test-row">
     <span class="row-label">Which banner appeared when you went live?</span>
     <button class="btn-small" onclick="recordBanner('pocket-ready')">Pocket-ready ✓</button>
@@ -193,12 +185,15 @@
   </div>
 </div>
 
-<h2>Results log</h2>
+<h2>Results</h2>
 <div class="actions">
-  <button class="btn-ghost" onclick="copyLog()">Copy results</button>
+  <button class="btn-copy" onclick="copyLog()">📋 Copy results</button>
   <button class="btn-ghost" onclick="clearLog()">Clear</button>
 </div>
 <div class="log-box" id="log"></div>
+
+<h2 class="minor">Phone info (filled in automatically)</h2>
+<div class="card" id="env"></div>
 
 </div>
 
