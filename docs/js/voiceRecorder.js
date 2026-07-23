@@ -60,13 +60,40 @@ function createVoiceRecorder() {
 }
 
 /**
+ * Force the recorder back to a clean idle state, tearing down any dangling
+ * MediaRecorder / mic stream. Used to recover when a previous session was left
+ * mid-flight — e.g. a recording that was started but never stopped, or (a known
+ * iOS Safari quirk) a stop() whose onstop/onerror never fired. Only one recording
+ * can be active at a time, so this is always safe to call before a new start.
+ */
+function _forceResetRecorder() {
+    try {
+        if (_currentRecorder && _currentRecorder.state !== 'inactive') {
+            _currentRecorder.stop();
+        }
+    } catch (e) { /* recorder already torn down — ignore */ }
+    if (_currentStream) {
+        for (const track of _currentStream.getTracks()) {
+            try { track.stop(); } catch (e) { /* ignore */ }
+        }
+    }
+    _currentRecorder = null;
+    _currentStream = null;
+    _recordingChunks = null;
+    _state = 'idle';
+}
+
+/**
  * Start recording from the user's microphone.
  * @returns {Promise<void>} Resolves when recording has begun.
  * @throws {Error} If mic access is denied or not available.
  */
 async function voiceRecorderStart() {
     if (_state !== 'idle') {
-        throw new Error('Cannot start recording: state is ' + _state);
+        // A prior session was left dangling (started-but-not-stopped, or a stop
+        // that never fired its onstop). Recover instead of permanently wedging
+        // the recorder — otherwise every future Record throws "state is <x>".
+        _forceResetRecorder();
     }
 
     try {
