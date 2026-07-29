@@ -292,7 +292,9 @@ test('screen transitions: all screens are reachable', async ({ page }) => {
     await page.click('#btn-start-practice');
     await waitForScreen(page, 'screen-practice');
 
-    // 7. Live (from practice)
+    // 7. Live — v50: Go Live moved to the preview screen (peer of practice)
+    await page.click('#btn-practice-stop');
+    await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
 
@@ -2055,8 +2057,6 @@ test('live bake (v46): baked track active on chromium; live beeps suppressed; po
     await waitForScreen(page, 'screen-input');
     await page.click('#btn-demo');
     await waitForScreen(page, 'screen-preview');
-    await page.click('#btn-start-practice');
-    await waitForScreen(page, 'screen-practice');
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
 
@@ -2100,8 +2100,6 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     await waitForScreen(page, 'screen-input');
     await page.click('#btn-demo');
     await waitForScreen(page, 'screen-preview');
-    await page.click('#btn-start-practice');
-    await waitForScreen(page, 'screen-practice');
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
 
@@ -2121,8 +2119,6 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     page.once('dialog', dialog => dialog.accept());
     await page.click('#btn-live-stop');
     await waitForScreen(page, 'screen-preview');
-    await page.click('#btn-start-practice');
-    await waitForScreen(page, 'screen-practice');
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
     await expect(page.locator('#live-pocket-banner')).toBeHidden();

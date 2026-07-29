@@ -497,35 +497,57 @@ function createResourcePackManager() {
      * Pre-load all audio from a pack into AudioBuffer cache.
      * Call this before playback starts (e.g. entering practice/live mode).
      *
+     * Never fails silently: the returned report says whether the pack could
+     * be loaded and why not — a missing manifest ("old draft" referencing a
+     * voice pack this device never had) previously no-op'd here and degraded
+     * to TTS with no trace (2026-07-28 session).
+     *
      * @param {string} packId
-     * @returns {Promise<void>}
+     * @returns {Promise<{packId: string, ok: boolean, reason?: string, cueCount?: number, decoded?: number, failed?: number, missing?: number, cached?: boolean}>}
      */
     async function ensurePackLoaded(packId) {
-        if (loadedPacks.has(packId)) return;
+        if (loadedPacks.has(packId)) {
+            return { packId, ok: true, cached: true };
+        }
 
         const database = await ensureDB();
         const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
-        if (!manifest) return;
+        if (!manifest) {
+            return { packId, ok: false, reason: 'not-installed' };
+        }
 
         const ctx = getAudioContext();
+        if (!ctx) {
+            return { packId, ok: false, reason: 'no-audio-context' };
+        }
         const cueIds = Object.keys(manifest.cues);
+        let decoded = 0, failed = 0, missing = 0;
 
         for (const cueId of cueIds) {
             const key = packId + ':' + cueId;
-            if (bufferCache.has(key)) continue;
+            if (bufferCache.has(key)) { decoded++; continue; }
 
             const arrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
-            if (!arrayBuffer) continue;
+            if (!arrayBuffer) { missing++; continue; }
 
             try {
                 const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
                 bufferCache.set(key, audioBuffer);
+                decoded++;
             } catch (e) {
                 console.warn(`Failed to decode audio: ${key}`, e);
+                failed++;
             }
         }
 
         loadedPacks.add(packId);
+        return {
+            packId,
+            ok: failed === 0 && missing === 0,
+            reason: (failed || missing) ? 'cue-load-failures' : undefined,
+            cueCount: cueIds.length,
+            decoded, failed, missing,
+        };
     }
 
     // ─── Playback ────────────────────────────────────────────────
@@ -592,6 +614,20 @@ function createResourcePackManager() {
      */
     function getBuffer(key) {
         return bufferCache.get(key);
+    }
+
+    /**
+     * Read a cue's raw audio bytes straight from IndexedDB (no decode, no
+     * cache). Used by the editor's "Play" button for saved recordings — it
+     * doubles as the on-device diagnostic that the stored WAV is intact.
+     * @param {string} packId
+     * @param {string} cueId
+     * @returns {Promise<ArrayBuffer|null>}
+     */
+    async function getCueAudioData(packId, cueId) {
+        const database = await ensureDB();
+        const data = await idbGet(database, RPM_STORE_AUDIO, packId + ':' + cueId);
+        return data || null;
     }
 
     // ─── Public API ──────────────────────────────────────────────
@@ -1124,6 +1160,7 @@ function createResourcePackManager() {
         getResolver,
         hasCue,
         getBuffer,
+        getCueAudioData,
         getAudioContext,
         getPackInfo,
         getCueList,
