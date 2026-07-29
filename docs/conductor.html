@@ -91,7 +91,7 @@
             flex-shrink: 0;
         }
         .header h1 {
-            font-size: 18px;
+            font-size: 22px;
             font-weight: 600;
             letter-spacing: 0.5px;
         }
@@ -102,7 +102,7 @@
         .header-done     { background: linear-gradient(135deg, #0d1b3e, #0a1530); border-bottom: 1px solid rgba(91,163,255,0.08); }
 
         .header .badge {
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -111,6 +111,9 @@
         }
         .badge-practice { background: var(--accent-green); color: #000; }
         .badge-live     { background: var(--accent-red); color: #fff; animation: pulse-badge 1.5s ease-in-out infinite; }
+        .badge-screen   { background: rgba(91,163,255,0.15); color: var(--accent-blue); }
+        .badge-editor   { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+        .badge-done     { background: rgba(52,211,153,0.15); color: var(--accent-green); }
 
         @keyframes pulse-badge {
             0%, 100% { opacity: 1; }
@@ -170,7 +173,7 @@
         }
         .btn-small {
             min-height: 40px;
-            font-size: 14px;
+            font-size: 16px;
             padding: 8px 16px;
             width: auto;
         }
@@ -189,7 +192,7 @@
         .host-banner {
             display: none;
             text-align: center;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 700;
             letter-spacing: 1.5px;
             text-transform: uppercase;
@@ -209,9 +212,9 @@
             border-bottom: 1px solid rgba(240, 180, 41, 0.35);
         }
         #hosted-link-section { display: none; margin-top: 16px; text-align: center; }
-        #hosted-link-section a { color: var(--accent-blue); font-size: 13px; text-decoration: none; }
+        #hosted-link-section a { color: var(--accent-blue); font-size: 16px; text-decoration: none; }
         #hosted-link-section a:hover { text-decoration: underline; }
-        #hosted-link-section .hosted-link-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; display: block; }
+        #hosted-link-section .hosted-link-hint { font-size: 14px; color: var(--text-dim); margin-top: 4px; display: block; }
 
         /* ─── Input screen ─── */
         .app-logo {
@@ -225,19 +228,19 @@
         }
         .app-logo p {
             color: var(--text-secondary);
-            font-size: 13px;
+            font-size: 16px;
             margin-top: 4px;
         }
         .app-about {
             color: var(--text-dim);
-            font-size: 13px;
+            font-size: 16px;
             line-height: 1.5;
             text-align: center;
             margin: 0 8px 4px;
         }
         .app-about summary {
             cursor: pointer;
-            font-size: 12px;
+            font-size: 14px;
             color: var(--accent-blue);
             list-style: none;
             user-select: none;
@@ -251,13 +254,13 @@
         .btn-hint {
             display: block;
             color: var(--text-dim);
-            font-size: 11px;
+            font-size: 14px;
             margin-top: 2px;
             text-align: center;
         }
         .getting-started-hint {
             display: block;
-            font-size: 13px;
+            font-size: 16px;
             color: var(--text-dim);
             text-align: center;
             margin: 4px 0;
@@ -272,7 +275,7 @@
             border-radius: var(--radius);
             padding: 12px;
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 13px;
+            font-size: 16px;
             resize: vertical;
             margin: 12px 0;
         }
@@ -283,7 +286,7 @@
 
         .error-msg {
             color: var(--accent-red);
-            font-size: 13px;
+            font-size: 16px;
             margin: 6px 0;
             min-height: 20px;
         }
@@ -294,7 +297,7 @@
             gap: 12px;
             margin: 16px 0;
             color: var(--text-dim);
-            font-size: 12px;
+            font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -320,14 +323,14 @@
         }
         .event-info .desc {
             color: var(--text-dim);
-            font-size: 14px;
+            font-size: 16px;
             margin-bottom: 12px;
         }
         .event-meta {
             display: grid;
             grid-template-columns: auto 1fr;
             gap: 4px 12px;
-            font-size: 13px;
+            font-size: 16px;
         }
         .event-meta dt { color: var(--text-dim); }
         .event-meta dd { color: var(--text); }
@@ -343,7 +346,7 @@
             padding: 10px 0 10px 10px;
             border-bottom: 1px solid rgba(255,255,255,0.06);
             border-left: 3px solid transparent;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.3;
         }
         .action-dot {
@@ -357,7 +360,7 @@
         .action-dot.alert    { background: var(--accent-red); }
         .action-time {
             color: var(--text-dim);
-            font-size: 12px;
+            font-size: 14px;
             font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
             flex-shrink: 0;
             min-width: 48px;
@@ -370,14 +373,14 @@
             border-radius: var(--radius-sm);
             padding: 12px;
             margin: 8px 0;
-            font-size: 13px;
+            font-size: 16px;
             line-height: 1.4;
         }
         .briefing-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
         .briefing-panel dt {
             font-weight: 600;
             color: var(--text-dim);
-            font-size: 11px;
+            font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-top: 4px;
@@ -385,7 +388,7 @@
         .briefing-panel dd { margin: 0; margin-top: 4px; }
         .briefing-panel .briefing-role {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 16px;
             color: var(--accent-blue);
         }
         .briefing-nav-btn {
@@ -396,7 +399,7 @@
             color: #fff;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
             min-height: 44px;
         }
@@ -407,7 +410,7 @@
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 16px;
             list-style: none;
             user-select: none;
             color: var(--text-secondary);
@@ -444,7 +447,7 @@
             gap: 12px;
         }
         .speed-row label {
-            font-size: 13px;
+            font-size: 16px;
             color: var(--text-dim);
             white-space: nowrap;
         }
@@ -509,7 +512,7 @@
         }
         .done-wrap p {
             color: var(--text-dim);
-            font-size: 14px;
+            font-size: 16px;
         }
 
         /* ─── Editor screens ─── */
@@ -517,7 +520,7 @@
 
         .field-label {
             display: block;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -536,7 +539,7 @@
             font-family: inherit;
             font-size: 15px;
         }
-        .field-textarea { min-height: 70px; resize: vertical; font-size: 14px; }
+        .field-textarea { min-height: 70px; resize: vertical; font-size: 16px; }
         .field-input:focus, .field-textarea:focus, .field-select:focus {
             border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(91, 163, 255, 0.1);
         }
@@ -561,13 +564,17 @@
             padding: 10px 12px;
             cursor: pointer;
         }
-        .ed-action-header .action-time { font-size: 13px; }
-        .ed-action-header .action-name { flex: 1; font-size: 14px; }
+        .ed-action-header .action-time { font-size: 16px; }
+        .ed-action-header .action-name { flex: 1; font-size: 16px; }
+        /* Edit/delete icons: 44px touch targets, high-contrast colors —
+           v49's 28px --text-dim icons were invisible to both testers. */
         .ed-action-header .ed-btn-icon {
-            background: none; border: none; color: var(--text-dim);
-            font-size: 16px; min-height: 28px; min-width: 28px; padding: 2px;
+            background: none; border: none;
+            font-size: 22px; min-height: 44px; min-width: 44px; padding: 2px;
             cursor: pointer;
         }
+        .ed-action-header .ed-btn-edit { color: var(--accent-blue); }
+        .ed-action-header .ed-btn-delete { color: var(--accent-red); }
         .ed-action-header .ed-btn-icon:hover { color: var(--text); }
 
         .ed-action-details {
@@ -577,7 +584,7 @@
             gap: 4px;
             border-top: 1px solid rgba(255,255,255,0.06);
         }
-        .ed-detail-row { display: flex; gap: 8px; font-size: 12px; }
+        .ed-detail-row { display: flex; gap: 8px; font-size: 14px; }
         .ed-detail-row .ed-detail-label { color: var(--text-dim); min-width: 110px; }
         .ed-detail-row .ed-detail-value { color: var(--text-secondary); }
 
@@ -594,18 +601,18 @@
         .ed-offset-row input {
             width: 60px; background: var(--bg-input); color: var(--text);
             border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
-            padding: 6px 8px; font-size: 14px; text-align: center;
+            padding: 6px 8px; font-size: 16px; text-align: center;
             font-family: inherit;
         }
         .ed-offset-row input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(91, 163, 255, 0.1); }
         .ed-offset-row input:focus:not(:focus-visible) { outline: none; }
-        .ed-offset-row span { color: var(--text-dim); font-size: 13px; }
+        .ed-offset-row span { color: var(--text-dim); font-size: 16px; }
 
         .ed-toggle-group {
             display: flex; gap: 6px; flex-wrap: wrap;
         }
         .ed-toggle-btn {
-            min-height: 34px; padding: 6px 12px; font-size: 13px; font-weight: 500;
+            min-height: 34px; padding: 6px 12px; font-size: 16px; font-weight: 500;
             background: var(--bg-input); color: var(--text-dim);
             border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
             cursor: pointer;
@@ -618,10 +625,10 @@
         .ed-form-actions {
             display: flex; gap: 8px; margin-top: 4px;
         }
-        .ed-form-actions button { flex: 1; min-height: 36px; font-size: 13px; }
+        .ed-form-actions button { flex: 1; min-height: 36px; font-size: 16px; }
 
         .btn-add-action {
-            width: 100%; min-height: 44px; font-size: 14px;
+            width: 100%; min-height: 44px; font-size: 16px;
             background: transparent; color: var(--text-dim);
             border: 2px dashed rgba(255,255,255,0.15); border-radius: var(--radius);
             cursor: pointer; margin-top: 8px;
@@ -635,7 +642,7 @@
             border-radius: var(--radius); padding: 16px;
         }
         .voice-share-card h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
-        .voice-share-card p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+        .voice-share-card p { font-size: 16px; color: var(--text-secondary); margin: 0; }
         .voice-share-hint { font-style: italic; color: var(--text-dim); }
 
         .share-section {
@@ -644,7 +651,7 @@
             border-radius: var(--radius); padding: 16px;
         }
         .share-feedback {
-            font-size: 13px; color: var(--accent-green);
+            font-size: 16px; color: var(--accent-green);
             min-height: 20px; text-align: center;
             transition: opacity 0.3s;
         }
@@ -652,7 +659,7 @@
         /* ─── Password protection toggle ─── */
         .pwd-toggle {
             display: flex; align-items: center; gap: 8px; cursor: pointer;
-            font-size: 14px; color: var(--text-secondary);
+            font-size: 16px; color: var(--text-secondary);
         }
         .pwd-toggle input[type="checkbox"] {
             width: 18px; height: 18px; accent-color: var(--accent-purple);
@@ -661,7 +668,7 @@
             display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
         }
         .pwd-fields input {
-            width: 100%; padding: 10px 12px; font-size: 14px;
+            width: 100%; padding: 10px 12px; font-size: 16px;
             background: var(--bg-input); color: var(--text); border: 1px solid var(--border-medium);
             border-radius: var(--radius-sm); outline: none;
         }
@@ -673,7 +680,7 @@
         .ed-checkbox-row input[type="checkbox"] {
             width: 18px; height: 18px; accent-color: var(--accent-blue);
         }
-        .ed-checkbox-row label { font-size: 13px; color: var(--text-dim); }
+        .ed-checkbox-row label { font-size: 16px; color: var(--text-secondary); }
 
         /* ─── Recording section (per-action) ─── */
         .ed-recording-section {
@@ -681,14 +688,15 @@
             border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
         }
         .ed-recording-section-title {
-            font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px;
+            font-size: 14px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px;
             text-transform: uppercase; letter-spacing: 0.5px;
         }
         .ed-recording-state-idle,
         .ed-recording-state-recording,
         .ed-recording-state-preview,
         .ed-recording-state-unsupported,
-        .ed-recording-state-error {
+        .ed-recording-state-error,
+        .ed-recording-state-recorded {
             display: none;
         }
         .ed-recording-section.idle .ed-recording-state-idle { display: block; }
@@ -696,9 +704,10 @@
         .ed-recording-section.preview .ed-recording-state-preview { display: block; }
         .ed-recording-section.unsupported .ed-recording-state-unsupported { display: block; }
         .ed-recording-section.error .ed-recording-state-error { display: block; }
+        .ed-recording-section.recorded .ed-recording-state-recorded { display: block; }
 
         .ed-recording-hint {
-            font-size: 11px; color: var(--text-dim); margin-top: 6px;
+            font-size: 14px; color: var(--text-dim); margin-top: 6px;
         }
         .ed-recording-indicator {
             display: inline-block; width: 8px; height: 8px; background: var(--accent-red);
@@ -713,10 +722,10 @@
             display: flex; gap: 8px; margin-top: 8px;
         }
         .ed-recording-buttons button {
-            flex: 1; min-height: 36px; font-size: 13px;
+            flex: 1; min-height: 36px; font-size: 16px;
         }
         .ed-recording-error-msg {
-            font-size: 12px; color: var(--accent-red); margin-top: 6px;
+            font-size: 14px; color: var(--accent-red); margin-top: 6px;
         }
 
         /* ─── Batch recorder overlay ─── */
@@ -730,7 +739,7 @@
             border-bottom: 1px solid rgba(91, 163, 255, 0.08);
         }
         .batch-recorder-header h2 {
-            font-size: 18px; font-weight: 600;
+            font-size: 22px; font-weight: 600;
         }
         .batch-close-btn {
             background: none; border: none; color: var(--text);
@@ -747,7 +756,7 @@
             line-height: 1.4;
         }
         .batch-progress {
-            font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;
+            font-size: 16px; color: var(--text-secondary); margin-bottom: 24px;
         }
         .batch-record-button {
             min-height: 56px; min-width: 160px; font-size: 16px;
@@ -760,7 +769,7 @@
             display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center;
         }
         .batch-action-buttons button {
-            min-height: 44px; font-size: 13px;
+            min-height: 44px; font-size: 16px;
         }
 
         /* ─── Pack Manager screen ─── */
@@ -787,19 +796,19 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .pack-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .pack-meta { font-size: 14px; color: var(--text-dim); margin-top: 2px; }
         .pack-url {
-            font-size: 12px; margin-top: 4px; display: flex; align-items: center; gap: 6px;
+            font-size: 14px; margin-top: 4px; display: flex; align-items: center; gap: 6px;
         }
         .pack-url a { color: var(--accent-gold); text-decoration: underline; }
         .pack-copy-url {
-            font-size: 11px; padding: 2px 8px; background: transparent;
+            font-size: 14px; padding: 2px 8px; background: transparent;
             color: var(--text-dim); border: 1px solid var(--text-dim);
             border-radius: 4px; cursor: pointer;
         }
         .pack-delete {
             min-height: 34px; min-width: 34px; padding: 4px 10px;
-            font-size: 13px; font-weight: 500;
+            font-size: 16px; font-weight: 500;
             background: transparent; color: var(--accent-red);
             border: 1px solid var(--accent-red); border-radius: 6px;
             cursor: pointer; flex-shrink: 0;
@@ -809,11 +818,11 @@
         .pack-events { margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
         .pack-event-item {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 4px 0; font-size: 13px;
+            padding: 4px 0; font-size: 16px;
         }
         .pack-event-name { color: var(--text-secondary); }
         .pack-event-load {
-            font-size: 12px; padding: 3px 10px;
+            font-size: 14px; padding: 3px 10px;
             background: transparent; color: var(--accent-gold);
             border: 1px solid var(--accent-gold); border-radius: 4px;
             cursor: pointer;
@@ -821,17 +830,17 @@
 
         .pack-empty {
             text-align: center; padding: 32px 16px;
-            color: var(--text-dim); font-size: 14px; line-height: 1.6;
+            color: var(--text-dim); font-size: 16px; line-height: 1.6;
         }
         .pack-hint {
-            font-size: 13px; color: var(--accent-gold); padding: 10px 12px;
+            font-size: 16px; color: var(--accent-gold); padding: 10px 12px;
             background: rgba(255, 193, 7, 0.08); border-radius: var(--radius);
             margin-top: 12px; line-height: 1.5;
         }
         .pack-hint a { color: var(--accent-gold); text-decoration: underline; }
 
         .import-status {
-            font-size: 13px; min-height: 20px; text-align: center;
+            font-size: 16px; min-height: 20px; text-align: center;
             margin-top: 8px; transition: opacity 0.3s;
         }
         .import-status.error { color: var(--accent-red); }
@@ -845,16 +854,16 @@
         /* ─── Draft cards ─── */
         .draft-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius); padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
         .draft-card-info { flex:1; min-width:0; }
-        .draft-card-title { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .draft-card-meta { font-size:12px; color:var(--text-dim); }
+        .draft-card-title { font-size:16px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .draft-card-meta { font-size:14px; color:var(--text-dim); }
         .draft-card-actions { display:flex; gap:6px; flex-shrink:0; }
-        .draft-saved-indicator { font-size:12px; color:var(--accent-green); text-align:center; margin-top:4px; opacity:0; transition:opacity 0.3s; }
+        .draft-saved-indicator { font-size:14px; color:var(--accent-green); text-align:center; margin-top:4px; opacity:0; transition:opacity 0.3s; }
         .draft-saved-indicator.visible { opacity:1; }
 
         /* ─── QR Scanner overlay ─── */
         .qr-overlay { position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; flex-direction:column; }
         .qr-overlay-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#0d1b3e; }
-        .qr-overlay-header h2 { font-size:18px; font-weight:600; }
+        .qr-overlay-header h2 { font-size:22px; font-weight:600; }
         .qr-close-btn { min-height:40px; min-width:40px; font-size:24px; background:transparent; color:var(--text); border:none; cursor:pointer; }
         .qr-viewfinder { flex:1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#000; }
         .qr-viewfinder video { width:100%; height:100%; object-fit:cover; }
@@ -863,7 +872,7 @@
             0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 15px rgba(91,163,255,0.2); }
             50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 25px rgba(91,163,255,0.4); }
         }
-        .qr-scan-status { text-align:center; padding:12px 16px; font-size:14px; color:var(--text-dim); }
+        .qr-scan-status { text-align:center; padding:12px 16px; font-size:16px; color:var(--text-dim); }
 
         /* ─── QR Display overlay ─── */
         #qr-display-canvas { max-width:280px; max-height:280px; }
@@ -923,11 +932,20 @@
         .info-banner {
             display: flex; align-items: center; justify-content: space-between;
             padding: 8px 12px; margin: 0 12px; border-radius: var(--radius-sm);
-            font-size: 13px; animation: fadeIn 0.3s;
+            font-size: 16px; animation: fadeIn 0.3s;
         }
         .info-banner.warning { background: rgba(240,180,41,0.12); color: var(--accent-gold); }
         .info-banner.info { background: rgba(91,163,255,0.12); color: var(--accent-blue); }
-        .info-banner .dismiss { background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; padding: 0 4px; }
+        .info-banner .dismiss { background: none; border: none; color: inherit; cursor: pointer; font-size: 22px; padding: 0 4px; }
+
+        /* ─── Audio telemetry row (practice/live) — tap to copy JSON ─── */
+        .audio-debug-row {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 14px; color: var(--text-secondary);
+            text-align: center; padding: 6px 4px 2px; cursor: pointer;
+            user-select: none; -webkit-user-select: none; min-height: 18px;
+        }
+        .audio-debug-row:active { color: var(--accent-blue); }
 
         /* ─── Reduced motion ─── */
         @media (prefers-reduced-motion: reduce) {
@@ -948,12 +966,13 @@
     <div id="host-banner" class="host-banner" role="status" aria-live="polite"></div>
     <div class="header header-input" role="banner">
         <h1>Conductor</h1>
+        <span class="badge badge-screen">Home</span>
     </div>
     <div class="content" role="main">
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v49</span> &middot; <a href="ios-audio-test/" style="color:var(--text-dim);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v50</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1009,7 +1028,7 @@
         <button id="btn-scan-qr" class="btn-outline">Scan QR Code</button>
 
         <div id="drafts-section" style="display:none;">
-            <h3 style="font-size:14px; color:var(--text-dim); margin:16px 0 8px;">My Drafts</h3>
+            <h3 style="font-size:16px; color:var(--text-dim); margin:16px 0 8px;">My Drafts</h3>
             <div id="draft-list"></div>
         </div>
 
@@ -1044,6 +1063,7 @@
 <div id="screen-packs" class="screen">
     <div class="header header-packs" role="banner">
         <h1>Pack Manager</h1>
+        <span class="badge badge-screen">Packs</span>
     </div>
     <div class="content" role="main">
         <div id="pack-list" class="pack-list"></div>
@@ -1069,8 +1089,10 @@
 <div id="screen-preview" class="screen">
     <div class="header header-preview" role="banner">
         <h1>Event Preview</h1>
+        <span class="badge badge-screen">Preview</span>
     </div>
     <div class="content" role="main">
+        <div id="preview-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
         <div class="event-info">
             <h2 id="preview-title"></h2>
             <div id="preview-desc" class="desc"></div>
@@ -1090,7 +1112,8 @@
         <div style="flex:1"></div>
 
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
-            <button id="btn-start-practice" class="btn-green">Start Practice</button>
+            <button id="btn-start-practice" class="btn-green">&#x1f3af; Start Practice (rehearse now)</button>
+            <button id="btn-go-live" class="btn-red">&#x1f534; Go Live (real event time)</button>
             <div class="btn-row">
                 <button id="btn-share-qr-preview" class="btn-primary" style="flex:2;">Share QR Code</button>
                 <button id="btn-preview-back" class="btn-outline" style="flex:1;">Go Back</button>
@@ -1126,9 +1149,9 @@
             <button id="btn-audio-toggle" class="icon-btn" title="Toggle audio" aria-label="Toggle audio" aria-pressed="false">&#x1f50a;</button>
             <span id="beep-dot-practice" class="beep-dot" title="Flashes when a beep fires" aria-hidden="true"></span>
             <button id="btn-share-qr-practice" class="icon-btn" title="Share QR Code" aria-label="Share via QR code">&#x1f4e4;</button>
-            <button id="btn-go-live" class="btn-red btn-small" style="flex:3">Go Live</button>
-            <button id="btn-practice-stop" class="btn-outline btn-small">Stop</button>
+            <button id="btn-practice-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
         </div>
+        <div id="audio-debug-practice" class="audio-debug-row" role="button" tabindex="0" title="Tap to copy full audio diagnostics"></div>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -1156,6 +1179,7 @@
             <span id="beep-dot-live" class="beep-dot" title="Flashes when a beep fires" aria-hidden="true"></span>
             <button id="btn-live-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
         </div>
+        <div id="audio-debug-live" class="audio-debug-row" role="button" tabindex="0" title="Tap to copy full audio diagnostics"></div>
     </div>
     <div class="safe-bottom"></div>
 </div>
@@ -1166,6 +1190,7 @@
 <div id="screen-completed" class="screen">
     <div class="header header-done" role="banner">
         <h1>Conductor</h1>
+        <span class="badge badge-done">Done</span>
     </div>
     <div class="content" role="main">
         <div class="done-wrap">
@@ -1184,7 +1209,7 @@
 <div id="screen-editor-info" class="screen">
     <div class="header header-editor" role="banner">
         <h1>New Event</h1>
-        <span class="step-dots"><span class="step-dot active" aria-current="step"></span><span class="step-dot"></span><span class="step-dot"></span></span>
+        <span class="badge badge-editor">Step 1 of 3</span>
     </div>
     <div class="content" role="main">
         <label class="field-label">Event Title *</label>
@@ -1226,16 +1251,17 @@
 <div id="screen-editor-timeline" class="screen">
     <div class="header header-editor" role="banner">
         <h1>Timeline</h1>
-        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot active" aria-current="step"></span><span class="step-dot"></span></span>
+        <span class="badge badge-editor">Step 2 of 3</span>
     </div>
     <div class="content" role="main">
-        <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">
+        <p style="font-size:16px; color:var(--text-dim); margin-bottom:8px;">
             Add actions with timing relative to the event start.
         </p>
 
         <div id="ed-action-list" class="ed-action-list"></div>
         <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
-        <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all missing cues</button>
+        <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all cues</button>
+        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">Write all your steps first, then record them in one pass. You can re-record any single cue after.</p>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1257,7 +1283,7 @@
 <div id="screen-editor-review" class="screen">
     <div class="header header-editor" role="banner">
         <h1>Review & Share</h1>
-        <span class="step-dots"><span class="step-dot completed"></span><span class="step-dot completed"></span><span class="step-dot active" aria-current="step"></span></span>
+        <span class="badge badge-editor">Step 3 of 3</span>
     </div>
     <div class="content" role="main">
         <div class="event-info">
@@ -1286,7 +1312,7 @@
             <div id="pwd-fields" class="pwd-fields" style="display:none;">
                 <input type="password" id="ed-pwd" placeholder="Password" autocomplete="new-password">
                 <input type="password" id="ed-pwd-confirm" placeholder="Confirm password" autocomplete="new-password">
-                <div id="ed-pwd-error" style="color:var(--accent-red); font-size:13px; min-height:16px;"></div>
+                <div id="ed-pwd-error" style="color:var(--accent-red); font-size:16px; min-height:16px;"></div>
             </div>
             <div id="share-feedback" class="share-feedback"></div>
             <button id="btn-show-qr" class="btn-outline">Share QR Code</button>
@@ -1331,8 +1357,8 @@
     </div>
     <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:16px;">
         <canvas id="qr-display-canvas" style="border-radius:8px;"></canvas>
-        <div id="qr-display-warning" style="font-size:13px; color:var(--accent-gold); text-align:center; display:none;"></div>
-        <p style="font-size:14px; color:var(--text-dim); text-align:center;">Scan this QR code with another phone to share this event.</p>
+        <div id="qr-display-warning" style="font-size:16px; color:var(--accent-gold); text-align:center; display:none;"></div>
+        <p style="font-size:16px; color:var(--text-dim); text-align:center;">Scan this QR code with another phone to share this event.</p>
         <div class="btn-row" style="max-width:320px; width:100%;">
             <button id="btn-qr-display-copy-link" class="btn-primary btn-small" style="flex:1;">Copy Link</button>
             <button id="btn-qr-display-web-share" class="btn-primary btn-small" style="flex:1;">Share via...</button>
@@ -1350,10 +1376,10 @@
         <button id="btn-pwd-close" class="qr-close-btn" aria-label="Cancel">&times;</button>
     </div>
     <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px;">
-        <p style="font-size:14px; color:var(--text-secondary); text-align:center;">This event is password protected.</p>
+        <p style="font-size:16px; color:var(--text-secondary); text-align:center;">This event is password protected.</p>
         <input type="password" id="pwd-input" placeholder="Enter password" autocomplete="off"
                style="width:100%; max-width:300px; padding:12px 14px; font-size:16px; background:var(--bg-input); color:var(--text); border:1px solid var(--border-medium); border-radius:var(--radius-sm); outline:none;">
-        <div id="pwd-error" style="color:var(--accent-red); font-size:13px; min-height:20px; text-align:center;"></div>
+        <div id="pwd-error" style="color:var(--accent-red); font-size:16px; min-height:20px; text-align:center;"></div>
         <div style="display:flex; gap:10px; width:100%; max-width:300px;">
             <button id="btn-pwd-unlock" class="btn-primary" style="flex:1;">Unlock</button>
             <button id="btn-pwd-cancel" class="btn-outline" style="flex:1;">Cancel</button>
@@ -1380,7 +1406,7 @@
             <button id="btn-batch-rerecord" class="btn-outline">Re-record</button>
             <button id="btn-batch-done" class="btn-outline">Done</button>
         </div>
-        <div id="batch-error-msg" style="color:var(--accent-red); font-size:13px; margin-top:16px; display:none;"></div>
+        <div id="batch-error-msg" style="color:var(--accent-red); font-size:16px; margin-top:16px; display:none;"></div>
     </div>
 </div>
 
@@ -2650,16 +2676,42 @@ function createAudioService() {
     let bakedActive = false;
 
     /**
+     * Ring buffer of pack-cue attempts (cap 100) — the cue-side twin of the
+     * beep log. Outcomes: 'played' (live Web Audio fired), 'baked' (clip is in
+     * the baked track), 'missing-buffer' (no decoded buffer → caller falls
+     * back to TTS), 'no-resolver' (pack system not wired). This is the
+     * paste-back evidence for "why did practice speak instead of playing my
+     * recording" (2026-07-28 session).
+     * @type {Array<{at: number, cueId: string, packId: string, outcome: string}>}
+     */
+    const cueLog = [];
+    const CUE_LOG_CAP = 100;
+
+    function recordCueAttempt(entry) {
+        cueLog.push(entry);
+        if (cueLog.length > CUE_LOG_CAP) cueLog.shift();
+    }
+
+    /**
      * Resolve a pack cue, honoring baked mode. Live: plays via the resolver and
      * returns whether it played. Baked: returns whether the clip exists (so
      * callers branch the same way) but plays nothing — the baked track has it.
+     * Every attempt is recorded in the cue log.
      * @returns {boolean} true if the cue is present/played
      */
     function playPackCue(cueId, packId, speed) {
+        const entry = { at: Date.now(), cueId, packId, outcome: '' };
         if (bakedActive) {
-            return resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+            const has = resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+            entry.outcome = has ? 'baked' : 'missing-buffer';
+            recordCueAttempt(entry);
+            return has;
         }
-        return !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+        const played = !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+        entry.outcome = played ? 'played'
+            : (resourcePackResolver ? 'missing-buffer' : 'no-resolver');
+        recordCueAttempt(entry);
+        return played;
     }
 
     /**
@@ -3235,7 +3287,12 @@ function createAudioService() {
             const cueId = action.randomCues[randomIndex];
 
             // Try resource pack first
-            if (resourcePackResolver && resourcePackResolver(cueId, action.pack, speed)) {
+            const randomPlayed = !!(resourcePackResolver && resourcePackResolver(cueId, action.pack, speed));
+            recordCueAttempt({
+                at: Date.now(), cueId, packId: action.pack, random: true,
+                outcome: randomPlayed ? 'played' : (resourcePackResolver ? 'missing-buffer' : 'no-resolver'),
+            });
+            if (randomPlayed) {
                 return null; // Resource pack played it
             }
         }
@@ -3377,6 +3434,7 @@ function createAudioService() {
         getVoice: () => selectedVoice,
         getAnnouncedSet: () => announced, // Exposed for testing
         getBeepLog: () => beepLog, // Diagnostics: recent playBeep attempts
+        getCueLog: () => cueLog, // Diagnostics: recent pack-cue attempts + outcomes
     };
 }
 
@@ -3881,35 +3939,57 @@ function createResourcePackManager() {
      * Pre-load all audio from a pack into AudioBuffer cache.
      * Call this before playback starts (e.g. entering practice/live mode).
      *
+     * Never fails silently: the returned report says whether the pack could
+     * be loaded and why not — a missing manifest ("old draft" referencing a
+     * voice pack this device never had) previously no-op'd here and degraded
+     * to TTS with no trace (2026-07-28 session).
+     *
      * @param {string} packId
-     * @returns {Promise<void>}
+     * @returns {Promise<{packId: string, ok: boolean, reason?: string, cueCount?: number, decoded?: number, failed?: number, missing?: number, cached?: boolean}>}
      */
     async function ensurePackLoaded(packId) {
-        if (loadedPacks.has(packId)) return;
+        if (loadedPacks.has(packId)) {
+            return { packId, ok: true, cached: true };
+        }
 
         const database = await ensureDB();
         const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
-        if (!manifest) return;
+        if (!manifest) {
+            return { packId, ok: false, reason: 'not-installed' };
+        }
 
         const ctx = getAudioContext();
+        if (!ctx) {
+            return { packId, ok: false, reason: 'no-audio-context' };
+        }
         const cueIds = Object.keys(manifest.cues);
+        let decoded = 0, failed = 0, missing = 0;
 
         for (const cueId of cueIds) {
             const key = packId + ':' + cueId;
-            if (bufferCache.has(key)) continue;
+            if (bufferCache.has(key)) { decoded++; continue; }
 
             const arrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
-            if (!arrayBuffer) continue;
+            if (!arrayBuffer) { missing++; continue; }
 
             try {
                 const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
                 bufferCache.set(key, audioBuffer);
+                decoded++;
             } catch (e) {
                 console.warn(`Failed to decode audio: ${key}`, e);
+                failed++;
             }
         }
 
         loadedPacks.add(packId);
+        return {
+            packId,
+            ok: failed === 0 && missing === 0,
+            reason: (failed || missing) ? 'cue-load-failures' : undefined,
+            cueCount: cueIds.length,
+            decoded, failed, missing,
+        };
     }
 
     // ─── Playback ────────────────────────────────────────────────
@@ -3976,6 +4056,20 @@ function createResourcePackManager() {
      */
     function getBuffer(key) {
         return bufferCache.get(key);
+    }
+
+    /**
+     * Read a cue's raw audio bytes straight from IndexedDB (no decode, no
+     * cache). Used by the editor's "Play" button for saved recordings — it
+     * doubles as the on-device diagnostic that the stored WAV is intact.
+     * @param {string} packId
+     * @param {string} cueId
+     * @returns {Promise<ArrayBuffer|null>}
+     */
+    async function getCueAudioData(packId, cueId) {
+        const database = await ensureDB();
+        const data = await idbGet(database, RPM_STORE_AUDIO, packId + ':' + cueId);
+        return data || null;
     }
 
     // ─── Public API ──────────────────────────────────────────────
@@ -4508,6 +4602,7 @@ function createResourcePackManager() {
         getResolver,
         hasCue,
         getBuffer,
+        getCueAudioData,
         getAudioContext,
         getPackInfo,
         getCueList,
@@ -5994,9 +6089,20 @@ let enterGen = 0;
 // until the next transition to a shallow screen.
 let pendingSwReload = false;
 
+// Back-swipe guard: each screen transition pushes a history entry, so the
+// browser/OS back gesture walks back one screen instead of leaving the app.
+// Set while handling popstate so that navigation doesn't push again.
+let historyNavigating = false;
+
 function transitionTo(newMode) {
     enterGen++;
     const isBack = (screenDepth[newMode] || 0) < (screenDepth[state.mode] || 0);
+
+    // Record the screen change in session history. The URL is untouched, so
+    // #v1_ fragment loading (hashchange / loadFromHash) is unaffected.
+    if (!historyNavigating && newMode !== state.mode) {
+        try { history.pushState({ screen: newMode }, ''); } catch (e) { /* file:// edge cases */ }
+    }
 
     // 1. Stop any running loops
     stopLoops();
@@ -6159,6 +6265,12 @@ function rebaseEventToNow(embeddedEvent) {
     const rebased = structuredClone(embeddedEvent);
     rebased.startTime = new Date(newStart).toISOString();
     rebased.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Full Event objects carry endTime (embedded events don't) — shift it too,
+    // or the rebased event completes instantly.
+    if (rebased.endTime) {
+        rebased.endTime = new Date(new Date(embeddedEvent.endTime).getTime() + delta).toISOString();
+    }
 
     if (rebased.timeline) {
         for (const action of rebased.timeline) {
@@ -6540,6 +6652,41 @@ function renderPreview() {
 
     // Pack hint: check for missing packs
     renderPackHint(evt);
+
+    // Warn about unresolvable cues before the user commits to practice/live.
+    updatePreviewCueBanner(evt);
+}
+
+/**
+ * Manifest-level cue availability check for the preview screen - cheap
+ * (no audio decode), so it can run on every preview render. Practice/live
+ * do the authoritative buffer-level check in preloadEventPacks.
+ */
+async function updatePreviewCueBanner(evt) {
+    hideBanner('preview-banner');
+    const packCues = new Map();
+    for (const action of evt.timeline) {
+        if (action.pack && action.cue) {
+            if (!packCues.has(action.pack)) packCues.set(action.pack, new Set());
+            packCues.get(action.pack).add(action.cue);
+        }
+    }
+    if (packCues.size === 0) return;
+    const missing = [];
+    for (const [packId, cues] of packCues) {
+        let listed;
+        try {
+            listed = new Set(await packManager.getCueList(packId));
+        } catch (e) {
+            listed = new Set();
+        }
+        for (const cueId of cues) {
+            if (!listed.has(cueId)) missing.push({ packId, cueId });
+        }
+    }
+    if (state.event !== evt) return; // event changed during the await
+    const line = missingCueBannerText(missing);
+    if (line) showBanner('preview-banner', line, 'warning');
 }
 
 async function renderPackHint(evt) {
@@ -6638,16 +6785,25 @@ async function enterPractice() {
     audio.reset();
     audio.setMuted(state.audioMuted);
 
-    // Show warning if speech unavailable
-    if (audio.getMode() === 'VISUAL_ONLY') {
-        showBanner('practice-banner', 'Audio unavailable \u2014 visual cues only.', 'warning');
+    // Unlock the shared AudioContext NOW, synchronously in the entering
+    // gesture (before any await) - beeps and pack cues die silently in a
+    // suspended context while TTS keeps working.
+    unlockSharedAudio();
+
+    // Pre-load resource packs referenced by event actions (wait for audio buffers)
+    const audioDbg = await preloadEventPacks(evt, 'practice');
+    if (gen !== enterGen) return; // user left practice during the await
+
+    // Banner: speech unavailable and/or unresolvable cues - never silent.
+    const practiceLines = [];
+    if (audio.getMode() === 'VISUAL_ONLY') practiceLines.push('Audio unavailable \u2014 visual cues only.');
+    const missingLine = missingCueBannerText(audioDbg.missingCues);
+    if (missingLine) practiceLines.push(missingLine);
+    if (practiceLines.length) {
+        showBanner('practice-banner', practiceLines.join(' '), 'warning');
     } else {
         hideBanner('practice-banner');
     }
-
-    // Pre-load resource packs referenced by event actions (wait for audio buffers)
-    await preloadEventPacks(evt);
-    if (gen !== enterGen) return; // user left practice during the await
 
     // Set practice start: begin 15s before first action, but never before event start
     const sorted = [...evt.timeline].sort((a, b) =>
@@ -6746,23 +6902,29 @@ async function enterLive() {
         unlockBakedTrack();
     }
 
-    // Show banners for speech unavailable / late joiner
+    // Unlock the shared AudioContext synchronously in the entering gesture -
+    // the unbaked live fallback path needs it just like practice does.
+    unlockSharedAudio();
+
     const speechUnavailable = audio.getMode() === 'VISUAL_ONLY';
     const pastCount = evt.timeline.filter(a => (a.timeMs ?? new Date(a.time).getTime()) < now).length;
     const lateJoiner = pastCount > 0 && pastCount < evt.timeline.length;
 
-    if (speechUnavailable || lateJoiner) {
-        const lines = [];
-        if (speechUnavailable) lines.push('Audio unavailable \u2014 visual cues only.');
-        if (lateJoiner) lines.push('Event in progress \u2014 ' + pastCount + ' of ' + evt.timeline.length + ' cues already passed.');
-        showBanner('live-banner', lines.join(' '), speechUnavailable ? 'warning' : 'info');
+    // Pre-load resource packs referenced by event actions (wait for audio buffers)
+    const liveAudioDbg = await preloadEventPacks(evt, 'live');
+    if (gen !== enterGen) return; // user left live during the await
+
+    // Banner: speech unavailable / late joiner / unresolvable cues - never silent.
+    const lines = [];
+    if (speechUnavailable) lines.push('Audio unavailable \u2014 visual cues only.');
+    if (lateJoiner) lines.push('Event in progress \u2014 ' + pastCount + ' of ' + evt.timeline.length + ' cues already passed.');
+    const liveMissingLine = missingCueBannerText(liveAudioDbg.missingCues);
+    if (liveMissingLine) lines.push(liveMissingLine);
+    if (lines.length) {
+        showBanner('live-banner', lines.join(' '), (speechUnavailable || liveMissingLine) ? 'warning' : 'info');
     } else {
         hideBanner('live-banner');
     }
-
-    // Pre-load resource packs referenced by event actions (wait for audio buffers)
-    await preloadEventPacks(evt);
-    if (gen !== enterGen) return; // user left live during the await
 
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
@@ -6808,6 +6970,8 @@ async function enterLive() {
             stopBakedTrack();
             return;
         }
+    } else {
+        setBakeStatus({ ok: false, reason: 'unsupported' });
     }
     showPocketBanner();
 
@@ -6870,12 +7034,84 @@ function computeActionMeta(timeline) {
     return meta;
 }
 
+// ─── Audio telemetry row (practice/live) ────────────────────────────────────
+// One-line health readout, e.g. "audio: packs 1/1 · cues 3/3 · beeps 7 · bake 62s OK".
+// Tap copies the full diagnostic JSON (build, UA, pack report, beep log, cue
+// log, bake result) — the paste-back channel for remote testers.
+
+const _audioDebugLastText = { practice: '', live: '' };
+
+function audioDebugSummary(mode) {
+    const dbg = state.audioDebug;
+    if (!dbg) return '';
+    const parts = [];
+    if (dbg.packReport.length) {
+        parts.push('packs ' + dbg.packReport.filter(p => p.ok).length + '/' + dbg.packReport.length);
+    }
+    const evt = state.event;
+    const totalCues = evt ? evt.timeline.filter(a => a.pack && a.cue).length : 0;
+    if (totalCues) {
+        parts.push('cues ' + (totalCues - dbg.missingCues.length) + '/' + totalCues);
+    }
+    const beeps = audio.getBeepLog().filter(b => b.outcome === 'scheduled' && b.at >= dbg.at).length;
+    parts.push('beeps ' + beeps);
+    if (mode === 'live') {
+        const b = dbg.bake;
+        if (!b) parts.push('bake …');
+        else if (b.ok) parts.push('bake ' + Math.round(b.durationSec) + 's OK');
+        else if (b.reason === 'unsupported') parts.push('bake n/a');
+        else parts.push('bake FAILED');
+    }
+    return 'audio: ' + parts.join(' · ');
+}
+
+function updateAudioDebugRow(mode) {
+    const el = document.getElementById('audio-debug-' + mode);
+    if (!el) return;
+    const text = audioDebugSummary(mode);
+    if (text !== _audioDebugLastText[mode]) {
+        _audioDebugLastText[mode] = text;
+        el.textContent = text;
+    }
+}
+
+async function copyAudioDebugJson(mode) {
+    let ctxState = null;
+    try {
+        const ctx = packManager.getAudioContext();
+        ctxState = ctx ? ctx.state : 'unavailable';
+    } catch (e) { ctxState = 'error'; }
+    const payload = {
+        build: ($('app-version') && $('app-version').textContent) || '?',
+        ua: navigator.userAgent,
+        copiedAt: new Date().toISOString(),
+        mode: state.mode,
+        muted: state.audioMuted,
+        speedMultiplier: state.speedMultiplier,
+        audioMode: audio.getMode(),
+        ctxState,
+        audioDebug: state.audioDebug,
+        beepLog: audio.getBeepLog(),
+        cueLog: audio.getCueLog(),
+        baked: { active: state.bakedActive, durationSec: state.bakedDurationSec || 0 },
+    };
+    const ok = await copyToClipboard(JSON.stringify(payload));
+    const el = document.getElementById('audio-debug-' + mode);
+    if (el) {
+        el.textContent = ok ? 'diagnostics copied ✓' : 'copy failed';
+        setTimeout(() => { _audioDebugLastText[mode] = ''; updateAudioDebugRow(mode); }, 1500);
+    }
+}
+
 function startAudioLoop(mode) {
+    updateAudioDebugRow(mode);
     audioIntervalId = setInterval(() => {
         if (state.mode !== mode) return;
 
         const evt = state.event;
         if (!evt) return;
+
+        updateAudioDebugRow(mode);
 
         const nowMs = (mode === 'practice')
             ? getPracticeNow(Date.now(), state.practiceStartRealMs,
@@ -7006,7 +7242,7 @@ function unlockBakedTrack() {
  */
 async function startBakedTrack(evt, evtDefs) {
     const el = document.getElementById('baked-track');
-    if (!el) return false;
+    if (!el) { setBakeStatus({ ok: false, reason: 'no-element' }); return false; }
     try {
         const startWallMs = Date.now();
         const schedule = audio.computeCueSchedule(
@@ -7015,7 +7251,10 @@ async function startBakedTrack(evt, evtDefs) {
             (packId, cueId) => packManager.hasCue(packId, cueId));
         const baked = await bakeScheduleToWavBlob(
             schedule, (key) => packManager.getBuffer(key));
-        if (!baked) return false; // OfflineAudioContext unavailable → live path
+        if (!baked) { // OfflineAudioContext unavailable → live path
+            setBakeStatus({ ok: false, reason: 'unsupported' });
+            return false;
+        }
 
         if (state.bakedTrackUrl) URL.revokeObjectURL(state.bakedTrackUrl);
         state.bakedTrackUrl = URL.createObjectURL(baked.blob);
@@ -7037,12 +7276,24 @@ async function startBakedTrack(evt, evtDefs) {
         await el.play();
         state.bakedActive = true;
         audio.setBakedActive(true);
+        setBakeStatus({
+            ok: true,
+            durationSec: baked.durationSec || 0,
+            bakeMs: Date.now() - startWallMs,
+            scheduleCount: schedule.length,
+        });
         return true;
     } catch (e) {
         console.warn('Baked track failed; falling back to live audio:', e);
+        setBakeStatus({ ok: false, reason: 'error', error: String((e && e.message) || e) });
         stopBakedTrack();
         return false;
     }
+}
+
+/** Record the bake outcome on the audio debug report (telemetry channel). */
+function setBakeStatus(bake) {
+    if (state.audioDebug) state.audioDebug.bake = bake;
 }
 
 /** Stop and tear down the baked track; return to the live audio path. */
@@ -7162,15 +7413,63 @@ function toggleMute() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Pre-load resource packs referenced by event actions.
- * Fires async — doesn't block mode entry; audio falls back to TTS if not ready.
+ * Resume (creating if needed) the shared AudioContext. MUST be called
+ * synchronously inside a user-gesture handler — mobile browsers create
+ * contexts outside a gesture in the 'suspended' state and may refuse a
+ * later programmatic resume, which silences beeps AND pack cues while TTS
+ * (a separate pipeline) keeps working. That silent split is the leading
+ * suspect for the 2026-07-28 practice failures; go-live never showed it
+ * because the baked <audio> element gets its own in-gesture unlock.
  */
-async function preloadEventPacks(evt) {
+function unlockSharedAudio() {
+    try {
+        const ctx = packManager.getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            const p = ctx.resume();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+    } catch (e) { /* best-effort — telemetry records the resulting ctx state */ }
+}
+
+/**
+ * Pre-load resource packs referenced by event actions and record an honest
+ * per-pack report on state.audioDebug — the "never fail silent again" rule.
+ * @param {Event} evt
+ * @param {string} context - 'practice' | 'live' (telemetry label)
+ * @returns {Promise<{packReport: Array, missingCues: Array}>}
+ */
+async function preloadEventPacks(evt, context) {
     const packIds = new Set();
     for (const action of evt.timeline) {
         if (action.pack) packIds.add(action.pack);
     }
-    await Promise.all([...packIds].map(id => packManager.ensurePackLoaded(id).catch(() => {})));
+    const packReport = await Promise.all([...packIds].map(id =>
+        packManager.ensurePackLoaded(id).catch(e =>
+            ({ packId: id, ok: false, reason: 'error', error: String((e && e.message) || e) }))));
+
+    // Per-action trigger-cue check (notice cues are optional by design).
+    const missingCues = [];
+    for (const action of evt.timeline) {
+        if (action.pack && action.cue && !packManager.hasCue(action.pack, action.cue)) {
+            missingCues.push({ packId: action.pack, cueId: action.cue, actionText: action.action });
+        }
+    }
+
+    state.audioDebug = {
+        context: context || state.mode,
+        at: Date.now(),
+        packReport,
+        missingCues,
+    };
+    return state.audioDebug;
+}
+
+/** Shared banner line for unresolvable cues. Returns null when all resolve. */
+function missingCueBannerText(missingCues) {
+    if (!missingCues || missingCues.length === 0) return null;
+    const n = missingCues.length;
+    return n + ' recorded cue' + (n === 1 ? '' : 's') +
+        " can't play on this device — using spoken text.";
 }
 
 function escapeHtml(str) {
@@ -7430,7 +7729,7 @@ function createActionEditForm(action, index) {
         <select class="field-select ed-pack-select">
             <option value="">None (TTS only)</option>
         </select>
-        <div class="ed-tts-hint" style="font-size:11px; color:var(--text-dim); margin-top:4px;">With TTS only, the action text above is spoken aloud.</div>
+        <div class="ed-tts-hint" style="font-size:14px; color:var(--text-dim); margin-top:4px;">With TTS only, the action text above is spoken aloud.</div>
         <select class="field-select ed-cue-select" style="display:none; margin-top:6px;">
             <option value="">Select a cue...</option>
         </select>
@@ -7447,7 +7746,7 @@ function createActionEditForm(action, index) {
             <div class="ed-recording-state-recording">
                 <div style="display:flex; align-items:center;">
                     <span class="ed-recording-indicator"></span>
-                    <span style="font-size:13px;">Recording...</span>
+                    <span style="font-size:16px;">Recording...</span>
                 </div>
                 <div class="ed-recording-buttons">
                     <button type="button" class="btn-primary btn-small ed-btn-stop-record">⏹ Stop</button>
@@ -7456,7 +7755,7 @@ function createActionEditForm(action, index) {
             </div>
 
             <div class="ed-recording-state-preview">
-                <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">Your recording:</div>
+                <div style="font-size:14px; color:var(--text-secondary); margin-bottom:6px;">Your recording:</div>
                 <audio class="ed-preview-audio" controls></audio>
                 <div class="ed-recording-buttons">
                     <button type="button" class="btn-primary btn-small ed-btn-use-recording">✓ Use This Recording</button>
@@ -7466,7 +7765,7 @@ function createActionEditForm(action, index) {
             </div>
 
             <div class="ed-recording-state-unsupported">
-                <div style="font-size:12px; color:var(--text-dim);">Recording not supported in this browser.</div>
+                <div style="font-size:14px; color:var(--text-dim);">Recording not supported in this browser.</div>
             </div>
 
             <div class="ed-recording-state-error">
@@ -7474,6 +7773,14 @@ function createActionEditForm(action, index) {
                 <div class="ed-recording-buttons" style="margin-top:8px;">
                     <button type="button" class="btn-outline btn-small ed-btn-retry-record">Try Again</button>
                 </div>
+            </div>
+
+            <div class="ed-recording-state-recorded">
+                <div class="ed-recording-buttons">
+                    <button type="button" class="btn-primary btn-small ed-btn-play-cue">&#x25b6; Play</button>
+                    <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
+                </div>
+                <div class="ed-recording-hint">Play checks the saved recording on this device.</div>
             </div>
         </div>
 
@@ -7494,13 +7801,9 @@ function createActionEditForm(action, index) {
             if (!isSupported) {
                 updateRecordingSectionState(recordingSection, 'unsupported');
             } else if (action.pack && action.cue && action.pack === packManager.getSyntheticPackId()) {
-                // Show "recorded" state if already has a synthetic cue
-                recordingSection.innerHTML = `
-                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
-                    <div class="ed-recording-buttons">
-                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
-                    </div>
-                `;
+                // Recorded state — keeps the full state-machine markup so
+                // Re-record works (v49 gutted the innerHTML and killed it).
+                updateRecordingSectionState(recordingSection, 'recorded');
             }
         })();
     }
@@ -7587,6 +7890,10 @@ function getActionRecorderState(actionIndex) {
  */
 function updateRecordingSectionState(section, state, errorMsg = '') {
     section.className = `ed-recording-section ${state}`;
+    const title = section.querySelector('.ed-recording-section-title');
+    if (title) {
+        title.textContent = (state === 'recorded') ? '🎤 Recorded ✓' : '🎤 Record Your Voice';
+    }
     if (state === 'error' && errorMsg) {
         // Scope to the error-state block: the preview state has its own
         // (hidden) .ed-recording-error-msg earlier in the DOM.
@@ -7650,12 +7957,15 @@ function updateBatchRecorderButtonVisibility() {
 
     const isSupported = isVoiceRecorderSupported();
     const uncued = findUncuedActions();
+    const hint = $('record-batch-hint');
 
     if (isSupported && uncued.length > 0) {
         btn.style.display = '';
-        btn.title = `Record missing cues (${uncued.length} action${uncued.length !== 1 ? 's' : ''})`;
+        btn.title = `Record cues (${uncued.length} action${uncued.length !== 1 ? 's' : ''} still need one)`;
+        if (hint) hint.style.display = '';
     } else {
         btn.style.display = 'none';
+        if (hint) hint.style.display = 'none';
     }
 }
 
@@ -8002,19 +8312,38 @@ $('ed-action-list').addEventListener('click', (e) => {
                     if (ttsHint) ttsHint.style.display = 'none';
                 }
 
-                // Show success and reset to idle
-                updateRecordingSectionState(section, 'idle');
-                section.innerHTML = `
-                    <div class="ed-recording-section-title">🎤 Recorded ✓</div>
-                    <div class="ed-recording-buttons">
-                        <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
-                    </div>
-                `;
+                // Show the recorded state (Play + Re-record) — full markup
+                // stays in place so both buttons keep working.
+                updateRecordingSectionState(section, 'recorded');
 
                 // Trigger draft save
                 saveDraftFromEditor().catch(() => {});
             } catch (err) {
                 updateRecordingSectionState(section, 'error', err.message);
+            }
+        })();
+        return;
+    }
+
+    // Play saved cue button (recorded state) — pulls the stored WAV from
+    // IndexedDB, so hearing it proves the recording is intact on this device.
+    if (e.target.closest('.ed-btn-play-cue')) {
+        const section = e.target.closest('.ed-recording-section');
+        const actionIndex = parseInt(section.dataset.actionIndex);
+        const action = state.editor.actions[actionIndex];
+        if (!action || !action.pack || !action.cue) return;
+        (async () => {
+            try {
+                const buf = await packManager.getCueAudioData(action.pack, action.cue);
+                if (!buf) throw new Error('Recording not found on this device.');
+                const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+                const player = new Audio(url);
+                const cleanup = () => URL.revokeObjectURL(url);
+                player.addEventListener('ended', cleanup);
+                player.addEventListener('error', cleanup);
+                await player.play();
+            } catch (err) {
+                updateRecordingSectionState(section, 'error', err.message || 'Playback failed.');
             }
         })();
         return;
@@ -8843,7 +9172,22 @@ $('speed-slider').addEventListener('input', (e) => {
 
 $('btn-audio-toggle').addEventListener('click', toggleMute);
 
+// Go Live — from the preview screen, a peer of Start Practice. If the whole
+// event is already in the past (an old draft), offer a quick restart instead
+// of landing the user on "event completed".
 $('btn-go-live').addEventListener('click', () => {
+    const evt = state.event;
+    if (!evt || evt.timeline.length === 0) return;
+    const now = Date.now();
+    const allPast = evt.timeline.every(a => (a.timeMs ?? new Date(a.time).getTime()) < now);
+    if (allPast) {
+        if (!confirm('This event’s times are in the past. Start it 1 minute from now?')) {
+            return;
+        }
+        state.event = rebaseEventToNow(evt);
+        state.actionMeta = null; // recompute from the rebased timeline
+        renderPreview();
+    }
     transitionTo('live');
 });
 
@@ -8855,6 +9199,10 @@ $('btn-practice-stop').addEventListener('click', () => {
 document.querySelectorAll('.info-banner .dismiss').forEach(btn => {
     btn.addEventListener('click', () => { btn.parentElement.style.display = 'none'; });
 });
+
+// Audio telemetry rows — tap to copy the full diagnostic JSON
+$('audio-debug-practice').addEventListener('click', () => copyAudioDebugJson('practice'));
+$('audio-debug-live').addEventListener('click', () => copyAudioDebugJson('live'));
 
 // Live screen
 $('btn-audio-toggle-live').addEventListener('click', toggleMute);
@@ -9116,6 +9464,38 @@ window.addEventListener('hashchange', () => {
     if (loadFromHash()) {
         state.previewReturnTo = 'input';
         transitionTo('preview');
+    }
+});
+
+// Back gesture / browser back: walk back one screen instead of leaving the
+// app (transitions push history entries — see transitionTo). From the input
+// screen, keep unwinding so back exits the app normally.
+window.addEventListener('popstate', (e) => {
+    const target = e.state && e.state.screen;
+
+    // Mid-performance guard: backing out of live is destructive — confirm,
+    // and restore the live entry if declined.
+    if (state.mode === 'live') {
+        if (!confirm('Stop the live event? This cannot be undone.')) {
+            try { history.pushState({ screen: 'live' }, ''); } catch (err) {}
+            return;
+        }
+    }
+
+    if (state.mode === 'input') {
+        // Already at the entry screen: stale in-app entries below us should
+        // not resurrect screens — keep going back toward app exit.
+        if (target) { try { history.back(); } catch (err) {} }
+        return;
+    }
+
+    historyNavigating = true;
+    try {
+        // Never walk back INTO a live performance — land on preview instead.
+        const safeTarget = (target === 'live') ? 'preview' : target;
+        transitionTo(safeTarget && screens[safeTarget] ? safeTarget : 'input');
+    } finally {
+        historyNavigating = false;
     }
 });
 

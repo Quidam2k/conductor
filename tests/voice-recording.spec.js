@@ -351,8 +351,6 @@ test('voice recording: recorded cue is baked into the live track schedule', asyn
     const encoded = await page.evaluate(() => encodeEvent(state.event));
     await page.goto('/#' + encoded);
     await waitForScreen(page, 'screen-preview');
-    await page.click('#btn-start-practice');
-    await waitForScreen(page, 'screen-practice');
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
 
@@ -419,6 +417,42 @@ test('voice recording: share card hidden when no recorded cues used', async ({ p
     await waitForScreen(page, 'screen-editor-review');
 
     await expect(page.locator('#ed-voice-share-card')).toBeHidden();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 9b. Recorded state: Play + Re-record actually work (v50 — the v49
+//     "Recorded ✓" variant gutted the state markup, leaving a dead
+//     Re-record button and no way to hear the saved cue)
+// ─────────────────────────────────────────────────────────────────────
+test('voice recording: Recorded state supports Play and Re-record', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
+    await addMediaStub(page);
+
+    await createEventToTimeline(page, 'Rerecord Test');
+    await addSavedAction(page, 'Spin around');
+    await recordCueForCard(page, 0);
+
+    const section = page.locator('.ed-action-card').first().locator('.ed-recording-section');
+    await expect(section).toHaveClass(/recorded/);
+
+    // Play pulls the WAV straight from IndexedDB — must not error.
+    await section.locator('.ed-btn-play-cue').click();
+    await page.waitForTimeout(600);
+    await expect(section).not.toHaveClass(/error/);
+
+    // Re-record returns to a working idle state…
+    await section.locator('.ed-recording-state-recorded .ed-btn-rerecord').click();
+    await expect(section).toHaveClass(/idle/);
+    await expect(section.locator('.ed-btn-record')).toBeVisible();
+
+    // …and a second take round-trips back to Recorded.
+    await section.locator('.ed-btn-record').click();
+    await expect(section).toHaveClass(/recording/);
+    await section.locator('.ed-btn-stop-record').click();
+    await expect(section).toHaveClass(/preview/, { timeout: 10000 });
+    await section.locator('.ed-btn-use-recording').click();
+    await expect(section).toHaveClass(/recorded/, { timeout: 15000 });
+    await expect(section.locator('.ed-recording-section-title')).toContainText('Recorded');
 });
 
 // ─────────────────────────────────────────────────────────────────────

@@ -78,16 +78,42 @@ function createAudioService() {
     let bakedActive = false;
 
     /**
+     * Ring buffer of pack-cue attempts (cap 100) — the cue-side twin of the
+     * beep log. Outcomes: 'played' (live Web Audio fired), 'baked' (clip is in
+     * the baked track), 'missing-buffer' (no decoded buffer → caller falls
+     * back to TTS), 'no-resolver' (pack system not wired). This is the
+     * paste-back evidence for "why did practice speak instead of playing my
+     * recording" (2026-07-28 session).
+     * @type {Array<{at: number, cueId: string, packId: string, outcome: string}>}
+     */
+    const cueLog = [];
+    const CUE_LOG_CAP = 100;
+
+    function recordCueAttempt(entry) {
+        cueLog.push(entry);
+        if (cueLog.length > CUE_LOG_CAP) cueLog.shift();
+    }
+
+    /**
      * Resolve a pack cue, honoring baked mode. Live: plays via the resolver and
      * returns whether it played. Baked: returns whether the clip exists (so
      * callers branch the same way) but plays nothing — the baked track has it.
+     * Every attempt is recorded in the cue log.
      * @returns {boolean} true if the cue is present/played
      */
     function playPackCue(cueId, packId, speed) {
+        const entry = { at: Date.now(), cueId, packId, outcome: '' };
         if (bakedActive) {
-            return resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+            const has = resourcePackHasCue ? !!resourcePackHasCue(cueId, packId) : false;
+            entry.outcome = has ? 'baked' : 'missing-buffer';
+            recordCueAttempt(entry);
+            return has;
         }
-        return !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+        const played = !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
+        entry.outcome = played ? 'played'
+            : (resourcePackResolver ? 'missing-buffer' : 'no-resolver');
+        recordCueAttempt(entry);
+        return played;
     }
 
     /**
@@ -663,7 +689,12 @@ function createAudioService() {
             const cueId = action.randomCues[randomIndex];
 
             // Try resource pack first
-            if (resourcePackResolver && resourcePackResolver(cueId, action.pack, speed)) {
+            const randomPlayed = !!(resourcePackResolver && resourcePackResolver(cueId, action.pack, speed));
+            recordCueAttempt({
+                at: Date.now(), cueId, packId: action.pack, random: true,
+                outcome: randomPlayed ? 'played' : (resourcePackResolver ? 'missing-buffer' : 'no-resolver'),
+            });
+            if (randomPlayed) {
                 return null; // Resource pack played it
             }
         }
@@ -805,5 +836,6 @@ function createAudioService() {
         getVoice: () => selectedVoice,
         getAnnouncedSet: () => announced, // Exposed for testing
         getBeepLog: () => beepLog, // Diagnostics: recent playBeep attempts
+        getCueLog: () => cueLog, // Diagnostics: recent pack-cue attempts + outcomes
     };
 }
