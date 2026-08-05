@@ -121,7 +121,7 @@ async function addSavedAction(page, text) {
 async function recordCueForCard(page, cardIndex) {
     const card = page.locator('.ed-action-card').nth(cardIndex);
     await card.locator('.ed-btn-edit').click();
-    const section = card.locator('.ed-recording-section');
+    const section = card.locator('.ed-recording-section[data-cue-kind="main"]');
     await expect(section).toHaveClass(/idle/);
     await section.locator('.ed-btn-record').click();
     await expect(section).toHaveClass(/recording/);
@@ -136,6 +136,16 @@ async function recordCueForCard(page, cardIndex) {
 // ─────────────────────────────────────────────────────────────────────
 test('practice audio: countdown + trigger beeps fire while tab visible', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'Real Web Audio asserted on chromium only');
+
+    // v51 practice bakes by default, and baked beeps live in the WAV rather
+    // than the beep log. This spec guards the LIVE fallback path — the one a
+    // browser without OfflineAudioContext (and any run off 1×) still uses — so
+    // it opts out of the bake explicitly. Baked practice is covered by
+    // tests/practice-bake.spec.js.
+    await page.addInitScript(() => {
+        delete window.OfflineAudioContext;
+        delete window.webkitOfflineAudioContext;
+    });
 
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
@@ -159,10 +169,17 @@ test('practice audio: countdown + trigger beeps fire while tab visible', async (
     await page.goto('/#' + eventCode);
     await waitForScreen(page, 'screen-preview');
 
-    // 5x speed: 15 virtual seconds to trigger ≈ 3s real.
-    await page.evaluate(() => { document.getElementById('speed-slider').value = '5'; });
     await page.click('#btn-start-practice');
     await waitForScreen(page, 'screen-practice');
+
+    // 5x speed: 15 virtual seconds to trigger ≈ 3s real. Set AFTER entry —
+    // v51 resets the slider to 1× on entering practice, so a pre-set value
+    // no longer survives; the slider's own input path is what re-anchors.
+    await page.evaluate(() => {
+        const s = document.getElementById('speed-slider');
+        s.value = '5';
+        s.dispatchEvent(new Event('input', { bubbles: true }));
+    });
 
     // Wait until the trigger beep (1320 Hz) has been attempted.
     await expect.poll(
