@@ -574,6 +574,7 @@
             cursor: pointer;
         }
         .ed-action-header .ed-btn-edit { color: var(--accent-blue); }
+        .ed-action-header .ed-btn-duplicate { color: var(--accent-blue); }
         .ed-action-header .ed-btn-delete { color: var(--accent-red); }
         .ed-action-header .ed-btn-icon:hover { color: var(--text); }
 
@@ -696,6 +697,7 @@
         .ed-recording-state-preview,
         .ed-recording-state-unsupported,
         .ed-recording-state-error,
+        .ed-recording-state-blocked,
         .ed-recording-state-recorded {
             display: none;
         }
@@ -704,6 +706,7 @@
         .ed-recording-section.preview .ed-recording-state-preview { display: block; }
         .ed-recording-section.unsupported .ed-recording-state-unsupported { display: block; }
         .ed-recording-section.error .ed-recording-state-error { display: block; }
+        .ed-recording-section.blocked .ed-recording-state-blocked { display: block; }
         .ed-recording-section.recorded .ed-recording-state-recorded { display: block; }
 
         .ed-recording-hint {
@@ -750,6 +753,10 @@
         .batch-recorder-content {
             flex: 1; display: flex; flex-direction: column; overflow-y: auto;
             align-items: center; justify-content: center; padding: 16px;
+        }
+        .batch-step-label {
+            font-size: 14px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px; text-align: center;
         }
         .batch-teleprompter-text {
             font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 16px;
@@ -942,10 +949,29 @@
         .audio-debug-row {
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
             font-size: 14px; color: var(--text-secondary);
-            text-align: center; padding: 6px 4px 2px; cursor: pointer;
-            user-select: none; -webkit-user-select: none; min-height: 18px;
+            text-align: center; padding: 8px 10px; margin-top: 6px; cursor: pointer;
+            user-select: none; -webkit-user-select: none; min-height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border-medium); border-radius: var(--radius-sm);
+            background: var(--bg-input);
         }
-        .audio-debug-row:active { color: var(--accent-blue); }
+        .audio-debug-row:active { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+        /* Swallowed-exception banner — sits above every screen. */
+        #js-error-banner {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+            background: var(--accent-red); color: #fff;
+            font-size: 15px; text-align: center; padding: 10px 14px;
+            cursor: pointer; user-select: none; -webkit-user-select: none;
+        }
+
+        /* Per-run rehearsal fidelity note — says whether practice is running the
+           same baked audio the live event will use. */
+        .practice-rehearsal-note {
+            font-size: 14px; text-align: center; padding: 4px 8px 0;
+            color: var(--text-dim); min-height: 18px;
+        }
+        .practice-rehearsal-note.baked { color: var(--accent-green); }
 
         /* ─── Reduced motion ─── */
         @media (prefers-reduced-motion: reduce) {
@@ -972,7 +998,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v50</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v51</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1151,6 +1177,7 @@
             <button id="btn-share-qr-practice" class="icon-btn" title="Share QR Code" aria-label="Share via QR code">&#x1f4e4;</button>
             <button id="btn-practice-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
         </div>
+        <div id="practice-rehearsal-note" class="practice-rehearsal-note"></div>
         <div id="audio-debug-practice" class="audio-debug-row" role="button" tabindex="0" title="Tap to copy full audio diagnostics"></div>
     </div>
     <div class="safe-bottom"></div>
@@ -1257,11 +1284,18 @@
         <p style="font-size:16px; color:var(--text-dim); margin-bottom:8px;">
             Add actions with timing relative to the event start.
         </p>
+        <p style="font-size:16px; color:var(--text-secondary); margin-bottom:8px;">
+            <strong>1.</strong> Write your actions &nbsp;<strong>2.</strong> Record them all in one pass &nbsp;<strong>3.</strong> Fix any that need it
+        </p>
 
         <div id="ed-action-list" class="ed-action-list"></div>
+        <datalist id="ed-action-text-options"></datalist>
         <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
         <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all cues</button>
-        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">Write all your steps first, then record them in one pass. You can re-record any single cue after.</p>
+        <button id="btn-record-missing" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record the missing ones</button>
+        <button id="btn-play-all-cues" class="btn-add-action" style="border-color:rgba(91,163,255,0.3); color:var(--accent-blue); display:none;">&#x25b6; Play all cues</button>
+        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records every action: the cue itself, then its &ldquo;Get ready to&hellip;&rdquo; prep phrase. Recorded preps play in a pocket; spoken ones don&rsquo;t.</p>
+        <div id="play-all-status" style="font-size:16px; color:var(--text-dim); margin:6px 2px 0; display:none;"></div>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1396,6 +1430,7 @@
         <button id="btn-batch-close" class="batch-close-btn" aria-label="Close">&times;</button>
     </div>
     <div class="batch-recorder-content">
+        <div class="batch-step-label" id="batch-step-label"></div>
         <div class="batch-teleprompter-text" id="batch-cue-text"></div>
         <div class="batch-progress" id="batch-progress"></div>
         <button id="btn-batch-record" class="batch-record-button btn-primary">🎤 Record</button>
@@ -1406,9 +1441,18 @@
             <button id="btn-batch-rerecord" class="btn-outline">Re-record</button>
             <button id="btn-batch-done" class="btn-outline">Done</button>
         </div>
+        <div class="batch-action-buttons" id="batch-complete-buttons" style="display:none;">
+            <button id="btn-batch-play-all" class="btn-primary">&#x25b6; Play all cues</button>
+            <button id="btn-batch-finish" class="btn-outline">Done</button>
+        </div>
+        <div id="batch-complete-status" style="font-size:16px; color:var(--text-dim); margin-top:12px; display:none;"></div>
         <div id="batch-error-msg" style="color:var(--accent-red); font-size:16px; margin-top:16px; display:none;"></div>
     </div>
 </div>
+
+<!-- Swallowed-exception banner. Fixed and screen-independent: the errors it
+     reports can fire before any screen is active. -->
+<div id="js-error-banner" role="button" tabindex="0" style="display:none;"></div>
 
 <!-- Hidden media element for the on-the-fly baked audio track. At Start we
      render the whole event's beeps + pack voice into one WAV and play it here;
@@ -5930,11 +5974,46 @@ function createCircularTimeline(canvas) {
 // Global Error Handlers
 // ═══════════════════════════════════════════════════════════════════════════
 
+// A script error thrown while this file's one big inline block is still wiring
+// listeners takes every listener after it down with it — which is exactly the
+// shape of "Create new event does nothing until I refresh" (both of Jessica's
+// devices, 2026-07-22). We can't fix a bug we can't see, so every error is
+// captured here, surfaced as a banner, and folded into the diagnostics JSON.
+const _jsErrors = [];
+
+function recordJsError(kind, message, source) {
+    try {
+        _jsErrors.push({
+            at: new Date().toISOString(),
+            kind,
+            message: String(message == null ? '(none)' : message).slice(0, 400),
+            source: source || '',
+        });
+        if (_jsErrors.length > 20) _jsErrors.shift();
+        showErrorBanner();
+    } catch (e) { /* never let the error handler throw */ }
+}
+
+/** Make a swallowed exception visible — and tappable, so it comes back as data. */
+function showErrorBanner() {
+    const el = document.getElementById('js-error-banner');
+    if (!el) return;
+    const n = _jsErrors.length;
+    el.textContent = n === 1
+        ? 'Something went wrong — tap to copy the details, then reload.'
+        : n + ' errors — tap to copy the details, then reload.';
+    el.style.display = 'block';
+}
+
 window.addEventListener('error', (e) => {
     console.error('Conductor error:', e.error);
+    recordJsError('error', (e.error && e.error.stack) || e.message,
+        (e.filename || '') + (e.lineno ? ':' + e.lineno : ''));
 });
 window.addEventListener('unhandledrejection', (e) => {
     console.error('Conductor unhandled promise:', e.reason);
+    recordJsError('unhandledrejection',
+        (e.reason && e.reason.stack) || e.reason, '');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6778,6 +6857,16 @@ async function enterPractice() {
     $('practice-title').textContent = evt.title;
     renderBriefing(evt.briefing, 'practice-briefing', true);
 
+    // Every practice run starts at 1× so a rehearsal is a faithful one by
+    // default — the baked track can only be pre-rendered at real speed, and a
+    // slider left at 3× from a previous run would silently cost the user the
+    // pocket path with no way to tell why. Set before any await so the clock
+    // never holds a stale multiplier.
+    $('speed-slider').value = '1';
+    $('speed-val').textContent = '1x';
+    $('speed-slider').setAttribute('aria-label', 'Speed: 1x');
+    state.speedMultiplier = 1;
+
     // Initialize audio on first user gesture
     if (!audio.isInitialized()) {
         audio.initialize();
@@ -6813,7 +6902,6 @@ async function enterPractice() {
     const eventStartMs = new Date(evt.startTime).getTime();
     state.practiceStartRealMs = Date.now();
     state.practiceStartEventMs = Math.max(eventStartMs, firstActionMs - 15000);
-    state.speedMultiplier = parseFloat($('speed-slider').value);
 
     // Precompute per-action gaps + grouping for countdown capping
     state.actionMeta = computeActionMeta(evt.timeline);
@@ -6830,6 +6918,7 @@ async function enterPractice() {
         defaultCountdown: evt.defaultCountdown,
     };
     timelinePractice.setOnCountdownTick((seconds, action) => {
+        if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
@@ -6838,10 +6927,58 @@ async function enterPractice() {
         }
     });
 
+    // Rehearse through the same channel the real thing uses: bake the whole
+    // script to one WAV and play it from the hidden <audio>. Anchored at the
+    // practice start instead of the wall clock, so the offsets the bake sees are
+    // the same ones live sees. Without this, practice exercises the live TTS /
+    // Web Audio path — which is the one that does NOT survive a locked screen —
+    // so a script could rehearse perfectly and go silent in a pocket.
+    if (canBake()) {
+        await startBakedTrack(evt, evtDefs, {
+            anchorMs: state.practiceStartEventMs,
+            startWallMs: state.practiceStartRealMs,
+        });
+        if (gen !== enterGen) {
+            // Left practice while baking — kill the ghost track the way live does.
+            stopBakedTrack();
+            return;
+        }
+        // Slider moved while the WAV was still rendering: the finished track is
+        // pre-rendered at 1× and would run against a faster timeline. The input
+        // handler couldn't drop a track that didn't exist yet, so drop it here.
+        if (state.speedMultiplier !== 1) {
+            stopBakedTrack();
+            setBakeStatus({ ok: false, reason: 'speed-changed' });
+        }
+    } else {
+        setBakeStatus({ ok: false, reason: 'unsupported' });
+    }
+    updatePracticeRehearsalNote();
+
     // Start loops
     startPracticeLoop();
     startAudioLoop('practice');
     requestWakeLock();
+}
+
+/**
+ * Tell the user whether this practice run is a true pocket rehearsal. Unlike
+ * the live pocket banner this is per-run, not one-shot: it also has to explain
+ * the moment the speed slider drops them off the baked path.
+ */
+function updatePracticeRehearsalNote() {
+    const el = $('practice-rehearsal-note');
+    if (!el) return;
+    if (state.bakedActive) {
+        el.textContent = 'Pocket rehearsal — same audio the live event uses. Lock the screen and it keeps playing.';
+        el.className = 'practice-rehearsal-note baked';
+    } else if (state.speedMultiplier !== 1) {
+        el.textContent = 'Speed is off 1× — practising through spoken audio, which stops when the screen locks.';
+        el.className = 'practice-rehearsal-note plain';
+    } else {
+        el.textContent = 'This browser can’t pre-render audio, so a locked screen will go quiet.';
+        el.className = 'practice-rehearsal-note plain';
+    }
 }
 
 function startPracticeLoop() {
@@ -7055,14 +7192,18 @@ function audioDebugSummary(mode) {
     }
     const beeps = audio.getBeepLog().filter(b => b.outcome === 'scheduled' && b.at >= dbg.at).length;
     parts.push('beeps ' + beeps);
-    if (mode === 'live') {
-        const b = dbg.bake;
-        if (!b) parts.push('bake …');
-        else if (b.ok) parts.push('bake ' + Math.round(b.durationSec) + 's OK');
-        else if (b.reason === 'unsupported') parts.push('bake n/a');
-        else parts.push('bake FAILED');
-    }
-    return 'audio: ' + parts.join(' · ');
+    // Bake status matters on both screens now — practice rehearses through the
+    // same baked track, so "did it bake?" is a practice question too.
+    const b = dbg.bake;
+    if (!b) parts.push('bake …');
+    else if (b.ok) parts.push('bake ' + Math.round(b.durationSec) + 's OK');
+    else if (b.reason === 'unsupported') parts.push('bake n/a');
+    else if (b.reason === 'speed-changed') parts.push('bake off (speed)');
+    else parts.push('bake FAILED');
+    // The trailing hint is not decoration: this row is the ONLY channel that
+    // gets real data off a tester's phone, and Todd couldn't find it on a Pixel
+    // (2026-08-04). It has to announce itself as a control.
+    return 'audio: ' + parts.join(' · ') + '  ⧉ tap to copy';
 }
 
 function updateAudioDebugRow(mode) {
@@ -7094,6 +7235,7 @@ async function copyAudioDebugJson(mode) {
         beepLog: audio.getBeepLog(),
         cueLog: audio.getCueLog(),
         baked: { active: state.bakedActive, durationSec: state.bakedDurationSec || 0 },
+        jsErrors: _jsErrors,
     };
     const ok = await copyToClipboard(JSON.stringify(payload));
     const el = document.getElementById('audio-debug-' + mode);
@@ -7240,14 +7382,19 @@ function unlockBakedTrack() {
  * @param {{defaultCountdownSeconds:number, defaultCountdown:boolean}} evtDefs
  * @returns {Promise<boolean>}
  */
-async function startBakedTrack(evt, evtDefs) {
+async function startBakedTrack(evt, evtDefs, opts = {}) {
     const el = document.getElementById('baked-track');
     if (!el) { setBakeStatus({ ok: false, reason: 'no-element' }); return false; }
     try {
-        const startWallMs = Date.now();
+        // Two separate clocks. anchorMs is the event-time the track's t=0 maps
+        // to — wall-clock now when going live, but practice's virtual start when
+        // rehearsing. startWallMs is the real moment that anchor corresponds to,
+        // used only to skip the head that elapses while baking.
+        const startWallMs = opts.startWallMs ?? Date.now();
+        const anchorMs = opts.anchorMs ?? startWallMs;
         const schedule = audio.computeCueSchedule(
             evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
-            startWallMs, evtDefs,
+            anchorMs, evtDefs,
             (packId, cueId) => packManager.hasCue(packId, cueId));
         const baked = await bakeScheduleToWavBlob(
             schedule, (key) => packManager.getBuffer(key));
@@ -7320,7 +7467,8 @@ function stopBakedTrack() {
 function resyncBakedTrack() {
     const el = document.getElementById('baked-track');
     if (!el) return;
-    if (!state.bakedActive || state.mode !== 'live' || !el.paused || el.ended) return;
+    if (!state.bakedActive || (state.mode !== 'live' && state.mode !== 'practice') ||
+        !el.paused || el.ended) return;
     const elapsed = (Date.now() - state.bakedStartWallMs) / 1000;
     if (elapsed >= state.bakedDurationSec) return; // event's audio is over anyway
     try { el.currentTime = elapsed; } catch (e) {}
@@ -7654,6 +7802,7 @@ function createActionCard(action, index) {
         <span class="action-time">${formatOffset(action.offsetSeconds)}</span>
         <span class="action-name">${escapeHtml(action.action)}</span>
         <button class="ed-btn-icon ed-btn-edit" title="Edit">&#9998;</button>
+        <button class="ed-btn-icon ed-btn-duplicate" title="Duplicate">&#9109;</button>
         <button class="ed-btn-icon ed-btn-delete" title="Delete">&#10005;</button>
     `;
     card.appendChild(header);
@@ -7687,60 +7836,43 @@ function createActionDetails(action) {
     return details;
 }
 
-function createActionEditForm(action, index) {
-    const form = document.createElement('div');
-    form.className = 'ed-action-edit';
+/**
+ * Markup for one recording block inside an action's edit form. Every action
+ * gets two: the cue itself, and the "Get ready to …" prep phrase.
+ *
+ * The prep recording is saved under the literal id `notice-<cueId>` — the id
+ * the engine already resolves on the live path (audioService.resolveAudioCue,
+ * context 'notice') and already bakes into the locked-screen track
+ * (computeCueSchedule). No engine change is needed: record it and it plays in
+ * a pocket. Without one, the prep falls back to TTS, which is silent under lock.
+ *
+ * @param {number} index - Action index (recorder state key)
+ * @param {'main'|'notice'} kind
+ * @param {Object} action
+ * @returns {string} HTML
+ */
+function recordingBlockHtml(index, kind, action) {
+    const isNotice = kind === 'notice';
+    const idleTitle = isNotice ? '🎤 Record the Prep Phrase' : '🎤 Record Your Voice';
+    const doneTitle = isNotice ? '🎤 Prep Phrase Recorded ✓' : '🎤 Recorded ✓';
+    const prepLine = 'Get ready to ' + (action.action || '…').toLowerCase();
+    const idleHint = isNotice
+        ? `Say &ldquo;${escapeHtml(prepLine)}&rdquo; &mdash; the heads-up 10 seconds before the cue. ` +
+          'Without a recording the prep uses the robot voice, which is silent in a pocket. ' +
+          'Actions less than 5 seconds apart share one spoken prep, so a recording will not play for those.'
+        : 'Record a cue in your own voice. Keep it short and clear.';
+    const recordedHint = isNotice
+        ? 'Play checks the saved prep phrase on this device.'
+        : 'Play checks the saved recording on this device.';
 
-    const mins = Math.floor(action.offsetSeconds / 60);
-    const secs = action.offsetSeconds % 60;
-
-    form.innerHTML = `
-        <label class="field-label" style="margin-top:8px;">Offset from start</label>
-        <div class="ed-offset-row">
-            <input type="number" class="ed-offset-min" value="${mins}" min="0" max="999" placeholder="0">
-            <span>min</span>
-            <input type="number" class="ed-offset-sec" value="${secs}" min="0" max="59" placeholder="0">
-            <span>sec</span>
-        </div>
-
-        <label class="field-label">Action text *</label>
-        <input type="text" class="field-input ed-action-text" value="${escapeHtml(action.action)}" placeholder="e.g. Wave left" maxlength="80">
-
-        <label class="field-label">Style</label>
-        <div class="ed-toggle-group ed-style-group">
-            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
-        </div>
-
-        <label class="field-label">Haptic</label>
-        <div class="ed-toggle-group ed-haptic-group">
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'single' ? ' selected' : ''}" data-val="single" title="One short vibration">Single</button>
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'double' ? ' selected' : ''}" data-val="double" title="Two quick vibrations">Double</button>
-            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'triple' ? ' selected' : ''}" data-val="triple" title="Three vibrations — strongest alert">Triple</button>
-        </div>
-
-        <div class="ed-checkbox-row">
-            <input type="checkbox" id="ed-countdown-${index}" class="ed-countdown-check" ${action.countdown ? 'checked' : ''}>
-            <label for="ed-countdown-${index}" title="3 ascending tones before this cue triggers">Countdown beeps</label>
-        </div>
-
-        <label class="field-label">Resource Pack</label>
-        <select class="field-select ed-pack-select">
-            <option value="">None (TTS only)</option>
-        </select>
-        <div class="ed-tts-hint" style="font-size:14px; color:var(--text-dim); margin-top:4px;">With TTS only, the action text above is spoken aloud.</div>
-        <select class="field-select ed-cue-select" style="display:none; margin-top:6px;">
-            <option value="">Select a cue...</option>
-        </select>
-        <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
-
-        <div class="ed-recording-section idle" data-action-index="${index}">
-            <div class="ed-recording-section-title">🎤 Record Your Voice</div>
+    return `
+        <div class="ed-recording-section idle" data-action-index="${index}" data-cue-kind="${kind}"
+             data-title-idle="${escapeHtml(idleTitle)}" data-title-recorded="${escapeHtml(doneTitle)}">
+            <div class="ed-recording-section-title">${escapeHtml(idleTitle)}</div>
 
             <div class="ed-recording-state-idle">
                 <button type="button" class="btn-primary btn-small ed-btn-record">🎤 Record</button>
-                <div class="ed-recording-hint">Record a cue in your own voice. Keep it short and clear.</div>
+                <div class="ed-recording-hint">${idleHint}</div>
             </div>
 
             <div class="ed-recording-state-recording">
@@ -7775,14 +7907,70 @@ function createActionEditForm(action, index) {
                 </div>
             </div>
 
+            <div class="ed-recording-state-blocked">
+                <div class="ed-recording-blocked-msg" style="font-size:14px; color:var(--text-dim);">Record the cue above first &mdash; the prep phrase is saved alongside it.</div>
+            </div>
+
             <div class="ed-recording-state-recorded">
                 <div class="ed-recording-buttons">
                     <button type="button" class="btn-primary btn-small ed-btn-play-cue">&#x25b6; Play</button>
                     <button type="button" class="btn-outline btn-small ed-btn-rerecord">Re-record</button>
                 </div>
-                <div class="ed-recording-hint">Play checks the saved recording on this device.</div>
+                <div class="ed-recording-hint">${recordedHint}</div>
             </div>
+        </div>`;
+}
+
+function createActionEditForm(action, index) {
+    const form = document.createElement('div');
+    form.className = 'ed-action-edit';
+
+    const mins = Math.floor(action.offsetSeconds / 60);
+    const secs = action.offsetSeconds % 60;
+
+    form.innerHTML = `
+        <label class="field-label" style="margin-top:8px;">Offset from start</label>
+        <div class="ed-offset-row">
+            <input type="number" class="ed-offset-min" value="${mins}" min="0" max="999" placeholder="0">
+            <span>min</span>
+            <input type="number" class="ed-offset-sec" value="${secs}" min="0" max="59" placeholder="0">
+            <span>sec</span>
         </div>
+
+        <label class="field-label">Action text *</label>
+        <input type="text" class="field-input ed-action-text" list="ed-action-text-options" value="${escapeHtml(action.action)}" placeholder="e.g. Wave left" maxlength="80">
+
+        <label class="field-label">Style</label>
+        <div class="ed-toggle-group ed-style-group">
+            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
+        </div>
+
+        <label class="field-label">Haptic</label>
+        <div class="ed-toggle-group ed-haptic-group">
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'single' ? ' selected' : ''}" data-val="single" title="One short vibration">Single</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'double' ? ' selected' : ''}" data-val="double" title="Two quick vibrations">Double</button>
+            <button type="button" class="ed-toggle-btn${action.hapticPattern === 'triple' ? ' selected' : ''}" data-val="triple" title="Three vibrations — strongest alert">Triple</button>
+        </div>
+
+        <div class="ed-checkbox-row">
+            <input type="checkbox" id="ed-countdown-${index}" class="ed-countdown-check" ${action.countdown ? 'checked' : ''}>
+            <label for="ed-countdown-${index}" title="3 ascending tones before this cue triggers">Countdown beeps</label>
+        </div>
+
+        <label class="field-label">Resource Pack</label>
+        <select class="field-select ed-pack-select">
+            <option value="">None (TTS only)</option>
+        </select>
+        <div class="ed-tts-hint" style="font-size:14px; color:var(--text-dim); margin-top:4px;">With TTS only, the action text above is spoken aloud.</div>
+        <select class="field-select ed-cue-select" style="display:none; margin-top:6px;">
+            <option value="">Select a cue...</option>
+        </select>
+        <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
+
+        ${recordingBlockHtml(index, 'main', action)}
+        ${recordingBlockHtml(index, 'notice', action)}
 
         <div class="ed-form-actions">
             <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
@@ -7793,20 +7981,37 @@ function createActionEditForm(action, index) {
     // Populate pack dropdown async
     populatePackDropdown(form, action);
 
-    // Initialize recording section: check browser support and existing cue state
-    const recordingSection = form.querySelector('.ed-recording-section');
-    if (recordingSection) {
+    // Initialize both recording sections: browser support, then existing cue state
+    form.querySelectorAll('.ed-recording-section').forEach(section => {
         (async () => {
-            const isSupported = isVoiceRecorderSupported();
-            if (!isSupported) {
-                updateRecordingSectionState(recordingSection, 'unsupported');
-            } else if (action.pack && action.cue && action.pack === packManager.getSyntheticPackId()) {
+            if (!isVoiceRecorderSupported()) {
+                updateRecordingSectionState(section, 'unsupported');
+                return;
+            }
+            const syntheticPackId = packManager.getSyntheticPackId();
+            const isOwnVoiceCue = !!(action.cue && action.pack === syntheticPackId);
+
+            if (section.dataset.cueKind !== 'notice') {
                 // Recorded state — keeps the full state-machine markup so
                 // Re-record works (v49 gutted the innerHTML and killed it).
-                updateRecordingSectionState(recordingSection, 'recorded');
+                if (isOwnVoiceCue) updateRecordingSectionState(section, 'recorded');
+                return;
             }
+
+            // Prep phrase: the id derives from the main cue, and it must live in
+            // the same pack the action points at, so it only applies to My Voice cues.
+            if (!isOwnVoiceCue) {
+                updateRecordingSectionState(section, 'blocked', action.cue
+                    ? 'This action uses a cue from an imported pack — record the cue above in your own voice to add a prep phrase.'
+                    : '');
+                return;
+            }
+            try {
+                const buf = await packManager.getCueAudioData(syntheticPackId, 'notice-' + action.cue);
+                if (buf) updateRecordingSectionState(section, 'recorded');
+            } catch { /* IDB unavailable — leave idle */ }
         })();
-    }
+    });
 
     return form;
 }
@@ -7867,22 +8072,40 @@ async function populateCueDropdown(cueSelect, packId, selectedCue) {
     }
 }
 
-// Per-action recorder state tracking
-// Format: { [actionIndex]: { recorder, blob, objectUrl } }
+// Per-action recorder state tracking. Keyed by "<actionIndex>:<cueKind>" —
+// an action's cue and its prep phrase each get their own recorder.
+// Format: { [key]: { recorder, blob, objectUrl } }
 const _actionRecorders = {};
 
 /**
- * Initialize or retrieve recorder state for an action.
+ * Initialize or retrieve recorder state for one recording block.
  */
-function getActionRecorderState(actionIndex) {
-    if (!_actionRecorders[actionIndex]) {
-        _actionRecorders[actionIndex] = {
+function getActionRecorderState(actionIndex, kind = 'main') {
+    const key = actionIndex + ':' + kind;
+    if (!_actionRecorders[key]) {
+        _actionRecorders[key] = {
             recorder: createVoiceRecorder(),
             blob: null,
             objectUrl: null,
         };
     }
-    return _actionRecorders[actionIndex];
+    return _actionRecorders[key];
+}
+
+/** Recorder state for the block a click landed in. */
+function getRecorderStateForSection(section) {
+    return getActionRecorderState(
+        parseInt(section.dataset.actionIndex), section.dataset.cueKind || 'main');
+}
+
+/**
+ * The cue id a recording block writes to: the action's own cue, or the
+ * `notice-`-prefixed prep cue the engine looks up 10s ahead of it.
+ * Returns null when there's no main cue to derive from.
+ */
+function sectionCueId(section, action) {
+    if (!action || !action.cue) return null;
+    return (section.dataset.cueKind === 'notice') ? 'notice-' + action.cue : action.cue;
 }
 
 /**
@@ -7892,13 +8115,19 @@ function updateRecordingSectionState(section, state, errorMsg = '') {
     section.className = `ed-recording-section ${state}`;
     const title = section.querySelector('.ed-recording-section-title');
     if (title) {
-        title.textContent = (state === 'recorded') ? '🎤 Recorded ✓' : '🎤 Record Your Voice';
+        title.textContent = (state === 'recorded')
+            ? (section.dataset.titleRecorded || '🎤 Recorded ✓')
+            : (section.dataset.titleIdle || '🎤 Record Your Voice');
     }
     if (state === 'error' && errorMsg) {
         // Scope to the error-state block: the preview state has its own
         // (hidden) .ed-recording-error-msg earlier in the DOM.
         const errorEl = section.querySelector('.ed-recording-state-error .ed-recording-error-msg');
         if (errorEl) errorEl.textContent = errorMsg;
+    }
+    if (state === 'blocked' && errorMsg) {
+        const blockedEl = section.querySelector('.ed-recording-blocked-msg');
+        if (blockedEl) blockedEl.textContent = errorMsg;
     }
 }
 
@@ -7926,7 +8155,7 @@ function showRecordingPreview(section, blob) {
 
 let _batchRecorderState = {
     isActive: false,
-    uncuedIndices: [],
+    steps: [],
     currentIdx: 0,
     recorder: null,
     blob: null,
@@ -7949,36 +8178,96 @@ function findUncuedActions() {
 }
 
 /**
- * Update the batch recorder button visibility and state.
+ * The teleprompter steps for a batch pass: every action contributes its cue
+ * and then its "Get ready to …" prep phrase, in timeline order.
+ * @param {number[]|null} onlyIndices - Restrict to these action indices (repair pass).
+ * @returns {Array<{index: number, kind: 'main'|'notice'}>}
+ */
+function buildBatchSteps(onlyIndices) {
+    const steps = [];
+    state.editor.actions.forEach((action, index) => {
+        if (onlyIndices && !onlyIndices.includes(index)) return;
+        steps.push({ index, kind: 'main' });
+        steps.push({ index, kind: 'notice' });
+    });
+    return steps;
+}
+
+/** Actions that already have a recording in the user's own voice. */
+function ownVoiceActions() {
+    const syntheticPackId = packManager.getSyntheticPackId();
+    return state.editor.actions.filter(a => a.cue && a.pack === syntheticPackId);
+}
+
+/**
+ * Update the batch recorder / play-all button visibility and state.
  */
 function updateBatchRecorderButtonVisibility() {
     const btn = $('btn-record-batch');
     if (!btn) return;
 
     const isSupported = isVoiceRecorderSupported();
+    const total = state.editor.actions.length;
     const uncued = findUncuedActions();
+    const missingBtn = $('btn-record-missing');
     const hint = $('record-batch-hint');
 
-    if (isSupported && uncued.length > 0) {
+    // Headline pass covers everything and stays available once cues exist —
+    // re-recording the whole script is a normal thing to want.
+    if (isSupported && total > 0) {
         btn.style.display = '';
-        btn.title = `Record cues (${uncued.length} action${uncued.length !== 1 ? 's' : ''} still need one)`;
+        btn.title = `Record every cue and prep phrase (${total} action${total !== 1 ? 's' : ''})`;
         if (hint) hint.style.display = '';
     } else {
         btn.style.display = 'none';
         if (hint) hint.style.display = 'none';
     }
+
+    // Repair pass — only when some, but not all, actions still need a cue.
+    if (missingBtn) {
+        if (isSupported && uncued.length > 0 && uncued.length < total) {
+            missingBtn.style.display = '';
+            missingBtn.textContent = `🎤 Record the ${uncued.length} missing`;
+        } else {
+            missingBtn.style.display = 'none';
+        }
+    }
+
+    const playAllBtn = $('btn-play-all-cues');
+    if (playAllBtn) {
+        playAllBtn.style.display = state.editor.actions.some(a => a.pack && a.cue) ? '' : 'none';
+    }
+
+    updateActionTextOptions();
+}
+
+/**
+ * Keep the repeat-text dropdown in sync with the script. Scripts reuse the same
+ * cue text a lot ("Freeze", "Freeze", "Freeze"), and retyping it by hand is how
+ * you end up with two near-identical cues and two separate recordings.
+ */
+function updateActionTextOptions() {
+    const list = $('ed-action-text-options');
+    if (!list) return;
+    const seen = [];
+    for (const a of state.editor.actions) {
+        const t = (a.action || '').trim();
+        if (t && !seen.includes(t)) seen.push(t);
+    }
+    list.innerHTML = seen.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
 }
 
 /**
  * Start the batch recorder flow.
+ * @param {'all'|'missing'} [mode='all']
  */
-function startBatchRecorder() {
-    const uncued = findUncuedActions();
-    if (uncued.length === 0) return;
+function startBatchRecorder(mode = 'all') {
+    const steps = buildBatchSteps(mode === 'missing' ? findUncuedActions() : null);
+    if (steps.length === 0) return;
 
     _batchRecorderState = {
         isActive: true,
-        uncuedIndices: uncued,
+        steps,
         currentIdx: 0,
         recorder: createVoiceRecorder(),
         blob: null,
@@ -7989,7 +8278,7 @@ function startBatchRecorder() {
 }
 
 /**
- * Show the batch recorder overlay and initialize the first action.
+ * Show the batch recorder overlay and initialize the first step.
  */
 function showBatchRecorderUI() {
     const overlay = $('batch-recorder-overlay');
@@ -7998,26 +8287,46 @@ function showBatchRecorderUI() {
     showBatchRecorderAction();
 }
 
+/** Can this step be recorded right now? Prep cues need a My Voice cue to hang off. */
+function batchStepIsRecordable(step) {
+    const action = state.editor.actions[step.index];
+    if (!action) return false;
+    if (step.kind !== 'notice') return true;
+    return !!(action.cue && action.pack === packManager.getSyntheticPackId());
+}
+
 /**
- * Display the current action in the batch recorder.
+ * Display the current step in the batch recorder, skipping past any prep steps
+ * whose cue was skipped (nothing to attach the prep to).
  */
 function showBatchRecorderAction() {
     const state_local = _batchRecorderState;
-    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
-        closeBatchRecorder();
+
+    while (state_local.currentIdx < state_local.steps.length &&
+           !batchStepIsRecordable(state_local.steps[state_local.currentIdx])) {
+        state_local.currentIdx++;
+    }
+    if (state_local.currentIdx >= state_local.steps.length) {
+        showBatchRecorderComplete();
         return;
     }
 
-    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
-    const action = state.editor.actions[actionIndex];
+    const step = state_local.steps[state_local.currentIdx];
+    const action = state.editor.actions[step.index];
+    const isNotice = step.kind === 'notice';
 
-    $('batch-cue-text').textContent = action.action;
-    $('batch-progress').textContent = `${state_local.currentIdx + 1} of ${state_local.uncuedIndices.length}`;
+    $('batch-step-label').textContent = isNotice ? 'Prep phrase' : 'Cue';
+    $('batch-cue-text').textContent = isNotice
+        ? 'Get ready to ' + (action.action || '').toLowerCase()
+        : action.action;
+    $('batch-progress').textContent = `${state_local.currentIdx + 1} of ${state_local.steps.length}`;
 
     // Reset UI to idle (record button visible, preview hidden)
     $('btn-batch-record').style.display = '';
     $('batch-preview-audio').style.display = 'none';
     $('batch-action-buttons').style.display = 'none';
+    $('batch-complete-buttons').style.display = 'none';
+    $('batch-complete-status').style.display = 'none';
     $('batch-error-msg').style.display = 'none';
 
     // Reset state
@@ -8026,6 +8335,28 @@ function showBatchRecorderAction() {
         URL.revokeObjectURL(state_local.objectUrl);
         state_local.objectUrl = null;
     }
+}
+
+/**
+ * End of the pass: offer to hear the whole script back before leaving.
+ */
+function showBatchRecorderComplete() {
+    $('batch-step-label').textContent = '';
+    $('batch-cue-text').textContent = 'That’s the whole script.';
+    $('batch-progress').textContent = '';
+    $('btn-batch-record').style.display = 'none';
+    $('batch-preview-audio').style.display = 'none';
+    $('batch-action-buttons').style.display = 'none';
+    $('batch-error-msg').style.display = 'none';
+    $('batch-complete-status').style.display = 'none';
+    $('batch-complete-buttons').style.display = 'flex';
+    saveDraftFromEditor().catch(() => {});
+}
+
+/** Advance one step and render, or land on the completion panel. */
+function advanceBatchRecorder() {
+    _batchRecorderState.currentIdx++;
+    showBatchRecorderAction();
 }
 
 /**
@@ -8051,6 +8382,8 @@ function closeBatchRecorder() {
     const overlay = $('batch-recorder-overlay');
     overlay.style.display = 'none';
 
+    stopPlayAllCues();
+
     if (_batchRecorderState.recorder) {
         _batchRecorderState.recorder.cancel();
     }
@@ -8060,7 +8393,7 @@ function closeBatchRecorder() {
 
     _batchRecorderState = {
         isActive: false,
-        uncuedIndices: [],
+        steps: [],
         currentIdx: 0,
         recorder: null,
         blob: null,
@@ -8071,9 +8404,13 @@ function closeBatchRecorder() {
     renderEditorTimeline();
 }
 
-// Wire batch recorder button
+// Wire batch recorder buttons — the whole script, or just the actions that
+// still have no cue.
 $('btn-record-batch').addEventListener('click', () => {
-    startBatchRecorder();
+    startBatchRecorder('all');
+});
+$('btn-record-missing').addEventListener('click', () => {
+    startBatchRecorder('missing');
 });
 
 // Wire batch overlay close button
@@ -8124,36 +8461,37 @@ $('btn-batch-use').addEventListener('click', async () => {
     const state_local = _batchRecorderState;
     if (!state_local.isActive || !state_local.blob) return;
 
-    const actionIndex = state_local.uncuedIndices[state_local.currentIdx];
-    const action = state.editor.actions[actionIndex];
+    const step = state_local.steps[state_local.currentIdx];
+    const action = state.editor.actions[step.index];
 
     try {
         const processed = await processRecording(state_local.blob);
         const syntheticPackId = packManager.getSyntheticPackId();
-        const cueId = packManager.generateCueId(action.action);
 
-        // If action already has a cue from this pack, reuse the cueId
-        if (action.pack === syntheticPackId && action.cue) {
-            await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+        if (step.kind === 'notice') {
+            // Prep phrase — saved as notice-<cueId> beside the cue it warns about.
+            if (!action.cue || action.pack !== syntheticPackId) {
+                advanceBatchRecorder();
+                return;
+            }
+            await packManager.saveSyntheticCue('notice-' + action.cue, processed.audioBuffer);
         } else {
-            await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
-            action.cue = cueId;
+            const cueId = packManager.generateCueId(action.action);
+
+            // If action already has a cue from this pack, reuse the cueId
+            if (action.pack === syntheticPackId && action.cue) {
+                await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
+            } else {
+                await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
+                action.cue = cueId;
+            }
+
+            // Set the pack
+            action.pack = syntheticPackId;
+            action.fallbackText = action.fallbackText || action.action;
         }
 
-        // Set the pack
-        action.pack = syntheticPackId;
-        action.fallbackText = action.fallbackText || action.action;
-
-        // Move to next action
-        state_local.currentIdx++;
-        if (state_local.currentIdx >= state_local.uncuedIndices.length) {
-            // All done! Close and save draft.
-            closeBatchRecorder();
-            saveDraftFromEditor().catch(() => {});
-        } else {
-            // Show next action
-            showBatchRecorderAction();
-        }
+        advanceBatchRecorder();
     } catch (err) {
         $('batch-error-msg').textContent = err.message;
         $('batch-error-msg').style.display = '';
@@ -8162,16 +8500,8 @@ $('btn-batch-use').addEventListener('click', async () => {
 
 // Wire batch skip button
 $('btn-batch-skip').addEventListener('click', () => {
-    const state_local = _batchRecorderState;
-    if (!state_local.isActive) return;
-
-    state_local.currentIdx++;
-    if (state_local.currentIdx >= state_local.uncuedIndices.length) {
-        closeBatchRecorder();
-        saveDraftFromEditor().catch(() => {});
-    } else {
-        showBatchRecorderAction();
-    }
+    if (!_batchRecorderState.isActive) return;
+    advanceBatchRecorder();
 });
 
 // Wire batch re-record button
@@ -8194,6 +8524,117 @@ $('btn-batch-done').addEventListener('click', () => {
     saveDraftFromEditor().catch(() => {});
 });
 
+// Wire the end-of-pass buttons
+$('btn-batch-finish').addEventListener('click', () => {
+    closeBatchRecorder();
+    saveDraftFromEditor().catch(() => {});
+});
+$('btn-batch-play-all').addEventListener('click', () => {
+    togglePlayAllCues($('btn-batch-play-all'), $('batch-complete-status'), '▶ Play all cues');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Play all cues — hear the recorded script back as one piece
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @type {{cancelled: boolean, player: HTMLAudioElement|null}|null} */
+let _playAllToken = null;
+
+/** Play one stored WAV to completion (or until cancelled). */
+function playStoredCue(buf, token) {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+        const player = new Audio(url);
+        token.player = player;
+        let settled = false;
+        const done = () => {
+            if (settled) return;
+            settled = true;
+            URL.revokeObjectURL(url);
+            if (token.player === player) token.player = null;
+            resolve();
+        };
+        player.addEventListener('ended', done);
+        player.addEventListener('error', done);
+        const started = player.play();
+        if (started && typeof started.catch === 'function') started.catch(done);
+    });
+}
+
+function sleepCancellable(ms, token) {
+    return new Promise(resolve => setTimeout(resolve, token.cancelled ? 0 : ms));
+}
+
+/** Stop an in-flight play-all run. Safe to call when nothing is playing. */
+function stopPlayAllCues() {
+    if (!_playAllToken) return;
+    _playAllToken.cancelled = true;
+    if (_playAllToken.player) {
+        try { _playAllToken.player.pause(); } catch (e) { /* already gone */ }
+    }
+    _playAllToken = null;
+}
+
+/**
+ * Play every saved cue in timeline order — each action's prep phrase (if one
+ * was recorded) followed by its cue, with a short gap. Tapping again stops.
+ * @param {HTMLElement} btn - Button to flip between play/stop
+ * @param {HTMLElement} statusEl - Line to report progress on
+ * @param {string} label - The button's resting label
+ */
+async function togglePlayAllCues(btn, statusEl, label) {
+    if (_playAllToken) {
+        stopPlayAllCues();
+        btn.textContent = label;
+        statusEl.style.display = 'none';
+        return;
+    }
+
+    const actions = state.editor.actions.filter(a => a.pack && a.cue);
+    if (actions.length === 0) return;
+
+    const token = { cancelled: false, player: null };
+    _playAllToken = token;
+    btn.textContent = '⏹ Stop';
+    statusEl.style.display = '';
+
+    let played = 0;
+    try {
+        for (let i = 0; i < actions.length; i++) {
+            if (token.cancelled) break;
+            const action = actions[i];
+            statusEl.textContent = `Playing ${i + 1} of ${actions.length}: ${action.action}`;
+
+            for (const cueId of ['notice-' + action.cue, action.cue]) {
+                if (token.cancelled) break;
+                let buf = null;
+                try {
+                    buf = await packManager.getCueAudioData(action.pack, cueId);
+                } catch (e) { buf = null; }
+                if (!buf) continue; // no prep recorded, or cue lives in an imported pack
+                await playStoredCue(buf, token);
+                played++;
+                await sleepCancellable(350, token);
+            }
+        }
+    } finally {
+        const wasCancelled = token.cancelled;
+        if (_playAllToken === token) _playAllToken = null;
+        btn.textContent = label;
+        if (wasCancelled) {
+            statusEl.style.display = 'none';
+        } else if (played === 0) {
+            statusEl.textContent = 'No recordings found on this device.';
+        } else {
+            statusEl.textContent = `Played ${played} recording${played !== 1 ? 's' : ''}.`;
+        }
+    }
+}
+
+$('btn-play-all-cues').addEventListener('click', () => {
+    togglePlayAllCues($('btn-play-all-cues'), $('play-all-status'), '▶ Play all cues');
+});
+
 // Event delegation for timeline editor actions
 $('ed-action-list').addEventListener('click', (e) => {
     const card = e.target.closest('.ed-action-card');
@@ -8207,8 +8648,7 @@ $('ed-action-list').addEventListener('click', (e) => {
     // Record button (start recording)
     if (e.target.closest('.ed-btn-record')) {
         const section = e.target.closest('.ed-recording-section');
-        const actionIndex = parseInt(section.dataset.actionIndex);
-        const recState = getActionRecorderState(actionIndex);
+        const recState = getRecorderStateForSection(section);
 
         (async () => {
             try {
@@ -8224,8 +8664,7 @@ $('ed-action-list').addEventListener('click', (e) => {
     // Stop recording button
     if (e.target.closest('.ed-btn-stop-record')) {
         const section = e.target.closest('.ed-recording-section');
-        const actionIndex = parseInt(section.dataset.actionIndex);
-        const recState = getActionRecorderState(actionIndex);
+        const recState = getRecorderStateForSection(section);
 
         (async () => {
             try {
@@ -8243,8 +8682,7 @@ $('ed-action-list').addEventListener('click', (e) => {
     // Cancel recording button
     if (e.target.closest('.ed-btn-cancel-record')) {
         const section = e.target.closest('.ed-recording-section');
-        const actionIndex = parseInt(section.dataset.actionIndex);
-        const recState = getActionRecorderState(actionIndex);
+        const recState = getRecorderStateForSection(section);
         recState.recorder.cancel();
         updateRecordingSectionState(section, 'idle');
         return;
@@ -8254,11 +8692,33 @@ $('ed-action-list').addEventListener('click', (e) => {
     if (e.target.closest('.ed-btn-use-recording')) {
         const section = e.target.closest('.ed-recording-section');
         const actionIndex = parseInt(section.dataset.actionIndex);
-        const recState = getActionRecorderState(actionIndex);
+        const recState = getRecorderStateForSection(section);
         const action = state.editor.actions[actionIndex];
 
         if (!recState.blob) {
             updateRecordingSectionState(section, 'error', 'No recording to save');
+            return;
+        }
+
+        // Prep phrase: saved under notice-<cueId> in the same pack as the cue,
+        // which is where the engine looks for it. Nothing else about the action changes.
+        if (section.dataset.cueKind === 'notice') {
+            (async () => {
+                try {
+                    const syntheticPackId = packManager.getSyntheticPackId();
+                    if (!action.cue || action.pack !== syntheticPackId) {
+                        updateRecordingSectionState(section, 'blocked',
+                            'Record the cue above first — the prep phrase is saved alongside it.');
+                        return;
+                    }
+                    const processed = await processRecording(recState.blob);
+                    await packManager.saveSyntheticCue('notice-' + action.cue, processed.audioBuffer);
+                    updateRecordingSectionState(section, 'recorded');
+                    saveDraftFromEditor().catch(() => {});
+                } catch (err) {
+                    updateRecordingSectionState(section, 'error', err.message);
+                }
+            })();
             return;
         }
 
@@ -8316,6 +8776,14 @@ $('ed-action-list').addEventListener('click', (e) => {
                 // stays in place so both buttons keep working.
                 updateRecordingSectionState(section, 'recorded');
 
+                // The prep block derives its id from the cue we just saved —
+                // it's recordable now.
+                const noticeSection = editForm && editForm.querySelector(
+                    '.ed-recording-section[data-cue-kind="notice"]');
+                if (noticeSection && noticeSection.classList.contains('blocked')) {
+                    updateRecordingSectionState(noticeSection, 'idle');
+                }
+
                 // Trigger draft save
                 saveDraftFromEditor().catch(() => {});
             } catch (err) {
@@ -8331,10 +8799,11 @@ $('ed-action-list').addEventListener('click', (e) => {
         const section = e.target.closest('.ed-recording-section');
         const actionIndex = parseInt(section.dataset.actionIndex);
         const action = state.editor.actions[actionIndex];
-        if (!action || !action.pack || !action.cue) return;
+        const cueId = sectionCueId(section, action);
+        if (!action || !action.pack || !cueId) return;
         (async () => {
             try {
-                const buf = await packManager.getCueAudioData(action.pack, action.cue);
+                const buf = await packManager.getCueAudioData(action.pack, cueId);
                 if (!buf) throw new Error('Recording not found on this device.');
                 const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
                 const player = new Audio(url);
@@ -8352,8 +8821,7 @@ $('ed-action-list').addEventListener('click', (e) => {
     // Re-record button
     if (e.target.closest('.ed-btn-rerecord')) {
         const section = e.target.closest('.ed-recording-section');
-        const actionIndex = parseInt(section.dataset.actionIndex);
-        const recState = getActionRecorderState(actionIndex);
+        const recState = getRecorderStateForSection(section);
 
         // Revoke old URL
         if (recState.objectUrl) {
@@ -8386,6 +8854,30 @@ $('ed-action-list').addEventListener('click', (e) => {
         state.editor.editingIndex = (state.editor.editingIndex === index) ? -1 : index;
         state.editor.expandedIndex = -1;
         renderEditorTimeline();
+        return;
+    }
+
+    // Duplicate button — clones text, cue, pack and style so a repeated beat
+    // keeps its recording instead of being retyped and re-recorded. Lands 10s
+    // after the source and opens for editing with the seconds field focused,
+    // since the offset is the one thing that always has to change.
+    if (e.target.closest('.ed-btn-duplicate')) {
+        const source = state.editor.actions[index];
+        if (!source) return;
+        const clone = { ...source, offsetSeconds: source.offsetSeconds + 10 };
+        state.editor.actions.push(clone);
+        state.editor.expandedIndex = -1;
+        // renderEditorTimeline re-sorts by offset, so locate the clone by
+        // object reference afterwards — indices shift (see pruneEmptyEditorActions).
+        state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+        state.editor.editingIndex = state.editor.actions.indexOf(clone);
+        renderEditorTimeline();
+
+        const form = $('ed-action-list').querySelector('.ed-action-edit');
+        const secField = form && form.querySelector('.ed-offset-sec');
+        if (secField) { secField.focus(); secField.select(); }
+
+        saveDraftFromEditor().catch(() => {});
         return;
     }
 
@@ -9168,6 +9660,15 @@ $('speed-slider').addEventListener('input', (e) => {
     state.speedMultiplier = parseFloat(e.target.value);
     $('speed-val').textContent = state.speedMultiplier + 'x';
     $('speed-slider').setAttribute('aria-label', `Speed: ${state.speedMultiplier}x`);
+
+    // A baked track is pre-rendered at real speed — it can't be retimed in
+    // flight. Moving off 1× drops back to the live audio path and says so,
+    // rather than letting the track drift out of sync with the timeline.
+    if (state.speedMultiplier !== 1 && state.bakedActive) {
+        stopBakedTrack();
+        setBakeStatus({ ok: false, reason: 'speed-changed' });
+    }
+    updatePracticeRehearsalNote();
 });
 
 $('btn-audio-toggle').addEventListener('click', toggleMute);
@@ -9203,6 +9704,20 @@ document.querySelectorAll('.info-banner .dismiss').forEach(btn => {
 // Audio telemetry rows — tap to copy the full diagnostic JSON
 $('audio-debug-practice').addEventListener('click', () => copyAudioDebugJson('practice'));
 $('audio-debug-live').addEventListener('click', () => copyAudioDebugJson('live'));
+
+// Error banner — tap copies the captured exceptions. This is the whole point
+// of trapping them: a recurrence comes back as evidence, not a shrug.
+$('js-error-banner').addEventListener('click', async () => {
+    const el = $('js-error-banner');
+    const ok = await copyToClipboard(JSON.stringify({
+        build: ($('app-version') && $('app-version').textContent) || '?',
+        ua: navigator.userAgent,
+        copiedAt: new Date().toISOString(),
+        mode: state.mode,
+        errors: _jsErrors,
+    }));
+    el.textContent = ok ? 'Copied ✓ — send that to Todd, then reload.' : 'Copy failed — screenshot this instead.';
+});
 
 // Live screen
 $('btn-audio-toggle-live').addEventListener('click', toggleMute);

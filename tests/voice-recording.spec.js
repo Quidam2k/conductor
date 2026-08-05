@@ -120,7 +120,7 @@ async function addSavedAction(page, text) {
 async function recordCueForCard(page, cardIndex) {
     const card = page.locator('.ed-action-card').nth(cardIndex);
     await card.locator('.ed-btn-edit').click();
-    const section = card.locator('.ed-recording-section');
+    const section = card.locator('.ed-recording-section[data-cue-kind="main"]');
     await expect(section).toHaveClass(/idle/);
 
     await section.locator('.ed-btn-record').click();
@@ -219,36 +219,57 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
     await expect(batchBtn).toBeVisible();
     await batchBtn.click();
 
+    // v51: every action contributes TWO steps — the cue, then its
+    // "Get ready to …" prep phrase — so two actions is a four-step pass and
+    // progress counts steps, not actions.
     const overlay = page.locator('#batch-recorder-overlay');
     await expect(overlay).toBeVisible();
-    await expect(page.locator('#batch-progress')).toHaveText('1 of 2');
+    await expect(page.locator('#batch-progress')).toHaveText('1 of 4');
+    await expect(page.locator('#batch-step-label')).toHaveText('Cue');
     await expect(page.locator('#batch-cue-text')).toHaveText('Raise your hand');
 
-    // Take 1: record → stop → use (auto-advances)
-    await page.click('#btn-batch-record');
-    await expect(page.locator('#btn-batch-record')).toContainText('Stop');
-    await page.click('#btn-batch-record');
-    await expect(page.locator('#batch-action-buttons')).toBeVisible({ timeout: 10000 });
-    await page.click('#btn-batch-use');
+    async function recordStep() {
+        await page.click('#btn-batch-record');
+        await expect(page.locator('#btn-batch-record')).toContainText('Stop');
+        await page.click('#btn-batch-record');
+        await expect(page.locator('#batch-action-buttons')).toBeVisible({ timeout: 10000 });
+        await page.click('#btn-batch-use');
+    }
 
-    // Auto-advance to action 2
-    await expect(page.locator('#batch-progress')).toHaveText('2 of 2', { timeout: 15000 });
+    // Step 1: the cue → advances to its prep phrase
+    await recordStep();
+    await expect(page.locator('#batch-progress')).toHaveText('2 of 4', { timeout: 15000 });
+    await expect(page.locator('#batch-step-label')).toHaveText('Prep phrase');
+    await expect(page.locator('#batch-cue-text')).toHaveText('Get ready to raise your hand');
+
+    // Step 2: the prep phrase → advances to the second action's cue
+    await recordStep();
+    await expect(page.locator('#batch-progress')).toHaveText('3 of 4', { timeout: 15000 });
+    await expect(page.locator('#batch-step-label')).toHaveText('Cue');
     await expect(page.locator('#batch-cue-text')).toHaveText('Turn around slowly');
 
-    // Take 2: record → stop → use → flow completes and overlay closes
-    await page.click('#btn-batch-record');
-    await expect(page.locator('#btn-batch-record')).toContainText('Stop');
-    await page.click('#btn-batch-record');
-    await expect(page.locator('#batch-action-buttons')).toBeVisible({ timeout: 10000 });
-    await page.click('#btn-batch-use');
+    // Steps 3 and 4 → the pass ends on the completion panel, not by closing
+    await recordStep();
+    await expect(page.locator('#batch-progress')).toHaveText('4 of 4', { timeout: 15000 });
+    await recordStep();
+    await expect(page.locator('#batch-complete-buttons')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#btn-batch-play-all')).toBeVisible();
+    await page.click('#btn-batch-finish');
     await expect(overlay).toBeHidden({ timeout: 15000 });
 
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(async () => {
         const pid = packManager.getSyntheticPackId();
+        const actions = state.editor.actions.map(a => ({ pack: a.pack, cue: a.cue }));
+        // The prep recordings are stored under notice-<cueId> — the id the
+        // engine resolves 10s ahead of the cue and bakes into the locked track.
+        const notices = [];
+        for (const a of actions) {
+            notices.push(!!(await packManager.getCueAudioData(pid, 'notice-' + a.cue)));
+        }
         return {
-            pid,
-            actions: state.editor.actions.map(a => ({ pack: a.pack, cue: a.cue })),
+            pid, actions, notices,
             batchBtnVisible: document.getElementById('btn-record-batch').style.display !== 'none',
+            missingBtnVisible: document.getElementById('btn-record-missing').style.display !== 'none',
         };
     });
     expect(r.actions).toHaveLength(2);
@@ -257,8 +278,12 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
         expect(a.cue).toBeTruthy();
     }
     expect(r.actions[0].cue).not.toBe(r.actions[1].cue);
-    // No uncued actions remain → entry button hides on re-render
-    expect(r.batchBtnVisible).toBe(false);
+    // Both prep phrases landed under their notice- ids
+    expect(r.notices).toEqual([true, true]);
+    // The headline pass stays available (re-recording a script is normal);
+    // the "missing ones" repair button hides once nothing is uncued.
+    expect(r.batchBtnVisible).toBe(true);
+    expect(r.missingBtnVisible).toBe(false);
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -318,7 +343,7 @@ test('voice recording: permission denied shows inline error and recovers', async
 
     const card = page.locator('.ed-action-card').first();
     await card.locator('.ed-btn-edit').click();
-    const section = card.locator('.ed-recording-section');
+    const section = card.locator('.ed-recording-section[data-cue-kind="main"]');
     await section.locator('.ed-btn-record').click();
 
     await expect(section).toHaveClass(/error/, { timeout: 10000 });
@@ -432,7 +457,7 @@ test('voice recording: Recorded state supports Play and Re-record', async ({ pag
     await addSavedAction(page, 'Spin around');
     await recordCueForCard(page, 0);
 
-    const section = page.locator('.ed-action-card').first().locator('.ed-recording-section');
+    const section = page.locator('.ed-action-card').first().locator('.ed-recording-section[data-cue-kind="main"]');
     await expect(section).toHaveClass(/recorded/);
 
     // Play pulls the WAV straight from IndexedDB — must not error.
