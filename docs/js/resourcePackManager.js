@@ -973,41 +973,96 @@ function createResourcePackManager() {
     }
 
     /**
-     * Export the synthetic pack as a valid zip file (ArrayBuffer).
-     * Includes manifest.json + voices/<cueId>.wav for each cue.
-     * Uses STORE-only entries (no compression) with real CRC32 checksums.
-     * @returns {Promise<ArrayBuffer>}
-     * @throws {Error} If pack is empty or export fails.
+     * Transcode one cue's stored bytes for export. WAVs become 32 kbps mono
+     * MP3 (≈1/12 the size — recordings are what push a pack past the ~1 MB
+     * QR-beam cap). Anything that isn't a WAV, or any decode/encode failure,
+     * passes through unchanged: one stubborn cue must never fail an export,
+     * and webkit-headless (no AudioContext) exports still work.
+     * @param {ArrayBuffer} bytes - Stored cue audio
+     * @returns {Promise<{data: Uint8Array, isMp3: boolean}>}
      */
-    async function exportSyntheticPackZip() {
-        const packId = getSyntheticPackId();
+    async function slimAudioForExport(bytes) {
+        const raw = new Uint8Array(bytes);
+        const isWav = raw.length > 12 &&
+            raw[0] === 0x52 && raw[1] === 0x49 && raw[2] === 0x46 && raw[3] === 0x46; // "RIFF"
+        const ctx = getAudioContext();
+        if (!isWav || !ctx || typeof encodeAudioBufferToMp3 === 'undefined' ||
+            typeof lamejs === 'undefined') {
+            return { data: raw, isMp3: false };
+        }
+        try {
+            const audioBuffer = await ctx.decodeAudioData(bytes.slice(0));
+            return { data: encodeAudioBufferToMp3(audioBuffer), isMp3: true };
+        } catch (e) {
+            console.warn('Export transcode failed, keeping WAV:', e);
+            return { data: raw, isMp3: false };
+        }
+    }
+
+    /**
+     * Export any installed pack as a valid zip file (ArrayBuffer).
+     * Rebuilds the archive from IndexedDB — imported packs only exist as
+     * extracted entries, not original zips. Includes manifest.json, every
+     * cue's audio at its manifest path, and re-serialized bundled events so
+     * manifest.events round-trips through importPackWithValidation.
+     *
+     * Audio is slimmed at export time only (WAV → 32 kbps mono MP3 via
+     * slimAudioForExport); the exported manifest copy gets the rewritten
+     * .mp3 paths while the stored manifest — and the stored full-quality
+     * WAVs used for playback and the locked-screen bake — stay untouched.
+     * Text and passthrough entries are DEFLATE'd; MP3s ship STORE'd.
+     * @param {string} packId
+     * @returns {Promise<ArrayBuffer>}
+     * @throws {Error} If the pack is not installed.
+     */
+    async function exportPackZip(packId) {
         const database = await ensureDB();
 
-        // Get manifest
         const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
-        if (!manifest || Object.keys(manifest.cues || {}).length === 0) {
-            throw new Error('No synthetic cues to export');
+        if (!manifest) {
+            throw new Error('Pack not installed: ' + packId);
         }
 
-        // Collect manifest and audio files
+        // Export works on a copy: cue paths may be rewritten to .mp3
+        const exportManifest = JSON.parse(JSON.stringify(manifest));
+
         const files = [];
+        const audioFiles = [];
 
-        // Add manifest.json
-        const manifestJson = JSON.stringify(manifest, null, 2);
-        const manifestBytes = new TextEncoder().encode(manifestJson);
-        files.push({ name: 'manifest.json', data: manifestBytes });
-
-        // Add audio files
-        const cueIds = Object.keys(manifest.cues);
-        for (const cueId of cueIds) {
+        // Slim audio files first — the manifest copy must be serialized after
+        // its paths are final.
+        for (const cueId of Object.keys(exportManifest.cues || {})) {
             const key = packId + ':' + cueId;
-            const wavArrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
-            if (wavArrayBuffer) {
-                const wavData = new Uint8Array(wavArrayBuffer);
-                files.push({
-                    name: 'voices/' + cueId + '.wav',
-                    data: wavData,
-                });
+            const audioArrayBuffer = await idbGet(database, RPM_STORE_AUDIO, key);
+            if (!audioArrayBuffer) continue;
+
+            const { data, isMp3 } = await slimAudioForExport(audioArrayBuffer);
+            let path = exportManifest.cues[cueId];
+            if (isMp3) {
+                path = path.replace(/\.[^./]+$/, '') + '.mp3';
+                exportManifest.cues[cueId] = path;
+            }
+            // MP3 is already compressed; deflating passthrough WAVs still helps
+            audioFiles.push({ name: path, data, compress: !isMp3 });
+        }
+
+        // manifest.json leads the archive, as import expects to find it
+        const manifestBytes = new TextEncoder().encode(
+            JSON.stringify(exportManifest, null, 2));
+        files.push({ name: 'manifest.json', data: manifestBytes, compress: true });
+        files.push(...audioFiles);
+
+        // Add bundled event files (stored parsed at import; re-serialize)
+        if (exportManifest.events && exportManifest.events.length > 0) {
+            const allEvents = await idbGetAll(database, RPM_STORE_EVENTS);
+            for (const rec of allEvents) {
+                if (rec.packId === packId && rec.file && rec.event) {
+                    files.push({
+                        name: rec.file,
+                        data: new TextEncoder().encode(JSON.stringify(rec.event, null, 2)),
+                        compress: true,
+                    });
+                }
             }
         }
 
@@ -1015,12 +1070,34 @@ function createResourcePackManager() {
         return buildZipWithCrc32(files);
     }
 
+    /**
+     * Export the synthetic ("My Voice") pack as a zip file (ArrayBuffer).
+     * Thin wrapper over exportPackZip with the empty-pack guard the editor
+     * share card relies on.
+     * @returns {Promise<ArrayBuffer>}
+     * @throws {Error} If pack is empty or export fails.
+     */
+    async function exportSyntheticPackZip() {
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest || Object.keys(manifest.cues || {}).length === 0) {
+            throw new Error('No synthetic cues to export');
+        }
+
+        return exportPackZip(packId);
+    }
+
     // ─── Zip building ────────────────────────────────────────────────────
 
     /**
      * Build a zip file from files, with real CRC32 checksums.
-     * Uses STORE (no compression) for all entries.
-     * @param {Array<{name: string, data: Uint8Array}>} files
+     * Entries with compress: true are DEFLATE'd (method 8) via pako when
+     * that actually shrinks them; everything else is STORE'd. CRC32 is
+     * always over the uncompressed data (zip spec) — importPack's
+     * decompressDeflate handles method 8 on the way back in.
+     * @param {Array<{name: string, data: Uint8Array, compress?: boolean}>} files
      * @returns {ArrayBuffer}
      */
     function buildZipWithCrc32(files) {
@@ -1032,24 +1109,34 @@ function createResourcePackManager() {
             const nameBytes = new TextEncoder().encode(file.name);
             const crc32 = calculateCrc32(file.data);
 
-            // Local file header (30 bytes + name + data)
-            const localHeader = new Uint8Array(30 + nameBytes.length + file.data.length);
+            let payload = file.data;
+            let method = 0;  // stored
+            if (file.compress && typeof pako !== 'undefined' && pako.deflateRaw) {
+                const deflated = pako.deflateRaw(file.data);
+                if (deflated.length < file.data.length) {
+                    payload = deflated;
+                    method = 8;  // deflate
+                }
+            }
+
+            // Local file header (30 bytes + name + payload)
+            const localHeader = new Uint8Array(30 + nameBytes.length + payload.length);
             const lhView = new DataView(localHeader.buffer);
 
             lhView.setUint32(0, 0x04034b50, true);    // signature
             lhView.setUint16(4, 20, true);            // version needed
             lhView.setUint16(6, 0, true);             // flags
-            lhView.setUint16(8, 0, true);             // compression: stored
+            lhView.setUint16(8, method, true);        // compression method
             lhView.setUint16(10, 0, true);            // mod time
             lhView.setUint16(12, 0, true);            // mod date
-            lhView.setUint32(14, crc32, true);        // CRC32
-            lhView.setUint32(18, file.data.length, true);  // compressed size
+            lhView.setUint32(14, crc32, true);        // CRC32 (uncompressed data)
+            lhView.setUint32(18, payload.length, true);    // compressed size
             lhView.setUint32(22, file.data.length, true);  // uncompressed size
             lhView.setUint16(26, nameBytes.length, true);  // name length
             lhView.setUint16(28, 0, true);            // extra length
 
             localHeader.set(nameBytes, 30);
-            localHeader.set(file.data, 30 + nameBytes.length);
+            localHeader.set(payload, 30 + nameBytes.length);
 
             localHeaders.push(localHeader);
 
@@ -1061,11 +1148,11 @@ function createResourcePackManager() {
             ceView.setUint16(4, 20, true);            // version made by
             ceView.setUint16(6, 20, true);            // version needed
             ceView.setUint16(8, 0, true);             // flags
-            ceView.setUint16(10, 0, true);            // compression: stored
+            ceView.setUint16(10, method, true);       // compression method
             ceView.setUint16(12, 0, true);            // mod time
             ceView.setUint16(14, 0, true);            // mod date
-            ceView.setUint32(16, crc32, true);        // CRC32
-            ceView.setUint32(20, file.data.length, true);  // compressed
+            ceView.setUint32(16, crc32, true);        // CRC32 (uncompressed data)
+            ceView.setUint32(20, payload.length, true);    // compressed
             ceView.setUint32(24, file.data.length, true);  // uncompressed
             ceView.setUint16(28, nameBytes.length, true);  // name length
             ceView.setUint16(30, 0, true);            // extra length
@@ -1165,6 +1252,9 @@ function createResourcePackManager() {
         getPackInfo,
         getCueList,
         getPackEvents,
+
+        // Pack export (any installed pack → zip)
+        exportPackZip,
 
         // Synthetic pack API
         getSyntheticPackId,

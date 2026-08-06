@@ -1,5 +1,25 @@
 const { test, expect } = require('@playwright/test');
 
+// Mute real TTS in all tests -- headless chromium/firefox route speechSynthesis to
+// the OS voice engine, which plays audibly on the dev machine. The replacement
+// keeps feature detection truthy; tests needing their own stub redefine it
+// (property stays configurable).
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        if (!window.speechSynthesis) return;
+        const mute = {
+            speaking: false, pending: false, paused: false,
+            speak() {}, cancel() {}, pause() {}, resume() {},
+            getVoices() { return []; },
+            addEventListener() {}, removeEventListener() {},
+            onvoiceschanged: null,
+        };
+        try {
+            Object.defineProperty(window, 'speechSynthesis', { value: mute, configurable: true });
+        } catch (e) { /* keep real TTS if the platform refuses the redefine */ }
+    });
+});
+
 // ─── Helper: wait for a screen to become visible ───
 async function waitForScreen(page, screenId) {
     await expect(page.locator(`#${screenId}`)).toHaveClass(/active/, { timeout: 5000 });
@@ -1484,7 +1504,7 @@ test('demo event: every timeline action has cue + pack fields', async ({ page })
 
     expect(timeline.length).toBeGreaterThan(0);
     for (const a of timeline) {
-        expect(a.pack, `action "${a.action}" should have pack`).toBe('conductor-demo');
+        expect(a.pack, `action "${a.action}" should have pack`).toBe('demo-the-stillness');
         expect(typeof a.cue, `action "${a.action}" should have string cue`).toBe('string');
         expect(a.cue.length, `action "${a.action}" cue should be non-empty`).toBeGreaterThan(0);
     }

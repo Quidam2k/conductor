@@ -1,5 +1,24 @@
 const { test, expect } = require('@playwright/test');
 
+// Mute real TTS — test-audio.html's announceAction assertions otherwise speak
+// audibly through the OS voice engine on the dev machine. Feature detection
+// stays truthy; the harness asserts return values, not utterance events.
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        if (!window.speechSynthesis) return;
+        const mute = {
+            speaking: false, pending: false, paused: false,
+            speak() {}, cancel() {}, pause() {}, resume() {},
+            getVoices() { return []; },
+            addEventListener() {}, removeEventListener() {},
+            onvoiceschanged: null,
+        };
+        try {
+            Object.defineProperty(window, 'speechSynthesis', { value: mute, configurable: true });
+        } catch (e) { /* keep real TTS if the platform refuses the redefine */ }
+    });
+});
+
 const harnesses = [
     { name: 'encoder', url: '/test-encoder.html' },
     { name: 'timing', url: '/test-timing.html' },
@@ -9,6 +28,7 @@ const harnesses = [
     { name: 'drafts', url: '/test-drafts.html' },
     { name: 'audiobake', url: '/test-audiobake.html' },
     { name: 'voicerecorder', url: '/test-voicerecorder.html' },
+    { name: 'qrbeam', url: '/test-qrbeam.html' },
 ];
 
 for (const harness of harnesses) {

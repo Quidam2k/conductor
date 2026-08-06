@@ -281,12 +281,17 @@
         </ul>
         <p>From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio. Anything without a matching file falls back to the phone's spoken voice (screen-on only).</p>
 
-        <h3>The Demo Pack</h3>
-        <p>The Conductor Demo Pack includes:</p>
+        <h3>The Demo Packs</h3>
+        <p>Each demo event has its own small voice pack — roughly 50&ndash;180&nbsp;KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice and notice cue that event uses. Grab the one for the event you're running:</p>
         <ul>
-            <li><strong>120 audio cues</strong> — 59 action cues, 59 notice cues, 2 system cues</li>
-            <li><strong>8 event scripts</strong> — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur, The Cascade</li>
-            <li>Works with all demo events out of the box</li>
+            <li><a href="packs/demo-the-stillness.zip">The Stillness</a> — freeze mob: sudden collective stillness, no props</li>
+            <li><a href="packs/demo-the-bloom.zip">The Bloom</a> — umbrella performance: raise, open, sway, light, close</li>
+            <li><a href="packs/demo-lights-out.zip">Lights Out</a> — phone flashlights in the dark, evening event</li>
+            <li><a href="packs/demo-the-signal.zip">The Signal</a> — sign reveal: step forward, raise, flip, hold</li>
+            <li><a href="packs/demo-the-stand.zip">The Stand</a> — stationary umbrella formation (pairs with The Walk)</li>
+            <li><a href="packs/demo-the-walk.zip">The Walk</a> — movement with lights through the formation (pairs with The Stand)</li>
+            <li><a href="packs/demo-the-murmur.zip">The Murmur</a> — synchronized sound and movement, eerie and theatrical</li>
+            <li><a href="packs/demo-the-cascade.zip">The Cascade</a> — rapid-fire cue bursts in a one-minute run</li>
         </ul>
     </section>
 
@@ -382,31 +387,27 @@ Countdown: true      # event-level: all actions get a countdown by default
     <hr>
 
     <section>
-        <h2 id="adapting-the-demo-pack">Adapting the Demo Pack</h2>
-        <p>Want to use the demo pack as a starting point for your own? Here's how.</p>
+        <h2 id="adapting-the-demo-pack">Adapting a Demo Pack</h2>
+        <p>Want to use a demo pack as a starting point for your own? Here's how.</p>
 
         <h3>What's Inside the Zip</h3>
-        <pre><code>conductor-demo.zip
+        <pre><code>demo-the-stillness.zip
 ├── manifest.json              # Describes the pack contents
-├── audio/
-│   └── countdown-voice.wav    # System cue: the countdown voice
 ├── voices/
-│   ├── freeze.wav             # Action cues (60 files)
-│   ├── walk.wav
+│   ├── freeze.mp3             # Action cues
+│   ├── hold.mp3
 │   └── ...
 ├── notices/
-│   ├── notice-freeze.wav      # Notice cues (60 files)
-│   ├── notice-walk.wav
+│   ├── notice-freeze.mp3      # Notice cues ("Get ready to…")
+│   ├── notice-hold.mp3
 │   └── ...
 └── events/
-    ├── the-stillness.json     # Bundled event scripts (7 total)
-    ├── the-bloom.json
-    └── ...</code></pre>
+    └── the-stillness.json     # The bundled event script</code></pre>
 
         <h3>Swapping Audio Files</h3>
         <ol>
             <li><strong>Unzip</strong> the demo pack to a folder on your computer.</li>
-            <li><strong>Replace</strong> any <code>.wav</code> file with your own recording, keeping the <strong>same filename</strong>.</li>
+            <li><strong>Replace</strong> any audio file with your own recording, keeping the <strong>same filename</strong> (or update the manifest to match a new name).</li>
             <li>Audio format: WAV or MP3, any sample rate. Keep files under 500KB each for best performance.</li>
             <li><strong>Re-zip</strong> the folder contents (not the folder itself — the files should be at the root of the zip).</li>
             <li><strong>Import</strong> your modified zip into the app.</li>
@@ -567,7 +568,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         &nbsp;&middot;&nbsp;
         <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
     </p>
-    <p class="build">build v52 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+    <p class="build">build v53 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
 </footer>
 
 </body>

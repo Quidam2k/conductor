@@ -6,6 +6,25 @@ const { test, expect } = require('@playwright/test');
 test.describe('iOS audio diagnostic page', () => {
     test.beforeEach(async ({ page }) => {
         page.on('pageerror', e => console.error('pageerror:', e.message));
+        // Silence real TTS (audible on the dev machine) while still firing the
+        // onstart/onend events the page's speak() helper waits on.
+        await page.addInitScript(() => {
+            if (!window.speechSynthesis) return;
+            Object.defineProperty(window, 'speechSynthesis', {
+                configurable: true,
+                value: {
+                    speaking: false, pending: false, paused: false,
+                    speak(u) {
+                        setTimeout(() => { if (u.onstart) u.onstart(); }, 5);
+                        setTimeout(() => { if (u.onend) u.onend(); }, 40);
+                    },
+                    cancel() {}, pause() {}, resume() {},
+                    getVoices() { return []; },
+                    addEventListener() {}, removeEventListener() {},
+                    onvoiceschanged: null,
+                },
+            });
+        });
         await page.goto('/ios-audio-test/');
     });
 
