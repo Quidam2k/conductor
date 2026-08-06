@@ -1,5 +1,25 @@
 const { test, expect } = require('@playwright/test');
 
+// Mute real TTS in all tests -- headless chromium/firefox route speechSynthesis to
+// the OS voice engine, which plays audibly on the dev machine. The replacement
+// keeps feature detection truthy; tests needing their own stub redefine it
+// (property stays configurable).
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        if (!window.speechSynthesis) return;
+        const mute = {
+            speaking: false, pending: false, paused: false,
+            speak() {}, cancel() {}, pause() {}, resume() {},
+            getVoices() { return []; },
+            addEventListener() {}, removeEventListener() {},
+            onvoiceschanged: null,
+        };
+        try {
+            Object.defineProperty(window, 'speechSynthesis', { value: mute, configurable: true });
+        } catch (e) { /* keep real TTS if the platform refuses the redefine */ }
+    });
+});
+
 // ═════════════════════════════════════════════════════════════════════
 // Voice Recording Integration Tests (v47) — chromium only
 //

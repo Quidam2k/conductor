@@ -54,9 +54,9 @@ Conductor is built to be private by default:
 - **Offline** — Works from a local file with no internet connection
 - **Open source** — AGPL-3.0, inspect every line
 
-## The Demo Pack
+## The Demo Packs
 
-The demo resource pack includes 8 event scripts and 120 voice cues:
+Each demo event has its own small voice pack (roughly 50–180 KB — quick to download even on weak signal, and small enough to beam phone-to-phone via QR). Each pack bundles one event script plus every voice cue that event uses:
 
 - **The Stillness** — Freeze mob: sudden collective stillness, no props
 - **The Bloom** — Umbrella performance: raise, open, sway, light, close
@@ -67,7 +67,7 @@ The demo resource pack includes 8 event scripts and 120 voice cues:
 - **The Murmur** — Synchronized sound and movement, eerie and theatrical
 - **The Cascade** — Rapid-fire cue bursts in a one-minute run, a stress test for close-spaced timing
 
-Download the pack from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab `conductor-demo.zip` from the `docs/` folder. The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket.
+Download packs from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab them from the `docs/packs/` folder (`demo-the-stillness.zip`, `demo-the-bloom.zip`, …). The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket.
 
 ## Concepts & Techniques
 

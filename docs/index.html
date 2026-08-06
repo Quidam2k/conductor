@@ -823,6 +823,26 @@
         }
         .pack-delete:hover { box-shadow: var(--glow-red); }
 
+        .pack-beam {
+            min-height: 34px; min-width: 34px; padding: 4px 10px;
+            font-size: 16px; font-weight: 500;
+            background: transparent; color: var(--accent-blue);
+            border: 1px solid var(--accent-blue); border-radius: 6px;
+            cursor: pointer; flex-shrink: 0;
+        }
+        .pack-beam:hover { box-shadow: var(--glow-blue); }
+
+        /* ─── QR Beam sender overlay ─── */
+        #qr-beam-canvas { border-radius: 8px; background: #fff; padding: 12px; }
+        .beam-progress-track {
+            width: 100%; max-width: 480px; height: 4px;
+            background: var(--border-subtle); border-radius: 2px; overflow: hidden;
+        }
+        .beam-progress-fill {
+            height: 100%; width: 0%;
+            background: var(--accent-blue); border-radius: 2px;
+        }
+
         .pack-events { margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
         .pack-event-item {
             display: flex; align-items: center; justify-content: space-between;
@@ -999,7 +1019,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v52</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v53</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1338,6 +1358,7 @@
             <p id="ed-voice-share-count">0 recorded cues</p>
             <p class="voice-share-hint">Import the zip file via Manage Packs to use these recordings in other events.</p>
             <button id="btn-share-voice-pack" class="btn-primary">Share Voice Pack</button>
+            <button id="btn-beam-voice-pack" class="btn-outline">Beam via QR to a Nearby Phone</button>
         </div>
 
         <div class="share-section">
@@ -1399,6 +1420,27 @@
             <button id="btn-qr-display-web-share" class="btn-primary btn-small" style="flex:1;">Share via...</button>
             <button id="btn-qr-display-share-file" class="btn-primary btn-small" style="flex:1;">Share File</button>
         </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- OVERLAY: QR Beam (send a resource pack via animated QR)                 -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="qr-beam-overlay" class="qr-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="qr-beam-title">
+    <div class="qr-overlay-header">
+        <h2 id="qr-beam-title">Beam Pack</h2>
+        <button id="btn-qr-beam-close" class="qr-close-btn" aria-label="Close beam">&times;</button>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px; overflow-y:auto;">
+        <canvas id="qr-beam-canvas" style="display:none;"></canvas>
+        <div class="beam-progress-track"><div id="qr-beam-progress" class="beam-progress-fill"></div></div>
+        <div id="qr-beam-status" class="qr-scan-status" style="padding:0;"></div>
+        <div id="qr-beam-error" class="error-msg" style="text-align:center;"></div>
+        <div id="qr-beam-controls" class="btn-row" style="max-width:480px;">
+            <button id="btn-qr-beam-speed" class="btn-outline btn-small">Speed: 5 fps</button>
+            <button id="btn-qr-beam-smaller" class="btn-outline btn-small">Trouble scanning? Smaller frames</button>
+        </div>
+        <p style="font-size:16px; color:var(--text-dim); text-align:center; max-width:480px;">On the other phone, open Conductor and tap Scan QR Code, then hold its camera up to this screen until it says the pack arrived.</p>
     </div>
 </div>
 
@@ -1465,15 +1507,18 @@
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <script src="lib/pako.min.js"></script>
+<script src="lib/lame.min.js"></script>
 <script src="lib/qr-creator.min.js"></script>
 <script src="lib/qr-scanner.legacy.min.js"></script>
 <script src="js/models.js"></script>
 <script src="js/eventEncoder.js"></script>
 <script src="js/timingEngine.js"></script>
 <script src="js/audioService.js"></script>
+<script src="js/audioMp3.js"></script>
 <script src="js/resourcePackManager.js"></script>
 <script src="js/audioBake.js"></script>
 <script src="js/voiceRecorder.js"></script>
+<script src="js/qrBeam.js"></script>
 <script src="js/draftManager.js"></script>
 <script src="js/circularTimeline.js"></script>
 
@@ -1542,6 +1587,7 @@ const state = {
     bakedDurationSec: 0,        // Baked WAV length in seconds
     previewReturnTo: 'input',   // Where preview "Back" returns to
     qrScanner: null,            // QrScanner instance when scanning
+    beamDecoder: null,          // QR Beam decoder while receiving a pack transfer
     sharePassword: null,        // Set when password-protect checkbox is checked
     editor: {
         title: '',
@@ -1899,7 +1945,7 @@ function createDemoEvent() {
         countdownSeconds: a.countdownSeconds || null,
         noticeSeconds: a.noticeOff ? 0 : 10,
         cue: a.cue,
-        pack: 'conductor-demo',
+        pack: 'demo-the-stillness',
     }));
 
     const embedded = {
@@ -1935,21 +1981,14 @@ function openQRScanner() {
     }
 
     $('qr-error').textContent = '';
+    $('qr-scan-title').textContent = 'Scan QR Code';
     $('qr-scan-status').textContent = 'Point camera at a QR code';
+    state.beamDecoder = null;
     $('qr-overlay').style.display = 'flex';
     trapFocus($('qr-overlay'));
 
     try {
-        state.qrScanner = new QrScanner(
-            $('qr-video'),
-            result => handleQRResult(result.data),
-            {
-                returnDetailedScanResult: true,
-                preferredCamera: 'environment',
-                maxScansPerSecond: 5,
-                onDecodeError: () => {},  // Suppress "no QR found" noise
-            }
-        );
+        state.qrScanner = createAppQrScanner(5);
         state.qrScanner.start().catch(err => {
             const msg = err && err.name === 'NotAllowedError'
                 ? 'Camera permission denied. Please allow camera access and try again.'
@@ -1965,12 +2004,30 @@ function openQRScanner() {
     }
 }
 
+/**
+ * Construct the camera QrScanner. maxScansPerSecond is constructor-only, so
+ * beam mode rebuilds the scanner at a higher rate instead of adjusting it.
+ */
+function createAppQrScanner(maxScansPerSecond) {
+    return new QrScanner(
+        $('qr-video'),
+        result => handleQRResult(result.data),
+        {
+            returnDetailedScanResult: true,
+            preferredCamera: 'environment',
+            maxScansPerSecond: maxScansPerSecond,
+            onDecodeError: () => {},  // Suppress "no QR found" noise
+        }
+    );
+}
+
 function closeQRScanner() {
     if (state.qrScanner) {
         state.qrScanner.stop();
         state.qrScanner.destroy();
         state.qrScanner = null;
     }
+    state.beamDecoder = null;  // abort any in-flight beam transfer cleanly
     $('qr-overlay').style.display = 'none';
     releaseFocus();
 }
@@ -2041,7 +2098,82 @@ function showPasswordPrompt(encryptedData, onSuccess, onCancel) {
     input.addEventListener('keydown', onKeyDown);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// QR Beam receiver (pack transfer over animated QR — accumulate mode)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Feed one scanned beam frame to the decoder, driving the scan overlay's
+ * status line. First frame flips the scanner into accumulate mode.
+ */
+function handleBeamFrame(data) {
+    if (!state.beamDecoder) {
+        state.beamDecoder = createBeamDecoder();
+        $('qr-scan-title').textContent = 'Receiving Pack';
+        $('qr-scan-status').textContent = 'Receiving…';
+        // Rebuild the scanner at a higher scan rate — frames arrive at 5-10
+        // fps and every miss costs a loop; 5 scans/s can't keep up.
+        if (state.qrScanner) {
+            try {
+                state.qrScanner.stop();
+                state.qrScanner.destroy();
+            } catch (e) { /* already stopped */ }
+            state.qrScanner = null;
+            try {
+                state.qrScanner = createAppQrScanner(15);
+                state.qrScanner.start().catch(() => {});
+            } catch (e) { /* scanner gone — decoder still accepts frames */ }
+        }
+    }
+
+    const r = state.beamDecoder.addFrame(data);
+
+    if (r.status === 'accepted' || r.status === 'duplicate') {
+        const pct = Math.floor(r.ratio * 100);
+        const filled = Math.round(r.ratio * 10);
+        const bar = '▓'.repeat(filled) + '░'.repeat(10 - filled);
+        $('qr-scan-status').textContent =
+            'Receiving… ' + bar + ' ' + r.decoded + '/' + r.k + ' blocks (' + pct + '%)';
+    } else if (r.status === 'rejected' && r.reason === 'mixed-payload') {
+        $('qr-scan-status').textContent = 'Seeing two transfers — point at ONE phone’s screen';
+    } else if (r.status === 'error') {
+        // Terminal decoder state (corrupted reassembly) — start over, keep scanning
+        $('qr-scan-status').textContent = 'Transfer failed — restarting. Keep the camera steady.';
+        state.beamDecoder = createBeamDecoder();
+    } else if (r.status === 'complete') {
+        finishBeamReceive();
+    }
+    // other rejects (bad-header etc.): stray frame noise — keep the status as is
+}
+
+/** Transfer complete: hand the payload to the normal pack import pipeline. */
+async function finishBeamReceive() {
+    const payload = state.beamDecoder ? state.beamDecoder.getPayload() : null;
+    if (!payload) return;
+
+    if (payload.type !== 'pack') {
+        // Future payload types (event/any) — this build only imports packs
+        $('qr-scan-status').textContent =
+            'Received a transfer this version can’t open — ask the sender to update their Conductor.';
+        state.beamDecoder = null;
+        $('qr-scan-title').textContent = 'Scan QR Code';
+        return;
+    }
+
+    closeQRScanner();
+    // Land on the pack manager first so the import status is visible there
+    transitionTo('packs');
+    const file = new File([payload.bytes], 'beamed-pack.zip', { type: 'application/zip' });
+    await importPackFromFile(file);
+}
+
 function handleQRResult(data) {
+    // Beam frames are raw "CB1:" strings, never URLs — check before URL parsing
+    if (isBeamFrame(data)) {
+        handleBeamFrame(data);
+        return;
+    }
+
     let code = data;
 
     // If it's a URL, extract the hash fragment
@@ -2074,6 +2206,8 @@ function handleQRResult(data) {
         state.previewReturnTo = 'input';
         transitionTo('preview');
     } catch {
+        // Mid-beam, a stray non-beam QR shouldn't clobber the progress line
+        if (state.beamDecoder) return;
         // Not a valid Conductor event — show error briefly, keep scanning
         $('qr-scan-status').textContent = 'Not a Conductor event — keep scanning';
         setTimeout(() => {
@@ -4934,6 +5068,7 @@ async function renderPackManager() {
                     <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}${events.length > 0 ? ' &middot; ' + events.length + ' event' + (events.length !== 1 ? 's' : '') : ''}</div>
                     ${urlHtml}
                 </div>
+                <button class="pack-beam" data-pack-id="${escapeHtml(manifest.id)}" data-pack-name="${escapeHtml(manifest.name)}">Beam</button>
                 <button class="pack-delete" data-pack-id="${escapeHtml(manifest.id)}">Delete</button>
             </div>
             ${eventsHtml}
@@ -5348,6 +5483,135 @@ function closeQRDisplay() {
     releaseFocus();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// QR Beam sender (pack transfer over animated QR)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ~1 MB cap: at real-world scan rates (~3 KB/s) that's already minutes of
+// holding two phones together. Bigger packs need Phase-3 audio slimming.
+const BEAM_MAX_ZIP_BYTES = 1048576;
+
+const beamSender = {
+    encoder: null,
+    payload: null,      // Uint8Array of the pack zip (kept for smaller-frame re-encode)
+    packName: '',
+    timerId: null,
+    fps: 5,
+    blockSize: 900,
+};
+
+/** Export a pack and start beaming it in the fullscreen overlay. */
+async function startBeam(packId, packName) {
+    const overlay = $('qr-beam-overlay');
+    stopBeamLoop();
+    beamSender.payload = null;
+    beamSender.blockSize = 900;
+    $('qr-beam-title').textContent = 'Beam: ' + packName;
+    $('qr-beam-error').textContent = '';
+    $('qr-beam-status').textContent = 'Preparing ' + packName + '…';
+    $('qr-beam-canvas').style.display = 'none';
+    $('qr-beam-progress').style.width = '0%';
+    $('qr-beam-controls').style.display = 'none';
+    $('btn-qr-beam-smaller').disabled = false;
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+    requestWakeLock();  // the loop is useless with the screen off
+
+    let zip;
+    try {
+        zip = await packManager.exportPackZip(packId);
+    } catch (e) {
+        $('qr-beam-status').textContent = '';
+        $('qr-beam-error').textContent = 'Could not export this pack — ' + (e.message || e);
+        return;
+    }
+
+    if (zip.byteLength > BEAM_MAX_ZIP_BYTES) {
+        const mb = (zip.byteLength / 1048576).toFixed(1);
+        $('qr-beam-status').textContent = '';
+        $('qr-beam-error').textContent =
+            'This pack is too big to beam (' + mb + ' MB — limit ~1 MB). Share it as a file instead.';
+        return;
+    }
+
+    beamSender.payload = new Uint8Array(zip);
+    beamSender.packName = packName;
+    $('qr-beam-controls').style.display = '';
+    startBeamLoop();
+}
+
+/** (Re)build the encoder at the current blockSize and start the frame timer. */
+function startBeamLoop() {
+    stopBeamLoop();
+    if (!beamSender.payload) return;
+    try {
+        beamSender.encoder = createBeamEncoder(beamSender.payload, {
+            blockSize: beamSender.blockSize,
+            payloadType: 'pack',
+        });
+    } catch (e) {
+        $('qr-beam-status').textContent = '';
+        $('qr-beam-error').textContent = 'Could not encode pack — ' + (e.message || e);
+        return;
+    }
+    const kb = Math.max(1, Math.round(beamSender.payload.length / 1024));
+    $('qr-beam-status').textContent =
+        'Sending ' + beamSender.packName + ' — ' + kb + ' KB in ' + beamSender.encoder.k + ' blocks';
+    $('qr-beam-canvas').style.display = '';
+    renderBeamFrame();
+    beamSender.timerId = setInterval(renderBeamFrame, Math.round(1000 / beamSender.fps));
+}
+
+function stopBeamLoop() {
+    if (beamSender.timerId !== null) {
+        clearInterval(beamSender.timerId);
+        beamSender.timerId = null;
+    }
+    beamSender.encoder = null;
+}
+
+function renderBeamFrame() {
+    const enc = beamSender.encoder;
+    if (!enc) return;
+    // ecLevel L: fountain redundancy replaces QR error correction; sharp
+    // corners (radius 0) keep dense codes scannable.
+    QrCreator.render({
+        text: enc.nextFrame(),
+        radius: 0,
+        ecLevel: 'L',
+        fill: '#000000',
+        background: '#ffffff',
+        size: Math.min(Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.9), 480),
+    }, $('qr-beam-canvas'));
+    $('qr-beam-progress').style.width = Math.round(enc.cyclePosition() * 100) + '%';
+}
+
+function closeBeamOverlay() {
+    stopBeamLoop();
+    beamSender.payload = null;
+    releaseWakeLock();  // beam never overlaps practice/live, safe to drop
+    $('qr-beam-overlay').style.display = 'none';
+    releaseFocus();
+}
+
+$('btn-qr-beam-close').addEventListener('click', closeBeamOverlay);
+$('btn-qr-beam-speed').addEventListener('click', () => {
+    beamSender.fps = beamSender.fps === 5 ? 10 : 5;
+    $('btn-qr-beam-speed').textContent = 'Speed: ' + beamSender.fps + ' fps';
+    if (beamSender.timerId !== null) {
+        clearInterval(beamSender.timerId);
+        beamSender.timerId = setInterval(renderBeamFrame, Math.round(1000 / beamSender.fps));
+    }
+});
+$('btn-qr-beam-smaller').addEventListener('click', () => {
+    if (!beamSender.payload || beamSender.blockSize === 500) return;
+    // Smaller blocks = a coarser, easier-to-scan QR. It's a NEW transfer
+    // (different k/blockSize) — the receiver reopens its scanner to restart.
+    beamSender.blockSize = 500;
+    $('btn-qr-beam-smaller').disabled = true;
+    startBeamLoop();
+});
+
 $('btn-show-qr').addEventListener('click', showQRDisplay);
 $('btn-share-qr-preview').addEventListener('click', showQRDisplay);
 $('btn-share-qr-practice').addEventListener('click', showQRDisplay);
@@ -5393,6 +5657,9 @@ $('btn-copy-link').addEventListener('click', copyShareableLink);
 $('btn-web-share').addEventListener('click', webShareEvent);
 $('btn-download-html').addEventListener('click', function() { shareBundleFile(true, this); });
 $('btn-share-voice-pack').addEventListener('click', function() { shareVoicePackZip(this); });
+$('btn-beam-voice-pack').addEventListener('click', () => {
+    startBeam(packManager.getSyntheticPackId(), 'My Voice');
+});
 $('btn-preview-from-editor').addEventListener('click', () => {
     state.previewReturnTo = 'editor-review';
     transitionTo('preview');
@@ -5422,6 +5689,11 @@ $('pack-list').addEventListener('click', async (e) => {
     const delBtn = e.target.closest('.pack-delete');
     if (delBtn) {
         deletePackUI(delBtn.dataset.packId);
+        return;
+    }
+    const beamBtn = e.target.closest('.pack-beam');
+    if (beamBtn) {
+        startBeam(beamBtn.dataset.packId, beamBtn.dataset.packName || 'pack');
         return;
     }
     const copyBtn = e.target.closest('.pack-copy-url');

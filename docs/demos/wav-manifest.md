@@ -332,6 +332,12 @@ pattern is `notice-{actionCueId}`.
 
 ## Zip Structure
 
+> **Since v53 the distributed packs are per-event mini-packs** (`docs/packs/demo-<slug>.zip`,
+> one per event script, WAVs transcoded to 32 kbps mono MP3) built by
+> `scripts/build-demo-pack.py` from these same voice-forge outputs. The monolithic
+> `conductor-demo.zip` below is retired as the linked pack but stays served for old URLs;
+> rebuild it with `--monolith` if ever needed.
+
 ```
 conductor-demo.zip
 ├── manifest.json

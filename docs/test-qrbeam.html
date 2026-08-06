@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - QR Beam Codec Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; line-height: 1.5; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        h2 { color: #ffa500; margin: 20px 0 8px; }
+        .summary { font-size: 1.2em; margin: 10px 0 20px; padding: 10px; border-radius: 6px; }
+        .summary.pass { background: #0a3d0a; border: 1px solid #0f0; }
+        .summary.fail { background: #3d0a0a; border: 1px solid #f00; }
+        .summary.running { background: #3d3d0a; border: 1px solid #ff0; }
+        .test { padding: 6px 10px; margin: 2px 0; border-radius: 4px; }
+        .test.pass { background: #0a2d0a; }
+        .test.fail { background: #2d0a0a; }
+        .pass .icon::before { content: "PASS "; color: #0f0; font-weight: bold; }
+        .fail .icon::before { content: "FAIL "; color: #f00; font-weight: bold; }
+        pre { background: #0d1117; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <h1>Conductor — QR Beam Codec Tests</h1>
+    <div id="summary" class="summary running">Running tests...</div>
+    <div id="results"></div>
+
+    <script src="lib/pako.min.js"></script>
+    <script src="js/qrBeam.js"></script>
+    <script>
+    (async function() {
+        const results = document.getElementById('results');
+        let passed = 0;
+        let failed = 0;
+
+        function log(html) { results.innerHTML += html; }
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function assert(name, condition, detail) {
+            if (condition) {
+                passed++;
+                log(`<div class="test pass"><span class="icon"></span>${esc(name)}</div>`);
+            } else {
+                failed++;
+                log(`<div class="test fail"><span class="icon"></span>${esc(name)}` +
+                    (detail ? `<pre>${esc(detail)}</pre>` : '') + `</div>`);
+            }
+        }
+
+        // Deterministic PRNG for reproducible test payloads and loss patterns
+        function testRng(seed) {
+            let s = seed >>> 0 || 1;
+            return function() {
+                s ^= s << 13; s >>>= 0;
+                s ^= s >>> 17;
+                s ^= s << 5; s >>>= 0;
+                return s / 4294967296;
+            };
+        }
+
+        function makePayload(size, seed) {
+            const rng = testRng(seed);
+            const bytes = new Uint8Array(size);
+            for (let i = 0; i < size; i++) bytes[i] = Math.floor(rng() * 256);
+            return bytes;
+        }
+
+        function bytesEqual(a, b) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+            return true;
+        }
+
+        // Drive a decoder from an encoder with a given per-frame drop probability.
+        // Returns { complete, framesSent, framesDelivered, loops, finalStatus }
+        function runTransfer(encoder, decoder, dropProb, lossSeed, maxLoops) {
+            const rng = testRng(lossSeed);
+            let framesSent = 0, framesDelivered = 0, loops = 0, finalStatus = null;
+            while (loops < maxLoops) {
+                for (let s = 0; s < encoder.cycleLength; s++) {
+                    framesSent++;
+                    if (rng() < dropProb) continue;  // frame lost in the air
+                    framesDelivered++;
+                    finalStatus = decoder.addFrame(encoder.frameAt(s));
+                    if (finalStatus.status === 'complete') {
+                        return { complete: true, framesSent, framesDelivered, loops, finalStatus };
+                    }
+                    if (finalStatus.status === 'error') {
+                        return { complete: false, framesSent, framesDelivered, loops, finalStatus };
+                    }
+                }
+                loops++;
+            }
+            return { complete: false, framesSent, framesDelivered, loops, finalStatus };
+        }
+
+        try {
+            // ═════════════════════════════════════════════════════════════
+            // 1. Module detection
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>1. Module Detection</h2>');
+
+            assert('createBeamEncoder is defined', typeof createBeamEncoder === 'function');
+            assert('createBeamDecoder is defined', typeof createBeamDecoder === 'function');
+            assert('isBeamFrame is defined', typeof isBeamFrame === 'function');
+            assert('beamCrc32 is defined', typeof beamCrc32 === 'function');
+            assert('pako gzip available', typeof pako !== 'undefined' && typeof pako.gzip === 'function');
+
+            // ═════════════════════════════════════════════════════════════
+            // 2. CRC32 vector
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>2. CRC32 Vector</h2>');
+
+            const crcVec = beamCrc32(new TextEncoder().encode('123456789'));
+            assert('CRC32("123456789") = 0xCBF43926', crcVec === 0xCBF43926,
+                `Got: 0x${crcVec.toString(16).toUpperCase()}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // 3. Frame format
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>3. Frame Format</h2>');
+
+            const smallPayload = makePayload(5000, 42);
+            const enc3 = createBeamEncoder(smallPayload, { blockSize: 400 });
+
+            const frame0 = enc3.frameAt(0);
+            assert('Frame has CB1: prefix', frame0.startsWith('CB1:'));
+            assert('isBeamFrame accepts frame', isBeamFrame(frame0));
+            assert('isBeamFrame rejects event URL', !isBeamFrame('v1_abcdef'));
+            assert('isBeamFrame rejects non-string', !isBeamFrame(null) && !isBeamFrame(42));
+
+            const frameBytes = Uint8Array.from(atob(frame0.slice(4)), c => c.charCodeAt(0));
+            assert('Frame length = 18-byte header + blockSize',
+                frameBytes.length === 18 + 400, `Got: ${frameBytes.length}`);
+            const fview = new DataView(frameBytes.buffer);
+            assert('Header: version = 1', fview.getUint8(0) === 1);
+            assert('Header: payloadType = pack(0)', fview.getUint8(1) === 0);
+            assert('Header: k matches encoder', fview.getUint16(2, true) === enc3.k,
+                `header ${fview.getUint16(2, true)} vs encoder ${enc3.k}`);
+            assert('Header: blockSize = 400', fview.getUint16(4, true) === 400);
+            assert('Header: payload length = compressedLength',
+                fview.getUint32(6, true) === enc3.compressedLength);
+            assert('Header: CRC matches encoder', fview.getUint32(10, true) === enc3.crc);
+            assert('Header: seed = 0', fview.getUint32(14, true) === 0);
+
+            assert('QR-sized frame fits char guard',
+                createBeamEncoder(smallPayload).frameAt(0).length < 2953,
+                `Got: ${createBeamEncoder(smallPayload).frameAt(0).length} chars`);
+
+            assert('Encoder k = ceil(compressed/blockSize)',
+                enc3.k === Math.ceil(enc3.compressedLength / 400));
+            assert('Cycle = k + repair frames', enc3.cycleLength > enc3.k);
+
+            // ═════════════════════════════════════════════════════════════
+            // 4. Lossless in-order round-trip (systematic fast path)
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>4. Lossless In-Order Round-Trip</h2>');
+
+            const payload4 = makePayload(10000, 7);
+            const enc4 = createBeamEncoder(payload4, { blockSize: 500 });
+            const dec4 = createBeamDecoder();
+
+            let status4 = null;
+            let framesUsed4 = 0;
+            for (let s = 0; s < enc4.cycleLength; s++) {
+                framesUsed4++;
+                status4 = dec4.addFrame(enc4.frameAt(s));
+                if (status4.status === 'complete') break;
+            }
+            assert('Completes with zero loss', status4 && status4.status === 'complete');
+            assert('Zero-loss completion in exactly k frames', framesUsed4 === enc4.k,
+                `Used ${framesUsed4}, k=${enc4.k}`);
+            const out4 = dec4.getPayload();
+            assert('Payload matches byte-for-byte', out4 && bytesEqual(out4.bytes, payload4));
+            assert('Payload type round-trips', out4 && out4.type === 'pack');
+            assert('isComplete() true after finish', dec4.isComplete());
+            assert('Extra frame after completion is a no-op',
+                dec4.addFrame(enc4.frameAt(enc4.k)).status === 'complete');
+
+            // ═════════════════════════════════════════════════════════════
+            // 5. 30% random frame loss
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>5. Round-Trip Under 30% Frame Loss</h2>');
+
+            const payload5 = makePayload(30000, 99);
+            const enc5 = createBeamEncoder(payload5, { blockSize: 600 });
+            const dec5 = createBeamDecoder();
+            const run5 = runTransfer(enc5, dec5, 0.30, 1234, 10);
+
+            assert('Completes under 30% loss', run5.complete,
+                `loops=${run5.loops} status=${JSON.stringify(run5.finalStatus)}`);
+            assert('Completes within 4 loops', run5.loops < 4, `loops=${run5.loops}`);
+            const out5 = dec5.getPayload();
+            assert('Payload matches under loss', out5 && bytesEqual(out5.bytes, payload5));
+
+            // Repeat with different loss patterns to catch pattern-specific bugs
+            let allOk = true, worstLoops = 0;
+            for (const seed of [5, 6, 7]) {
+                const d = createBeamDecoder();
+                const r = runTransfer(enc5, d, 0.30, seed, 10);
+                const o = d.getPayload();
+                if (!r.complete || !o || !bytesEqual(o.bytes, payload5)) allOk = false;
+                worstLoops = Math.max(worstLoops, r.loops);
+            }
+            assert('3 more loss patterns all complete correctly', allOk,
+                `worstLoops=${worstLoops}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // 6. Out-of-order delivery
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>6. Out-of-Order Delivery</h2>');
+
+            const payload6 = makePayload(12000, 55);
+            const enc6 = createBeamEncoder(payload6, { blockSize: 500 });
+            const dec6 = createBeamDecoder();
+
+            // Shuffle one full cycle of frames deterministically
+            const order = [];
+            for (let s = 0; s < enc6.cycleLength; s++) order.push(s);
+            const shuffleRng = testRng(777);
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(shuffleRng() * (i + 1));
+                const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+            }
+
+            let status6 = null;
+            for (const s of order) {
+                status6 = dec6.addFrame(enc6.frameAt(s));
+                if (status6.status === 'complete') break;
+            }
+            assert('Completes out-of-order', status6 && status6.status === 'complete');
+            const out6 = dec6.getPayload();
+            assert('Out-of-order payload matches', out6 && bytesEqual(out6.bytes, payload6));
+
+            // ═════════════════════════════════════════════════════════════
+            // 7. Duplicate frames
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>7. Duplicate Frames</h2>');
+
+            const enc7 = createBeamEncoder(makePayload(5000, 3), { blockSize: 500 });
+            const dec7 = createBeamDecoder();
+            const first = dec7.addFrame(enc7.frameAt(0));
+            const dup = dec7.addFrame(enc7.frameAt(0));
+            assert('First frame accepted', first.status === 'accepted');
+            assert('Same frame again = duplicate', dup.status === 'duplicate');
+            assert('Duplicate does not advance decode count',
+                dup.decoded === first.decoded);
+            assert('Duplicate counted in redundant', dup.redundant === 1);
+
+            // ═════════════════════════════════════════════════════════════
+            // 8. Mixed-payload rejection
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>8. Mixed-Payload Rejection</h2>');
+
+            const encA = createBeamEncoder(makePayload(8000, 11), { blockSize: 500 });
+            const encB = createBeamEncoder(makePayload(8000, 22), { blockSize: 500 });
+            const dec8 = createBeamDecoder();
+
+            dec8.addFrame(encA.frameAt(0));
+            const cross = dec8.addFrame(encB.frameAt(1));
+            assert('Frame from other transfer rejected', cross.status === 'rejected',
+                `Got: ${cross.status}`);
+            assert('Rejection reason = mixed-payload', cross.reason === 'mixed-payload');
+            const resume = dec8.addFrame(encA.frameAt(1));
+            assert('Original transfer continues after rejection',
+                resume.status === 'accepted' || resume.status === 'complete');
+
+            // ═════════════════════════════════════════════════════════════
+            // 9. Garbage input rejection
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>9. Garbage Input</h2>');
+
+            const dec9 = createBeamDecoder();
+            assert('Event URL rejected as not-beam',
+                dec9.addFrame('v1_H4sIAAAA').reason === 'not-beam');
+            assert('Random text rejected as not-beam',
+                dec9.addFrame('hello world').reason === 'not-beam');
+            assert('CB1: with invalid base64 rejected',
+                dec9.addFrame('CB1:!!!not-base64!!!').reason === 'bad-base64');
+            assert('CB1: with truncated frame rejected',
+                dec9.addFrame('CB1:' + btoa('short')).reason === 'truncated');
+            assert('Garbage header rejected (bad-header or bad-version)', (function() {
+                const junk = new Uint8Array(18 + 100);
+                junk.fill(0xAB);
+                const r = createBeamDecoder().addFrame('CB1:' + btoa(String.fromCharCode.apply(null, junk)));
+                return r.status === 'rejected';
+            })());
+
+            // ═════════════════════════════════════════════════════════════
+            // 10. CRC failure path (corrupted block data)
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>10. CRC Failure Path</h2>');
+
+            const enc10 = createBeamEncoder(makePayload(4000, 88), { blockSize: 500 });
+            const dec10 = createBeamDecoder();
+
+            // Corrupt one systematic frame's data (flip a bit past the header)
+            const goodFrame = enc10.frameAt(0);
+            const corrupted = Uint8Array.from(atob(goodFrame.slice(4)), c => c.charCodeAt(0));
+            corrupted[18 + 50] ^= 0xFF;
+            const corruptedFrame = 'CB1:' + btoa(String.fromCharCode.apply(null, corrupted));
+
+            let status10 = dec10.addFrame(corruptedFrame);
+            for (let s = 1; s < enc10.k; s++) {
+                status10 = dec10.addFrame(enc10.frameAt(s));
+            }
+            assert('Corrupted payload fails CRC at completion',
+                status10.status === 'error', `Got: ${status10.status}`);
+            assert('Error reason = crc-mismatch', status10.reason === 'crc-mismatch');
+            assert('hasFailed() true', dec10.hasFailed());
+            assert('getPayload() null after CRC failure', dec10.getPayload() === null);
+            assert('Decoder stays failed on further frames',
+                dec10.addFrame(enc10.frameAt(enc10.k)).status === 'error');
+
+            // ═════════════════════════════════════════════════════════════
+            // 11. Single-block payload (k=1)
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>11. Single-Block Payload</h2>');
+
+            const tiny = new TextEncoder().encode('tiny payload');
+            const enc11 = createBeamEncoder(tiny, { blockSize: 900, payloadType: 'any' });
+            assert('Tiny payload → k = 1', enc11.k === 1);
+            const dec11 = createBeamDecoder();
+            const status11 = dec11.addFrame(enc11.frameAt(0));
+            assert('k=1 completes on first frame', status11.status === 'complete');
+            const out11 = dec11.getPayload();
+            assert('k=1 payload matches',
+                out11 && new TextDecoder().decode(out11.bytes) === 'tiny payload');
+            assert('k=1 payloadType = any', out11 && out11.type === 'any');
+
+            // ═════════════════════════════════════════════════════════════
+            // 12. Pack-sized payload under loss (~300 KB)
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>12. Pack-Sized Payload (300 KB) Under 30% Loss</h2>');
+
+            const payload12 = makePayload(300000, 314);  // incompressible, like real audio
+            const t0 = performance.now();
+            const enc12 = createBeamEncoder(payload12, { blockSize: 900 });
+            const dec12 = createBeamDecoder();
+            const run12 = runTransfer(enc12, dec12, 0.30, 2718, 10);
+            const elapsed = Math.round(performance.now() - t0);
+
+            assert('300 KB completes under 30% loss', run12.complete,
+                `k=${enc12.k} loops=${run12.loops}`);
+            const out12 = dec12.getPayload();
+            assert('300 KB payload matches', out12 && bytesEqual(out12.bytes, payload12));
+            assert('Codec fast enough (< 30s in CI)', elapsed < 30000, `Took ${elapsed}ms`);
+            log(`<div class="test pass"><span class="icon"></span>` +
+                `Info: k=${enc12.k}, delivered ${run12.framesDelivered}/${run12.framesSent} frames, ` +
+                `${elapsed}ms total</div>`);
+            passed++;
+
+            // ═════════════════════════════════════════════════════════════
+            // 13. Encoder API details
+            // ═════════════════════════════════════════════════════════════
+            log('<h2>13. Encoder API</h2>');
+
+            const enc13 = createBeamEncoder(makePayload(3000, 1), { blockSize: 500 });
+            const seq = [];
+            for (let i = 0; i < enc13.cycleLength + 2; i++) seq.push(enc13.nextFrame());
+            assert('nextFrame loops the cycle', seq[0] === seq[enc13.cycleLength]);
+            assert('frameAt is deterministic', enc13.frameAt(3) === enc13.frameAt(3));
+            enc13.reset();
+            assert('reset() restarts the cycle', enc13.nextFrame() === seq[0]);
+            assert('cyclePosition in [0,1)', enc13.cyclePosition() >= 0 && enc13.cyclePosition() < 1);
+
+            let threw = false;
+            try { createBeamEncoder(makePayload(100, 1), { payloadType: 'bogus' }); }
+            catch (e) { threw = true; }
+            assert('Unknown payloadType throws', threw);
+
+        } catch (e) {
+            failed++;
+            log(`<div class="test fail"><span class="icon"></span>Unhandled error: ${esc(e.message)}<pre>${esc(e.stack || '')}</pre></div>`);
+            console.error(e);
+        }
+
+        // ═════════════════════════════════════════════════════════════
+        // SUMMARY
+        // ═════════════════════════════════════════════════════════════
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        if (failed === 0) {
+            summaryEl.className = 'summary pass';
+            summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED`;
+        } else {
+            summaryEl.className = 'summary fail';
+            summaryEl.innerHTML = `<span class="icon"></span>${failed} of ${total} tests FAILED`;
+        }
+    })();
+    </script>
+</body>
+</html>

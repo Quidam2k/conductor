@@ -1,5 +1,25 @@
 const { test, expect } = require('@playwright/test');
 
+// Mute real TTS in all tests -- headless chromium/firefox route speechSynthesis to
+// the OS voice engine, which plays audibly on the dev machine. The replacement
+// keeps feature detection truthy; tests needing their own stub redefine it
+// (property stays configurable).
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        if (!window.speechSynthesis) return;
+        const mute = {
+            speaking: false, pending: false, paused: false,
+            speak() {}, cancel() {}, pause() {}, resume() {},
+            getVoices() { return []; },
+            addEventListener() {}, removeEventListener() {},
+            onvoiceschanged: null,
+        };
+        try {
+            Object.defineProperty(window, 'speechSynthesis', { value: mute, configurable: true });
+        } catch (e) { /* keep real TTS if the platform refuses the redefine */ }
+    });
+});
+
 // ═════════════════════════════════════════════════════════════════════
 // Practice-Path Audio Tests (v50) — chromium only, REAL Web Audio
 //
@@ -78,15 +98,15 @@ async function addMediaStub(page) {
     });
 }
 
-/** Record every SpeechSynthesisUtterance text so specs can prove TTS did/didn't fire. */
+/** Record every SpeechSynthesisUtterance text so specs can prove TTS did/didn't fire.
+ * Deliberately does NOT call through to the real speak() — headless chromium routes
+ * TTS to the OS voice engine and it plays audibly on the dev machine. */
 async function addTtsSpy(page) {
     await page.addInitScript(() => {
         window.__spokenTexts = [];
         if (window.speechSynthesis) {
-            const origSpeak = speechSynthesis.speak.bind(speechSynthesis);
             speechSynthesis.speak = (utt) => {
                 window.__spokenTexts.push(utt.text);
-                try { origSpeak(utt); } catch (e) { /* headless voices flaky — text capture is the point */ }
             };
         }
     });

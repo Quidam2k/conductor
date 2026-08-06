@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conductor-v52';
+const CACHE_NAME = 'conductor-v53';
 const ASSETS = [
     './index.html',
     './conductor.html',
@@ -14,12 +14,15 @@ const ASSETS = [
     './js/eventEncoder.js',
     './js/timingEngine.js',
     './js/audioService.js',
+    './js/audioMp3.js',
     './js/audioBake.js',
     './js/voiceRecorder.js',
+    './js/qrBeam.js',
     './js/resourcePackManager.js',
     './js/draftManager.js',
     './js/circularTimeline.js',
     './lib/pako.min.js',
+    './lib/lame.min.js',
     './lib/qr-creator.min.js',
     './lib/qr-scanner.legacy.min.js',
     './manifest.json',

@@ -71,12 +71,18 @@ After a successful import, you'll see:
 
 From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
 
-### The Demo Pack
+### The Demo Packs
 
-The Conductor Demo Pack includes:
-- **120 audio cues** — 59 action cues, 59 notice cues, 2 system cues
-- **8 event scripts** — The Stillness, The Bloom, Lights Out, The Signal, The Stand, The Walk, The Murmur, The Cascade
-- Works with all demo events out of the box
+Each demo event has its own small voice pack — roughly 50–180 KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice and notice cue that event uses:
+
+- [The Stillness](packs/demo-the-stillness.zip) — freeze mob: sudden collective stillness, no props
+- [The Bloom](packs/demo-the-bloom.zip) — umbrella performance: raise, open, sway, light, close
+- [Lights Out](packs/demo-lights-out.zip) — phone flashlights in the dark, evening event
+- [The Signal](packs/demo-the-signal.zip) — sign reveal: step forward, raise, flip, hold
+- [The Stand](packs/demo-the-stand.zip) — stationary umbrella formation (pairs with The Walk)
+- [The Walk](packs/demo-the-walk.zip) — movement with lights through the formation (pairs with The Stand)
+- [The Murmur](packs/demo-the-murmur.zip) — synchronized sound and movement, eerie and theatrical
+- [The Cascade](packs/demo-the-cascade.zip) — rapid-fire cue bursts in a one-minute run
 
 ---
 
@@ -173,35 +179,31 @@ Paste the JSON into the input field or save it as a `.json` file and import it.
 
 ---
 
-## Adapting the Demo Pack
+## Adapting a Demo Pack
 
-Want to use the demo pack as a starting point for your own? Here's how.
+Want to use a demo pack as a starting point for your own? Here's how.
 
 ### What's Inside the Zip
 
 ```
-conductor-demo.zip
+demo-the-stillness.zip
 ├── manifest.json              # Describes the pack contents
-├── audio/
-│   └── countdown-voice.wav    # System cue: the countdown voice
 ├── voices/
-│   ├── freeze.wav             # Action cues (60 files)
-│   ├── walk.wav
+│   ├── freeze.mp3             # Action cues
+│   ├── hold.mp3
 │   └── ...
 ├── notices/
-│   ├── notice-freeze.wav      # Notice cues (60 files)
-│   ├── notice-walk.wav
+│   ├── notice-freeze.mp3      # Notice cues ("Get ready to…")
+│   ├── notice-hold.mp3
 │   └── ...
 └── events/
-    ├── the-stillness.json     # Bundled event scripts (7 total)
-    ├── the-bloom.json
-    └── ...
+    └── the-stillness.json     # The bundled event script
 ```
 
 ### Swapping Audio Files
 
 1. **Unzip** the demo pack to a folder on your computer
-2. **Replace** any `.wav` file with your own recording, keeping the **same filename**
+2. **Replace** any audio file with your own recording, keeping the **same filename** (or update the manifest to match a new name)
 3. Audio format: WAV or MP3, any sample rate. Keep files under 500KB each for best performance
 4. **Re-zip** the folder contents (not the folder itself — the files should be at the root of the zip)
 5. **Import** your modified zip into the app
