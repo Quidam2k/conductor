@@ -108,3 +108,45 @@ to the editor work.
 - Ship-checklist for v56: same 12 label spots (index `#app-version`, start.html,
   GUIDE footer, test/ `#build-label`, ios-audio-test ×3, android-audio-test ×4,
   sw.js CACHE_NAME) + regen conductor.html.
+
+---
+
+# v56 — Stop asking for prep recordings that can never play (same day)
+
+Todd's call after v55: **drop the Stillness device check**; he and Jessica will
+each record their own script and swap, which is the real test. The prep clips
+ride the same `packCue` bake path Jessica already confirmed works in her locked
+pocket, so the demo-pack rehearsal was buying little.
+
+Checking what actually obstructs *that* workflow turned up one thing worth
+fixing before they record:
+
+`buildBatchSteps` pushed a "Get ready to …" prep step for every action with no
+grouping filter. Only a group **leader's** prep ever fires — cues closer together
+than the notice lead share it — so a mid-group cue's own recording is never
+heard. v55 widened that window 5s → 10s, so more cues are now mid-group and the
+teleprompter walks you through more dead takes. On a long script that is where
+the session's time actually goes.
+
+**Changes** (`94e27a4`):
+- `actionPrepFires(index)` asks `computeActionMeta` the same question the engine
+  asks, so the teleprompter and the engine cannot drift.
+- The batch pass emits a prep step only for cues whose prep fires.
+- The per-action card *says so* rather than hiding the control — moving the cue
+  later makes the prep live again.
+- `EDITOR_NOTICE_SECONDS` replaces the loose `10` in `finalizeEditorEvent`, so
+  the editor's stamped lead and the grouping window share one source.
+
+Label bumped v55 → v56: the behaviour change is visible and testers report by
+build number. Live-verified (`conductor-v56`).
+
+**Suite: 396 — 325 pass / 70 skip / 1 known webkit diagnostic-page flake.** The
+preview-pack-hint ordering flake also fired once under parallel load and passes
+solo (verified, not assumed).
+
+**Considered and dropped** (Todd: edge case): events pin `action.pack` as an
+exact cache key, so playing Jessica's script plays *her* voice and your own
+recordings sit unused. Worth knowing: cue ids are derived from action text
+(`generateCueId`), so if you both record the same script the cue ids match and
+only the pack id differs — a "use my voice on this event" control would be a
+pack-id rewrite and nothing more, if it ever becomes worth having.
