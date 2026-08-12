@@ -360,12 +360,13 @@
             fallbackResult === 'Five',
             `Got: "${fallbackResult}"`);
 
-        // Notice context: tries notice-prefixed cue (notice-countdown-5)
-        // Pack doesn't have notice-countdown-5, so falls back to fallbackText
+        // Notice (v57): preps no longer resolve per-cue notice clips — they're
+        // either the stitched prep-lead sequence in the baked track, or TTS.
+        // With no baked track, announceAction speaks the TTS fallback text.
         audio.setResourcePackResolver(resolver);
-        const noticeResult = audio.resolveAudioCue(packAction, 'notice');
-        assert('Notice context falls back when pack lacks notice cue',
-            noticeResult === 'Five',
+        const noticeResult = audio.announceAction(packAction, 10, 10);
+        assert('Notice speaks TTS fallback (no baked prep)',
+            noticeResult === 'notice: "Get ready to five"',
             `Got: "${noticeResult}"`);
 
         // Countdown with pack (need fresh service for dedup)

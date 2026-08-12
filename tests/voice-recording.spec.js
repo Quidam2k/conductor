@@ -155,6 +155,18 @@ async function recordCueForCard(page, cardIndex) {
     await expect(section.locator('.ed-recording-section-title')).toContainText('Recorded', { timeout: 15000 });
 }
 
+/** Drive the standalone prep-lead card through record → stop → use. */
+async function recordPrepLead(page) {
+    const section = page.locator('.ed-prep-lead-card .ed-recording-section');
+    await expect(section).toHaveClass(/idle/);
+    await section.locator('.ed-btn-record').click();
+    await expect(section).toHaveClass(/recording/);
+    await section.locator('.ed-btn-stop-record').click();
+    await expect(section).toHaveClass(/preview/, { timeout: 10000 });
+    await section.locator('.ed-btn-use-recording').click();
+    await expect(section).toHaveClass(/recorded/, { timeout: 15000 });
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // 1. Per-action record flow, entirely through the UI
 // ─────────────────────────────────────────────────────────────────────
@@ -225,9 +237,9 @@ test('voice recording: recorded cue persists across reload', async ({ page, brow
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// 3. Batch teleprompter: record all missing cues with auto-advance
+// 3. Batch teleprompter: prep lead first, then every cue, auto-advance
 // ─────────────────────────────────────────────────────────────────────
-test('voice recording: batch teleprompter records all uncued actions', async ({ page, browserName }) => {
+test('voice recording: batch teleprompter records the prep lead then all cues', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
     await addMediaStub(page);
 
@@ -239,14 +251,13 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
     await expect(batchBtn).toBeVisible();
     await batchBtn.click();
 
-    // v51: every action contributes TWO steps — the cue, then its
-    // "Get ready to …" prep phrase — so two actions is a four-step pass and
-    // progress counts steps, not actions.
+    // v57: the pass opens with the ONE reusable "Get ready to…" prep lead,
+    // then one step per action's cue — two actions is a three-step pass.
     const overlay = page.locator('#batch-recorder-overlay');
     await expect(overlay).toBeVisible();
-    await expect(page.locator('#batch-progress')).toHaveText('1 of 4');
-    await expect(page.locator('#batch-step-label')).toHaveText('Cue');
-    await expect(page.locator('#batch-cue-text')).toHaveText('Raise your hand');
+    await expect(page.locator('#batch-progress')).toHaveText('1 of 3');
+    await expect(page.locator('#batch-step-label')).toHaveText('Prep lead');
+    await expect(page.locator('#batch-cue-text')).toHaveText('Get ready to…');
 
     async function recordStep() {
         await page.click('#btn-batch-record');
@@ -256,21 +267,19 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
         await page.click('#btn-batch-use');
     }
 
-    // Step 1: the cue → advances to its prep phrase
+    // Step 1: the lead → advances to the first action's cue
     await recordStep();
-    await expect(page.locator('#batch-progress')).toHaveText('2 of 4', { timeout: 15000 });
-    await expect(page.locator('#batch-step-label')).toHaveText('Prep phrase');
-    await expect(page.locator('#batch-cue-text')).toHaveText('Get ready to raise your hand');
+    await expect(page.locator('#batch-progress')).toHaveText('2 of 3', { timeout: 15000 });
+    await expect(page.locator('#batch-step-label')).toHaveText('Cue');
+    await expect(page.locator('#batch-cue-text')).toHaveText('Raise your hand');
 
-    // Step 2: the prep phrase → advances to the second action's cue
+    // Step 2: first cue → second cue
     await recordStep();
-    await expect(page.locator('#batch-progress')).toHaveText('3 of 4', { timeout: 15000 });
+    await expect(page.locator('#batch-progress')).toHaveText('3 of 3', { timeout: 15000 });
     await expect(page.locator('#batch-step-label')).toHaveText('Cue');
     await expect(page.locator('#batch-cue-text')).toHaveText('Turn around slowly');
 
-    // Steps 3 and 4 → the pass ends on the completion panel, not by closing
-    await recordStep();
-    await expect(page.locator('#batch-progress')).toHaveText('4 of 4', { timeout: 15000 });
+    // Step 3 → the pass ends on the completion panel, not by closing
     await recordStep();
     await expect(page.locator('#batch-complete-buttons')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#btn-batch-play-all')).toBeVisible();
@@ -280,14 +289,14 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
     const r = await page.evaluate(async () => {
         const pid = packManager.getSyntheticPackId();
         const actions = state.editor.actions.map(a => ({ pack: a.pack, cue: a.cue }));
-        // The prep recordings are stored under notice-<cueId> — the id the
-        // engine resolves 10s ahead of the cue and bakes into the locked track.
+        // The lead lands under the reserved id; nothing notice-prefixed exists.
+        const hasLead = !!(await packManager.getCueAudioData(pid, 'prep-lead'));
         const notices = [];
         for (const a of actions) {
             notices.push(!!(await packManager.getCueAudioData(pid, 'notice-' + a.cue)));
         }
         return {
-            pid, actions, notices,
+            pid, actions, hasLead, notices,
             batchBtnVisible: document.getElementById('btn-record-batch').style.display !== 'none',
             missingBtnVisible: document.getElementById('btn-record-missing').style.display !== 'none',
         };
@@ -298,8 +307,9 @@ test('voice recording: batch teleprompter records all uncued actions', async ({ 
         expect(a.cue).toBeTruthy();
     }
     expect(r.actions[0].cue).not.toBe(r.actions[1].cue);
-    // Both prep phrases landed under their notice- ids
-    expect(r.notices).toEqual([true, true]);
+    // The lead saved under prep-lead; the dead notice- ids were never written
+    expect(r.hasLead).toBe(true);
+    expect(r.notices).toEqual([false, false]);
     // The headline pass stays available (re-recording a script is normal);
     // the "missing ones" repair button hides once nothing is uncued.
     expect(r.batchBtnVisible).toBe(true);
@@ -378,15 +388,17 @@ test('voice recording: permission denied shows inline error and recovers', async
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// 6. Bake integration: recorded cue lands in the live baked schedule
+// 6. Bake integration: recorded cue lands in the live baked schedule,
+//    and the recorded prep lead stitches in front of it (v57)
 // ─────────────────────────────────────────────────────────────────────
-test('voice recording: recorded cue is baked into the live track schedule', async ({ page, browserName }) => {
+test('voice recording: recorded cue and stitched prep are baked into the live track schedule', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
     await addMediaStub(page);
 
     // Event starting ~2-3 min out keeps the baked WAV small.
     await createEventToTimeline(page, 'Bake Test', 3 * 60 * 1000);
     await addSavedAction(page, 'Freeze now');
+    await recordPrepLead(page);
     await recordCueForCard(page, 0);
 
     // Hand the editor event to the player via its own URL encoding.
@@ -413,20 +425,39 @@ test('voice recording: recorded cue is baked into the live track schedule', asyn
         const schedule = audio.computeCueSchedule(
             evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
             state.bakedStartWallMs, {},
-            (p, c) => packManager.hasCue(p, c));
+            (p, c) => packManager.hasCue(p, c),
+            (p, c) => {
+                const b = packManager.getBuffer(p + ':' + c);
+                return b ? b.duration : 0;
+            });
         const el = document.getElementById('baked-track');
         return {
             pid,
             actionCue: evt.timeline[0].cue,
             packCues: schedule.filter(e => e.kind === 'packCue')
-                .map(e => ({ packId: e.packId, cueId: e.cueId })),
+                .map(e => ({ packId: e.packId, cueId: e.cueId, offsetSec: e.offsetSec })),
             src: el ? el.src : '',
             durationSec: state.bakedDurationSec,
         };
     });
     expect(r.src).toMatch(/^blob:/);
     expect(r.durationSec).toBeGreaterThan(0);
-    expect(r.packCues.some(e => e.packId === r.pid && e.cueId === r.actionCue)).toBe(true);
+
+    // The trigger clip is in the schedule…
+    const cueEvents = r.packCues.filter(e => e.packId === r.pid && e.cueId === r.actionCue);
+    expect(cueEvents.length).toBe(2); // stitched prep member + the trigger itself
+    const triggerAt = Math.max(...cueEvents.map(e => e.offsetSec));
+
+    // …and so is the stitched prep: the lead at the prep moment (10s before
+    // the trigger), then the cue-name clip after the lead's duration + gap.
+    const lead = r.packCues.find(e => e.cueId === 'prep-lead');
+    expect(lead).toBeTruthy();
+    expect(lead.offsetSec).toBeCloseTo(triggerAt - 10, 1);
+    const member = cueEvents.find(e => e.offsetSec < triggerAt);
+    expect(member.offsetSec).toBeGreaterThan(lead.offsetSec);
+    expect(member.offsetSec).toBeLessThan(triggerAt);
+    // Nothing notice-prefixed survives anywhere in the schedule
+    expect(r.packCues.some(e => e.cueId.startsWith('notice-'))).toBe(false);
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -563,39 +594,65 @@ test('voice recording: My Voice pack can be renamed and the name reaches the zip
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// 12. The batch pass stops asking for preps that can never play (v55).
-//     A prep fires 10s before its cue, and cues closer together than that
-//     share the LEADER's prep — so a mid-group cue's own recording is
-//     never heard. Recording one costs a take per cue, which is where a
-//     long script's session actually goes.
+// 12. Batch step composition (v57): a full pass opens with the one
+//     reusable prep lead; repair passes ("record the missing") exist to
+//     fill cue gaps and skip it — the lead card covers re-recording it.
+//     Per-cue prep steps are gone entirely: the bake stitches the lead
+//     to each group's cue-name clips, so no per-action take is needed.
 // ─────────────────────────────────────────────────────────────────────
-test('voice recording: batch pass skips the prep step for a merged cue', async ({ page, browserName }) => {
+test('voice recording: full batch pass opens with the prep lead; repair passes skip it', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
     await addMediaStub(page);
 
-    await createEventToTimeline(page, 'Merged Prep Test');
+    await createEventToTimeline(page, 'Lead Step Test');
     await addSavedAction(page, 'Freeze');
     await addSavedAction(page, 'Hold your position');
 
-    // New actions land 15s apart — outside the lead, so both preps are live.
-    const steps = () => page.evaluate(() => buildBatchSteps(null).map(s => s.index + ':' + s.kind));
-    expect(await steps()).toEqual(['0:main', '0:notice', '1:main', '1:notice']);
+    const steps = (only) => page.evaluate((o) =>
+        buildBatchSteps(o).map(s => s.kind === 'prep-lead' ? 'lead' : s.index + ':' + s.kind), only);
 
-    // Pull the second cue to 5s after the first: now it shares Freeze's prep.
-    const form = page.locator('.ed-action-card').nth(1).locator('.ed-btn-edit');
-    await form.click();
-    const edit = page.locator('.ed-action-edit');
-    await edit.locator('.ed-offset-min').fill('0');
-    await edit.locator('.ed-offset-sec').fill('5');
-    await edit.locator('.ed-btn-save').click();
-    await expect(page.locator('.ed-action-edit')).toHaveCount(0);
+    // Full pass: the lead first, then one step per cue — never a prep step.
+    expect(await steps(null)).toEqual(['lead', '0:main', '1:main']);
 
-    expect(await steps()).toEqual(['0:main', '0:notice', '1:main']);
+    // Repair pass: just the named cues, no lead.
+    expect(await steps([1])).toEqual(['1:main']);
+    expect(await steps([0, 1])).toEqual(['0:main', '1:main']);
+});
 
-    // The per-action card agrees with the teleprompter rather than silently
-    // offering a recording that would never be heard.
-    await page.locator('.ed-action-card').nth(1).locator('.ed-btn-edit').click();
-    await expect(
-        page.locator('.ed-recording-section[data-cue-kind="notice"] .ed-recording-hint').first()
-    ).toContainText('would not play');
+// ─────────────────────────────────────────────────────────────────────
+// 13. Card layout (v57): one standalone prep-lead card above the action
+//     cards; per-action edit forms carry ONE recording block (the cue) —
+//     the per-cue prep block is gone.
+// ─────────────────────────────────────────────────────────────────────
+test('voice recording: one prep-lead card above the action cards, no per-action prep blocks', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
+    await addMediaStub(page);
+
+    await createEventToTimeline(page, 'Card Layout Test');
+    await addSavedAction(page, 'Freeze');
+    await addSavedAction(page, 'Disperse');
+
+    // Exactly one lead card, sitting above the (unshifted) action cards.
+    await expect(page.locator('.ed-prep-lead-card')).toHaveCount(1);
+    await expect(page.locator('.ed-action-card')).toHaveCount(2);
+    const firstIsLead = await page.evaluate(() => {
+        const list = document.getElementById('ed-action-list');
+        return list.firstElementChild.classList.contains('ed-prep-lead-card');
+    });
+    expect(firstIsLead).toBe(true);
+    await expect(page.locator('.ed-prep-lead-card .ed-recording-section-title'))
+        .toContainText('Prep Lead');
+
+    // An open edit form has exactly one recording block: the cue.
+    await page.locator('.ed-action-card').nth(0).locator('.ed-btn-edit').click();
+    const form = page.locator('.ed-action-edit');
+    await expect(form.locator('.ed-recording-section')).toHaveCount(1);
+    await expect(form.locator('.ed-recording-section[data-cue-kind="main"]')).toHaveCount(1);
+    await expect(page.locator('.ed-recording-section[data-cue-kind="notice"]')).toHaveCount(0);
+
+    // The lead records and saves through the shared state machine.
+    await recordPrepLead(page);
+    const saved = await page.evaluate(async () =>
+        !!(await packManager.getCueAudioData(packManager.getSyntheticPackId(), 'prep-lead')));
+    expect(saved).toBe(true);
 });

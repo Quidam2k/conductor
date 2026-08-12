@@ -73,7 +73,7 @@ From now on, whenever the app needs to speak a cue that matches one in your reso
 
 ### The Demo Packs
 
-Each demo event has its own small voice pack — roughly 50–180 KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice and notice cue that event uses:
+Each demo event has its own small voice pack — roughly 50–180 KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead):
 
 - [The Stillness](packs/demo-the-stillness.zip) — freeze mob: sudden collective stillness, no props
 - [The Bloom](packs/demo-the-bloom.zip) — umbrella performance: raise, open, sway, light, close
@@ -136,7 +136,7 @@ Countdown: true      # event-level: all actions get a countdown by default
 
 **Notices, styles, and haptics:**
 
-Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called **notices**. You can control them with `NotifyWindow` (event-level) or `[notify:N]` / `[no-notify]` (per-action).
+Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called **notices**. You can control them with `NotifyWindow` (event-level) or `[notify:N]` / `[no-notify]` (per-action). With a resource pack installed, the heads-up is assembled from the pack's "Get ready to…" prep-lead clip plus the named cue clips — so it plays in the pack voice, even from a pocket.
 
 The three **styles** change how an action looks on screen:
 - `normal` — blue (default)
@@ -191,10 +191,7 @@ demo-the-stillness.zip
 ├── voices/
 │   ├── freeze.mp3             # Action cues
 │   ├── hold.mp3
-│   └── ...
-├── notices/
-│   ├── notice-freeze.mp3      # Notice cues ("Get ready to…")
-│   ├── notice-hold.mp3
+│   ├── prep-lead.mp3          # The "Get ready to…" prep lead
 │   └── ...
 └── events/
     └── the-stillness.json     # The bundled event script
@@ -231,7 +228,7 @@ Cues are listed as key-value pairs — the key is the cue ID and the value is th
 To add a cue that doesn't exist in the demo pack:
 
 1. Record your audio file
-2. Put it in the `voices/` folder (or `notices/` for notice variants)
+2. Put it in the `voices/` folder
 3. Add an entry to the `cues` object in `manifest.json`
 4. Reference the cue `id` in your event text — the app matches cue IDs to action text automatically
 
@@ -270,8 +267,7 @@ Zip it up, import it, and any event action containing "go" will play your audio 
 | Folder | What goes in it |
 |--------|----------------|
 | `audio/` | System cues (countdown voice, trigger sounds) |
-| `voices/` | Action cues — the main spoken prompts |
-| `notices/` | Notice cues — "get ready to..." variants, prefixed with `notice-` |
+| `voices/` | Action cues — the main spoken prompts — plus the `prep-lead` clip |
 | `events/` | Bundled event scripts (JSON format) |
 
 These are conventions, not requirements. The app finds files by the `file` path in each cue entry, so you could put everything in one folder if you wanted. But following the convention makes packs easier to understand and share.
@@ -282,7 +278,7 @@ These are conventions, not requirements. The app finds files by the `file` path 
 - **Be clear** — Speak at a normal pace, enunciate. This plays through phone speakers in noisy environments
 - **Consistent volume** — Normalize your recordings so they're all roughly the same loudness
 - **WAV or MP3** — Both work. WAV is higher quality, MP3 is smaller. For voice cues, MP3 is fine
-- **Notice variants** — Record a softer "heads up" version of each action cue. Name it `notice-{cue-id}.wav` and put it in `notices/`. The app plays these as advance warnings before the main cue
+- **The prep lead** — Record one clip that says just "Get ready to…" and store it under the reserved cue ID `prep-lead`. The app glues it to your cue clips to build every advance warning ("Get ready to… freeze"), so one take covers the whole pack
 
 ### Bundling Events
 
@@ -330,8 +326,9 @@ What keeps playing from a pocket:
 - **Countdown beeps** — the ascending beeps before each action
 - **Trigger beeps** — the "go" beep at the action moment
 - **Resource-pack voice cues** — spoken cues from an imported pack
+- **"Get ready to…" heads-ups** — stitched from the pack's `prep-lead` clip plus the named cue clips
 
-What does **not** play under lock: text-to-speech. The "Get ready to…" notices and any cue text read aloud by the phone's own voice only play while the screen is on. The app shows a note about this when you go live.
+What does **not** play under lock: text-to-speech. Any cue text read aloud by the phone's own robot voice — including heads-ups when the pack has no `prep-lead` clip — only plays while the screen is on. The app shows a note about this when you go live.
 
 For organizers:
 

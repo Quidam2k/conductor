@@ -97,7 +97,11 @@ test('practice bake: schedule is anchored at the practice start, not the wall cl
             evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
             state.practiceStartEventMs,
             { defaultCountdownSeconds: evt.defaultCountdownSeconds, defaultCountdown: evt.defaultCountdown },
-            (packId, cueId) => packManager.hasCue(packId, cueId));
+            (packId, cueId) => packManager.hasCue(packId, cueId),
+            (packId, cueId) => {
+                const b = packManager.getBuffer(packId + ':' + cueId);
+                return b ? b.duration : 0;
+            });
         return {
             count: schedule.length,
             firstOffset: schedule.length ? schedule[0].offsetSec : -1,

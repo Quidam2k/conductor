@@ -2,7 +2,7 @@
 
 > This is the technical specification for resource packs. For a friendlier guide to creating and using resource packs, see the [Getting Started Guide](GUIDE.md).
 
-Resource packs are optional zip files that enhance Conductor events with pre-recorded audio. Without a pack, the app uses browser TTS. With a pack, it plays higher-quality audio for countdowns, action cues, and notices.
+Resource packs are optional zip files that enhance Conductor events with pre-recorded audio. Without a pack, the app uses browser TTS. With a pack, it plays higher-quality audio for action cues and the "Get ready to…" prep announcements.
 
 ## Zip Structure
 
@@ -11,11 +11,9 @@ my-pack.zip
 ├── manifest.json              # Required: pack metadata + cue mappings
 ├── audio/                     # System audio (countdown)
 │   └── countdown-voice.wav
-├── voices/                    # Full-phrase action cues
+├── voices/                    # Full-phrase action cues + the prep lead
 │   ├── stand-by.wav
-│   └── ...
-├── notices/                   # Full-phrase notice cues (optional)
-│   ├── notice-stand-by.wav
+│   ├── prep-lead.wav
 │   └── ...
 └── events/                    # Bundled event scripts (optional)
     ├── the-stillness.json
@@ -39,7 +37,7 @@ Folder names are conventions, not requirements — the manifest maps cue IDs to 
   "cues": {
     "countdown-voice": "audio/countdown-voice.wav",
     "stand-by": "voices/stand-by.wav",
-    "notice-stand-by": "notices/notice-stand-by.wav"
+    "prep-lead": "voices/prep-lead.wav"
   },
 
   "events": [
@@ -92,18 +90,19 @@ Referenced by the `cue` field on timeline actions. The cue ID is typically a keb
 }
 ```
 
-### Notice Cues
+### The Prep Lead (reserved cue: `prep-lead`)
 
-For the "Get ready to [action]" announcement that fires before an action. Convention: prefix the action cue ID with `notice-`:
+For the "Get ready to [action]" announcement that fires before an action, a pack records **one reusable lead clip** — just the words "Get ready to…" — stored under the reserved cue ID `prep-lead` and listed in the `cues` map like any other cue.
 
-| Action Cue | Notice Cue |
-|------------|------------|
-| `stand-by` | `notice-stand-by` |
-| `raise-your-sign` | `notice-raise-your-sign` |
+The app assembles each announcement by stitching the lead clip together with the bare action-cue clips it introduces: `prep-lead` + `freeze` + `disperse` plays as "Get ready to… freeze — disperse." One lead clip covers every prep in every script that uses the pack, and because stitched preps are built from pack audio they bake — they play from a locked phone in a pocket.
 
-The audio service looks for `notice-{cueId}` in the pack's cues map. If no notice cue exists, it falls back to TTS: "Get ready to [action text]".
+Rules:
 
-When several cues land closer together than the notice lead, they share one announcement, given before the first of them. That shared announcement uses the **first cue's** notice clip — so record `notice-` for the cue that opens a rapid burst even if you skip the ones that follow. Without it the app enumerates the burst via TTS ("Get ready to a, b and c"), which cannot be baked and is therefore silent under lock.
+- When several cues land closer together than the notice lead, they share one announcement, given before the first of them. The lead clip comes from the pack of the cue that **opens** the group; each named cue's own clip follows in order.
+- Group members whose cue clips are missing are simply skipped in the stitch.
+- No `prep-lead` in the pack → no baked prep at all. The app falls back to TTS ("Get ready to a, b and c"), which cannot be baked and is therefore silent under lock.
+
+> **Legacy:** older packs carried per-cue `notice-{cueId}` clips. The audio service no longer consults them; packs may still contain them and they are ignored.
 
 ## Audio Resolution (Fallback Chain)
 
@@ -113,9 +112,9 @@ When the system needs to play audio for an action, it tries these sources in ord
 1. **Full phrase cue** — exact match in `cues` map → play the WAV
 2. **TTS** — speak `fallbackText` or `action` text via Web Speech API
 
-### For notice announcements:
-1. **Notice cue** — look for `notice-{cueId}` in `cues` map → play a context-specific WAV
-2. **TTS** — speak "Get ready to [action text]"
+### For prep announcements ("Get ready to…"):
+1. **Stitched prep** — the group leader's pack has `prep-lead` and at least one named cue's clip exists → the baked track plays the lead followed by each cue-name clip
+2. **TTS** — speak "Get ready to [action text]" (for a rapid burst: "Get ready to a, b and c"); screen-on only, silent under lock
 
 ### For countdown:
 Countdowns are always app-generated ascending tonal beeps (Web Audio) — pack audio is never consulted. Legacy `countdown-N` cues in a pack are ignored (see "System Cues" above).

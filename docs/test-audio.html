@@ -257,41 +257,78 @@
         });
 
         // Without resource pack resolver → falls back to fallbackText
-        let text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        let text = rpSvc.resolveAudioCue(rpAction, 'trigger');
         assert('No resolver → fallbackText', text === 'Start now!', `Got: "${text}"`);
 
         // With resolver that returns false (pack not installed)
         rpSvc.setResourcePackResolver((cue, pack) => false);
-        text = rpSvc.resolveAudioCue(rpAction, 'notice');
+        text = rpSvc.resolveAudioCue(rpAction, 'trigger');
         assert('Resolver returns false → fallbackText', text === 'Start now!', `Got: "${text}"`);
 
-        // With resolver that returns true (pack played it) — trigger context uses raw cue
+        // With resolver that returns true (pack played it)
         rpSvc.setResourcePackResolver((cue, pack) => {
             return cue === 'start-horn' && pack === 'flash-mob-v1';
         });
         text = rpSvc.resolveAudioCue(rpAction, 'trigger');
         assert('Resolver returns true → null (resource pack handled it)', text === null);
 
-        // Notice context: resolver receives notice-prefixed cue
-        let noticeCueReceived = null;
-        rpSvc.setResourcePackResolver((cue, pack) => {
-            noticeCueReceived = cue;
-            return cue === 'notice-start-horn' && pack === 'flash-mob-v1';
-        });
-        text = rpSvc.resolveAudioCue(rpAction, 'notice');
-        assert('Notice context: resolver gets notice-prefixed cue', text === null);
-        assert('Notice cue ID is notice-start-horn', noticeCueReceived === 'notice-start-horn',
-            `Got: "${noticeCueReceived}"`);
-
         // Action with no cue, no fallbackText → action text
         const plainAction = actionAt(0, 'Just plain text');
-        text = rpSvc.resolveAudioCue(plainAction, 'notice');
+        text = rpSvc.resolveAudioCue(plainAction, 'trigger');
         assert('No cue, no fallback → action text', text === 'Just plain text', `Got: "${text}"`);
 
         // Action with fallbackText but no cue → fallbackText
         const fbAction = actionAt(0, 'Action text', { fallbackText: 'Better text' });
-        text = rpSvc.resolveAudioCue(fbAction, 'notice');
+        text = rpSvc.resolveAudioCue(fbAction, 'trigger');
         assert('fallbackText without cue → fallbackText', text === 'Better text', `Got: "${text}"`);
+
+        // ─── Notice behavior lives in announceAction since v57 ───────
+        // (resolveAudioCue no longer has a 'notice' context — preps are
+        // either the stitched prep-lead sequence in the baked track, or TTS.)
+
+        // Baked mode + pack has prep-lead → stitched prep is in the track;
+        // announceAction reports notice-pack and speaks nothing.
+        const prepSvc = createAudioService();
+        prepSvc.initialize(() => {});
+        prepSvc.setMuted(true);
+        prepSvc.setResourcePackHasCue((cue, pack) => cue === 'prep-lead' && pack === 'flash-mob-v1');
+        prepSvc.setBakedActive(true);
+        const prepAction = actionAt(0, 'Flash mob start', {
+            cue: 'start-horn', fallbackText: 'Start now!', pack: 'flash-mob-v1', noticeSeconds: 5,
+        });
+        result = prepSvc.announceAction(prepAction, 5, 5);
+        assert('Baked + prep-lead → notice-pack (stitched prep in track)',
+            result === 'notice-pack: "start-horn"', `Got: ${result}`);
+
+        // Baked but the pack has no prep-lead → TTS fallbackText
+        const noLeadSvc = createAudioService();
+        noLeadSvc.initialize(() => {});
+        noLeadSvc.setMuted(true);
+        noLeadSvc.setResourcePackHasCue(() => false);
+        noLeadSvc.setBakedActive(true);
+        result = noLeadSvc.announceAction(prepAction, 5, 5);
+        assert('Baked, no prep-lead → TTS notice from fallbackText',
+            result === 'notice: "Get ready to start now!"', `Got: ${result}`);
+
+        // Not baked → TTS even when the pack has prep-lead (playing a bare
+        // lead live would say "Get ready to…" and then nothing).
+        const liveSvc = createAudioService();
+        liveSvc.initialize(() => {});
+        liveSvc.setMuted(true);
+        liveSvc.setResourcePackHasCue((cue, pack) => cue === 'prep-lead');
+        result = liveSvc.announceAction(prepAction, 5, 5);
+        assert('Not baked → TTS notice even with prep-lead present',
+            result === 'notice: "Get ready to start now!"', `Got: ${result}`);
+
+        // Uncapped TTS enumeration (v57): a 5-cue group names all five.
+        const enumSvc = createAudioService();
+        enumSvc.initialize(() => {});
+        enumSvc.setMuted(true);
+        const burstLeader = actionAt(0, 'Freeze', { noticeSeconds: 10 });
+        result = enumSvc.announceAction(burstLeader, 10, 10, 1, {}, Infinity, true, Infinity, false,
+            ['Freeze', 'Kneel', 'Wave', 'Turn', 'Disperse']);
+        assert('5-cue group enumerates all five via TTS',
+            result === 'notice: "Get ready to freeze, kneel, wave, turn and disperse"', `Got: ${result}`);
 
         // ═════════════════════════════════════════════════════════════
         // 8. Random cues
@@ -308,7 +345,7 @@
         });
 
         // Without resolver → fallbackText
-        text = rndSvc.resolveAudioCue(rndAction, 'notice');
+        text = rndSvc.resolveAudioCue(rndAction, 'trigger');
         assert('Random cues, no resolver → fallbackText', text === 'Hum a note', `Got: "${text}"`);
 
         // With resolver that handles any of the cues
@@ -318,7 +355,7 @@
             return pack === 'harmony-pack';
         });
 
-        text = rndSvc.resolveAudioCue(rndAction, 'notice');
+        text = rndSvc.resolveAudioCue(rndAction, 'trigger');
         assert('Random cues, resolver plays it → null', text === null);
         assert('Resolver received one of the random cues',
             ['part-a', 'part-b', 'part-c'].includes(playedCues[0]),
