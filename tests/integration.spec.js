@@ -1862,12 +1862,14 @@ test('TTS collision: same-tick notice queues behind trigger instead of cancellin
 
 // ═════════════════════════════════════════════════════════════════════
 // 57. Grouping boundary + multi-cue prep enumeration (2026-06-09:
-//     actions exactly 5s apart got back-to-back preps). Exactly-5s gaps
-//     now group; the group leader's prep enumerates up to 3 member
-//     actions ("Get ready to a, b and c").
+//     actions exactly 5s apart got back-to-back preps). The window is
+//     the notice lead as of v55 (was a hardcoded 5s): a gap at exactly
+//     the lead groups, a hair over does not. The group leader's prep
+//     enumerates up to 3 member actions ("Get ready to a, b and c") when
+//     the leader has no recorded prep of its own.
 // ═════════════════════════════════════════════════════════════════════
 
-test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not', async ({ page }) => {
+test('grouping: gap at exactly the notice lead groups with enumerated prep; a hair over does not', async ({ page }) => {
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
 
@@ -1878,16 +1880,23 @@ test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not'
             audioAnnounce: true, announceActionName: true,
         });
 
-        const pairAt = [mk('p1', 'Freeze', base), mk('p2', 'Unfreeze', base + 5000)];
-        const pairOver = [mk('q1', 'Freeze', base), mk('q2', 'Unfreeze', base + 5001)];
+        const pairAt = [mk('p1', 'Freeze', base), mk('p2', 'Unfreeze', base + 10000)];
+        const pairOver = [mk('q1', 'Freeze', base), mk('q2', 'Unfreeze', base + 10001)];
         const burst = [
             mk('b1', 'Freeze', base), mk('b2', 'Wave', base + 2000),
             mk('b3', 'Kick', base + 4000), mk('b4', 'Spin', base + 6000),
         ];
 
-        const metaAt = computeActionMeta(pairAt);
-        const metaOver = computeActionMeta(pairOver);
-        const metaBurst = computeActionMeta(burst);
+        const metaAt = computeActionMeta(pairAt, 10);
+        const metaOver = computeActionMeta(pairOver, 10);
+        const metaBurst = computeActionMeta(burst, 10);
+
+        // The window tracks the lead, not a constant: a 6s gap is inside a 10s
+        // lead (merge — its prep would otherwise land on the previous trigger)
+        // and outside a 5s one (two independent preps).
+        const pair6s = [mk('s1', 'Freeze', base), mk('s2', 'Unfreeze', base + 6000)];
+        const meta6sLead10 = computeActionMeta(pair6s, 10);
+        const meta6sLead5 = computeActionMeta(pair6s, 5);
 
         // Drive each scenario through announceAction the way the audio loop does
         function run(timeline, meta) {
@@ -1921,13 +1930,19 @@ test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not'
             metaBurst: {
                 b1GroupTexts: metaBurst.get('b1').groupTexts,
             },
+            gap6s: {
+                lead10GroupStart: meta6sLead10.get('s2').groupStartFlag,
+                lead10GroupTexts: meta6sLead10.get('s1').groupTexts,
+                lead5GroupStart: meta6sLead5.get('s2').groupStartFlag,
+                lead5GroupTexts: meta6sLead5.get('s1').groupTexts,
+            },
             noticesAt: run(pairAt, metaAt),
             noticesOver: run(pairOver, metaOver),
             noticesBurst: run(burst, metaBurst),
         };
     });
 
-    // Pre-pass: exactly-5s gap is part of the group; 5.001s is not
+    // Pre-pass: a gap of exactly the lead is part of the group; a hair over is not
     expect(result.metaAt.p2GroupStart).toBe(false);
     expect(result.metaAt.p1GroupTexts).toEqual(['Freeze', 'Unfreeze']);
     expect(result.metaOver.q2GroupStart).toBe(true);
@@ -1935,12 +1950,18 @@ test('grouping: exactly-5s gap groups with enumerated prep; 5.001s gap does not'
     // Burst of 4 enumerates exactly 3
     expect(result.metaBurst.b1GroupTexts).toEqual(['Freeze', 'Wave', 'Kick']);
 
-    // Exactly-5s pair: ONE prep, enumerating both
+    // The threshold IS the lead — same 6s gap, opposite verdicts
+    expect(result.gap6s.lead10GroupStart).toBe(false);
+    expect(result.gap6s.lead10GroupTexts).toEqual(['Freeze', 'Unfreeze']);
+    expect(result.gap6s.lead5GroupStart).toBe(true);
+    expect(result.gap6s.lead5GroupTexts).toBe(null);
+
+    // Gap at exactly the lead: ONE prep, enumerating both
     expect(result.noticesAt.length).toBe(1);
     expect(result.noticesAt[0].id).toBe('p1');
     expect(result.noticesAt[0].r).toBe('notice: "Get ready to freeze and unfreeze"');
 
-    // 5.001s pair: two independent preps
+    // A hair over the lead: two independent preps
     expect(result.noticesOver.length).toBe(2);
     expect(result.noticesOver.map(n => n.id)).toEqual(['q1', 'q2']);
     expect(result.noticesOver[0].r).toBe('notice: "Get ready to freeze"');
@@ -2142,4 +2163,64 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
     await expect(page.locator('#live-pocket-banner')).toBeHidden();
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// 60. Merged-group preps bake in the leader's own voice (v55, from
+//     Jessica's 2026-08-11 pocket run: everything was the recorded voice
+//     except "Get ready to freeze and hold your position", which came out
+//     robotic). That sentence is assembled from words at runtime, so only
+//     TTS can say it and TTS is not bakeable. computeCueSchedule now
+//     schedules the group LEADER's notice-<cue> clip instead — and still
+//     schedules nothing when the leader has no recorded prep, leaving the
+//     live TTS enumeration untouched for packless users.
+// ═════════════════════════════════════════════════════════════════════
+
+test('bake schedule: merged group uses the leader notice cue, or nothing when absent', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const r = await page.evaluate(() => {
+        const base = 1780000000000;
+        const mk = (id, action, cue, tMs) => ({
+            id, action, cue, pack: 'p', timeMs: tMs, noticeSeconds: 10,
+            countdownSeconds: [], audioAnnounce: true, announceActionName: true,
+        });
+
+        // Leader + a member 5s later: one group, prep due 10s before the leader.
+        const timeline = [
+            mk('g1', 'Freeze', 'freeze', base + 30000),
+            mk('g2', 'Hold your position', 'hold', base + 35000),
+        ];
+        const meta = computeActionMeta(timeline, 10);
+
+        const run = (hasCue) => audio.computeCueSchedule(
+            timeline, 10, meta, base, {}, hasCue)
+            .filter(e => e.kind === 'packCue')
+            .map(e => ({ cueId: e.cueId, offsetSec: e.offsetSec }));
+
+        return {
+            grouped: meta.get('g1').groupTexts,
+            g2Suppressed: meta.get('g2').groupStartFlag,
+            // Pack has the leader's prep clip
+            withNotice: run((p, c) => c === 'freeze' || c === 'hold' || c === 'notice-freeze'),
+            // Same pack minus the prep clip — the live path enumerates via TTS
+            withoutNotice: run((p, c) => c === 'freeze' || c === 'hold'),
+        };
+    });
+
+    // The group is real: g2's prep is suppressed, g1 enumerates both
+    expect(r.grouped).toEqual(['Freeze', 'Hold your position']);
+    expect(r.g2Suppressed).toBe(false);
+
+    // Leader's prep is baked at the notice lead (30s trigger − 10s = 20s)
+    expect(r.withNotice).toContainEqual({ cueId: 'notice-freeze', offsetSec: 20 });
+    // Member's prep is not — one prep per group, and it names the leader
+    expect(r.withNotice.some(e => e.cueId === 'notice-hold')).toBe(false);
+
+    // No leader clip → nothing scheduled at the prep moment; the live path
+    // still speaks "Get ready to freeze and hold your position" screen-on.
+    expect(r.withoutNotice.some(e => e.cueId.startsWith('notice-'))).toBe(false);
+    // The triggers themselves are unaffected either way
+    expect(r.withoutNotice.map(e => e.cueId).sort()).toEqual(['freeze', 'hold']);
 });

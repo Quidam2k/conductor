@@ -467,7 +467,6 @@ function createAudioService() {
             const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
             const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
             const groupStartFlag = meta ? meta.groupStartFlag : true;
-            const groupTexts = meta ? meta.groupTexts : null;
             const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
             // Countdown beeps — same resolution (and gap capping) as the live path.
@@ -498,12 +497,16 @@ function createAudioService() {
                 });
             }
 
-            // Notice pack cue (notice-<cue>) at the prep moment. Only single-action
-            // group leaders use a pack notice; grouped preps enumerate via TTS
-            // (not bakeable) and no-pack notices speak via TTS (not bakeable).
+            // Notice pack cue (notice-<cue>) at the prep moment — for merged
+            // groups too, using the LEADER's own recorded prep (v55). The
+            // enumerated "Get ready to a and b" sentence is assembled from words
+            // at runtime, so only TTS can say it and TTS can't be baked: in a
+            // fully-recorded event that one phrase arrived robotic (Jessica,
+            // 2026-08-11). Naming just the leader loses the trailing clause and
+            // keeps the pocket voice consistent. Without a notice- cue nothing
+            // is scheduled and the live path still enumerates via TTS.
             const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
-            const grouped = groupTexts && groupTexts.length >= 2;
-            if (wantNotice && !grouped && action.cue && action.pack &&
+            if (wantNotice && action.cue && action.pack &&
                 hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
                 events.push({
                     offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
@@ -541,8 +544,9 @@ function createAudioService() {
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
      * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
-     *     texts (≤3, leader first). With 2+ entries the prep enumerates the burst via TTS
-     *     ("Get ready to a, b and c"); pack notice cues are skipped for grouped preps.
+     *     texts (≤3, leader first). The leader's own `notice-<cue>` pack clip is preferred
+     *     when present (v55); only when there isn't one do 2+ entries enumerate the burst
+     *     via TTS ("Get ready to a, b and c").
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
     function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
@@ -580,25 +584,27 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                if (groupTexts && groupTexts.length >= 2) {
-                    // Grouped prep enumerates the burst — pack notice cues are
-                    // single-action, so grouped preps always go through TTS.
+                // The leader's own recorded prep wins, grouped or not (v55) —
+                // it's the only prep that survives the bake, so preferring it
+                // here keeps screen-on identical to locked. A mismatch between
+                // the two paths is exactly how the robot-prep bug hid.
+                const text = resolveAudioCue(action, 'notice', speedMultiplier);
+                if (text === null) {
+                    noticeResult = `notice-pack: "${action.cue || 'random'}"`;
+                } else if (groupTexts && groupTexts.length >= 2) {
+                    // No pack prep for the leader — fall back to enumerating the
+                    // burst via TTS (unbakeable, screen-on only).
                     const parts = groupTexts.map(t => t.toLowerCase());
                     const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
                     const noticeText = 'Get ready to ' + listText;
                     speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
                 } else {
-                    const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                    if (text === null) {
-                        noticeResult = `notice-pack: "${action.cue || 'random'}"`;
-                    } else {
-                        const noticeText = 'Get ready to ' + text.toLowerCase();
-                        // preempt=false: a notice landing on the same tick as the
-                        // previous action's trigger queues behind it, not over it.
-                        speak(noticeText, 1.2 * speedMultiplier, false);
-                        noticeResult = `notice: "${noticeText}"`;
-                    }
+                    const noticeText = 'Get ready to ' + text.toLowerCase();
+                    // preempt=false: a notice landing on the same tick as the
+                    // previous action's trigger queues behind it, not over it.
+                    speak(noticeText, 1.2 * speedMultiplier, false);
+                    noticeResult = `notice: "${noticeText}"`;
                 }
             }
         }

@@ -228,3 +228,69 @@ test('built-in demo event pairs with the Stillness mini-pack', async ({ page, br
     expect(r.hasFreeze).toBe(true);
     expect(r.hasNoticeFreeze).toBe(true);
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 5. The Stillness end-to-end, on the real pack (v55). Two defects
+//    Jessica hit on 2026-08-11 in one place:
+//    (a) "Get ready to freeze and hold your position" was the robot voice
+//        in an otherwise fully recorded run — merged-group preps were TTS
+//        only, and TTS is not bakeable, so it was also absent in the pocket.
+//    (b) Disperse is 10s after Unfreeze while the prep lead is also 10s,
+//        so its prep landed exactly on the Unfreeze trigger — two voices
+//        layered at the same instant in the baked WAV.
+// ─────────────────────────────────────────────────────────────────────
+test('Stillness mini: every prep is a recorded clip and none collides with a trigger', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'decode + schedule driven on chromium only');
+
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const r = await page.evaluate(async () => {
+        const resp = await fetch('/packs/demo-the-stillness.zip', { cache: 'no-store' });
+        // importPackWithValidation is the path that stores the bundled event
+        const { manifest } = await packManager.importPackWithValidation(await resp.arrayBuffer());
+        await packManager.ensurePackLoaded(manifest.id);
+
+        const [{ event }] = await packManager.getPackEvents(manifest.id);
+        const evt = embeddedEventToEvent(event);
+        const meta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
+
+        const startMs = Math.min(...evt.timeline.map(a => a.timeMs)) - 30000;
+        const off = (ms) => Math.round((ms - startMs) / 1000);
+        const schedule = audio.computeCueSchedule(
+            evt.timeline, evt.defaultNoticeSeconds, meta, startMs, {},
+            (p, c) => packManager.hasCue(p, c));
+
+        const packCues = schedule.filter(e => e.kind === 'packCue')
+            .map(e => ({ cueId: e.cueId, offsetSec: Math.round(e.offsetSec) }));
+        const triggerOffsets = new Set(evt.timeline.map(a => off(a.timeMs)));
+
+        // Which action leads each group, and what it swallowed
+        const groups = evt.timeline
+            .filter(a => meta.get(a.id).groupTexts)
+            .map(a => meta.get(a.id).groupTexts);
+
+        return {
+            lead: evt.defaultNoticeSeconds,
+            groups,
+            preps: packCues.filter(e => e.cueId.startsWith('notice-')),
+            collisions: packCues.filter(e =>
+                e.cueId.startsWith('notice-') && triggerOffsets.has(e.offsetSec)),
+        };
+    });
+
+    expect(r.lead).toBe(10);
+
+    // (a) Both freeze cycles merge "Freeze" + "Hold your position", and both
+    //     preps are now the recorded notice-freeze clip, not a TTS sentence.
+    expect(r.groups).toContainEqual(['Freeze', 'Hold your position']);
+    const prepCues = r.preps.map(p => p.cueId);
+    expect(prepCues.filter(c => c === 'notice-freeze').length).toBe(2);
+    expect(prepCues).toContain('notice-unfreeze');
+
+    // (b) Disperse merged into the Unfreeze group, so its prep is gone — and
+    //     nothing else lands on a trigger either.
+    expect(r.groups).toContainEqual(['Unfreeze', 'Disperse']);
+    expect(prepCues).not.toContain('notice-disperse');
+    expect(r.collisions).toEqual([]);
+});

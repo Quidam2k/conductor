@@ -831,6 +831,16 @@
         }
         .pack-beam:hover { box-shadow: var(--glow-blue); }
 
+        /* Only the device's own recording pack ("My Voice") gets this. */
+        .pack-rename {
+            min-height: 34px; min-width: 34px; padding: 4px 10px;
+            font-size: 16px; font-weight: 500;
+            background: transparent; color: var(--text-dim);
+            border: 1px solid var(--text-dim); border-radius: 6px;
+            cursor: pointer; flex-shrink: 0;
+        }
+        .pack-rename:hover { color: var(--text); border-color: var(--text); }
+
         /* ─── QR Beam sender overlay ─── */
         #qr-beam-canvas { border-radius: 8px; background: #fff; padding: 12px; }
         .beam-progress-track {
@@ -1018,7 +1028,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v54</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v55</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -3168,7 +3178,6 @@ function createAudioService() {
             const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
             const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
             const groupStartFlag = meta ? meta.groupStartFlag : true;
-            const groupTexts = meta ? meta.groupTexts : null;
             const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
             // Countdown beeps — same resolution (and gap capping) as the live path.
@@ -3199,12 +3208,16 @@ function createAudioService() {
                 });
             }
 
-            // Notice pack cue (notice-<cue>) at the prep moment. Only single-action
-            // group leaders use a pack notice; grouped preps enumerate via TTS
-            // (not bakeable) and no-pack notices speak via TTS (not bakeable).
+            // Notice pack cue (notice-<cue>) at the prep moment — for merged
+            // groups too, using the LEADER's own recorded prep (v55). The
+            // enumerated "Get ready to a and b" sentence is assembled from words
+            // at runtime, so only TTS can say it and TTS can't be baked: in a
+            // fully-recorded event that one phrase arrived robotic (Jessica,
+            // 2026-08-11). Naming just the leader loses the trailing clause and
+            // keeps the pocket voice consistent. Without a notice- cue nothing
+            // is scheduled and the live path still enumerates via TTS.
             const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
-            const grouped = groupTexts && groupTexts.length >= 2;
-            if (wantNotice && !grouped && action.cue && action.pack &&
+            if (wantNotice && action.cue && action.pack &&
                 hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
                 events.push({
                     offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
@@ -3242,8 +3255,9 @@ function createAudioService() {
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
      * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
-     *     texts (≤3, leader first). With 2+ entries the prep enumerates the burst via TTS
-     *     ("Get ready to a, b and c"); pack notice cues are skipped for grouped preps.
+     *     texts (≤3, leader first). The leader's own `notice-<cue>` pack clip is preferred
+     *     when present (v55); only when there isn't one do 2+ entries enumerate the burst
+     *     via TTS ("Get ready to a, b and c").
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
     function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
@@ -3281,25 +3295,27 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                if (groupTexts && groupTexts.length >= 2) {
-                    // Grouped prep enumerates the burst — pack notice cues are
-                    // single-action, so grouped preps always go through TTS.
+                // The leader's own recorded prep wins, grouped or not (v55) —
+                // it's the only prep that survives the bake, so preferring it
+                // here keeps screen-on identical to locked. A mismatch between
+                // the two paths is exactly how the robot-prep bug hid.
+                const text = resolveAudioCue(action, 'notice', speedMultiplier);
+                if (text === null) {
+                    noticeResult = `notice-pack: "${action.cue || 'random'}"`;
+                } else if (groupTexts && groupTexts.length >= 2) {
+                    // No pack prep for the leader — fall back to enumerating the
+                    // burst via TTS (unbakeable, screen-on only).
                     const parts = groupTexts.map(t => t.toLowerCase());
                     const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
                     const noticeText = 'Get ready to ' + listText;
                     speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
                 } else {
-                    const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                    if (text === null) {
-                        noticeResult = `notice-pack: "${action.cue || 'random'}"`;
-                    } else {
-                        const noticeText = 'Get ready to ' + text.toLowerCase();
-                        // preempt=false: a notice landing on the same tick as the
-                        // previous action's trigger queues behind it, not over it.
-                        speak(noticeText, 1.2 * speedMultiplier, false);
-                        noticeResult = `notice: "${noticeText}"`;
-                    }
+                    const noticeText = 'Get ready to ' + text.toLowerCase();
+                    // preempt=false: a notice landing on the same tick as the
+                    // previous action's trigger queues behind it, not over it.
+                    speak(noticeText, 1.2 * speedMultiplier, false);
+                    noticeResult = `notice: "${noticeText}"`;
                 }
             }
         }
@@ -4706,6 +4722,39 @@ function createResourcePackManager() {
         return exportPackZip(packId);
     }
 
+    /**
+     * Rename the synthetic pack. The name is stamped at creation time ("My
+     * Voice"), so two people who swap recordings both end up with a row they
+     * can't tell apart — this is the only way to relabel one. exportSyntheticPackZip
+     * builds from the stored manifest, so the new name travels with the zip.
+     * @param {string} name - New display name (trimmed, ≤60 chars).
+     * @returns {Promise<Object|null>} Updated manifest, or null if no synthetic pack exists.
+     */
+    async function renameSyntheticPack(name) {
+        const clean = String(name || '').trim().slice(0, 60);
+        if (!clean) throw new Error('renameSyntheticPack: name cannot be empty');
+
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) return null;
+
+        manifest.name = clean;
+
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction([RPM_STORE_MANIFESTS], 'readwrite');
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+        });
+
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));
+        loadedPacks.delete(packId);  // force a reload so cached manifest copies refresh
+
+        return manifest;
+    }
+
     // ─── Zip building ────────────────────────────────────────────────────
 
     /**
@@ -4879,6 +4928,7 @@ function createResourcePackManager() {
         saveSyntheticCue,
         deleteSyntheticCue,
         exportSyntheticPackZip,
+        renameSyntheticPack,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,
@@ -7640,7 +7690,7 @@ async function enterPractice() {
     state.practiceStartEventMs = Math.max(eventStartMs, firstActionMs - 15000);
 
     // Precompute per-action gaps + grouping for countdown capping
-    state.actionMeta = computeActionMeta(evt.timeline);
+    state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
 
     // Create timeline renderer
     const canvas = $('canvas-practice');
@@ -7804,7 +7854,7 @@ async function enterLive() {
 
     // Precompute per-action gaps + grouping (reuse if already computed in practice)
     if (!state.actionMeta || state.actionMeta.size === 0) {
-        state.actionMeta = computeActionMeta(evt.timeline);
+        state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
     }
 
     // Create timeline renderer
@@ -7880,10 +7930,19 @@ function checkCompletion(nowMs) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Pre-pass: derive per-action gapToNext, gapFromPrev, groupStartFlag, and
-// groupTexts from the timeline. Grouping rule: cues with gap-from-previous
-// ≤5s share the group's first prep; the group leader's prep enumerates up
-// to 3 member action texts ("Get ready to a, b and c").
-function computeActionMeta(timeline) {
+// groupTexts from the timeline. Grouping rule: cues closer together than the
+// prep lead share the group's first prep; the group leader's prep enumerates
+// up to 3 member action texts ("Get ready to a, b and c") when it has to fall
+// back to TTS.
+//
+// The window IS the notice lead (v55, was a hardcoded 5s). A prep fires
+// `noticeSeconds` before its cue, so anything nearer than that to the previous
+// cue would have its prep land on top of the previous cue's trigger — the
+// demo's Disperse (10s after Unfreeze) is the live example. Tying the window
+// to the lead means "too close to announce separately" and "close enough to
+// merge" are the same question, answered once.
+function computeActionMeta(timeline, defaultNoticeSeconds = 10) {
+    const windowMs = (defaultNoticeSeconds ?? 10) * 1000;
     const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();
     const sorted = [...timeline].sort((a, b) => tsOf(a) - tsOf(b));
     const meta = new Map();
@@ -7892,12 +7951,12 @@ function computeActionMeta(timeline) {
         const curMs = tsOf(cur);
         const gapToNext = (i + 1 < sorted.length) ? (tsOf(sorted[i + 1]) - curMs) : Infinity;
         const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
-        const groupStartFlag = gapFromPrev > 5000;
+        const groupStartFlag = gapFromPrev > windowMs;
         let groupTexts = null;
         if (groupStartFlag) {
             const texts = [cur.action];
             for (let j = i + 1; j < sorted.length && texts.length < 3; j++) {
-                if (tsOf(sorted[j]) - tsOf(sorted[j - 1]) > 5000) break;
+                if (tsOf(sorted[j]) - tsOf(sorted[j - 1]) > windowMs) break;
                 texts.push(sorted[j].action);
             }
             if (texts.length >= 2) groupTexts = texts;
@@ -7998,7 +8057,7 @@ function startAudioLoop(mode) {
 
         const speedMult = (mode === 'practice') ? state.speedMultiplier : 1;
 
-        const meta = computeActionMeta(evt.timeline);
+        const meta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
 
         // Suppress countdown beeps from audio loop when tab is visible —
         // the RAF-driven visual callback handles playback for precise sync.
@@ -8595,7 +8654,7 @@ function recordingBlockHtml(index, kind, action) {
     const idleHint = isNotice
         ? `Say &ldquo;${escapeHtml(prepLine)}&rdquo; &mdash; the heads-up 10 seconds before the cue. ` +
           'Without a recording the prep uses the robot voice, which is silent in a pocket. ' +
-          'Actions less than 5 seconds apart share one spoken prep, so a recording will not play for those.'
+          'Cues closer together than the 10-second lead share one prep &mdash; the first cue&rsquo;s recording plays for the whole group.'
         : 'Record a cue in your own voice. Keep it short and clear.';
     const recordedHint = isNotice
         ? 'Play checks the saved prep phrase on this device.'
@@ -10130,6 +10189,10 @@ async function renderPackManager() {
     // Fetch events for all packs in parallel
     const allPackEvents = await Promise.all(packs.map(m => packManager.getPackEvents(m.id)));
 
+    // The device's own recording pack is named "My Voice" at creation — once two
+    // people swap recordings both rows read the same. Only that pack gets Rename.
+    const syntheticPackId = packManager.getSyntheticPackId();
+
     for (let p = 0; p < packs.length; p++) {
         const manifest = packs[p];
         const events = allPackEvents[p];
@@ -10162,6 +10225,7 @@ async function renderPackManager() {
                     <div class="pack-meta">v${escapeHtml(manifest.version || '1.0.0')} &middot; ${cueCount} cue${cueCount !== 1 ? 's' : ''}${events.length > 0 ? ' &middot; ' + events.length + ' event' + (events.length !== 1 ? 's' : '') : ''}</div>
                     ${urlHtml}
                 </div>
+                ${manifest.id === syntheticPackId ? `<button class="pack-rename" data-pack-name="${escapeHtml(manifest.name)}">Rename</button>` : ''}
                 <button class="pack-beam" data-pack-id="${escapeHtml(manifest.id)}" data-pack-name="${escapeHtml(manifest.name)}">Beam</button>
                 <button class="pack-delete" data-pack-id="${escapeHtml(manifest.id)}">Delete</button>
             </div>
@@ -10783,6 +10847,29 @@ $('pack-list').addEventListener('click', async (e) => {
     const delBtn = e.target.closest('.pack-delete');
     if (delBtn) {
         deletePackUI(delBtn.dataset.packId);
+        return;
+    }
+    const renameBtn = e.target.closest('.pack-rename');
+    if (renameBtn) {
+        const current = renameBtn.dataset.packName || 'My Voice';
+        const next = prompt('Name this voice pack (e.g. "Todd’s Voice"):', current);
+        if (next === null) return;
+        const clean = next.trim();
+        const statusEl = $('import-status');
+        if (!clean) {
+            statusEl.className = 'import-status error';
+            statusEl.textContent = 'Pack name cannot be empty.';
+            return;
+        }
+        try {
+            await packManager.renameSyntheticPack(clean);
+            await renderPackManager();
+            $('import-status').className = 'import-status success';
+            $('import-status').textContent = `Renamed to "${clean}".`;
+        } catch (err) {
+            statusEl.className = 'import-status error';
+            statusEl.textContent = 'Rename failed: ' + err.message;
+        }
         return;
     }
     const beamBtn = e.target.closest('.pack-beam');

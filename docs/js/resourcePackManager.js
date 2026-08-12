@@ -1089,6 +1089,39 @@ function createResourcePackManager() {
         return exportPackZip(packId);
     }
 
+    /**
+     * Rename the synthetic pack. The name is stamped at creation time ("My
+     * Voice"), so two people who swap recordings both end up with a row they
+     * can't tell apart — this is the only way to relabel one. exportSyntheticPackZip
+     * builds from the stored manifest, so the new name travels with the zip.
+     * @param {string} name - New display name (trimmed, ≤60 chars).
+     * @returns {Promise<Object|null>} Updated manifest, or null if no synthetic pack exists.
+     */
+    async function renameSyntheticPack(name) {
+        const clean = String(name || '').trim().slice(0, 60);
+        if (!clean) throw new Error('renameSyntheticPack: name cannot be empty');
+
+        const packId = getSyntheticPackId();
+        const database = await ensureDB();
+
+        const manifest = await idbGet(database, RPM_STORE_MANIFESTS, packId);
+        if (!manifest) return null;
+
+        manifest.name = clean;
+
+        await new Promise((resolve, reject) => {
+            const tx = database.transaction([RPM_STORE_MANIFESTS], 'readwrite');
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.objectStore(RPM_STORE_MANIFESTS).put(manifest);
+        });
+
+        _lastSyntheticManifest = JSON.parse(JSON.stringify(manifest));
+        loadedPacks.delete(packId);  // force a reload so cached manifest copies refresh
+
+        return manifest;
+    }
+
     // ─── Zip building ────────────────────────────────────────────────────
 
     /**
@@ -1262,6 +1295,7 @@ function createResourcePackManager() {
         saveSyntheticCue,
         deleteSyntheticCue,
         exportSyntheticPackZip,
+        renameSyntheticPack,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,

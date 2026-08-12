@@ -130,16 +130,30 @@
             assert('no resolver → 4 beeps (3 countdown + trigger)', s.length === 4, JSON.stringify(offsets(s)));
 
             // ═══════════════════════════════════════════════════════════
-            // 4. computeCueSchedule — grouped prep skips pack notice (TTS-only)
+            // 4. computeCueSchedule — grouped prep bakes the LEADER's notice
+            //    cue (v55). Before, grouped preps were dropped from the bake
+            //    and left to the TTS enumeration, which is not bakeable — so a
+            //    fully recorded event still went robotic (or silent, in the
+            //    pocket) at exactly the tight-timing moments.
             // ═══════════════════════════════════════════════════════════
-            log('<h2>4. Grouped prep → no pack notice (TTS enumerates)</h2>');
+            log('<h2>4. Grouped prep → leader\'s pack notice, or nothing</h2>');
 
             const meta = new Map();
             meta.set(b.id, { gapFromPrev: Infinity, groupStartFlag: true, groupTexts: ['freeze', 'wave'] });
             s = svc.computeCueSchedule([b], 10, meta, BASE, {}, hasAll);
-            assert('grouped: no notice pack cue baked',
-                !s.some(e => e.bufferKey === 'demo:notice-freeze'), JSON.stringify(s));
+            const groupedNotice = s.find(e => e.bufferKey === 'demo:notice-freeze');
+            assert('grouped: leader notice cue baked at the prep moment',
+                groupedNotice && groupedNotice.offsetSec === 20, JSON.stringify(s));
             assert('grouped: trigger pack cue still baked',
+                s.some(e => e.bufferKey === 'demo:freeze'));
+
+            // No recorded prep for the leader → bake nothing; the live path
+            // still speaks the enumeration screen-on.
+            const triggerOnly = (pack, cue) => pack === 'demo' && cue === 'freeze';
+            s = svc.computeCueSchedule([b], 10, meta, BASE, {}, triggerOnly);
+            assert('grouped, no leader notice cue → no pack notice baked',
+                !s.some(e => e.bufferKey === 'demo:notice-freeze'), JSON.stringify(s));
+            assert('grouped, no leader notice cue → trigger still baked',
                 s.some(e => e.bufferKey === 'demo:freeze'));
 
             // ═══════════════════════════════════════════════════════════

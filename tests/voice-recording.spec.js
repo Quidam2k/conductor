@@ -518,3 +518,46 @@ test('voice recording: voicerecorder unit harness passes', async ({ page, browse
     });
     expect(result.passed, `voicerecorder unit tests: ${result.text}`).toBe(true);
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 11. Renaming the recording pack (v55). The name is stamped "My Voice"
+//     at creation, so as soon as two people swap recordings both of them
+//     have two rows they can't tell apart. Rename is on the synthetic
+//     pack's card only, and the new name has to reach the exported zip —
+//     otherwise the swap re-creates the collision on the other phone.
+// ─────────────────────────────────────────────────────────────────────
+test('voice recording: My Voice pack can be renamed and the name reaches the zip', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
+    await addMediaStub(page);
+
+    await createEventToTimeline(page, 'Rename Test');
+    await addSavedAction(page, 'Stand up slowly');
+    await recordCueForCard(page, 0);
+
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await page.click('#btn-manage-packs');
+    await waitForScreen(page, 'screen-packs');
+
+    // Only the device's own recording pack offers Rename
+    await expect(page.locator('.pack-card')).toHaveCount(1);
+    await expect(page.locator('.pack-rename')).toHaveCount(1);
+
+    page.once('dialog', d => d.accept('Jessica’s Voice'));
+    await page.click('.pack-rename');
+
+    await expect(page.locator('.pack-name')).toHaveText('Jessica’s Voice');
+    await expect(page.locator('#import-status')).toContainText('Renamed');
+
+    // exportSyntheticPackZip builds from the stored manifest, so the rename
+    // travels with the file the other tester imports.
+    const r = await page.evaluate(async () => {
+        const pid = packManager.getSyntheticPackId();
+        const buf = await packManager.exportSyntheticPackZip();
+        const fromZip = await packManager.peekManifest(buf.slice(0));
+        const installed = (await packManager.listPacks()).find(m => m.id === pid);
+        return { zipName: fromZip.name, storedName: installed ? installed.name : null };
+    });
+    expect(r.storedName).toBe('Jessica’s Voice');
+    expect(r.zipName).toBe('Jessica’s Voice');
+});

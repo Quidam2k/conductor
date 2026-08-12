@@ -44,7 +44,7 @@ These optional headers set event-level defaults:
 
 | Header | What it does | Example |
 |--------|-------------|---------|
-| `NotifyWindow` | Default seconds before action to give notice (default: 5) | `NotifyWindow: 15` |
+| `NotifyWindow` | Default seconds before action to give notice (default: 10) | `NotifyWindow: 15` |
 | `CountdownWindow` | Default countdown duration in seconds | `CountdownWindow: 5` |
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
@@ -107,7 +107,9 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 | `notify:N` | Override notice seconds for this action (e.g. `notify:10`) |
 | `no-notify` | Suppress audio notice entirely for this action |
 
-The `notify` and `no-notify` tags control the "heads up" announcement that plays before an action (e.g., "Get ready to wave left"). By default, a notice plays before each action. The timing is set by the `NotifyWindow` header (default: 5 seconds before).
+The `notify` and `no-notify` tags control the "heads up" announcement that plays before an action (e.g., "Get ready to wave left"). By default, a notice plays before each action. The timing is set by the `NotifyWindow` header (default: 10 seconds before).
+
+Cues that land closer together than that lead share a single notice, announced before the first of them — otherwise the second cue's notice would fire on top of the first cue's trigger. With a resource pack installed, that shared notice is the first cue's recorded `notice-<cue>` clip, so it still plays in a pocket.
 
 ### Haptic Tags
 
