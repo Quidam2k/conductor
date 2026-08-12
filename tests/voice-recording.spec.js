@@ -561,3 +561,41 @@ test('voice recording: My Voice pack can be renamed and the name reaches the zip
     expect(r.storedName).toBe('Jessica’s Voice');
     expect(r.zipName).toBe('Jessica’s Voice');
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 12. The batch pass stops asking for preps that can never play (v55).
+//     A prep fires 10s before its cue, and cues closer together than that
+//     share the LEADER's prep — so a mid-group cue's own recording is
+//     never heard. Recording one costs a take per cue, which is where a
+//     long script's session actually goes.
+// ─────────────────────────────────────────────────────────────────────
+test('voice recording: batch pass skips the prep step for a merged cue', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Voice recording driven on chromium only');
+    await addMediaStub(page);
+
+    await createEventToTimeline(page, 'Merged Prep Test');
+    await addSavedAction(page, 'Freeze');
+    await addSavedAction(page, 'Hold your position');
+
+    // New actions land 15s apart — outside the lead, so both preps are live.
+    const steps = () => page.evaluate(() => buildBatchSteps(null).map(s => s.index + ':' + s.kind));
+    expect(await steps()).toEqual(['0:main', '0:notice', '1:main', '1:notice']);
+
+    // Pull the second cue to 5s after the first: now it shares Freeze's prep.
+    const form = page.locator('.ed-action-card').nth(1).locator('.ed-btn-edit');
+    await form.click();
+    const edit = page.locator('.ed-action-edit');
+    await edit.locator('.ed-offset-min').fill('0');
+    await edit.locator('.ed-offset-sec').fill('5');
+    await edit.locator('.ed-btn-save').click();
+    await expect(page.locator('.ed-action-edit')).toHaveCount(0);
+
+    expect(await steps()).toEqual(['0:main', '0:notice', '1:main']);
+
+    // The per-action card agrees with the teleprompter rather than silently
+    // offering a recording that would never be heard.
+    await page.locator('.ed-action-card').nth(1).locator('.ed-btn-edit').click();
+    await expect(
+        page.locator('.ed-recording-section[data-cue-kind="notice"] .ed-recording-hint').first()
+    ).toContainText('would not play');
+});
