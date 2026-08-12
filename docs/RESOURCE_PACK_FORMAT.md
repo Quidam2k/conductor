@@ -103,6 +103,8 @@ For the "Get ready to [action]" announcement that fires before an action. Conven
 
 The audio service looks for `notice-{cueId}` in the pack's cues map. If no notice cue exists, it falls back to TTS: "Get ready to [action text]".
 
+When several cues land closer together than the notice lead, they share one announcement, given before the first of them. That shared announcement uses the **first cue's** notice clip — so record `notice-` for the cue that opens a rapid burst even if you skip the ones that follow. Without it the app enumerates the burst via TTS ("Get ready to a, b and c"), which cannot be baked and is therefore silent under lock.
+
 ## Audio Resolution (Fallback Chain)
 
 When the system needs to play audio for an action, it tries these sources in order:
