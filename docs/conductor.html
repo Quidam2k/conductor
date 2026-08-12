@@ -550,13 +550,15 @@
         .field-select { appearance: auto; }
 
         .ed-action-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-        .ed-action-card {
+        .ed-action-card,
+        .ed-prep-lead-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius);
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
+        .ed-prep-lead-card .ed-recording-section { margin-top: 0; border: none; }
         .ed-action-header {
             display: flex;
             align-items: center;
@@ -697,7 +699,6 @@
         .ed-recording-state-preview,
         .ed-recording-state-unsupported,
         .ed-recording-state-error,
-        .ed-recording-state-blocked,
         .ed-recording-state-recorded {
             display: none;
         }
@@ -706,7 +707,6 @@
         .ed-recording-section.preview .ed-recording-state-preview { display: block; }
         .ed-recording-section.unsupported .ed-recording-state-unsupported { display: block; }
         .ed-recording-section.error .ed-recording-state-error { display: block; }
-        .ed-recording-section.blocked .ed-recording-state-blocked { display: block; }
         .ed-recording-section.recorded .ed-recording-state-recorded { display: block; }
 
         .ed-recording-hint {
@@ -1028,7 +1028,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v56</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v57</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -1324,7 +1324,7 @@
         <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all cues</button>
         <button id="btn-record-missing" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record the missing ones</button>
         <button id="btn-play-all-cues" class="btn-add-action" style="border-color:rgba(91,163,255,0.3); color:var(--accent-blue); display:none;">&#x25b6; Play all cues</button>
-        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records every action: the cue itself, then its &ldquo;Get ready to&hellip;&rdquo; prep phrase. Recorded preps play in a pocket; spoken ones don&rsquo;t.</p>
+        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records the &ldquo;Get ready to&hellip;&rdquo; prep lead, then every cue. The app glues the lead to your cue names for each heads-up. Recorded audio plays in a pocket; the robot voice doesn&rsquo;t.</p>
         <div id="play-all-status" style="font-size:16px; color:var(--text-dim); margin:6px 2px 0; display:none;"></div>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
@@ -3138,6 +3138,11 @@ function createAudioService() {
     const COUNTDOWN_BEEP_MS = 150;
     const TRIGGER_BEEP_MS = 300;
 
+    // Gap between stitched prep clips (lead + member cue names) in the bake —
+    // long enough to read as a list, short enough to stay one phrase. Tuned by
+    // ear, not derived.
+    const PREP_STITCH_GAP_SEC = 0.15;
+
     /**
      * Compute the full static audio schedule for an entire timeline — every
      * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
@@ -3153,7 +3158,7 @@ function createAudioService() {
      *
      * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
      * @param {number} defaultNoticeSeconds - event-level notice default
-     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null)}>|null} actionMeta
+     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null), groupMembers:(TimelineAction[]|null)}>|null} actionMeta
      *     per-action grouping/gap metadata from computeActionMeta(); null → treat
      *     every action as an isolated group leader with an infinite prev-gap.
      * @param {number} startMs - epoch ms of the moment the baked track starts
@@ -3163,10 +3168,14 @@ function createAudioService() {
      *     true if a decoded buffer exists. Gates pack cues exactly as the live
      *     resolver does: present → bake the clip; absent → live speaks TTS, so
      *     the bake emits nothing (the trigger beep still covers the downbeat).
+     * @param {function(string, string): number} [getDurationSec=null] - (packId,
+     *     cueId) → decoded buffer duration in seconds (0 if unknown). Required
+     *     for stitched preps: the lead + member clips are laid out at cumulative
+     *     offsets, so without durations no prep events are emitted at all.
      * @returns {Array<{offsetSec:number, kind:('beep'|'packCue'), freqHz?:number, durMs?:number, bufferKey?:string, packId?:string, cueId?:string}>}
      *     sorted by offsetSec, future-only.
      */
-    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null) {
+    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null, getDurationSec = null) {
         const events = [];
         const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
 
@@ -3208,22 +3217,52 @@ function createAudioService() {
                 });
             }
 
-            // Notice pack cue (notice-<cue>) at the prep moment — for merged
-            // groups too, using the LEADER's own recorded prep (v55). The
-            // enumerated "Get ready to a and b" sentence is assembled from words
-            // at runtime, so only TTS can say it and TTS can't be baked: in a
-            // fully-recorded event that one phrase arrived robotic (Jessica,
-            // 2026-08-11). Naming just the leader loses the trailing clause and
-            // keeps the pocket voice consistent. Without a notice- cue nothing
-            // is scheduled and the live path still enumerates via TTS.
+            // Stitched prep (v57): the leader's reusable `prep-lead` clip ("Get
+            // ready to…") followed by each group member's own cue clip, laid out
+            // at cumulative offsets with a small gap. Stitching means enumerated
+            // preps finally bake — v55's leader-only notice-<cue> compromise
+            // (and the notice-<cue> concept itself) is gone. Rules: emit only if
+            // the leader's pack has `prep-lead` AND ≥1 member cue clip exists;
+            // members with missing clips are skipped. Otherwise emit nothing and
+            // the live path speaks the TTS enumeration (screen-on only).
             const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
-            if (wantNotice && action.cue && action.pack &&
-                hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
-                events.push({
-                    offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
-                    kind: 'packCue', packId: action.pack, cueId: 'notice-' + action.cue,
-                    bufferKey: action.pack + ':notice-' + action.cue,
-                });
+            if (wantNotice && getDurationSec && action.pack &&
+                hasCue && hasCue(action.pack, 'prep-lead')) {
+                const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
+                const clips = [{ packId: action.pack, cueId: 'prep-lead' }];
+                for (const m of members) {
+                    if (m.cue && m.pack && hasCue(m.pack, m.cue)) {
+                        clips.push({ packId: m.pack, cueId: m.cue });
+                    }
+                }
+                if (clips.length >= 2) {
+                    const durs = clips.map(c => getDurationSec(c.packId, c.cueId) || 0);
+                    const seqDur = durs.reduce((a, b) => a + b, 0)
+                        + PREP_STITCH_GAP_SEC * (clips.length - 1);
+                    // Anchor at the prep moment; if the sequence won't finish by
+                    // 1s before the trigger, start it earlier — but never within
+                    // 0.5s of the previous action's trigger. Overlap with the
+                    // leader's own countdown beeps is accepted (the offline
+                    // context mixes; beeps are 150ms blips).
+                    const triggerSec = (triggerMs - startMs) / 1000;
+                    let seqStartSec = triggerSec - noticeSeconds;
+                    if (seqDur > noticeSeconds - 1) {
+                        seqStartSec = triggerSec - (seqDur + 1);
+                        if (gapFromPrev < Infinity) {
+                            const prevTriggerSec = triggerSec - gapFromPrev / 1000;
+                            seqStartSec = Math.max(seqStartSec, prevTriggerSec + 0.5);
+                        }
+                    }
+                    let cursor = seqStartSec;
+                    clips.forEach((c, idx) => {
+                        events.push({
+                            offsetSec: cursor,
+                            kind: 'packCue', packId: c.packId, cueId: c.cueId,
+                            bufferKey: c.packId + ':' + c.cueId,
+                        });
+                        cursor += durs[idx] + PREP_STITCH_GAP_SEC;
+                    });
+                }
             }
         }
 
@@ -3255,9 +3294,9 @@ function createAudioService() {
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
      * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
-     *     texts (≤3, leader first). The leader's own `notice-<cue>` pack clip is preferred
-     *     when present (v55); only when there isn't one do 2+ entries enumerate the burst
-     *     via TTS ("Get ready to a, b and c").
+     *     texts (uncapped, leader first). Used only for the TTS fallback — under bake the
+     *     stitched prep (leader's `prep-lead` + member cue clips, v57) is already in the
+     *     track, so 2+ entries enumerate via TTS only when there's no baked prep to defer to.
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
     function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
@@ -3295,22 +3334,24 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                // The leader's own recorded prep wins, grouped or not (v55) —
-                // it's the only prep that survives the bake, so preferring it
-                // here keeps screen-on identical to locked. A mismatch between
-                // the two paths is exactly how the robot-prep bug hid.
-                const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                if (text === null) {
+                // Under bake the stitched prep (leader's `prep-lead` + member
+                // cue clips, v57) is already in the track — playPackCue is
+                // existence-only there, so this reports and plays nothing.
+                // Screen-on and locked stay identical, which is the invariant
+                // that kept the robot-prep bug hidden when it broke.
+                if (bakedActive && action.pack &&
+                    playPackCue('prep-lead', action.pack, speedMultiplier)) {
                     noticeResult = `notice-pack: "${action.cue || 'random'}"`;
                 } else if (groupTexts && groupTexts.length >= 2) {
-                    // No pack prep for the leader — fall back to enumerating the
-                    // burst via TTS (unbakeable, screen-on only).
+                    // No baked prep — enumerate the burst via TTS (unbakeable,
+                    // screen-on only). Uncapped: name every cue in the group.
                     const parts = groupTexts.map(t => t.toLowerCase());
                     const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
                     const noticeText = 'Get ready to ' + listText;
                     speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
                 } else {
+                    const text = action.fallbackText || action.action;
                     const noticeText = 'Get ready to ' + text.toLowerCase();
                     // preempt=false: a notice landing on the same tick as the
                     // previous action's trigger queues behind it, not over it.
@@ -3383,23 +3424,13 @@ function createAudioService() {
      * For 'random' type: picks one of randomCues at random.
      *
      * @param {TimelineAction} action
-     * @param {string} context - 'notice', 'countdown', or 'trigger'
+     * @param {string} context - 'countdown' or 'trigger' (notices resolve in
+     *     announceAction directly since v57 — preps are stitched in the bake,
+     *     TTS otherwise, never a per-cue notice clip)
      * @param {number} [speed=1] - Playback speed multiplier
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
     function resolveAudioCue(action, context, speed = 1) {
-        // Notice context: try notice-prefixed cue first
-        if (context === 'notice' && action.cue && action.pack) {
-            const noticeCueId = 'notice-' + action.cue;
-            if (playPackCue(noticeCueId, action.pack, speed)) {
-                return null; // Resource pack played the notice cue (or it's in the baked track)
-            }
-            // No notice cue in pack — fall through to TTS fallback
-            // (DON'T try the main action cue for notices — that would be confusing)
-            if (action.fallbackText) return action.fallbackText;
-            return action.action;
-        }
-
         // Random cues — pick one at random
         if (action.randomCues && action.randomCues.length > 0 && action.pack) {
             const randomIndex = Math.floor(Math.random() * action.randomCues.length);
@@ -7929,11 +7960,12 @@ function checkCompletion(nowMs) {
 // Audio loop (shared by practice + live)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Pre-pass: derive per-action gapToNext, gapFromPrev, groupStartFlag, and
-// groupTexts from the timeline. Grouping rule: cues closer together than the
-// prep lead share the group's first prep; the group leader's prep enumerates
-// up to 3 member action texts ("Get ready to a, b and c") when it has to fall
-// back to TTS.
+// Pre-pass: derive per-action gapToNext, gapFromPrev, groupStartFlag,
+// groupTexts, and groupMembers from the timeline. Grouping rule: cues closer
+// together than the prep lead share the group's first prep. The leader's
+// groupMembers (ordered action refs, leader first) drive the stitched baked
+// prep (v57: pack `prep-lead` clip + each member's own cue clip); groupTexts
+// (uncapped) drive the TTS fallback ("Get ready to a, b and c").
 //
 // The window IS the notice lead (v55, was a hardcoded 5s). A prep fires
 // `noticeSeconds` before its cue, so anything nearer than that to the previous
@@ -7953,15 +7985,17 @@ function computeActionMeta(timeline, defaultNoticeSeconds = 10) {
         const gapFromPrev = (i > 0) ? (curMs - tsOf(sorted[i - 1])) : Infinity;
         const groupStartFlag = gapFromPrev > windowMs;
         let groupTexts = null;
+        let groupMembers = null;
         if (groupStartFlag) {
-            const texts = [cur.action];
-            for (let j = i + 1; j < sorted.length && texts.length < 3; j++) {
+            const members = [cur];
+            for (let j = i + 1; j < sorted.length; j++) {
                 if (tsOf(sorted[j]) - tsOf(sorted[j - 1]) > windowMs) break;
-                texts.push(sorted[j].action);
+                members.push(sorted[j]);
             }
-            if (texts.length >= 2) groupTexts = texts;
+            groupMembers = members;
+            if (members.length >= 2) groupTexts = members.map(a => a.action);
         }
-        meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag, groupTexts });
+        meta.set(cur.id, { gapToNext, gapFromPrev, groupStartFlag, groupTexts, groupMembers });
     }
     return meta;
 }
@@ -8190,7 +8224,11 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
         const schedule = audio.computeCueSchedule(
             evt.timeline, evt.defaultNoticeSeconds, state.actionMeta,
             anchorMs, evtDefs,
-            (packId, cueId) => packManager.hasCue(packId, cueId));
+            (packId, cueId) => packManager.hasCue(packId, cueId),
+            (packId, cueId) => {
+                const b = packManager.getBuffer(packId + ':' + cueId);
+                return b ? b.duration : 0;
+            });
         const baked = await bakeScheduleToWavBlob(
             schedule, (key) => packManager.getBuffer(key));
         if (!baked) { // OfflineAudioContext unavailable → live path
@@ -8570,6 +8608,12 @@ function renderEditorTimeline() {
     // Sort actions by offset
     state.editor.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
 
+    // One prep lead serves the whole script (v57) — its card sits above the
+    // per-action cards rather than repeating inside each one.
+    if (isVoiceRecorderSupported() && state.editor.actions.length > 0) {
+        list.appendChild(createPrepLeadCard());
+    }
+
     state.editor.actions.forEach((action, index) => {
         const card = createActionCard(action, index);
         list.appendChild(card);
@@ -8577,6 +8621,29 @@ function renderEditorTimeline() {
 
     // Update batch recorder button visibility
     updateBatchRecorderButtonVisibility();
+}
+
+/**
+ * The standalone "Record the Prep Lead" card. Lives inside #ed-action-list so
+ * the shared recording-section click delegation drives its state machine;
+ * index -1 keys its recorder state and marks it as not-an-action.
+ */
+function createPrepLeadCard() {
+    const card = document.createElement('div');
+    // Deliberately NOT .ed-action-card — nth-action locators and per-action
+    // handlers must keep meaning "the Nth action".
+    card.className = 'ed-prep-lead-card';
+    card.dataset.index = '-1';
+    card.innerHTML = recordingBlockHtml(-1, 'prep-lead', null);
+    const section = card.querySelector('.ed-recording-section');
+    (async () => {
+        try {
+            const buf = await packManager.getCueAudioData(
+                packManager.getSyntheticPackId(), 'prep-lead');
+            if (buf) updateRecordingSectionState(section, 'recorded');
+        } catch { /* IDB unavailable — leave idle */ }
+    })();
+    return card;
 }
 
 function formatOffset(totalSec) {
@@ -8632,38 +8699,31 @@ function createActionDetails(action) {
 }
 
 /**
- * Markup for one recording block inside an action's edit form. Every action
- * gets two: the cue itself, and the "Get ready to …" prep phrase.
+ * Markup for one recording block. Actions each get one for their cue; the
+ * standalone prep-lead card gets one for the pack-wide "Get ready to…" clip.
  *
- * The prep recording is saved under the literal id `notice-<cueId>` — the id
- * the engine already resolves on the live path (audioService.resolveAudioCue,
- * context 'notice') and already bakes into the locked-screen track
- * (computeCueSchedule). No engine change is needed: record it and it plays in
- * a pocket. Without one, the prep falls back to TTS, which is silent under lock.
+ * The prep lead is saved under the reserved id `prep-lead` (v57). The bake
+ * stitches it in front of each group's member cue clips, so every prep plays
+ * in the author's voice in a pocket — one recording covers the whole script.
+ * Without one, preps fall back to TTS, which is silent under lock.
  *
- * @param {number} index - Action index (recorder state key)
- * @param {'main'|'notice'} kind
- * @param {Object} action
+ * @param {number} index - Action index (recorder state key; -1 for the lead)
+ * @param {'main'|'prep-lead'} kind
+ * @param {Object|null} action - null for the prep-lead card
  * @returns {string} HTML
  */
 function recordingBlockHtml(index, kind, action) {
-    const isNotice = kind === 'notice';
-    const idleTitle = isNotice ? '🎤 Record the Prep Phrase' : '🎤 Record Your Voice';
-    const doneTitle = isNotice ? '🎤 Prep Phrase Recorded ✓' : '🎤 Recorded ✓';
-    const prepLine = 'Get ready to ' + (action.action || '…').toLowerCase();
-    // A mid-group cue shares the leader's prep, so a recording here is never
-    // heard. Say so rather than hiding the control — moving the cue later makes
-    // it live again.
-    const prepIsLive = actionPrepFires(index);
-    const idleHint = isNotice
-        ? (prepIsLive
-            ? `Say &ldquo;${escapeHtml(prepLine)}&rdquo; &mdash; the heads-up 10 seconds before the cue. ` +
-              'Without a recording the prep uses the robot voice, which is silent in a pocket.'
-            : 'This cue lands within 10 seconds of the one before it, so it shares that cue&rsquo;s prep &mdash; ' +
-              'a recording here would not play. Worth doing only if you may move this cue later.')
+    const isLead = kind === 'prep-lead';
+    const idleTitle = isLead ? '🎤 Record the Prep Lead' : '🎤 Record Your Voice';
+    const doneTitle = isLead ? '🎤 Prep Lead Recorded ✓' : '🎤 Recorded ✓';
+    // Copy drafts pending Todd's review (v57).
+    const idleHint = isLead
+        ? 'Say &ldquo;Get ready to&hellip;&rdquo; &mdash; just those words. This one clip opens every ' +
+          'heads-up: the app follows it with the cue names in your voice. ' +
+          'Without it, heads-ups use the robot voice, which is silent in a pocket.'
         : 'Record a cue in your own voice. Keep it short and clear.';
-    const recordedHint = isNotice
-        ? 'Play checks the saved prep phrase on this device.'
+    const recordedHint = isLead
+        ? 'Play checks the saved prep lead on this device.'
         : 'Play checks the saved recording on this device.';
 
     return `
@@ -8706,10 +8766,6 @@ function recordingBlockHtml(index, kind, action) {
                 <div class="ed-recording-buttons" style="margin-top:8px;">
                     <button type="button" class="btn-outline btn-small ed-btn-retry-record">Try Again</button>
                 </div>
-            </div>
-
-            <div class="ed-recording-state-blocked">
-                <div class="ed-recording-blocked-msg" style="font-size:14px; color:var(--text-dim);">Record the cue above first &mdash; the prep phrase is saved alongside it.</div>
             </div>
 
             <div class="ed-recording-state-recorded">
@@ -8771,7 +8827,6 @@ function createActionEditForm(action, index) {
         <input type="text" class="field-input ed-fallback-text" placeholder="TTS fallback text" style="display:none; margin-top:6px;" value="${escapeHtml(action.fallbackText || action.action)}" maxlength="80">
 
         ${recordingBlockHtml(index, 'main', action)}
-        ${recordingBlockHtml(index, 'notice', action)}
 
         <div class="ed-form-actions">
             <button type="button" class="btn-primary btn-small ed-btn-save">Save</button>
@@ -8782,36 +8837,16 @@ function createActionEditForm(action, index) {
     // Populate pack dropdown async
     populatePackDropdown(form, action);
 
-    // Initialize both recording sections: browser support, then existing cue state
+    // Initialize the recording section: browser support, then existing cue state
     form.querySelectorAll('.ed-recording-section').forEach(section => {
-        (async () => {
-            if (!isVoiceRecorderSupported()) {
-                updateRecordingSectionState(section, 'unsupported');
-                return;
-            }
-            const syntheticPackId = packManager.getSyntheticPackId();
-            const isOwnVoiceCue = !!(action.cue && action.pack === syntheticPackId);
-
-            if (section.dataset.cueKind !== 'notice') {
-                // Recorded state — keeps the full state-machine markup so
-                // Re-record works (v49 gutted the innerHTML and killed it).
-                if (isOwnVoiceCue) updateRecordingSectionState(section, 'recorded');
-                return;
-            }
-
-            // Prep phrase: the id derives from the main cue, and it must live in
-            // the same pack the action points at, so it only applies to My Voice cues.
-            if (!isOwnVoiceCue) {
-                updateRecordingSectionState(section, 'blocked', action.cue
-                    ? 'This action uses a cue from an imported pack — record the cue above in your own voice to add a prep phrase.'
-                    : '');
-                return;
-            }
-            try {
-                const buf = await packManager.getCueAudioData(syntheticPackId, 'notice-' + action.cue);
-                if (buf) updateRecordingSectionState(section, 'recorded');
-            } catch { /* IDB unavailable — leave idle */ }
-        })();
+        if (!isVoiceRecorderSupported()) {
+            updateRecordingSectionState(section, 'unsupported');
+            return;
+        }
+        // Recorded state — keeps the full state-machine markup so
+        // Re-record works (v49 gutted the innerHTML and killed it).
+        const isOwnVoiceCue = !!(action.cue && action.pack === packManager.getSyntheticPackId());
+        if (isOwnVoiceCue) updateRecordingSectionState(section, 'recorded');
     });
 
     return form;
@@ -8873,9 +8908,9 @@ async function populateCueDropdown(cueSelect, packId, selectedCue) {
     }
 }
 
-// Per-action recorder state tracking. Keyed by "<actionIndex>:<cueKind>" —
-// an action's cue and its prep phrase each get their own recorder.
-// Format: { [key]: { recorder, blob, objectUrl } }
+// Per-block recorder state tracking. Keyed by "<actionIndex>:<cueKind>" —
+// each action's cue block and the standalone prep-lead card ("-1:prep-lead")
+// get their own recorder. Format: { [key]: { recorder, blob, objectUrl } }
 const _actionRecorders = {};
 
 /**
@@ -8900,13 +8935,14 @@ function getRecorderStateForSection(section) {
 }
 
 /**
- * The cue id a recording block writes to: the action's own cue, or the
- * `notice-`-prefixed prep cue the engine looks up 10s ahead of it.
- * Returns null when there's no main cue to derive from.
+ * The cue id a recording block writes to: the reserved `prep-lead` for the
+ * standalone lead card, else the action's own cue.
+ * Returns null when there's no cue to derive from.
  */
 function sectionCueId(section, action) {
+    if (section.dataset.cueKind === 'prep-lead') return 'prep-lead';
     if (!action || !action.cue) return null;
-    return (section.dataset.cueKind === 'notice') ? 'notice-' + action.cue : action.cue;
+    return action.cue;
 }
 
 /**
@@ -8925,10 +8961,6 @@ function updateRecordingSectionState(section, state, errorMsg = '') {
         // (hidden) .ed-recording-error-msg earlier in the DOM.
         const errorEl = section.querySelector('.ed-recording-state-error .ed-recording-error-msg');
         if (errorEl) errorEl.textContent = errorMsg;
-    }
-    if (state === 'blocked' && errorMsg) {
-        const blockedEl = section.querySelector('.ed-recording-blocked-msg');
-        if (blockedEl) blockedEl.textContent = errorMsg;
     }
 }
 
@@ -8979,40 +9011,25 @@ function findUncuedActions() {
 }
 
 /**
- * The teleprompter steps for a batch pass: every action contributes its cue
- * and then its "Get ready to …" prep phrase, in timeline order.
+ * The teleprompter steps for a batch pass: the one reusable "Get ready to…"
+ * prep lead first (v57 — it opens every prep in the bake), then each action's
+ * cue in timeline order. Repair passes (onlyIndices) skip the lead: they exist
+ * to fill cue gaps, and the lead card covers re-recording it.
  * @param {number[]|null} onlyIndices - Restrict to these action indices (repair pass).
- * @returns {Array<{index: number, kind: 'main'|'notice'}>}
+ * @returns {Array<{index?: number, kind: 'main'|'prep-lead'}>}
  */
 function buildBatchSteps(onlyIndices) {
     const steps = [];
+    if (!onlyIndices) steps.push({ kind: 'prep-lead' });
     state.editor.actions.forEach((action, index) => {
         if (onlyIndices && !onlyIndices.includes(index)) return;
         steps.push({ index, kind: 'main' });
-        if (actionPrepFires(index)) steps.push({ index, kind: 'notice' });
     });
     return steps;
 }
 
 /** The prep lead the editor stamps on every action (see finalizeEditorEvent). */
 const EDITOR_NOTICE_SECONDS = 10;
-
-/**
- * Does this action's own prep phrase ever play? A prep fires `noticeSeconds`
- * before its cue, and cues closer together than that lead share the group
- * LEADER's single prep (computeActionMeta) — so a mid-group cue's own recording
- * would never be heard. Asking for it anyway costs a take per cue, which is
- * where a long script's recording session actually goes.
- * @param {number} index - Index into state.editor.actions
- * @returns {boolean}
- */
-function actionPrepFires(index) {
-    const meta = computeActionMeta(
-        state.editor.actions.map((a, i) => ({ id: i, timeMs: a.offsetSeconds * 1000 })),
-        EDITOR_NOTICE_SECONDS);
-    const m = meta.get(index);
-    return m ? m.groupStartFlag : true;
-}
 
 /** Actions that already have a recording in the user's own voice. */
 function ownVoiceActions() {
@@ -9037,7 +9054,7 @@ function updateBatchRecorderButtonVisibility() {
     // re-recording the whole script is a normal thing to want.
     if (isSupported && total > 0) {
         btn.style.display = '';
-        btn.title = `Record every cue and prep phrase (${total} action${total !== 1 ? 's' : ''})`;
+        btn.title = `Record the prep lead and every cue (${total} action${total !== 1 ? 's' : ''})`;
         if (hint) hint.style.display = '';
     } else {
         btn.style.display = 'none';
@@ -9108,17 +9125,15 @@ function showBatchRecorderUI() {
     showBatchRecorderAction();
 }
 
-/** Can this step be recorded right now? Prep cues need a My Voice cue to hang off. */
+/** Can this step be recorded right now? The lead always can; cues need their action. */
 function batchStepIsRecordable(step) {
-    const action = state.editor.actions[step.index];
-    if (!action) return false;
-    if (step.kind !== 'notice') return true;
-    return !!(action.cue && action.pack === packManager.getSyntheticPackId());
+    if (step.kind === 'prep-lead') return true;
+    return !!state.editor.actions[step.index];
 }
 
 /**
- * Display the current step in the batch recorder, skipping past any prep steps
- * whose cue was skipped (nothing to attach the prep to).
+ * Display the current step in the batch recorder, skipping any that are no
+ * longer recordable (their action vanished mid-pass).
  */
 function showBatchRecorderAction() {
     const state_local = _batchRecorderState;
@@ -9133,13 +9148,11 @@ function showBatchRecorderAction() {
     }
 
     const step = state_local.steps[state_local.currentIdx];
-    const action = state.editor.actions[step.index];
-    const isNotice = step.kind === 'notice';
+    const isLead = step.kind === 'prep-lead';
+    const action = isLead ? null : state.editor.actions[step.index];
 
-    $('batch-step-label').textContent = isNotice ? 'Prep phrase' : 'Cue';
-    $('batch-cue-text').textContent = isNotice
-        ? 'Get ready to ' + (action.action || '').toLowerCase()
-        : action.action;
+    $('batch-step-label').textContent = isLead ? 'Prep lead' : 'Cue';
+    $('batch-cue-text').textContent = isLead ? 'Get ready to…' : action.action;
     $('batch-progress').textContent = `${state_local.currentIdx + 1} of ${state_local.steps.length}`;
 
     // Reset UI to idle (record button visible, preview hidden)
@@ -9289,13 +9302,9 @@ $('btn-batch-use').addEventListener('click', async () => {
         const processed = await processRecording(state_local.blob);
         const syntheticPackId = packManager.getSyntheticPackId();
 
-        if (step.kind === 'notice') {
-            // Prep phrase — saved as notice-<cueId> beside the cue it warns about.
-            if (!action.cue || action.pack !== syntheticPackId) {
-                advanceBatchRecorder();
-                return;
-            }
-            await packManager.saveSyntheticCue('notice-' + action.cue, processed.audioBuffer);
+        if (step.kind === 'prep-lead') {
+            // The one reusable lead — saved under the reserved id, no action involved.
+            await packManager.saveSyntheticCue('prep-lead', processed.audioBuffer);
         } else {
             const cueId = packManager.generateCueId(action.action);
 
@@ -9397,8 +9406,8 @@ function stopPlayAllCues() {
 }
 
 /**
- * Play every saved cue in timeline order — each action's prep phrase (if one
- * was recorded) followed by its cue, with a short gap. Tapping again stops.
+ * Play every saved cue in timeline order — the prep lead first (if recorded),
+ * then each action's cue, with a short gap. Tapping again stops.
  * @param {HTMLElement} btn - Button to flip between play/stop
  * @param {HTMLElement} statusEl - Line to report progress on
  * @param {string} label - The button's resting label
@@ -9421,22 +9430,32 @@ async function togglePlayAllCues(btn, statusEl, label) {
 
     let played = 0;
     try {
+        // The prep lead opens the playback — the same way it opens every
+        // baked prep — so the author hears the glue clip in context.
+        try {
+            const leadBuf = await packManager.getCueAudioData(
+                packManager.getSyntheticPackId(), 'prep-lead');
+            if (leadBuf && !token.cancelled) {
+                statusEl.textContent = 'Playing the prep lead';
+                await playStoredCue(leadBuf, token);
+                played++;
+                await sleepCancellable(350, token);
+            }
+        } catch (e) { /* no lead recorded */ }
+
         for (let i = 0; i < actions.length; i++) {
             if (token.cancelled) break;
             const action = actions[i];
             statusEl.textContent = `Playing ${i + 1} of ${actions.length}: ${action.action}`;
 
-            for (const cueId of ['notice-' + action.cue, action.cue]) {
-                if (token.cancelled) break;
-                let buf = null;
-                try {
-                    buf = await packManager.getCueAudioData(action.pack, cueId);
-                } catch (e) { buf = null; }
-                if (!buf) continue; // no prep recorded, or cue lives in an imported pack
-                await playStoredCue(buf, token);
-                played++;
-                await sleepCancellable(350, token);
-            }
+            let buf = null;
+            try {
+                buf = await packManager.getCueAudioData(action.pack, action.cue);
+            } catch (e) { buf = null; }
+            if (!buf) continue; // cue lives in an imported pack
+            await playStoredCue(buf, token);
+            played++;
+            await sleepCancellable(350, token);
         }
     } finally {
         const wasCancelled = token.cancelled;
@@ -9458,7 +9477,7 @@ $('btn-play-all-cues').addEventListener('click', () => {
 
 // Event delegation for timeline editor actions
 $('ed-action-list').addEventListener('click', (e) => {
-    const card = e.target.closest('.ed-action-card');
+    const card = e.target.closest('.ed-action-card, .ed-prep-lead-card');
     if (!card) return;
     const index = parseInt(card.dataset.index);
 
@@ -9521,19 +9540,13 @@ $('ed-action-list').addEventListener('click', (e) => {
             return;
         }
 
-        // Prep phrase: saved under notice-<cueId> in the same pack as the cue,
-        // which is where the engine looks for it. Nothing else about the action changes.
-        if (section.dataset.cueKind === 'notice') {
+        // Prep lead: one reusable clip per pack, saved under the reserved id —
+        // no action involved, nothing else changes.
+        if (section.dataset.cueKind === 'prep-lead') {
             (async () => {
                 try {
-                    const syntheticPackId = packManager.getSyntheticPackId();
-                    if (!action.cue || action.pack !== syntheticPackId) {
-                        updateRecordingSectionState(section, 'blocked',
-                            'Record the cue above first — the prep phrase is saved alongside it.');
-                        return;
-                    }
                     const processed = await processRecording(recState.blob);
-                    await packManager.saveSyntheticCue('notice-' + action.cue, processed.audioBuffer);
+                    await packManager.saveSyntheticCue('prep-lead', processed.audioBuffer);
                     updateRecordingSectionState(section, 'recorded');
                     saveDraftFromEditor().catch(() => {});
                 } catch (err) {
@@ -9597,14 +9610,6 @@ $('ed-action-list').addEventListener('click', (e) => {
                 // stays in place so both buttons keep working.
                 updateRecordingSectionState(section, 'recorded');
 
-                // The prep block derives its id from the cue we just saved —
-                // it's recordable now.
-                const noticeSection = editForm && editForm.querySelector(
-                    '.ed-recording-section[data-cue-kind="notice"]');
-                if (noticeSection && noticeSection.classList.contains('blocked')) {
-                    updateRecordingSectionState(noticeSection, 'idle');
-                }
-
                 // Trigger draft save
                 saveDraftFromEditor().catch(() => {});
             } catch (err) {
@@ -9621,10 +9626,14 @@ $('ed-action-list').addEventListener('click', (e) => {
         const actionIndex = parseInt(section.dataset.actionIndex);
         const action = state.editor.actions[actionIndex];
         const cueId = sectionCueId(section, action);
-        if (!action || !action.pack || !cueId) return;
+        // The lead card has no action — its clip lives in the My Voice pack.
+        const packId = (section.dataset.cueKind === 'prep-lead')
+            ? packManager.getSyntheticPackId()
+            : (action && action.pack);
+        if (!packId || !cueId) return;
         (async () => {
             try {
-                const buf = await packManager.getCueAudioData(action.pack, cueId);
+                const buf = await packManager.getCueAudioData(packId, cueId);
                 if (!buf) throw new Error('Recording not found on this device.');
                 const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
                 const player = new Audio(url);

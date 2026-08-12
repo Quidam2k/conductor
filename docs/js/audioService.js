@@ -427,6 +427,11 @@ function createAudioService() {
     const COUNTDOWN_BEEP_MS = 150;
     const TRIGGER_BEEP_MS = 300;
 
+    // Gap between stitched prep clips (lead + member cue names) in the bake —
+    // long enough to read as a list, short enough to stay one phrase. Tuned by
+    // ear, not derived.
+    const PREP_STITCH_GAP_SEC = 0.15;
+
     /**
      * Compute the full static audio schedule for an entire timeline — every
      * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
@@ -442,7 +447,7 @@ function createAudioService() {
      *
      * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
      * @param {number} defaultNoticeSeconds - event-level notice default
-     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null)}>|null} actionMeta
+     * @param {Map<string, {gapFromPrev:number, groupStartFlag:boolean, groupTexts:(string[]|null), groupMembers:(TimelineAction[]|null)}>|null} actionMeta
      *     per-action grouping/gap metadata from computeActionMeta(); null → treat
      *     every action as an isolated group leader with an infinite prev-gap.
      * @param {number} startMs - epoch ms of the moment the baked track starts
@@ -452,10 +457,14 @@ function createAudioService() {
      *     true if a decoded buffer exists. Gates pack cues exactly as the live
      *     resolver does: present → bake the clip; absent → live speaks TTS, so
      *     the bake emits nothing (the trigger beep still covers the downbeat).
+     * @param {function(string, string): number} [getDurationSec=null] - (packId,
+     *     cueId) → decoded buffer duration in seconds (0 if unknown). Required
+     *     for stitched preps: the lead + member clips are laid out at cumulative
+     *     offsets, so without durations no prep events are emitted at all.
      * @returns {Array<{offsetSec:number, kind:('beep'|'packCue'), freqHz?:number, durMs?:number, bufferKey?:string, packId?:string, cueId?:string}>}
      *     sorted by offsetSec, future-only.
      */
-    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null) {
+    function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null, getDurationSec = null) {
         const events = [];
         const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
 
@@ -497,22 +506,52 @@ function createAudioService() {
                 });
             }
 
-            // Notice pack cue (notice-<cue>) at the prep moment — for merged
-            // groups too, using the LEADER's own recorded prep (v55). The
-            // enumerated "Get ready to a and b" sentence is assembled from words
-            // at runtime, so only TTS can say it and TTS can't be baked: in a
-            // fully-recorded event that one phrase arrived robotic (Jessica,
-            // 2026-08-11). Naming just the leader loses the trailing clause and
-            // keeps the pocket voice consistent. Without a notice- cue nothing
-            // is scheduled and the live path still enumerates via TTS.
+            // Stitched prep (v57): the leader's reusable `prep-lead` clip ("Get
+            // ready to…") followed by each group member's own cue clip, laid out
+            // at cumulative offsets with a small gap. Stitching means enumerated
+            // preps finally bake — v55's leader-only notice-<cue> compromise
+            // (and the notice-<cue> concept itself) is gone. Rules: emit only if
+            // the leader's pack has `prep-lead` AND ≥1 member cue clip exists;
+            // members with missing clips are skipped. Otherwise emit nothing and
+            // the live path speaks the TTS enumeration (screen-on only).
             const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
-            if (wantNotice && action.cue && action.pack &&
-                hasCue && hasCue(action.pack, 'notice-' + action.cue)) {
-                events.push({
-                    offsetSec: (triggerMs - noticeSeconds * 1000 - startMs) / 1000,
-                    kind: 'packCue', packId: action.pack, cueId: 'notice-' + action.cue,
-                    bufferKey: action.pack + ':notice-' + action.cue,
-                });
+            if (wantNotice && getDurationSec && action.pack &&
+                hasCue && hasCue(action.pack, 'prep-lead')) {
+                const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
+                const clips = [{ packId: action.pack, cueId: 'prep-lead' }];
+                for (const m of members) {
+                    if (m.cue && m.pack && hasCue(m.pack, m.cue)) {
+                        clips.push({ packId: m.pack, cueId: m.cue });
+                    }
+                }
+                if (clips.length >= 2) {
+                    const durs = clips.map(c => getDurationSec(c.packId, c.cueId) || 0);
+                    const seqDur = durs.reduce((a, b) => a + b, 0)
+                        + PREP_STITCH_GAP_SEC * (clips.length - 1);
+                    // Anchor at the prep moment; if the sequence won't finish by
+                    // 1s before the trigger, start it earlier — but never within
+                    // 0.5s of the previous action's trigger. Overlap with the
+                    // leader's own countdown beeps is accepted (the offline
+                    // context mixes; beeps are 150ms blips).
+                    const triggerSec = (triggerMs - startMs) / 1000;
+                    let seqStartSec = triggerSec - noticeSeconds;
+                    if (seqDur > noticeSeconds - 1) {
+                        seqStartSec = triggerSec - (seqDur + 1);
+                        if (gapFromPrev < Infinity) {
+                            const prevTriggerSec = triggerSec - gapFromPrev / 1000;
+                            seqStartSec = Math.max(seqStartSec, prevTriggerSec + 0.5);
+                        }
+                    }
+                    let cursor = seqStartSec;
+                    clips.forEach((c, idx) => {
+                        events.push({
+                            offsetSec: cursor,
+                            kind: 'packCue', packId: c.packId, cueId: c.cueId,
+                            bufferKey: c.packId + ':' + c.cueId,
+                        });
+                        cursor += durs[idx] + PREP_STITCH_GAP_SEC;
+                    });
+                }
             }
         }
 
@@ -544,9 +583,9 @@ function createAudioService() {
      *     marked as announced but playCountdownBeep() is not called. The RAF-driven visual
      *     callback handles actual beep playback for precise visual sync.
      * @param {string[]|null} [groupTexts=null] - For a group-leading cue: the member action
-     *     texts (≤3, leader first). The leader's own `notice-<cue>` pack clip is preferred
-     *     when present (v55); only when there isn't one do 2+ entries enumerate the burst
-     *     via TTS ("Get ready to a, b and c").
+     *     texts (uncapped, leader first). Used only for the TTS fallback — under bake the
+     *     stitched prep (leader's `prep-lead` + member cue clips, v57) is already in the
+     *     track, so 2+ entries enumerate via TTS only when there's no baked prep to defer to.
      * @returns {string|null} What was announced (for logging/testing), or null if nothing
      */
     function announceAction(action, secondsUntil, defaultNoticeSeconds, speedMultiplier = 1, eventDefaults = {}, gapToNext = Infinity, groupStartFlag = true, gapFromPrevMs = Infinity, suppressBeepPlayback = false, groupTexts = null) {
@@ -584,22 +623,24 @@ function createAudioService() {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
-                // The leader's own recorded prep wins, grouped or not (v55) —
-                // it's the only prep that survives the bake, so preferring it
-                // here keeps screen-on identical to locked. A mismatch between
-                // the two paths is exactly how the robot-prep bug hid.
-                const text = resolveAudioCue(action, 'notice', speedMultiplier);
-                if (text === null) {
+                // Under bake the stitched prep (leader's `prep-lead` + member
+                // cue clips, v57) is already in the track — playPackCue is
+                // existence-only there, so this reports and plays nothing.
+                // Screen-on and locked stay identical, which is the invariant
+                // that kept the robot-prep bug hidden when it broke.
+                if (bakedActive && action.pack &&
+                    playPackCue('prep-lead', action.pack, speedMultiplier)) {
                     noticeResult = `notice-pack: "${action.cue || 'random'}"`;
                 } else if (groupTexts && groupTexts.length >= 2) {
-                    // No pack prep for the leader — fall back to enumerating the
-                    // burst via TTS (unbakeable, screen-on only).
+                    // No baked prep — enumerate the burst via TTS (unbakeable,
+                    // screen-on only). Uncapped: name every cue in the group.
                     const parts = groupTexts.map(t => t.toLowerCase());
                     const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
                     const noticeText = 'Get ready to ' + listText;
                     speak(noticeText, 1.2 * speedMultiplier, false);
                     noticeResult = `notice: "${noticeText}"`;
                 } else {
+                    const text = action.fallbackText || action.action;
                     const noticeText = 'Get ready to ' + text.toLowerCase();
                     // preempt=false: a notice landing on the same tick as the
                     // previous action's trigger queues behind it, not over it.
@@ -672,23 +713,13 @@ function createAudioService() {
      * For 'random' type: picks one of randomCues at random.
      *
      * @param {TimelineAction} action
-     * @param {string} context - 'notice', 'countdown', or 'trigger'
+     * @param {string} context - 'countdown' or 'trigger' (notices resolve in
+     *     announceAction directly since v57 — preps are stitched in the bake,
+     *     TTS otherwise, never a per-cue notice clip)
      * @param {number} [speed=1] - Playback speed multiplier
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
     function resolveAudioCue(action, context, speed = 1) {
-        // Notice context: try notice-prefixed cue first
-        if (context === 'notice' && action.cue && action.pack) {
-            const noticeCueId = 'notice-' + action.cue;
-            if (playPackCue(noticeCueId, action.pack, speed)) {
-                return null; // Resource pack played the notice cue (or it's in the baked track)
-            }
-            // No notice cue in pack — fall through to TTS fallback
-            // (DON'T try the main action cue for notices — that would be confusing)
-            if (action.fallbackText) return action.fallbackText;
-            return action.action;
-        }
-
         // Random cues — pick one at random
         if (action.randomCues && action.randomCues.length > 0 && action.pack) {
             const randomIndex = Math.floor(Math.random() * action.randomCues.length);

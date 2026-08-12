@@ -11,7 +11,9 @@ Usage (run from the repo root):
 
 Each mini zip contains:
     manifest.json                   <- id "demo-<slug>", only that event's cues
-    voices/*.mp3, notices/*.mp3     <- 64 kbps mono MPEG-1 MP3 (lameenc), STORE'd
+    voices/*.mp3                    <- 64 kbps mono MPEG-1 MP3 (lameenc), STORE'd
+                                       (incl. voices/prep-lead.mp3, the "Get ready
+                                       to…" clip stitched preps open with — v57)
     events/<slug>.json              <- the one event, pack ids rewritten to the mini id
 
 The legacy monolith path is kept for reference but is retired as the linked
@@ -105,10 +107,12 @@ def make_transcoder():
 # ─── Mini-packs (default) ────────────────────────────────────────────────
 
 def event_cue_ids(event: dict, master_cues: dict):
-    """Cues this event's timeline references, plus their notice- prep phrases.
+    """Cues this event's timeline references, plus the shared prep-lead clip.
 
-    Legacy audio/countdown-* system cues are excluded — tonal beeps replaced
-    the spoken countdown in v40.
+    Preps are stitched at bake time from `prep-lead` + the bare cue clips
+    (v57), so per-cue notice-* clips are no longer shipped. Legacy
+    audio/countdown-* system cues are excluded — tonal beeps replaced the
+    spoken countdown in v40.
     """
     cues = []
     seen = set()
@@ -122,13 +126,13 @@ def event_cue_ids(event: dict, master_cues: dict):
         seen.add(cue_id)
         cues.append(cue_id)
 
+    if "prep-lead" in master_cues:
+        add("prep-lead")
     for action in event.get("timeline", []):
         cue = action.get("cue")
         if not cue:
             continue
         add(cue)
-        if f"notice-{cue}" in master_cues:
-            add(f"notice-{cue}")
     return cues
 
 
@@ -275,7 +279,7 @@ def build_monolith(args, manifest):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--voice-source", type=Path, default=DEFAULT_VOICE_SOURCE,
-                        help="voice-forge output dir (contains audio/, voices/, notices/)")
+                        help="voice-forge output dir (contains audio/, voices/)")
     parser.add_argument("--monolith", action="store_true",
                         help="build the legacy all-in-one conductor-demo.zip instead of minis")
     parser.add_argument("--out", type=Path, default=None,

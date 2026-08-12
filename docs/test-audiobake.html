@@ -105,18 +105,19 @@
             assert('no negative offsets', s.every(e => e.offsetSec >= 0));
 
             // ═══════════════════════════════════════════════════════════
-            // 3. computeCueSchedule — pack cues (trigger + notice)
+            // 3. computeCueSchedule — pack trigger cue; prep needs prep-lead
             // ═══════════════════════════════════════════════════════════
-            log('<h2>3. Pack cues — trigger + notice-&lt;cue&gt;</h2>');
+            log('<h2>3. Pack cues — trigger clip; no prep without prep-lead</h2>');
 
+            const near = (x, y) => Math.abs(x - y) < 1e-6;
             const b = actionAt(30, 'Freeze', { cue: 'freeze', pack: 'demo', noticeSeconds: 10 });
-            const hasAll = (pack, cue) => pack === 'demo' && (cue === 'freeze' || cue === 'notice-freeze');
-            s = svc.computeCueSchedule([b], 10, null, BASE, {}, hasAll);
+            const oneSec = () => 1.0; // every clip 1s long in these tests
+            const triggerOnly = (pack, cue) => pack === 'demo' && cue === 'freeze';
+            s = svc.computeCueSchedule([b], 10, null, BASE, {}, triggerOnly, oneSec);
             const packCues = s.filter(e => e.kind === 'packCue');
-            assert('2 pack cues (trigger + notice)', packCues.length === 2, JSON.stringify(s));
-            const notice = s.find(e => e.bufferKey === 'demo:notice-freeze');
+            assert('1 pack cue (trigger only — pack has no prep-lead)',
+                packCues.length === 1, JSON.stringify(s));
             const trig = s.find(e => e.bufferKey === 'demo:freeze');
-            assert('notice cue at offset 20s (30 − noticeSeconds 10)', notice && notice.offsetSec === 20);
             assert('trigger cue at offset 30s', trig && trig.offsetSec === 30);
             assert('trigger beep still present at 30s alongside pack cue',
                 s.some(e => e.kind === 'beep' && e.offsetSec === 30 && e.freqHz === TRIG));
@@ -125,36 +126,73 @@
                 [27, 28, 29].every(t => s.some(e => e.kind === 'beep' && e.offsetSec === t)), JSON.stringify(offsets(s)));
 
             // hasCue=null → pack conditions fail → beeps only
-            s = svc.computeCueSchedule([b], 10, null, BASE);
+            s = svc.computeCueSchedule([b], 10, null, BASE, {}, null, oneSec);
             assert('no resolver → zero pack cues (beeps only)', s.every(e => e.kind !== 'packCue'), JSON.stringify(s));
             assert('no resolver → 4 beeps (3 countdown + trigger)', s.length === 4, JSON.stringify(offsets(s)));
 
             // ═══════════════════════════════════════════════════════════
-            // 4. computeCueSchedule — grouped prep bakes the LEADER's notice
-            //    cue (v55). Before, grouped preps were dropped from the bake
-            //    and left to the TTS enumeration, which is not bakeable — so a
-            //    fully recorded event still went robotic (or silent, in the
-            //    pocket) at exactly the tight-timing moments.
+            // 4. computeCueSchedule — stitched prep (v57): the leader's
+            //    reusable `prep-lead` clip + each member's own cue clip at
+            //    cumulative offsets (0.15s gaps). Stitching is what finally
+            //    lets ENUMERATED preps bake — v55 could only bake the
+            //    leader's full-sentence notice clip and dropped the rest.
             // ═══════════════════════════════════════════════════════════
-            log('<h2>4. Grouped prep → leader\'s pack notice, or nothing</h2>');
+            log('<h2>4. Stitched prep — prep-lead + member cue clips</h2>');
 
+            const c = actionAt(33, 'Wave', { cue: 'wave', pack: 'demo', noticeSeconds: 10 });
+            const hasStitch = (pack, cue) => pack === 'demo' && ['prep-lead', 'freeze', 'wave'].includes(cue);
             const meta = new Map();
-            meta.set(b.id, { gapFromPrev: Infinity, groupStartFlag: true, groupTexts: ['freeze', 'wave'] });
-            s = svc.computeCueSchedule([b], 10, meta, BASE, {}, hasAll);
-            const groupedNotice = s.find(e => e.bufferKey === 'demo:notice-freeze');
-            assert('grouped: leader notice cue baked at the prep moment',
-                groupedNotice && groupedNotice.offsetSec === 20, JSON.stringify(s));
-            assert('grouped: trigger pack cue still baked',
-                s.some(e => e.bufferKey === 'demo:freeze'));
+            meta.set(b.id, { gapFromPrev: Infinity, groupStartFlag: true,
+                groupTexts: ['Freeze', 'Wave'], groupMembers: [b, c] });
+            meta.set(c.id, { gapFromPrev: 3000, groupStartFlag: false,
+                groupTexts: null, groupMembers: null });
+            s = svc.computeCueSchedule([b, c], 10, meta, BASE, {}, hasStitch, oneSec);
+            // Sequence anchors at the prep moment (30 − 10 = 20s): lead@20,
+            // freeze@21.15, wave@22.3 (1s clips + 0.15s gaps).
+            const lead = s.find(e => e.bufferKey === 'demo:prep-lead');
+            assert('stitched: prep-lead baked at the prep moment (20s)',
+                lead && near(lead.offsetSec, 20), JSON.stringify(offsets(s)));
+            assert('stitched: leader cue clip follows at 21.15s',
+                s.some(e => e.bufferKey === 'demo:freeze' && near(e.offsetSec, 21.15)), JSON.stringify(offsets(s)));
+            assert('stitched: member cue clip follows at 22.3s',
+                s.some(e => e.bufferKey === 'demo:wave' && near(e.offsetSec, 22.3)), JSON.stringify(offsets(s)));
+            assert('stitched: leader trigger clip still baked at 30s',
+                s.some(e => e.bufferKey === 'demo:freeze' && near(e.offsetSec, 30)));
+            assert('stitched: no notice-* keys anywhere',
+                s.every(e => !e.bufferKey || !e.bufferKey.includes('notice-')), JSON.stringify(s));
+            assert('stitched: mid-group member gets no prep of its own',
+                !s.some(e => e.kind === 'packCue' && e.offsetSec > 22.5 && e.offsetSec < 30), JSON.stringify(offsets(s)));
 
-            // No recorded prep for the leader → bake nothing; the live path
-            // still speaks the enumeration screen-on.
-            const triggerOnly = (pack, cue) => pack === 'demo' && cue === 'freeze';
-            s = svc.computeCueSchedule([b], 10, meta, BASE, {}, triggerOnly);
-            assert('grouped, no leader notice cue → no pack notice baked',
-                !s.some(e => e.bufferKey === 'demo:notice-freeze'), JSON.stringify(s));
-            assert('grouped, no leader notice cue → trigger still baked',
-                s.some(e => e.bufferKey === 'demo:freeze'));
+            // Partial stitch: a member whose clip is missing is skipped.
+            const noWave = (pack, cue) => pack === 'demo' && ['prep-lead', 'freeze'].includes(cue);
+            s = svc.computeCueSchedule([b, c], 10, meta, BASE, {}, noWave, oneSec);
+            assert('partial: lead + leader clip baked',
+                s.some(e => e.bufferKey === 'demo:prep-lead' && near(e.offsetSec, 20)) &&
+                s.some(e => e.bufferKey === 'demo:freeze' && near(e.offsetSec, 21.15)), JSON.stringify(offsets(s)));
+            assert('partial: missing member clip skipped (no wave in prep)',
+                !s.some(e => e.bufferKey === 'demo:wave' && e.offsetSec < 30), JSON.stringify(offsets(s)));
+
+            // No prep-lead in the pack → bake NO prep at all; the live path
+            // speaks the enumeration screen-on.
+            s = svc.computeCueSchedule([b, c], 10, meta, BASE, {}, triggerOnly, oneSec);
+            assert('no prep-lead → no prep events baked',
+                !s.some(e => e.kind === 'packCue' && e.offsetSec < 30), JSON.stringify(offsets(s)));
+            assert('no prep-lead → trigger still baked',
+                s.some(e => e.bufferKey === 'demo:freeze' && near(e.offsetSec, 30)));
+
+            // No getDurationSec → offsets can't be laid out → no prep events.
+            s = svc.computeCueSchedule([b, c], 10, meta, BASE, {}, hasStitch);
+            assert('no duration callback → no prep events baked',
+                !s.some(e => e.kind === 'packCue' && e.offsetSec < 30), JSON.stringify(offsets(s)));
+
+            // Overflow shift: a long sequence that can't finish by 1s before
+            // the trigger starts earlier instead (trigger − (seqDur + 1)).
+            const longClip = () => 4.0; // 3 clips → seqDur = 12.3s > 10 − 1
+            s = svc.computeCueSchedule([b, c], 10, meta, BASE, {}, hasStitch, longClip);
+            const shiftedLead = s.find(e => e.bufferKey === 'demo:prep-lead');
+            // seqDur = 4*3 + 0.15*2 = 12.3 → start at 30 − 13.3 = 16.7
+            assert('overflow: sequence start shifted to trigger − (seqDur + 1)',
+                shiftedLead && near(shiftedLead.offsetSec, 16.7), JSON.stringify(offsets(s)));
 
             // ═══════════════════════════════════════════════════════════
             // 5. computeCueSchedule — audioAnnounce=false skipped

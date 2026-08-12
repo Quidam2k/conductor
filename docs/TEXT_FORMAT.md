@@ -109,7 +109,7 @@ Add `[tags]` **before** the action text to customize how it looks and feels:
 
 The `notify` and `no-notify` tags control the "heads up" announcement that plays before an action (e.g., "Get ready to wave left"). By default, a notice plays before each action. The timing is set by the `NotifyWindow` header (default: 10 seconds before).
 
-Cues that land closer together than that lead share a single notice, announced before the first of them — otherwise the second cue's notice would fire on top of the first cue's trigger. With a resource pack installed, that shared notice is the first cue's recorded `notice-<cue>` clip, so it still plays in a pocket.
+Cues that land closer together than that lead share a single notice, announced before the first of them — otherwise the second cue's notice would fire on top of the first cue's trigger. With a resource pack installed, that shared notice is stitched from the pack's `prep-lead` clip ("Get ready to…") followed by each named cue's own clip, so the whole heads-up still plays in a pocket.
 
 ### Haptic Tags
 
@@ -134,7 +134,8 @@ What a participant actually hears:
 | Countdown beeps | yes | yes |
 | Trigger beep at the action moment | yes | yes |
 | Resource-pack voice cues | yes | yes |
-| Spoken text — "Get ready to…" notices, action names read by text-to-speech | yes | **no** |
+| "Get ready to…" notices stitched from pack clips (`prep-lead` + cue names) | yes | yes |
+| Spoken text — anything read by text-to-speech (including notices with no pack `prep-lead`) | yes | **no** |
 
 What this means for your script:
 

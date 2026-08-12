@@ -45,8 +45,11 @@ async function waitForScreen(page, screenId) {
 
 // ─────────────────────────────────────────────────────────────────────
 // 1. All 8 minis import & validate: distinct ids, every timeline action
-//    covered (validation.uncovered empty), notice- prep phrase present
-//    for every action cue, embedded event pack fields == the mini id
+//    covered (validation.uncovered empty), embedded event pack fields ==
+//    the mini id. (notice-* clips in the shipped zips are dead weight
+//    since v57 — ignored by the engine; the rebuild that swaps them for
+//    `prep-lead` waits on the voice-forge clip. After that rebuild, add:
+//    expect('prep-lead' in manifest.cues).toBe(true).)
 // ─────────────────────────────────────────────────────────────────────
 test('all 8 mini-packs import with full cue coverage and rewritten event pack ids', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'import/validation driven on chromium only');
@@ -64,13 +67,9 @@ test('all 8 mini-packs import with full cue coverage and rewritten event pack id
 
             const events = await packManager.getPackEvents(manifest.id);
             const packIds = new Set();
-            const missingNotices = [];
             for (const { event } of events) {
                 for (const action of event.timeline || []) {
                     if (action.pack) packIds.add(action.pack);
-                    if (action.cue && !(`notice-${action.cue}` in manifest.cues)) {
-                        missingNotices.push(action.cue);
-                    }
                 }
             }
             out.push({
@@ -80,7 +79,6 @@ test('all 8 mini-packs import with full cue coverage and rewritten event pack id
                 eventCount: events.length,
                 validation,
                 eventPackIds: Array.from(packIds),
-                missingNotices,
             });
         }
         return out;
@@ -98,8 +96,6 @@ test('all 8 mini-packs import with full cue coverage and rewritten event pack id
         expect(r.validation, `${r.slug} validation ran`).not.toBe(null);
         expect(r.validation.total).toBeGreaterThan(0);
         expect(r.validation.uncovered, `${r.slug} uncovered`).toEqual([]);
-        // Prep phrases came along for every action cue
-        expect(r.missingNotices, `${r.slug} notices`).toEqual([]);
         // The embedded event points at the mini, not the retired monolith
         expect(r.eventPackIds).toEqual([`demo-${r.slug}`]);
     }
@@ -230,16 +226,16 @@ test('built-in demo event pairs with the Stillness mini-pack', async ({ page, br
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// 5. The Stillness end-to-end, on the real pack (v55). Two defects
-//    Jessica hit on 2026-08-11 in one place:
-//    (a) "Get ready to freeze and hold your position" was the robot voice
-//        in an otherwise fully recorded run — merged-group preps were TTS
-//        only, and TTS is not bakeable, so it was also absent in the pocket.
-//    (b) Disperse is 10s after Unfreeze while the prep lead is also 10s,
-//        so its prep landed exactly on the Unfreeze trigger — two voices
-//        layered at the same instant in the baked WAV.
+// 5. The Stillness end-to-end, on the real pack. Preps are stitched
+//    since v57: the leader's `prep-lead` clip + member cue clips. The
+//    shipped mini-packs don't carry `prep-lead` yet (Phase 3 rebuild,
+//    gated on the voice-forge clip), so today the schedule must bake NO
+//    prep at all — notice-<cue> is dead and must never be scheduled even
+//    though the zips still contain those files — and the live TTS
+//    enumeration covers screen-on. Grouping itself is unchanged, and
+//    nothing may collide with a trigger.
 // ─────────────────────────────────────────────────────────────────────
-test('Stillness mini: every prep is a recorded clip and none collides with a trigger', async ({ page, browserName }) => {
+test('Stillness mini: no notice-* scheduled; preps wait on prep-lead (pack not rebuilt yet)', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'decode + schedule driven on chromium only');
 
     await page.goto('/');
@@ -259,7 +255,11 @@ test('Stillness mini: every prep is a recorded clip and none collides with a tri
         const off = (ms) => Math.round((ms - startMs) / 1000);
         const schedule = audio.computeCueSchedule(
             evt.timeline, evt.defaultNoticeSeconds, meta, startMs, {},
-            (p, c) => packManager.hasCue(p, c));
+            (p, c) => packManager.hasCue(p, c),
+            (p, c) => {
+                const b = packManager.getBuffer(p + ':' + c);
+                return b ? b.duration : 0;
+            });
 
         const packCues = schedule.filter(e => e.kind === 'packCue')
             .map(e => ({ cueId: e.cueId, offsetSec: Math.round(e.offsetSec) }));
@@ -273,24 +273,28 @@ test('Stillness mini: every prep is a recorded clip and none collides with a tri
         return {
             lead: evt.defaultNoticeSeconds,
             groups,
-            preps: packCues.filter(e => e.cueId.startsWith('notice-')),
+            hasPrepLead: packManager.hasCue(manifest.id, 'prep-lead'),
+            cueIds: packCues.map(e => e.cueId),
+            preTrigger: packCues.filter(e => !triggerOffsets.has(e.offsetSec)),
             collisions: packCues.filter(e =>
-                e.cueId.startsWith('notice-') && triggerOffsets.has(e.offsetSec)),
+                e.cueId === 'prep-lead' && triggerOffsets.has(e.offsetSec)),
         };
     });
 
     expect(r.lead).toBe(10);
 
-    // (a) Both freeze cycles merge "Freeze" + "Hold your position", and both
-    //     preps are now the recorded notice-freeze clip, not a TTS sentence.
+    // Grouping unchanged: both freeze cycles merge, Disperse rides Unfreeze.
     expect(r.groups).toContainEqual(['Freeze', 'Hold your position']);
-    const prepCues = r.preps.map(p => p.cueId);
-    expect(prepCues.filter(c => c === 'notice-freeze').length).toBe(2);
-    expect(prepCues).toContain('notice-unfreeze');
-
-    // (b) Disperse merged into the Unfreeze group, so its prep is gone — and
-    //     nothing else lands on a trigger either.
     expect(r.groups).toContainEqual(['Unfreeze', 'Disperse']);
-    expect(prepCues).not.toContain('notice-disperse');
+
+    // notice-<cue> is dead: the zip still ships those files, but the
+    // scheduler must never emit one.
+    expect(r.cueIds.every(c => !c.startsWith('notice-'))).toBe(true);
+
+    // No prep-lead in the pack yet (Phase 3 rebuild) → no stitched prep,
+    // so nothing baked before the triggers; live TTS enumerates screen-on.
+    expect(r.hasPrepLead).toBe(false);
+    expect(r.cueIds).not.toContain('prep-lead');
+    expect(r.preTrigger).toEqual([]);
     expect(r.collisions).toEqual([]);
 });

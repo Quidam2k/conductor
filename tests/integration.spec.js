@@ -1864,9 +1864,9 @@ test('TTS collision: same-tick notice queues behind trigger instead of cancellin
 // 57. Grouping boundary + multi-cue prep enumeration (2026-06-09:
 //     actions exactly 5s apart got back-to-back preps). The window is
 //     the notice lead as of v55 (was a hardcoded 5s): a gap at exactly
-//     the lead groups, a hair over does not. The group leader's prep
-//     enumerates up to 3 member actions ("Get ready to a, b and c") when
-//     the leader has no recorded prep of its own.
+//     the lead groups, a hair over does not. The group leader's TTS prep
+//     enumerates ALL member actions (uncapped since v57 — the baked path
+//     stitches clips, so the TTS fallback no longer needs a cap either).
 // ═════════════════════════════════════════════════════════════════════
 
 test('grouping: gap at exactly the notice lead groups with enumerated prep; a hair over does not', async ({ page }) => {
@@ -1947,8 +1947,8 @@ test('grouping: gap at exactly the notice lead groups with enumerated prep; a ha
     expect(result.metaAt.p1GroupTexts).toEqual(['Freeze', 'Unfreeze']);
     expect(result.metaOver.q2GroupStart).toBe(true);
     expect(result.metaOver.q1GroupTexts).toBe(null);
-    // Burst of 4 enumerates exactly 3
-    expect(result.metaBurst.b1GroupTexts).toEqual(['Freeze', 'Wave', 'Kick']);
+    // Burst of 4 enumerates all 4 (cap removed in v57)
+    expect(result.metaBurst.b1GroupTexts).toEqual(['Freeze', 'Wave', 'Kick', 'Spin']);
 
     // The threshold IS the lead — same 6s gap, opposite verdicts
     expect(result.gap6s.lead10GroupStart).toBe(false);
@@ -1967,10 +1967,10 @@ test('grouping: gap at exactly the notice lead groups with enumerated prep; a ha
     expect(result.noticesOver[0].r).toBe('notice: "Get ready to freeze"');
     expect(result.noticesOver[1].r).toBe('notice: "Get ready to unfreeze"');
 
-    // Burst: one prep enumerating the first 3 members
+    // Burst: one prep enumerating every member (uncapped)
     expect(result.noticesBurst.length).toBe(1);
     expect(result.noticesBurst[0].id).toBe('b1');
-    expect(result.noticesBurst[0].r).toBe('notice: "Get ready to freeze, wave and kick"');
+    expect(result.noticesBurst[0].r).toBe('notice: "Get ready to freeze, wave, kick and spin"');
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -2166,17 +2166,18 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
 });
 
 // ═════════════════════════════════════════════════════════════════════
-// 60. Merged-group preps bake in the leader's own voice (v55, from
-//     Jessica's 2026-08-11 pocket run: everything was the recorded voice
-//     except "Get ready to freeze and hold your position", which came out
-//     robotic). That sentence is assembled from words at runtime, so only
-//     TTS can say it and TTS is not bakeable. computeCueSchedule now
-//     schedules the group LEADER's notice-<cue> clip instead — and still
-//     schedules nothing when the leader has no recorded prep, leaving the
-//     live TTS enumeration untouched for packless users.
+// 60. Stitched preps (v57): every prep bakes as the leader's reusable
+//     `prep-lead` clip ("Get ready to…") followed by each member's own
+//     cue clip at cumulative offsets — so ENUMERATED preps finally
+//     survive lock (v55 could only bake the leader's full-sentence
+//     notice clip and dropped the rest of the group). No lead in the
+//     pack → nothing baked, the live TTS enumeration covers screen-on.
+//     Members with missing clips are skipped; a sequence too long for
+//     the notice lead starts earlier instead of spilling past the
+//     trigger.
 // ═════════════════════════════════════════════════════════════════════
 
-test('bake schedule: merged group uses the leader notice cue, or nothing when absent', async ({ page }) => {
+test('bake schedule: stitched prep = prep-lead + member cue clips, or nothing without the lead', async ({ page }) => {
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
 
@@ -2194,33 +2195,51 @@ test('bake schedule: merged group uses the leader notice cue, or nothing when ab
         ];
         const meta = computeActionMeta(timeline, 10);
 
-        const run = (hasCue) => audio.computeCueSchedule(
-            timeline, 10, meta, base, {}, hasCue)
+        const run = (hasCue, durSec) => audio.computeCueSchedule(
+            timeline, 10, meta, base, {}, hasCue,
+            durSec === undefined ? (() => 1.0) : durSec)
             .filter(e => e.kind === 'packCue')
-            .map(e => ({ cueId: e.cueId, offsetSec: e.offsetSec }));
+            .map(e => ({ cueId: e.cueId, offsetSec: +e.offsetSec.toFixed(3) }));
 
+        const all = (p, c) => ['prep-lead', 'freeze', 'hold'].includes(c);
         return {
-            grouped: meta.get('g1').groupTexts,
+            members: (meta.get('g1').groupMembers || []).map(a => a.id),
             g2Suppressed: meta.get('g2').groupStartFlag,
-            // Pack has the leader's prep clip
-            withNotice: run((p, c) => c === 'freeze' || c === 'hold' || c === 'notice-freeze'),
-            // Same pack minus the prep clip — the live path enumerates via TTS
-            withoutNotice: run((p, c) => c === 'freeze' || c === 'hold'),
+            stitched: run(all),
+            partial: run((p, c) => c === 'prep-lead' || c === 'freeze'),
+            noLead: run((p, c) => c === 'freeze' || c === 'hold'),
+            noDur: run(all, null),
+            longClips: run(all, () => 4.0),
         };
     });
 
-    // The group is real: g2's prep is suppressed, g1 enumerates both
-    expect(r.grouped).toEqual(['Freeze', 'Hold your position']);
+    // The group is real: g2's prep is suppressed, g1 leads both members
+    expect(r.members).toEqual(['g1', 'g2']);
     expect(r.g2Suppressed).toBe(false);
 
-    // Leader's prep is baked at the notice lead (30s trigger − 10s = 20s)
-    expect(r.withNotice).toContainEqual({ cueId: 'notice-freeze', offsetSec: 20 });
-    // Member's prep is not — one prep per group, and it names the leader
-    expect(r.withNotice.some(e => e.cueId === 'notice-hold')).toBe(false);
+    // Stitched sequence anchors at the prep moment (30s trigger − 10s lead):
+    // prep-lead@20, then each 1s member clip 0.15s after the previous ends.
+    expect(r.stitched).toContainEqual({ cueId: 'prep-lead', offsetSec: 20 });
+    expect(r.stitched).toContainEqual({ cueId: 'freeze', offsetSec: 21.15 });
+    expect(r.stitched).toContainEqual({ cueId: 'hold', offsetSec: 22.3 });
+    // Triggers unaffected, and nothing notice-prefixed exists anymore
+    expect(r.stitched).toContainEqual({ cueId: 'freeze', offsetSec: 30 });
+    expect(r.stitched).toContainEqual({ cueId: 'hold', offsetSec: 35 });
+    expect(r.stitched.some(e => e.cueId.startsWith('notice-'))).toBe(false);
 
-    // No leader clip → nothing scheduled at the prep moment; the live path
-    // still speaks "Get ready to freeze and hold your position" screen-on.
-    expect(r.withoutNotice.some(e => e.cueId.startsWith('notice-'))).toBe(false);
-    // The triggers themselves are unaffected either way
-    expect(r.withoutNotice.map(e => e.cueId).sort()).toEqual(['freeze', 'hold']);
+    // Partial stitch: the member whose clip is missing is skipped, the rest play
+    expect(r.partial).toContainEqual({ cueId: 'prep-lead', offsetSec: 20 });
+    expect(r.partial).toContainEqual({ cueId: 'freeze', offsetSec: 21.15 });
+    expect(r.partial.some(e => e.cueId === 'hold')).toBe(false);
+
+    // No prep-lead in the pack → zero prep events; live TTS enumerates screen-on
+    expect(r.noLead.every(e => e.offsetSec >= 30)).toBe(true);
+    expect(r.noLead.map(e => e.cueId).sort()).toEqual(['freeze', 'hold']);
+
+    // No duration callback → offsets can't be laid out → no prep events
+    expect(r.noDur.every(e => e.offsetSec >= 30)).toBe(true);
+
+    // Overflow: 3 × 4s clips (+2 gaps) = 12.3s > lead − 1 → the sequence
+    // starts at trigger − (seqDur + 1) = 16.7s instead of 20s.
+    expect(r.longClips).toContainEqual({ cueId: 'prep-lead', offsetSec: 16.7 });
 });
