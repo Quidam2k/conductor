@@ -65,7 +65,12 @@ Plan: `cascades/2026-08-12-v57-glued-preps.md` (approved). One reusable "Get rea
 
 ## Verification
 - Phase-by-phase chromium runs green (9 harnesses; 78 integration/bake/demo; 13 voice).
-- Full 3-browser suite: running at session end — result + commit hash in the next update.
+- Full 3-browser suite: **326 pass / 72 skip / 1 fail = the known webkit
+  diagnostic-page test 1 flake**. New baseline 399 (was 396).
+- Shipped as `3743bb1` on main, pushed. Pages-verified live with Playwright:
+  build label v57, `createPrepLeadCard` present, `computeCueSchedule` arity 4
+  (dur param live), **0 console errors** (only the pre-existing
+  apple-mobile-web-app-capable deprecation warning).
 
 ## Follow-ups
 - Todd: voice-forge `prep-lead.wav` → rebuild minis → re-add manifest assertion.
