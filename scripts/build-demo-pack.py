@@ -1,7 +1,7 @@
 """Build the demo resource packs from voice-forge output + demo manifest + events.
 
 Default (v53+): per-event MINI-PACKS — one small zip per demo event, audio
-transcoded to 32 kbps mono MP3 so each pack is beamable via QR and light on
+transcoded to 64 kbps mono MPEG-1 MP3 so each pack is beamable via QR and light on
 weak signal (~100-250 KB each vs the 19 MB WAV monolith).
 
 Usage (run from the repo root):
@@ -11,7 +11,7 @@ Usage (run from the repo root):
 
 Each mini zip contains:
     manifest.json                   <- id "demo-<slug>", only that event's cues
-    voices/*.mp3, notices/*.mp3     <- 32 kbps mono MP3 (lameenc), STORE'd
+    voices/*.mp3, notices/*.mp3     <- 64 kbps mono MPEG-1 MP3 (lameenc), STORE'd
     events/<slug>.json              <- the one event, pack ids rewritten to the mini id
 
 The legacy monolith path is kept for reference but is retired as the linked
@@ -35,7 +35,14 @@ DEFAULT_VOICE_SOURCE = Path("X:/voice-forge/output")
 MONOLITH_ZIP = REPO / "docs" / "conductor-demo.zip"
 PACKS_DIR = REPO / "docs" / "packs"
 PAGES_BASE = "https://quidam2k.github.io/conductor/packs"
-MP3_KBPS = 32
+MP3_KBPS = 64
+# MPEG-1 Layer III exists only at 32/44.1/48 kHz. The source voices are 24 kHz,
+# so LAME emitted MPEG-2 Layer III regardless of bitrate — a variant Safari's
+# decodeAudioData rejects. v53's packs therefore imported fine on iPhone but
+# every cue failed to decode ("N recorded cues can't play on this device —
+# using spoken text"), silently downgrading iOS users to TTS, which cannot be
+# baked and so is silent under lock. Resample to 44.1 kHz so output is MPEG-1.
+MP3_SAMPLE_RATE = 44100
 SIZE_WARN_KB = 400  # beamable target; tests guard the same bound
 
 
@@ -69,6 +76,8 @@ def make_transcoder():
     import numpy as np
     import lameenc
     import soundfile
+    from math import gcd
+    from scipy.signal import resample_poly
 
     cache = {}
 
@@ -78,10 +87,13 @@ def make_transcoder():
             data, rate = soundfile.read(src, dtype="float32")
             if data.ndim > 1:  # downmix to mono
                 data = data.mean(axis=1)
+            if int(rate) != MP3_SAMPLE_RATE:  # 24 kHz source -> MPEG-1 rate
+                g = gcd(int(rate), MP3_SAMPLE_RATE)
+                data = resample_poly(data, MP3_SAMPLE_RATE // g, int(rate) // g)
             pcm16 = (np.clip(data, -1.0, 1.0) * 32767).astype(np.int16)
             enc = lameenc.Encoder()
             enc.set_bit_rate(MP3_KBPS)
-            enc.set_in_sample_rate(int(rate))
+            enc.set_in_sample_rate(MP3_SAMPLE_RATE)
             enc.set_channels(1)
             enc.set_quality(2)
             cache[key] = bytes(enc.encode(pcm16.tobytes())) + bytes(enc.flush())

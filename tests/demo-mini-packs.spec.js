@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
 // Per-event demo mini-pack tests (v53 Phase 4)
 //
 // The 19 MB conductor-demo.zip monolith is retired as the linked pack in
-// favor of 8 per-event minis (docs/packs/demo-<slug>.zip, 32 kbps mono
+// favor of 8 per-event minis (docs/packs/demo-<slug>.zip, 64 kbps mono MPEG-1
 // MP3 audio) built by scripts/build-demo-pack.py. Each mini has a
 // distinct id, bundles its one event (pack ids rewritten to the mini id),
 // and stays small enough to beam via QR or download on weak signal.
@@ -152,6 +152,48 @@ test('each mini-pack zip stays under the beamable size target', async () => {
         const kb = fs.statSync(file).size / 1024;
         expect(kb, `demo-${slug}.zip is ${kb.toFixed(1)} KB`).toBeLessThanOrEqual(SIZE_LIMIT_KB);
     }
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 3b. Codec guard: every pack MP3 must be MPEG-1 Layer III at 44.1 kHz.
+//     MPEG-2 / low-sample-rate MP3 (what LAME emits for the 24 kHz source
+//     voices unless they are resampled) imports fine but fails Safari's
+//     decodeAudioData, so v53's packs silently fell back to TTS on iPhone —
+//     and TTS cannot be baked, so the pocket case went silent. See
+//     MP3_SAMPLE_RATE in scripts/build-demo-pack.py.
+// ─────────────────────────────────────────────────────────────────────
+test('every mini-pack MP3 is MPEG-1 44.1 kHz (Safari-decodable)', async () => {
+    // Minimal local-header walk: pack audio is STORE'd, so entry data is the
+    // raw MP3 and the first frame header sits at the data offset.
+    const mp3Entries = (buf) => {
+        const out = [];
+        for (let i = 0; i + 30 < buf.length; i++) {
+            if (buf.readUInt32LE(i) !== 0x04034b50) continue;
+            const nameLen = buf.readUInt16LE(i + 26);
+            const extraLen = buf.readUInt16LE(i + 28);
+            const name = buf.toString('utf8', i + 30, i + 30 + nameLen);
+            if (!name.endsWith('.mp3')) continue;
+            out.push({ name, data: i + 30 + nameLen + extraLen });
+        }
+        return out;
+    };
+
+    let checked = 0;
+    for (const slug of SLUGS) {
+        const buf = fs.readFileSync(path.join(PACKS_DIR, `demo-${slug}.zip`));
+        const entries = mp3Entries(buf);
+        expect(entries.length, `demo-${slug}.zip has mp3 entries`).toBeGreaterThan(0);
+        for (const e of entries) {
+            const b1 = buf[e.data + 1], b2 = buf[e.data + 2];
+            const where = `demo-${slug}.zip:${e.name}`;
+            expect(buf[e.data], `${where} frame sync`).toBe(0xff);
+            expect((b1 & 0xe0), `${where} frame sync`).toBe(0xe0);
+            expect((b1 >> 3) & 3, `${where} must be MPEG-1 (3), not MPEG-2`).toBe(3);
+            expect((b2 >> 2) & 3, `${where} must be 44.1 kHz (0)`).toBe(0);
+            checked++;
+        }
+    }
+    expect(checked, 'mp3 files checked').toBeGreaterThanOrEqual(100);
 });
 
 // ─────────────────────────────────────────────────────────────────────
