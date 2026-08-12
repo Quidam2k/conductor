@@ -1028,7 +1028,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v55</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v56</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
         </div>
 
         <details class="app-about">
@@ -8651,10 +8651,16 @@ function recordingBlockHtml(index, kind, action) {
     const idleTitle = isNotice ? '🎤 Record the Prep Phrase' : '🎤 Record Your Voice';
     const doneTitle = isNotice ? '🎤 Prep Phrase Recorded ✓' : '🎤 Recorded ✓';
     const prepLine = 'Get ready to ' + (action.action || '…').toLowerCase();
+    // A mid-group cue shares the leader's prep, so a recording here is never
+    // heard. Say so rather than hiding the control — moving the cue later makes
+    // it live again.
+    const prepIsLive = actionPrepFires(index);
     const idleHint = isNotice
-        ? `Say &ldquo;${escapeHtml(prepLine)}&rdquo; &mdash; the heads-up 10 seconds before the cue. ` +
-          'Without a recording the prep uses the robot voice, which is silent in a pocket. ' +
-          'Cues closer together than the 10-second lead share one prep &mdash; the first cue&rsquo;s recording plays for the whole group.'
+        ? (prepIsLive
+            ? `Say &ldquo;${escapeHtml(prepLine)}&rdquo; &mdash; the heads-up 10 seconds before the cue. ` +
+              'Without a recording the prep uses the robot voice, which is silent in a pocket.'
+            : 'This cue lands within 10 seconds of the one before it, so it shares that cue&rsquo;s prep &mdash; ' +
+              'a recording here would not play. Worth doing only if you may move this cue later.')
         : 'Record a cue in your own voice. Keep it short and clear.';
     const recordedHint = isNotice
         ? 'Play checks the saved prep phrase on this device.'
@@ -8983,9 +8989,29 @@ function buildBatchSteps(onlyIndices) {
     state.editor.actions.forEach((action, index) => {
         if (onlyIndices && !onlyIndices.includes(index)) return;
         steps.push({ index, kind: 'main' });
-        steps.push({ index, kind: 'notice' });
+        if (actionPrepFires(index)) steps.push({ index, kind: 'notice' });
     });
     return steps;
+}
+
+/** The prep lead the editor stamps on every action (see finalizeEditorEvent). */
+const EDITOR_NOTICE_SECONDS = 10;
+
+/**
+ * Does this action's own prep phrase ever play? A prep fires `noticeSeconds`
+ * before its cue, and cues closer together than that lead share the group
+ * LEADER's single prep (computeActionMeta) — so a mid-group cue's own recording
+ * would never be heard. Asking for it anyway costs a take per cue, which is
+ * where a long script's recording session actually goes.
+ * @param {number} index - Index into state.editor.actions
+ * @returns {boolean}
+ */
+function actionPrepFires(index) {
+    const meta = computeActionMeta(
+        state.editor.actions.map((a, i) => ({ id: i, timeMs: a.offsetSeconds * 1000 })),
+        EDITOR_NOTICE_SECONDS);
+    const m = meta.get(index);
+    return m ? m.groupStartFlag : true;
 }
 
 /** Actions that already have a recording in the user's own voice. */
@@ -9818,7 +9844,7 @@ function finalizeEditorEvent() {
         hapticPattern: a.hapticPattern,
         countdownSeconds: a.countdown ? [3, 2, 1] : null,
         audioAnnounce: a.audioAnnounce,
-        noticeSeconds: 10,
+        noticeSeconds: EDITOR_NOTICE_SECONDS,
         pack: a.pack || null,
         cue: a.cue || null,
         fallbackText: a.fallbackText || null,
