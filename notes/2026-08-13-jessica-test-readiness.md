@@ -56,10 +56,12 @@ The approved Phase 2 was to derive `prep-lead` by trimming "Get ready to" off a 
 manufacture exactly the synthesized cue that #2932 just ruled out. Signoff assumed a human master;
 that assumption is wrong.
 
-**Held, not shipped.** Cheaper and aligned with the ruling: Todd records the three words
-"Get ready to…" once with a real mic, it drops in as `voices/prep-lead.wav`, and the 8 mini zips
-rebuild from it. Until then the demo's prep falls back to TTS — a **known gap being closed**, not a
-supported mode.
+**Resolved by Todd (#2935, 8:31 AM): "Fuck the demo pack."** The demo pack is out of the Tuesday
+test path entirely — no derived clip, no Todd recording, no mini-zip rebuild. The homework *is* the
+test: both write their own scripts, record their own cues (the v57 recorder writes `prep-lead`
+natively, so their packs bake correctly), export, swap, pocket-test each other's, as a normal part
+of using the app. Demo-pack steps and the robot-prep disclosure are out of the artifact; one
+footnote notes the demo packs are legacy. The demo `prep-lead` gap is logged post-Tuesday below.
 
 ## Status of the deliverable
 
@@ -72,12 +74,15 @@ link keeps working.
 Draft covers: confirm v57 → write a 4–6 cue script → `🎤 Record all cues` with `✓ Use & Next`
 called out → rename + export the pack → send zip + event link over Discord → import the other's
 and pocket-test it → paste diagnostics. Plus a callout correcting the QR misunderstanding
-(a still screenshot cannot carry a pack; the *event* QR really is just a link).
+(a still screenshot cannot carry a pack; the *event* QR really is just a link). Per #2935 the
+demo pack is gone from the checklist — one legacy footnote is all that remains of it.
 
 ## Follow-ups
 
-- **Todd:** record `prep-lead.wav` with a mic → rebuild minis → re-add the manifest assertion.
 - **Todd:** 60-second real-camera check of the beam clip before Tuesday.
+- **Post-Tuesday:** the demo packs still carry dead `notice-*` and no `prep-lead`, so their preps
+  fall back to TTS. Out of scope per #2935; fix or retire the demo packs when the Chatterbox
+  deprecation below is done — they're legacy either way.
 - **After Tuesday:** retire the Chatterbox-generated cue paths per #2932 (do not start this now).
 - Pack **Delete** is already on every pack card beside Beam and Rename — Jessica's third
   discoverability complaint is about finding it, not a missing control. Real fix deferred;
