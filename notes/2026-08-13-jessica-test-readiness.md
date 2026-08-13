@@ -63,13 +63,16 @@ natively, so their packs bake correctly), export, swap, pocket-test each other's
 of using the app. Demo-pack steps and the robot-prep disclosure are out of the artifact; one
 footnote notes the demo packs are legacy. The demo `prep-lead` gap is logged post-Tuesday below.
 
-## Status of the deliverable
+## Status of the deliverable — PUBLISHED
 
-The homework artifact is **drafted and held** per #2933 — no URL exists yet, nothing published.
-When it does publish it must be a **NEW artifact URL**: a published artifact stays pinned for
-viewers until the share pin moves, which is the real cause of the ~10 min lost on 8/04 and the
-version-label confusion on 8/11. The old pocket-test artifact stays untouched so her existing
-link keeps working.
+**https://claude.ai/code/artifact/265d6565-b0da-48f7-9b1f-dc0869360061** (published 2026-08-13 on
+Todd's go, #2938). New URL; the old pocket-test artifact (`5d6cd973…`) is untouched so Jessica's
+existing pinned link still works.
+
+**Two traps to remember about artifacts:** they are **private until shared from the page's share
+menu** — publishing alone sends nothing. And once shared, viewers stay **pinned to that version**;
+later republishes never reach them. That pin is the real cause of the ~10 min lost on 8/04 and the
+version-label confusion on 8/11. If a shared checklist needs a change, ship a fresh link.
 
 Draft covers: confirm v57 → write a 4–6 cue script → `🎤 Record all cues` with `✓ Use & Next`
 called out → rename + export the pack → send zip + event link over Discord → import the other's
