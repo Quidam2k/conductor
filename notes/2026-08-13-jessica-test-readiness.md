@@ -80,6 +80,38 @@ and pocket-test it → paste diagnostics. Plus a callout correcting the QR misun
 (a still screenshot cannot carry a pack; the *event* QR really is just a link). Per #2935 the
 demo pack is gone from the checklist — one legacy footnote is all that remains of it.
 
+## Settled rulings (2026-08-14, Todd via relay #2965)
+
+- **Grouped heads-up is the intended design, not a compromise.** His words: "if there are cues that
+  are too close together for each of them to get a warning cue… you record just the 'get ready to'…
+  each other cue has its own recording… you just concatenate: get ready to — freeze — raise the
+  sign." That is exactly what v57 ships. The 8/11 enumerated-vs-leader-only question is **closed**;
+  no code change. (Supersedes the open item in `2026-08-11-jessica-session.md`.)
+- **Video beam: pursue it.** "That's something we're just going to have to test. And we'll just keep
+  iterating on it until we're confident that it works." Compression and aliasing are cleared at
+  5 fps (above); the camera half is staged below.
+
+## Staged: the real-camera beam check (needs Todd's hands, ~10 min)
+
+Two devices: something to *play* the clip (laptop) and a phone to *scan* it.
+
+1. **Sender phone** → Manage Packs → pack card → **Beam**. Confirm the button reads **"Speed: 5 fps"**.
+   If it says 10 fps, tap it back to 5 — 10 fps is the one configuration that fails under compression.
+2. **Screen-record the beam for 50+ seconds.** Minimum is `pack KB ÷ 4.5` seconds (5 blocks/sec ×
+   900 bytes = 4.5 KB/s), so 156 KB needs 35 s; record 1.5× that for margin. A 10-second clip cannot
+   work at any quality.
+3. Send the clip to the laptop by any means. Compression is safe at 5 fps — measured byte-identical
+   down to 480 px wide at crf 40.
+4. **Play it full-screen, brightness up.** Kill reflections on the screen — glare is the most likely
+   failure and the one thing the measurement could not model.
+5. **Receiver phone** → Conductor → **Scan QR Code** → fill the camera frame with the QR, ~30 cm,
+   hold steady. Watch the block counter climb.
+6. **If it stalls, replay the clip rather than restarting the transfer.** The fountain accumulates
+   across passes and different frames drop each time, so a second pass genuinely adds coverage.
+   Still stuck: re-record with the sender's **"Trouble scanning? Smaller frames"** enabled.
+
+Record per round: completed Y/N, wall-clock seconds, replays needed, and the clip's fps/resolution.
+
 ## Follow-ups
 
 - **Todd:** 60-second real-camera check of the beam clip before Tuesday.
