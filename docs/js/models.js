@@ -88,6 +88,11 @@ function createTimelineAction(overrides = {}) {
  * @property {boolean|null} [defaultCountdown] - Whether countdown is on by default
  * @property {string|null} [defaultHapticMode] - 'action', 'countdown', or 'off'
  * @property {number|null} [timeWindowSeconds] - Window size in seconds (default 60)
+ * @property {string|null} [repeatUntil] - ISO 8601 UTC. When set, the whole cue
+ *   cycle repeats (with a coda rest between cycles) from start until this moment,
+ *   and endTime becomes this value. Absent = play once (default).
+ * @property {number|null} [codaGapSeconds] - Rest between repeated cycles (the
+ *   "coda" breath). Only meaningful with repeatUntil. Default DEFAULT_CODA_GAP_SEC.
  * @property {string|null} [visualMode] - "circular" or "vertical" (default "circular")
  * @property {Object|null} [briefing] - Persistent reference info displayed during event
  *   @property {string|null} [briefing.role] - Participant role description
@@ -147,6 +152,14 @@ function embeddedEventToEvent(embedded) {
         endTime = embedded.startTime;
     }
 
+    // Bounded repeat: the event runs until repeatUntil, so that's the end.
+    const repeatUntil = embedded.repeatUntil || null;
+    if (repeatUntil) {
+        const ru = new Date(repeatUntil).getTime();
+        const startMs = new Date(embedded.startTime).getTime();
+        if (ru > startMs) endTime = repeatUntil;
+    }
+
     const now = new Date().toISOString();
 
     // Generate unique ID from content hash (matches KMM approach)
@@ -173,6 +186,8 @@ function embeddedEventToEvent(embedded) {
         defaultCountdown: embedded.defaultCountdown ?? null,
         defaultHapticMode: embedded.defaultHapticMode ?? null,
         timeWindowSeconds: embedded.timeWindowSeconds ?? null,
+        repeatUntil: repeatUntil,
+        codaGapSeconds: embedded.codaGapSeconds ?? null,
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
         emergencyMode: false,
@@ -201,9 +216,71 @@ function eventToEmbeddedEvent(event) {
         defaultCountdown: event.defaultCountdown != null ? event.defaultCountdown : null,
         defaultHapticMode: event.defaultHapticMode || null,
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
+        repeatUntil: event.repeatUntil || null,
+        codaGapSeconds: event.codaGapSeconds || null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
     };
+}
+
+// ─── Bounded repeat ("coda") ─────────────────────────────────────────────────
+
+/** Default rest between repeated cycles, in seconds (a musical breath). */
+const DEFAULT_CODA_GAP_SEC = 4;
+
+/**
+ * Expand a repeating event into a flat, one-shot runtime timeline: the authored
+ * cycle tiled from start to repeatUntil, each cycle offset by
+ * (last-first action span + coda rest). Returns the event UNCHANGED when it
+ * doesn't repeat, so the normal (play-once) path pays nothing.
+ *
+ * This is a RUNTIME transform only — the canonical/encoded event keeps its one
+ * cycle plus repeatUntil. All playback consumers (visual timeline, audio loop,
+ * the offline bake, completion) then see the full schedule through one flat
+ * timeline, no special-casing required. The WAV simply ends at repeatUntil, so
+ * the exact stop survives a locked screen for free (no JS timer under lock).
+ *
+ * @param {Event} event - a runtime Event (normalized timeline with timeMs)
+ * @returns {Event} the same event, or a shallow clone with an expanded timeline
+ */
+function expandRepeats(event) {
+    if (!event || !event.repeatUntil) return event;
+    const timeline = event.timeline || [];
+    if (timeline.length === 0) return event;
+
+    const untilMs = new Date(event.repeatUntil).getTime();
+    if (!(untilMs > 0)) return event;
+
+    const sorted = [...timeline].sort((a, b) =>
+        (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
+    const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
+    const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
+    const codaMs = (event.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
+    const periodMs = (lastMs - firstMs) + codaMs;
+
+    // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
+    if (periodMs < 1000) return event;
+
+    const MAX_ACTIONS = 5000; // bake/perf backstop; the size note warns long windows
+    const expanded = [...timeline];
+    for (let k = 1; expanded.length < MAX_ACTIONS; k++) {
+        const shift = k * periodMs;
+        if (firstMs + shift > untilMs) break; // whole cycle now past the window
+        for (const a of sorted) {
+            const t = a.timeMs ?? new Date(a.time).getTime();
+            const newMs = t + shift;
+            if (newMs > untilMs) continue;
+            expanded.push(createTimelineAction({
+                ...a,
+                id: generateId(),
+                time: new Date(newMs).toISOString(),
+                timeMs: newMs,
+                relativeTime: null,
+            }));
+            if (expanded.length >= MAX_ACTIONS) break;
+        }
+    }
+    return { ...event, timeline: expanded };
 }
 
 // ─── Utilities ──────────────────────────────────────────────────────────────

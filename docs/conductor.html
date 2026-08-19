@@ -1079,7 +1079,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v59</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v60</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1348,6 +1348,21 @@
             <option value="120">2 minutes</option>
             <option value="300">5 minutes</option>
         </select>
+
+        <div class="ed-checkbox-row" style="margin-top:16px;">
+            <input type="checkbox" id="ed-repeat-toggle">
+            <label for="ed-repeat-toggle" title="Loop the whole cue sequence, with a rest between cycles, until a wall-clock time. Great for a seed-crystal chant so latecomers still catch a cycle.">Repeat the sequence until a set time</label>
+        </div>
+        <div id="ed-repeat-fields" style="display:none; margin-top:8px;">
+            <label class="field-label">Repeat until</label>
+            <input id="ed-repeat-until" class="field-input" type="datetime-local">
+            <label class="field-label" style="margin-top:8px;">Rest between repeats</label>
+            <div class="ed-offset-row">
+                <input id="ed-coda" class="field-input" type="number" min="1" max="600" value="4" style="max-width:90px;">
+                <span>sec</span>
+            </div>
+            <p id="ed-repeat-note" style="font-size:14px; color:var(--text-dim); margin-top:8px;"></p>
+        </div>
 
         <div id="ed-info-error" class="error-msg" style="margin-top:10px;"></div>
 
@@ -1776,6 +1791,11 @@ function createTimelineAction(overrides = {}) {
  * @property {boolean|null} [defaultCountdown] - Whether countdown is on by default
  * @property {string|null} [defaultHapticMode] - 'action', 'countdown', or 'off'
  * @property {number|null} [timeWindowSeconds] - Window size in seconds (default 60)
+ * @property {string|null} [repeatUntil] - ISO 8601 UTC. When set, the whole cue
+ *   cycle repeats (with a coda rest between cycles) from start until this moment,
+ *   and endTime becomes this value. Absent = play once (default).
+ * @property {number|null} [codaGapSeconds] - Rest between repeated cycles (the
+ *   "coda" breath). Only meaningful with repeatUntil. Default DEFAULT_CODA_GAP_SEC.
  * @property {string|null} [visualMode] - "circular" or "vertical" (default "circular")
  * @property {Object|null} [briefing] - Persistent reference info displayed during event
  *   @property {string|null} [briefing.role] - Participant role description
@@ -1835,6 +1855,14 @@ function embeddedEventToEvent(embedded) {
         endTime = embedded.startTime;
     }
 
+    // Bounded repeat: the event runs until repeatUntil, so that's the end.
+    const repeatUntil = embedded.repeatUntil || null;
+    if (repeatUntil) {
+        const ru = new Date(repeatUntil).getTime();
+        const startMs = new Date(embedded.startTime).getTime();
+        if (ru > startMs) endTime = repeatUntil;
+    }
+
     const now = new Date().toISOString();
 
     // Generate unique ID from content hash (matches KMM approach)
@@ -1861,6 +1889,8 @@ function embeddedEventToEvent(embedded) {
         defaultCountdown: embedded.defaultCountdown ?? null,
         defaultHapticMode: embedded.defaultHapticMode ?? null,
         timeWindowSeconds: embedded.timeWindowSeconds ?? null,
+        repeatUntil: repeatUntil,
+        codaGapSeconds: embedded.codaGapSeconds ?? null,
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
         emergencyMode: false,
@@ -1889,9 +1919,71 @@ function eventToEmbeddedEvent(event) {
         defaultCountdown: event.defaultCountdown != null ? event.defaultCountdown : null,
         defaultHapticMode: event.defaultHapticMode || null,
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
+        repeatUntil: event.repeatUntil || null,
+        codaGapSeconds: event.codaGapSeconds || null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
     };
+}
+
+// ─── Bounded repeat ("coda") ─────────────────────────────────────────────────
+
+/** Default rest between repeated cycles, in seconds (a musical breath). */
+const DEFAULT_CODA_GAP_SEC = 4;
+
+/**
+ * Expand a repeating event into a flat, one-shot runtime timeline: the authored
+ * cycle tiled from start to repeatUntil, each cycle offset by
+ * (last-first action span + coda rest). Returns the event UNCHANGED when it
+ * doesn't repeat, so the normal (play-once) path pays nothing.
+ *
+ * This is a RUNTIME transform only — the canonical/encoded event keeps its one
+ * cycle plus repeatUntil. All playback consumers (visual timeline, audio loop,
+ * the offline bake, completion) then see the full schedule through one flat
+ * timeline, no special-casing required. The WAV simply ends at repeatUntil, so
+ * the exact stop survives a locked screen for free (no JS timer under lock).
+ *
+ * @param {Event} event - a runtime Event (normalized timeline with timeMs)
+ * @returns {Event} the same event, or a shallow clone with an expanded timeline
+ */
+function expandRepeats(event) {
+    if (!event || !event.repeatUntil) return event;
+    const timeline = event.timeline || [];
+    if (timeline.length === 0) return event;
+
+    const untilMs = new Date(event.repeatUntil).getTime();
+    if (!(untilMs > 0)) return event;
+
+    const sorted = [...timeline].sort((a, b) =>
+        (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
+    const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
+    const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
+    const codaMs = (event.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
+    const periodMs = (lastMs - firstMs) + codaMs;
+
+    // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
+    if (periodMs < 1000) return event;
+
+    const MAX_ACTIONS = 5000; // bake/perf backstop; the size note warns long windows
+    const expanded = [...timeline];
+    for (let k = 1; expanded.length < MAX_ACTIONS; k++) {
+        const shift = k * periodMs;
+        if (firstMs + shift > untilMs) break; // whole cycle now past the window
+        for (const a of sorted) {
+            const t = a.timeMs ?? new Date(a.time).getTime();
+            const newMs = t + shift;
+            if (newMs > untilMs) continue;
+            expanded.push(createTimelineAction({
+                ...a,
+                id: generateId(),
+                time: new Date(newMs).toISOString(),
+                timeMs: newMs,
+                relativeTime: null,
+            }));
+            if (expanded.length >= MAX_ACTIONS) break;
+        }
+    }
+    return { ...event, timeline: expanded };
 }
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
@@ -2209,6 +2301,8 @@ function validateAndComplete(eventData) {
         defaultCountdown: eventData.defaultCountdown ?? null,
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
+        repeatUntil: eventData.repeatUntil ?? null,
+        codaGapSeconds: eventData.codaGapSeconds ?? null,
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
     };
@@ -2276,7 +2370,7 @@ function parseTextFormat(text) {
         }
 
         // Try header: Key: Value (in 'header' or 'timeline' sections)
-        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -2378,6 +2472,17 @@ function parseTextFormat(text) {
     const startTime = startDate.toISOString();
     const startMs = startDate.getTime();
 
+    // Optional bounded repeat: "RepeatUntil:" wall-clock end + "Coda:" rest.
+    let repeatUntil = null;
+    if (headers.repeatuntil) {
+        const ru = new Date(headers.repeatuntil);
+        if (isNaN(ru.getTime())) {
+            throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
+        }
+        if (ru.getTime() > startMs) repeatUntil = ru.toISOString();
+    }
+    const codaGapSeconds = (repeatUntil && headers.coda) ? parseInt(headers.coda, 10) : undefined;
+
     // Default timezone to browser's local timezone
     const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -2407,6 +2512,8 @@ function parseTextFormat(text) {
         defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
+        repeatUntil: repeatUntil || undefined,
+        codaGapSeconds,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
 }
@@ -7726,7 +7833,9 @@ function showPocketBanner() {
 
 async function enterPractice() {
     const gen = enterGen;
-    const evt = state.event;
+    // playEvent = the flattened runtime timeline (repeats expanded). For a
+    // play-once event it's just state.event; the encoded event stays one cycle.
+    const evt = state.playEvent = expandRepeats(state.event);
     if (!evt || evt.timeline.length === 0) return;
 
     $('practice-title').textContent = evt.title;
@@ -7857,7 +7966,7 @@ function updatePracticeRehearsalNote() {
 }
 
 function startPracticeLoop() {
-    const endMs = new Date(state.event.endTime).getTime();
+    const endMs = new Date((state.playEvent || state.event).endTime).getTime();
     function frame() {
         if (state.mode !== 'practice') return;
         const virtualNow = getPracticeNow(
@@ -7886,7 +7995,9 @@ function startPracticeLoop() {
 
 async function enterLive() {
     const gen = enterGen;
-    const evt = state.event;
+    // playEvent = the flattened runtime timeline (repeats expanded). For a
+    // play-once event it's just state.event; the encoded event stays one cycle.
+    const evt = state.playEvent = expandRepeats(state.event);
     if (!evt || evt.timeline.length === 0) return;
 
     // If all actions are >5 minutes past, go straight to completed
@@ -8137,7 +8248,7 @@ function startAudioLoop(mode) {
     audioIntervalId = setInterval(() => {
         if (state.mode !== mode) return;
 
-        const evt = state.event;
+        const evt = state.playEvent || state.event;
         if (!evt) return;
 
         updateAudioDebugRow(mode);
@@ -8558,6 +8669,8 @@ function resetEditorState() {
         editingIndex: -1,
         expandedIndex: -1,
         draftId: null,
+        repeatUntil: '',        // "YYYY-MM-DDTHH:MM" local, '' = play once
+        codaGapSeconds: null,
     };
 }
 
@@ -8602,7 +8715,49 @@ function initEditorInfo() {
     const tz = ed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     populateTimezoneSelect(tz);
     $('ed-time-window').value = ed.timeWindowSeconds || '';
+
+    // Repeat ("coda") fields
+    const repeatOn = !!ed.repeatUntil;
+    $('ed-repeat-toggle').checked = repeatOn;
+    $('ed-repeat-fields').style.display = repeatOn ? '' : 'none';
+    $('ed-repeat-until').value = ed.repeatUntil || '';
+    $('ed-coda').value = ed.codaGapSeconds || 4;
+    updateRepeatNote();
+
     $('ed-info-error').textContent = '';
+}
+
+/**
+ * Show a rough size heads-up for long repeat windows — going live pre-bakes the
+ * whole span into one WAV (the wart from the >30-min single-play warning), so a
+ * multi-hour chant is a big transient file. Advisory only, never blocks.
+ */
+function updateRepeatNote() {
+    const note = $('ed-repeat-note');
+    if (!note) return;
+    if (!$('ed-repeat-toggle').checked || !$('ed-repeat-until').value) {
+        note.textContent = '';
+        return;
+    }
+    try {
+        const tz = $('ed-timezone').value;
+        const startMs = new Date(localDateTimeToUTC($('ed-datetime').value, tz)).getTime();
+        const endMs = new Date(localDateTimeToUTC($('ed-repeat-until').value, tz)).getTime();
+        const mins = Math.round((endMs - startMs) / 60000);
+        if (!(mins > 0)) {
+            note.textContent = 'Repeat-until must be after the start time.';
+            note.style.color = 'var(--accent-gold)';
+            return;
+        }
+        // ~2.83 MB per baked minute (from the known 1 h ≈ 170 MB transient wart).
+        const mb = Math.round(mins * 2.83);
+        const long = mins > 30;
+        note.style.color = long ? 'var(--accent-gold)' : 'var(--text-dim)';
+        note.textContent = `Runs ~${mins} min. Going live pre-renders the whole span`
+            + ` (~${mb} MB held in memory)` + (long ? ' — that’s a lot; keep windows tight on older phones.' : '.');
+    } catch {
+        note.textContent = '';
+    }
 }
 
 function saveEditorInfo() {
@@ -8635,6 +8790,16 @@ function saveEditorInfo() {
     state.editor.timezone = $('ed-timezone').value;
     const twVal = $('ed-time-window').value;
     state.editor.timeWindowSeconds = twVal ? parseInt(twVal, 10) : null;
+
+    // Repeat ("coda"): store the local wall-clock end + rest, or clear it.
+    if ($('ed-repeat-toggle').checked && $('ed-repeat-until').value) {
+        state.editor.repeatUntil = $('ed-repeat-until').value;
+        const coda = parseInt($('ed-coda').value, 10);
+        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+    } else {
+        state.editor.repeatUntil = '';
+        state.editor.codaGapSeconds = null;
+    }
 
     // Auto-save draft silently on Step 1 → Step 2 transition
     saveDraftFromEditor().catch(() => {});
@@ -10078,6 +10243,15 @@ function finalizeEditorEvent() {
         timeWindowSeconds: ed.timeWindowSeconds || undefined,
     };
 
+    // Bounded repeat ("coda"): convert the local wall-clock end to UTC.
+    if (ed.repeatUntil) {
+        const ru = localDateTimeToUTC(ed.repeatUntil, ed.timezone);
+        if (new Date(ru).getTime() > startMs) {
+            embedded.repeatUntil = ru;
+            embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
+        }
+    }
+
     state.event = embeddedEventToEvent(embedded);
 }
 
@@ -10599,6 +10773,8 @@ async function loadDraft(id) {
     state.editor.actions = (draft.actions || [])
         .filter(a => a.action && a.action.trim())
         .map(a => Object.assign({}, a));
+    state.editor.repeatUntil = draft.repeatUntil || '';
+    state.editor.codaGapSeconds = draft.codaGapSeconds || null;
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
     transitionTo('editor-info');
@@ -10614,6 +10790,8 @@ function collectDraftFromEditor() {
         actions: state.editor.actions
             .filter(a => a.action && a.action.trim())
             .map(a => Object.assign({}, a)),
+        repeatUntil: state.editor.repeatUntil || '',
+        codaGapSeconds: state.editor.codaGapSeconds || null,
     };
 }
 
@@ -10805,6 +10983,16 @@ $('btn-ed-next1').addEventListener('click', () => {
     if (saveEditorInfo()) {
         transitionTo('editor-timeline');
     }
+});
+
+// Repeat ("coda") controls — show/hide the fields and keep the size note fresh.
+$('ed-repeat-toggle').addEventListener('change', () => {
+    $('ed-repeat-fields').style.display = $('ed-repeat-toggle').checked ? '' : 'none';
+    updateRepeatNote();
+});
+['ed-repeat-until', 'ed-coda', 'ed-datetime'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('change', updateRepeatNote);
 });
 $('btn-ed-cancel').addEventListener('click', () => {
     const hasData = $('ed-title').value.trim() || $('ed-description').value.trim();
