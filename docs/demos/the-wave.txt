@@ -1,0 +1,51 @@
+# The Wave — a wave of light and sound rolling through the crowd
+# The "how did they do that?" warm-up. A wave sweeps down numbered zones and
+# back — phone lights up, a short whoop — like a stadium wave made of light.
+# Needs no resource pack, so anyone can join with just the link.
+#
+# DRAFT for Todd to refine (2026-08-18).
+#
+# HOW IT WORKS (the trick is dead simple, which is the charm):
+#   - Everyone runs the SAME script. The briefing gives each person a ZONE
+#     NUMBER (count off 1-8 down the line, or by where you're standing).
+#   - When your zone is called, hold your phone up bright (flashlight or a white
+#     screen), give a short "whoop," then lower it as the wave moves past you.
+#   - Because each zone acts one after another, the light and sound travel down
+#     the crowd as a wave. Forward, then back. Then it repeats.
+#   - The soft beat from every phone is just the metronome; the SPECTACLE is the
+#     lights and voices moving through space.
+#
+# This is a screen-ON piece by nature (people are watching and holding lights up),
+# so it doesn't lean on the locked-screen bake — it's the wonder-and-warm-up act
+# before a One Voice or a freeze.
+
+Title: The Wave
+Description: A wave of phone light and sound rolls down the crowd and back, by numbered zones — a stadium wave made of light. No pack needed; it repeats so the wave keeps rolling.
+Start: 2026-09-01 6:00 PM
+Timezone: America/Chicago
+RepeatUntil: 2026-09-01 6:15 PM
+Coda: 3
+
+[BRIEFING]
+role:   The Wave — lights up when your zone is called
+event:  Count off into zones 1 through 8 down the line. When YOUR zone shows on screen, hold your phone up bright and give a quick whoop, then lower it as the wave passes. The wave rolls down and back, then again.
+notes:  Turn your screen brightness all the way up, or use your flashlight. Keep it going — the wave repeats every few seconds.
+exit:   Toward the main street, normal pace.
+abort:  Lower your phone. Stop. Walk to the exit at a normal pace.
+
+[TIMELINE]
+0:10  [no-notify, no-countdown, haptic:single] Zone 1 — lights up
+0:11  [no-notify, no-countdown, haptic:single] Zone 2 — lights up
+0:12  [no-notify, no-countdown, haptic:single] Zone 3 — lights up
+0:13  [no-notify, no-countdown, haptic:single] Zone 4 — lights up
+0:14  [no-notify, no-countdown, haptic:single] Zone 5 — lights up
+0:15  [no-notify, no-countdown, haptic:single] Zone 6 — lights up
+0:16  [no-notify, no-countdown, haptic:single] Zone 7 — lights up
+0:17  [no-notify, no-countdown, haptic:single] Zone 8 — lights up
+0:18  [no-notify, no-countdown, haptic:single] Zone 7 — lights up
+0:19  [no-notify, no-countdown, haptic:single] Zone 6 — lights up
+0:20  [no-notify, no-countdown, haptic:single] Zone 5 — lights up
+0:21  [no-notify, no-countdown, haptic:single] Zone 4 — lights up
+0:22  [no-notify, no-countdown, haptic:single] Zone 3 — lights up
+0:23  [no-notify, no-countdown, haptic:single] Zone 2 — lights up
+0:24  [no-notify, no-countdown, haptic:single] Zone 1 — lights up

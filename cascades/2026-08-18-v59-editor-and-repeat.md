@@ -33,7 +33,29 @@ Files: `docs/demos/` (.txt/.json), maybe a mini-pack.
 - Ground in research briefing (protest-precedents artifact from the research pass).
 
 ## Status
-- [x] Phase 1 (v59)  [x] Phase 2 (v60)  [ ] Phase 3
+- [x] Phase 1 (v59)  [x] Phase 2 (v60)  [x] Phase 3 (content drafts)
+
+### Phase 3 drafted — 2026-08-18 (CONTENT — needs Todd's wording pass)
+Two new standalone demo scripts in `docs/demos/` (.txt authoring source + .json
+EmbeddedEvent, generated via the app's own parser so they're guaranteed valid):
+- **`one-voice`** — the killer script. Single-line human unison shout, counted in
+  by a private 3-2-1 (earbud/visual + triple haptic, NOT phone-speaker playback).
+  Uses v60 bounded repeat (coda 12s, 20-min window) as a seed-crystal so latecomers
+  catch a round. No pack needed → app-less strangers can join. Line is the swappable
+  message ("ICE out of Minneapolis" placeholder). Memorial "wall of names" variant
+  documented in the file header.
+- **`the-wave`** — the "how did they do that" warm-up. A light+sound wave sweeps
+  numbered zones 1-8 down and back (briefing assigns zones); repeats (coda 3s) so it
+  rolls continuously. Screen-on spectacle; no pack needed.
+- Verified in-browser: both .txt and .json parse, expand, and end exactly at
+  repeatUntil (one-voice → 100 shouts, the-wave → 787 zone cues).
+- **Open for Todd (content is collaborative):** the actual message/wording; whether
+  to record a pack; whether/where to surface these in a demo picker (NOT wired into
+  any UI list — pack manifest untouched, respecting the demo-content freeze). The
+  One Voice countdown currently uses 3 beeps (earbud) — Todd may prefer pure-visual.
+
+⚠️ NEXT: Todd's content pass on One Voice line + Wave zone wording; real-device
+sanity (Todd + Jessica iOS for the One Voice earbud countdown under lock).
 
 ### Phase 2 shipped (v60) — 2026-08-18
 Bounded repeat ("coda"). Model + runtime + editor + text format.

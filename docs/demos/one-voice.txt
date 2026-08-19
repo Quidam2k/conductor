@@ -1,0 +1,40 @@
+# One Voice — say it together
+# Everyone shouts the SAME line at the SAME instant: a wall of human voices,
+# perfectly together. The app just counts you in. The line is yours to swap.
+#
+# DRAFT for Todd to refine (2026-08-18). The line below is a placeholder — the
+# whole point is that it's the one thing an organizer changes.
+#
+# Why it works as a seed-crystal: it needs no resource pack (TTS + beeps only),
+# so a stranger who just got the link at a protest can join instantly. And it
+# REPEATS (v60 bounded repeat), so people arriving late still catch a full round.
+#
+# HOW THE CUE LANDS A CROWD ON THE BEAT:
+#   - The sound is YOUR voice + everyone else's — NOT your phone's speaker.
+#     Do not play the line through the phone. The phone only counts you in.
+#   - Put in ONE EARBUD (or just watch the screen). Then the 3-2-1 is private,
+#     and the street hears only the shout — hundreds of people, one instant.
+#   - The triple buzz on "now" is your silent, pocket-proof beat.
+#
+# MEMORIAL VARIANT (a wall of names): hand out several copies of this script,
+# each with a different name as the line and a slightly different start time
+# (stagger by a few seconds). Overlapping groups shouting different names make a
+# continuous, rolling wall of names instead of a single unison shout.
+
+Title: One Voice
+Description: Everyone shouts the same short line at the same instant — a wall of human voices, together. Swap the line for your message. No app extras needed; it repeats so latecomers still catch a round.
+Start: 2026-09-01 6:00 PM
+Timezone: America/Chicago
+NotifyWindow: 4
+RepeatUntil: 2026-09-01 6:20 PM
+Coda: 12
+
+[BRIEFING]
+role:   One Voice — say it together
+event:  On the count, everyone shouts the SAME words at the SAME instant. Your phone only counts you in — put in an EARBUD or watch the screen so the street hears your VOICE, not your speaker. Never play the line through your phone.
+notes:  Change the line to your message. Two or three words land hardest. It repeats every few seconds, so people who just arrived can jump straight in.
+exit:   Toward the main street, normal pace.
+abort:  Stop chanting. Lower your phone. Walk to the exit at a normal pace.
+
+[TIMELINE]
+0:10  [countdown:3, no-notify, alert, haptic:triple] ICE out of Minneapolis
