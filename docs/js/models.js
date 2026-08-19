@@ -91,8 +91,13 @@ function createTimelineAction(overrides = {}) {
  * @property {string|null} [repeatUntil] - ISO 8601 UTC. When set, the whole cue
  *   cycle repeats (with a coda rest between cycles) from start until this moment,
  *   and endTime becomes this value. Absent = play once (default).
+ * @property {number|null} [repeatCount] - Total cycles including the first (N=2 =
+ *   original + 1 more). A second way to bound the same repeat engine: repeat a
+ *   fixed number of times instead of until a wall-clock instant. Either bound may
+ *   be set, or both — when both are set, whichever fires first stops the loop.
  * @property {number|null} [codaGapSeconds] - Rest between repeated cycles (the
- *   "coda" breath). Only meaningful with repeatUntil. Default DEFAULT_CODA_GAP_SEC.
+ *   "coda" breath). Meaningful whenever either bound (repeatUntil or repeatCount)
+ *   is set. Default DEFAULT_CODA_GAP_SEC.
  * @property {string|null} [visualMode] - "circular" or "vertical" (default "circular")
  * @property {Object|null} [briefing] - Persistent reference info displayed during event
  *   @property {string|null} [briefing.role] - Participant role description
@@ -152,12 +157,30 @@ function embeddedEventToEvent(embedded) {
         endTime = embedded.startTime;
     }
 
-    // Bounded repeat: the event runs until repeatUntil, so that's the end.
+    // Bounded repeat: extend endTime to span every cycle, so the circular
+    // timeline and completion detection cover the whole repeated run.
     const repeatUntil = embedded.repeatUntil || null;
-    if (repeatUntil) {
-        const ru = new Date(repeatUntil).getTime();
+    const repeatCount = (embedded.repeatCount && embedded.repeatCount > 1)
+        ? embedded.repeatCount : null;
+    if (repeatUntil || repeatCount) {
         const startMs = new Date(embedded.startTime).getTime();
-        if (ru > startMs) endTime = repeatUntil;
+        // Each candidate end is an epoch-ms; first-to-fire wins → take the min.
+        let endMs = Infinity;
+        if (repeatUntil) {
+            const ru = new Date(repeatUntil).getTime();
+            if (ru > startMs) endMs = Math.min(endMs, ru);
+        }
+        if (repeatCount && timeline.length > 0) {
+            // N times: end = last cue of the Nth cycle
+            //        = firstCue + (N-1)*period + span = lastCue + (N-1)*period.
+            const times = timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
+            const firstMs = Math.min(...times);
+            const lastMs = Math.max(...times);
+            const codaMs = (embedded.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
+            const periodMs = (lastMs - firstMs) + codaMs;
+            endMs = Math.min(endMs, lastMs + (repeatCount - 1) * periodMs);
+        }
+        if (endMs !== Infinity && endMs > startMs) endTime = new Date(endMs).toISOString();
     }
 
     const now = new Date().toISOString();
@@ -187,6 +210,7 @@ function embeddedEventToEvent(embedded) {
         defaultHapticMode: embedded.defaultHapticMode ?? null,
         timeWindowSeconds: embedded.timeWindowSeconds ?? null,
         repeatUntil: repeatUntil,
+        repeatCount: repeatCount,
         codaGapSeconds: embedded.codaGapSeconds ?? null,
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
@@ -217,6 +241,7 @@ function eventToEmbeddedEvent(event) {
         defaultHapticMode: event.defaultHapticMode || null,
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
         repeatUntil: event.repeatUntil || null,
+        repeatCount: (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : null,
         codaGapSeconds: event.codaGapSeconds || null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
@@ -244,12 +269,15 @@ const DEFAULT_CODA_GAP_SEC = 4;
  * @returns {Event} the same event, or a shallow clone with an expanded timeline
  */
 function expandRepeats(event) {
-    if (!event || !event.repeatUntil) return event;
+    if (!event || (!event.repeatUntil && !event.repeatCount)) return event;
     const timeline = event.timeline || [];
     if (timeline.length === 0) return event;
 
-    const untilMs = new Date(event.repeatUntil).getTime();
+    // Two independent break conditions; whichever fires first stops the tiling.
+    const untilMs = event.repeatUntil ? new Date(event.repeatUntil).getTime() : Infinity;
     if (!(untilMs > 0)) return event;
+    const maxCycles = (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : Infinity;
+    if (untilMs === Infinity && maxCycles === Infinity) return event;
 
     const sorted = [...timeline].sort((a, b) =>
         (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
@@ -264,6 +292,7 @@ function expandRepeats(event) {
     const MAX_ACTIONS = 5000; // bake/perf backstop; the size note warns long windows
     const expanded = [...timeline];
     for (let k = 1; expanded.length < MAX_ACTIONS; k++) {
+        if (k >= maxCycles) break; // reached the requested cycle count (incl. first)
         const shift = k * periodMs;
         if (firstMs + shift > untilMs) break; // whole cycle now past the window
         for (const a of sorted) {

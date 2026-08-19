@@ -1080,7 +1080,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v60</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v61</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1352,11 +1352,26 @@
 
         <div class="ed-checkbox-row" style="margin-top:16px;">
             <input type="checkbox" id="ed-repeat-toggle">
-            <label for="ed-repeat-toggle" title="Loop the whole cue sequence, with a rest between cycles, until a wall-clock time. Great for a seed-crystal chant so latecomers still catch a cycle.">Repeat the sequence until a set time</label>
+            <label for="ed-repeat-toggle" title="Loop the whole cue sequence, with a rest between cycles. Bound it by a wall-clock time (latecomers still catch a cycle) or by a fixed number of times (a rehearsed drill).">Repeat the sequence</label>
         </div>
         <div id="ed-repeat-fields" style="display:none; margin-top:8px;">
-            <label class="field-label">Repeat until</label>
-            <input id="ed-repeat-until" class="field-input" type="datetime-local">
+            <div class="ed-checkbox-row">
+                <input type="radio" name="ed-repeat-mode" id="ed-repeat-mode-until" value="until" checked>
+                <label for="ed-repeat-mode-until" title="Everyone stops at the same wall-clock instant — a latecomer who joins mid-way still stops with the crowd.">until a set time</label>
+            </div>
+            <div id="ed-repeat-until-field" style="margin:6px 0 4px 24px;">
+                <input id="ed-repeat-until" class="field-input" type="datetime-local">
+            </div>
+            <div class="ed-checkbox-row" style="margin-top:6px;">
+                <input type="radio" name="ed-repeat-mode" id="ed-repeat-mode-count" value="count">
+                <label for="ed-repeat-mode-count" title="A fixed number of cycles. Stays synced only if everyone starts together — a rehearsed warm-up or drill.">a set number of times</label>
+            </div>
+            <div id="ed-repeat-count-field" style="display:none; margin:6px 0 4px 24px;">
+                <div class="ed-offset-row">
+                    <input id="ed-repeat-count" class="field-input" type="number" min="2" max="50" value="3" style="max-width:90px;">
+                    <span>times (total)</span>
+                </div>
+            </div>
             <label class="field-label" style="margin-top:8px;">Rest between repeats</label>
             <div class="ed-offset-row">
                 <input id="ed-coda" class="field-input" type="number" min="1" max="600" value="4" style="max-width:90px;">
@@ -3412,7 +3427,8 @@ function resetEditorState() {
         editingIndex: -1,
         expandedIndex: -1,
         draftId: null,
-        repeatUntil: '',        // "YYYY-MM-DDTHH:MM" local, '' = play once
+        repeatUntil: '',        // "YYYY-MM-DDTHH:MM" local, '' = no time bound
+        repeatCount: null,      // total cycles incl. first, null = no count bound
         codaGapSeconds: null,
     };
 }
@@ -3459,12 +3475,18 @@ function initEditorInfo() {
     populateTimezoneSelect(tz);
     $('ed-time-window').value = ed.timeWindowSeconds || '';
 
-    // Repeat ("coda") fields
-    const repeatOn = !!ed.repeatUntil;
+    // Repeat ("coda") fields — either bound turns the feature on.
+    const countMode = !!ed.repeatCount && !ed.repeatUntil;
+    const repeatOn = !!ed.repeatUntil || !!ed.repeatCount;
     $('ed-repeat-toggle').checked = repeatOn;
     $('ed-repeat-fields').style.display = repeatOn ? '' : 'none';
+    $('ed-repeat-mode-until').checked = !countMode;
+    $('ed-repeat-mode-count').checked = countMode;
     $('ed-repeat-until').value = ed.repeatUntil || '';
+    $('ed-repeat-count').value = ed.repeatCount || 3;
     $('ed-coda').value = ed.codaGapSeconds || 4;
+    $('ed-repeat-until-field').style.display = countMode ? 'none' : '';
+    $('ed-repeat-count-field').style.display = countMode ? '' : 'none';
     updateRepeatNote();
 
     $('ed-info-error').textContent = '';
@@ -3478,15 +3500,45 @@ function initEditorInfo() {
 function updateRepeatNote() {
     const note = $('ed-repeat-note');
     if (!note) return;
-    if (!$('ed-repeat-toggle').checked || !$('ed-repeat-until').value) {
+    if (!$('ed-repeat-toggle').checked) {
         note.textContent = '';
         return;
     }
+    const countMode = $('ed-repeat-mode-count').checked;
     try {
         const tz = $('ed-timezone').value;
         const startMs = new Date(localDateTimeToUTC($('ed-datetime').value, tz)).getTime();
+        let mins;
+        if (countMode) {
+            const n = parseInt($('ed-repeat-count').value, 10);
+            if (!(n > 1)) {
+                note.textContent = 'Repeat count must be at least 2.';
+                note.style.color = 'var(--accent-gold)';
+                return;
+            }
+            // Estimate span = N cycles × (last-action offset + coda). We only know
+            // the offset from the actions list; use it if present, else just show N.
+            const acts = state.editor.actions || [];
+            const coda = (parseInt($('ed-coda').value, 10) || 4);
+            if (acts.length > 0) {
+                const offs = acts.map(a => a.offsetSeconds ?? 0);
+                const spanSec = Math.max(...offs) - Math.min(...offs);
+                const periodSec = spanSec + coda;
+                const totalSec = periodSec * (n - 1) + spanSec;
+                mins = Math.max(1, Math.round(totalSec / 60));
+                note.style.color = mins > 30 ? 'var(--accent-gold)' : 'var(--text-dim)';
+                note.textContent = `${n} cycles (~${mins} min). Going live pre-renders the whole run`
+                    + (mins > 30 ? ' — that’s a lot; keep it tight on older phones.' : '.');
+            } else {
+                note.style.color = 'var(--text-dim)';
+                note.textContent = `${n} cycles. Add actions to see the length estimate.`;
+            }
+            return;
+        }
+        // Until-a-time mode
+        if (!$('ed-repeat-until').value) { note.textContent = ''; return; }
         const endMs = new Date(localDateTimeToUTC($('ed-repeat-until').value, tz)).getTime();
-        const mins = Math.round((endMs - startMs) / 60000);
+        mins = Math.round((endMs - startMs) / 60000);
         if (!(mins > 0)) {
             note.textContent = 'Repeat-until must be after the start time.';
             note.style.color = 'var(--accent-gold)';
@@ -3534,13 +3586,22 @@ function saveEditorInfo() {
     const twVal = $('ed-time-window').value;
     state.editor.timeWindowSeconds = twVal ? parseInt(twVal, 10) : null;
 
-    // Repeat ("coda"): store the local wall-clock end + rest, or clear it.
-    if ($('ed-repeat-toggle').checked && $('ed-repeat-until').value) {
+    // Repeat ("coda"): store ONE bound (until-time XOR count) + rest, or clear.
+    const repeatOn = $('ed-repeat-toggle').checked;
+    const countMode = $('ed-repeat-mode-count').checked;
+    if (repeatOn && countMode && parseInt($('ed-repeat-count').value, 10) > 1) {
+        state.editor.repeatCount = parseInt($('ed-repeat-count').value, 10);
+        state.editor.repeatUntil = '';
+        const coda = parseInt($('ed-coda').value, 10);
+        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+    } else if (repeatOn && !countMode && $('ed-repeat-until').value) {
         state.editor.repeatUntil = $('ed-repeat-until').value;
+        state.editor.repeatCount = null;
         const coda = parseInt($('ed-coda').value, 10);
         state.editor.codaGapSeconds = (coda > 0) ? coda : null;
     } else {
         state.editor.repeatUntil = '';
+        state.editor.repeatCount = null;
         state.editor.codaGapSeconds = null;
     }
 
@@ -4986,13 +5047,16 @@ function finalizeEditorEvent() {
         timeWindowSeconds: ed.timeWindowSeconds || undefined,
     };
 
-    // Bounded repeat ("coda"): convert the local wall-clock end to UTC.
+    // Bounded repeat ("coda"): one bound only — until-a-time XOR a cycle count.
     if (ed.repeatUntil) {
         const ru = localDateTimeToUTC(ed.repeatUntil, ed.timezone);
         if (new Date(ru).getTime() > startMs) {
             embedded.repeatUntil = ru;
             embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
         }
+    } else if (ed.repeatCount && ed.repeatCount > 1) {
+        embedded.repeatCount = ed.repeatCount;
+        embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
     }
 
     state.event = embeddedEventToEvent(embedded);
@@ -5517,6 +5581,7 @@ async function loadDraft(id) {
         .filter(a => a.action && a.action.trim())
         .map(a => Object.assign({}, a));
     state.editor.repeatUntil = draft.repeatUntil || '';
+    state.editor.repeatCount = draft.repeatCount || null;
     state.editor.codaGapSeconds = draft.codaGapSeconds || null;
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
@@ -5534,6 +5599,7 @@ function collectDraftFromEditor() {
             .filter(a => a.action && a.action.trim())
             .map(a => Object.assign({}, a)),
         repeatUntil: state.editor.repeatUntil || '',
+        repeatCount: state.editor.repeatCount || null,
         codaGapSeconds: state.editor.codaGapSeconds || null,
     };
 }
@@ -5733,7 +5799,18 @@ $('ed-repeat-toggle').addEventListener('change', () => {
     $('ed-repeat-fields').style.display = $('ed-repeat-toggle').checked ? '' : 'none';
     updateRepeatNote();
 });
-['ed-repeat-until', 'ed-coda', 'ed-datetime'].forEach(id => {
+// Radio: swap which sub-input (until-time vs count) is visible.
+function syncRepeatModeInputs() {
+    const countMode = $('ed-repeat-mode-count').checked;
+    $('ed-repeat-until-field').style.display = countMode ? 'none' : '';
+    $('ed-repeat-count-field').style.display = countMode ? '' : 'none';
+    updateRepeatNote();
+}
+['ed-repeat-mode-until', 'ed-repeat-mode-count'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('change', syncRepeatModeInputs);
+});
+['ed-repeat-until', 'ed-repeat-count', 'ed-coda', 'ed-datetime'].forEach(id => {
     const el = $(id);
     if (el) el.addEventListener('change', updateRepeatNote);
 });

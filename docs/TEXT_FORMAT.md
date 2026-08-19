@@ -49,16 +49,26 @@ These optional headers set event-level defaults:
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
 | `RepeatUntil` | Loop the whole sequence until this wall-clock time (same date formats as `Start`) | `RepeatUntil: 2026-03-15 2:20 PM` |
-| `Coda` | Rest in seconds between repeats (default: 4). Only used with `RepeatUntil` | `Coda: 10` |
+| `Repeat` | Loop the whole sequence a fixed number of times, total (min 2) | `Repeat: 3` |
+| `Coda` | Rest in seconds between repeats (default: 4). Used with `RepeatUntil` or `Repeat` | `Coda: 10` |
 
 Per-action tags (below) override these event-level defaults.
 
 ### Repeating a sequence (bounded repeat)
 
-Add `RepeatUntil` to loop the entire timeline from the start until a set time,
-with a short rest (the "coda") between cycles. This is built for a **seed-crystal**
-at an event — a short chant or wave that keeps re-firing so people who arrive late
-still catch a full cycle.
+There are two ways to bound the loop, and they encode different intent:
+
+- **`RepeatUntil`** — loop until a wall-clock time. Everyone stops at the same
+  instant, so a **seed-crystal** at an event — a short chant or wave that keeps
+  re-firing — still lets people who arrive late catch a full cycle before it ends.
+- **`Repeat`** — loop a fixed number of times (total, counting the first). The
+  duration is implicit (N × one cycle). This is the rehearsed / closed-group tool
+  (run the wave three times, a drill) and only stays in sync if everyone starts
+  together.
+
+Both take an optional `Coda` — the rest between cycles. Set **either or both**; if
+you set both, whichever bound fires first stops the loop (handy as a safety cap,
+e.g. "loop up to 10× but never past 6:20").
 
 ```
 Title: One Voice
@@ -69,11 +79,21 @@ Coda: 10
 0:00  [countdown] Shout: our line here
 ```
 
-The repeat period is the span of your actions plus the coda. A single-action chant
-like the example fires every `Coda` seconds. Going live pre-renders the whole
-window into the pocket-proof audio track and stops **exactly** at `RepeatUntil` —
-even with the screen locked. Keep the window tight on older phones: a long span is
-a large audio file held in memory (roughly 3 MB per minute).
+```
+Title: The Wave (x3)
+Start: 2026-03-15 2:00 PM
+Repeat: 3
+Coda: 5
+
+0:00  Left section, stand
+0:04  Middle section, stand
+0:08  Right section, stand
+```
+
+The repeat period is the span of your actions plus the coda. Going live pre-renders
+the whole run into the pocket-proof audio track and stops **exactly** on its bound —
+even with the screen locked. Keep it tight on older phones: a long run is a large
+audio file held in memory (roughly 3 MB per minute).
 
 ## Timeline Actions
 
