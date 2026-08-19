@@ -1079,7 +1079,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v58</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v59</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -8843,6 +8843,17 @@ function createActionEditForm(action, index) {
     const mins = Math.floor(action.offsetSeconds / 60);
     const secs = action.offsetSeconds % 60;
 
+    // Show the "fresh take" opt-out only when this line repeats elsewhere —
+    // by default identical lines share one recording (see buildBatchSteps).
+    const thisNorm = normalizeCueText(action.action);
+    const hasDuplicate = thisNorm && state.editor.actions.some(
+        (a, i) => i !== index && normalizeCueText(a.action) === thisNorm);
+    const freshTakeHtml = hasDuplicate ? `
+        <div class="ed-checkbox-row">
+            <input type="checkbox" id="ed-freshtake-${index}" class="ed-freshtake-check" ${action.freshTake ? 'checked' : ''}>
+            <label for="ed-freshtake-${index}" title="This line repeats elsewhere. Leave unchecked to reuse one recording for all of them; check to record a separate take just for this row.">Record a fresh take for this row</label>
+        </div>` : '';
+
     form.innerHTML = `
         <label class="field-label" style="margin-top:8px;">Offset from start</label>
         <div class="ed-offset-row">
@@ -8873,6 +8884,7 @@ function createActionEditForm(action, index) {
             <input type="checkbox" id="ed-countdown-${index}" class="ed-countdown-check" ${action.countdown ? 'checked' : ''}>
             <label for="ed-countdown-${index}" title="3 ascending tones before this cue triggers">Countdown beeps</label>
         </div>
+        ${freshTakeHtml}
 
         <label class="field-label">Resource Pack</label>
         <select class="field-select ed-pack-select">
@@ -9069,18 +9081,93 @@ function findUncuedActions() {
 }
 
 /**
+ * Normalized cue text — the key we treat two lines as "the same" by, so a script
+ * that repeats "Freeze" three times records it once and reuses the take.
+ * Blank text normalizes to '' and never matches (each blank keeps its own step).
+ */
+function normalizeCueText(t) {
+    return (t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * An existing action whose own-voice (synthetic pack) recording another row can
+ * reuse — same normalized text, has a cue, not the excluded row. Used to auto-
+ * fill an identical new/edited row so you don't re-record the same line.
+ */
+function findReusableSyntheticCue(text, excludeIndex) {
+    const norm = normalizeCueText(text);
+    if (!norm) return null;
+    const syntheticPackId = packManager.getSyntheticPackId();
+    for (let i = 0; i < state.editor.actions.length; i++) {
+        if (i === excludeIndex) continue;
+        const a = state.editor.actions[i];
+        if (a.cue && a.pack === syntheticPackId && normalizeCueText(a.action) === norm) {
+            return { pack: a.pack, cue: a.cue, fallbackText: a.fallbackText };
+        }
+    }
+    return null;
+}
+
+/**
+ * Give every uncued, non-freshTake row an identical earlier line's own-voice
+ * recording. Called before a batch pass so the pass only records new cues.
+ */
+function inheritExistingCues() {
+    state.editor.actions.forEach((a, i) => {
+        if (a.cue || a.freshTake) return;
+        const reuse = findReusableSyntheticCue(a.action, i);
+        if (reuse) {
+            a.pack = reuse.pack;
+            a.cue = reuse.cue;
+            a.fallbackText = a.fallbackText || reuse.fallbackText || a.action;
+        }
+    });
+}
+
+/**
+ * After recording (or assigning) a cue for one action, give every later,
+ * still-uncued action with the same normalized text the same cue — the "record
+ * once, reuse the take" payoff. Rows flagged freshTake are left alone.
+ */
+function propagateCueToDuplicates(sourceIndex) {
+    const src = state.editor.actions[sourceIndex];
+    if (!src || !src.cue) return;
+    const norm = normalizeCueText(src.action);
+    if (!norm) return;
+    state.editor.actions.forEach((a, i) => {
+        if (i === sourceIndex || a.cue || a.freshTake) return;
+        if (normalizeCueText(a.action) === norm) {
+            a.pack = src.pack;
+            a.cue = src.cue;
+            a.fallbackText = a.fallbackText || src.fallbackText || a.action;
+        }
+    });
+}
+
+/**
  * The teleprompter steps for a batch pass: the one reusable "Get ready to…"
  * prep lead first (v57 — it opens every prep in the bake), then each action's
  * cue in timeline order. Repair passes (onlyIndices) skip the lead: they exist
  * to fill cue gaps, and the lead card covers re-recording it.
+ *
+ * Identical lines record ONCE: only the first occurrence of a given normalized
+ * text gets a record step; later duplicates inherit that take (see
+ * propagateCueToDuplicates, called when the first take is saved). A row flagged
+ * freshTake opts out — it always gets its own step and its own distinct cue.
  * @param {number[]|null} onlyIndices - Restrict to these action indices (repair pass).
  * @returns {Array<{index?: number, kind: 'main'|'prep-lead'}>}
  */
 function buildBatchSteps(onlyIndices) {
     const steps = [];
     if (!onlyIndices) steps.push({ kind: 'prep-lead' });
+    const firstSeen = new Set();
     state.editor.actions.forEach((action, index) => {
         if (onlyIndices && !onlyIndices.includes(index)) return;
+        const norm = normalizeCueText(action.action);
+        if (norm && !action.freshTake) {
+            if (firstSeen.has(norm)) return;  // a later duplicate — it will inherit
+            firstSeen.add(norm);
+        }
         steps.push({ index, kind: 'main' });
     });
     return steps;
@@ -9158,6 +9245,9 @@ function updateActionTextOptions() {
  * @param {'all'|'missing'} [mode='all']
  */
 function startBatchRecorder(mode = 'all') {
+    // First let any uncued row adopt an identical line's existing recording, so
+    // the pass only asks for genuinely new cues.
+    inheritExistingCues();
     const steps = buildBatchSteps(mode === 'missing' ? findUncuedActions() : null);
     if (steps.length === 0) return;
 
@@ -9364,12 +9454,13 @@ $('btn-batch-use').addEventListener('click', async () => {
             // The one reusable lead — saved under the reserved id, no action involved.
             await packManager.saveSyntheticCue('prep-lead', processed.audioBuffer);
         } else {
-            const cueId = packManager.generateCueId(action.action);
-
-            // If action already has a cue from this pack, reuse the cueId
-            if (action.pack === syntheticPackId && action.cue) {
+            // A freshTake row wants its OWN distinct cue even if it inherited a
+            // shared one — never overwrite the shared take. Otherwise, re-record
+            // in place when this row already owns a synthetic cue.
+            if (!action.freshTake && action.pack === syntheticPackId && action.cue) {
                 await packManager.saveSyntheticCue(action.cue, processed.audioBuffer);
             } else {
+                const cueId = packManager.generateCueId(action.action);
                 await packManager.saveSyntheticCue(cueId, processed.audioBuffer);
                 action.cue = cueId;
             }
@@ -9377,6 +9468,9 @@ $('btn-batch-use').addEventListener('click', async () => {
             // Set the pack
             action.pack = syntheticPackId;
             action.fallbackText = action.fallbackText || action.action;
+
+            // Record once, reuse the take: hand this cue to identical later rows.
+            if (!action.freshTake) propagateCueToDuplicates(step.index);
         }
 
         advanceBatchRecorder();
@@ -9802,7 +9896,11 @@ $('ed-action-list').addEventListener('click', (e) => {
         const cueId = cueSelect ? cueSelect.value : '';
         const fallbackText = fallbackInput ? fallbackInput.value.trim() : '';
 
-        state.editor.actions[index] = {
+        const freshCheck = editForm.querySelector('.ed-freshtake-check');
+        const freshTake = freshCheck ? freshCheck.checked
+            : !!(state.editor.actions[index] && state.editor.actions[index].freshTake);
+
+        const newAction = {
             offsetSeconds: offset,
             action: actionText,
             style: styleBtn ? styleBtn.dataset.val : 'normal',
@@ -9812,7 +9910,21 @@ $('ed-action-list').addEventListener('click', (e) => {
             pack: packId || null,
             cue: cueId || null,
             fallbackText: (packId && cueId && fallbackText) ? fallbackText : null,
+            freshTake: freshTake,
         };
+
+        // If this line already exists with its own recording and this row has no
+        // cue of its own, reuse that take (unless the author opted for a fresh one).
+        if (!newAction.pack && !newAction.cue && !freshTake) {
+            const reuse = findReusableSyntheticCue(actionText, index);
+            if (reuse) {
+                newAction.pack = reuse.pack;
+                newAction.cue = reuse.cue;
+                newAction.fallbackText = newAction.fallbackText || reuse.fallbackText || actionText;
+            }
+        }
+
+        state.editor.actions[index] = newAction;
         state.editor.editingIndex = -1;
         renderEditorTimeline();
 
@@ -9899,8 +10011,48 @@ function localDateTimeToUTC(localStr, timezone) {
     return guess.toISOString();
 }
 
+/**
+ * Guard the timeline before it leaves the editor. Two problems can be authored
+ * on Step 2 that the runtime assumes away: out-of-order offsets (grouping and
+ * countdown-beep fitting both assume a sorted timeline) and cues stacked at the
+ * same instant. This auto-SORTS (fixing out-of-order outright) and reports any
+ * near-zero gaps so the author can be warned — never blocked; rapid intended
+ * bursts are handled fine downstream.
+ * @returns {{reSorted: boolean, closePairs: Array<[Object,Object,number]>}}
+ */
+const TIMING_CLOSE_GAP_SEC = 0.3;
+function validateEditorTiming() {
+    const acts = state.editor.actions;
+    let reSorted = false;
+    for (let i = 1; i < acts.length; i++) {
+        if (acts[i].offsetSeconds < acts[i - 1].offsetSeconds) { reSorted = true; break; }
+    }
+    if (reSorted) acts.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+
+    const closePairs = [];
+    for (let i = 1; i < acts.length; i++) {
+        const gap = acts[i].offsetSeconds - acts[i - 1].offsetSeconds;
+        if (gap < TIMING_CLOSE_GAP_SEC) closePairs.push([acts[i - 1], acts[i], gap]);
+    }
+    return { reSorted, closePairs };
+}
+
+/** Human-readable soft warning for near-zero cue gaps (see validateEditorTiming). */
+function timingWarningMessage(pairs) {
+    const lines = pairs.slice(0, 6).map(([a, b, gap]) => (gap <= 0)
+        ? `• "${a.action}" and "${b.action}" both fire at ${formatOffset(a.offsetSeconds)}`
+        : `• "${a.action}" → "${b.action}" only ${gap.toFixed(1)}s apart`);
+    const more = pairs.length > 6 ? `\n…and ${pairs.length - 6} more.` : '';
+    return `Some cues land on top of each other:\n\n${lines.join('\n')}${more}\n\n`
+        + `That's fine for a deliberate rapid burst — the app groups them under one `
+        + `"get ready" and fits the beeps. But if it wasn't intended, you may want to `
+        + `space them out.\n\nContinue anyway?`;
+}
+
 function finalizeEditorEvent() {
     const ed = state.editor;
+    // Defensive: the runtime maps actions in array order and assumes sorted.
+    ed.actions.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
     const startUTC = localDateTimeToUTC(ed.startDateTime, ed.timezone);
     const startMs = new Date(startUTC).getTime();
 
@@ -10670,6 +10822,14 @@ $('btn-ed-next2').addEventListener('click', () => {
     if (state.editor.actions.length === 0) {
         $('ed-timeline-error').textContent = 'Add at least one action.';
         return;
+    }
+    $('ed-timeline-error').textContent = '';
+
+    // Auto-sort (kills the out-of-order break) and soft-warn on stacked cues.
+    const timing = validateEditorTiming();
+    if (timing.reSorted) renderEditorTimeline();
+    if (timing.closePairs.length && !confirm(timingWarningMessage(timing.closePairs))) {
+        return;  // author chose to go back and space them out
     }
     transitionTo('editor-review');
 });
