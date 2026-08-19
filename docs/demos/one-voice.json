@@ -1,0 +1,31 @@
+{
+  "title": "One Voice",
+  "description": "Everyone shouts the same short line at the same instant — a wall of human voices, together. Swap the line for your message. No app extras needed; it repeats so latecomers still catch a round.",
+  "startTime": "2026-09-02T01:00:00.000Z",
+  "timezone": "America/Chicago",
+  "repeatUntil": "2026-09-02T01:20:00.000Z",
+  "codaGapSeconds": 12,
+  "defaultNoticeSeconds": 4,
+  "briefing": {
+    "role": "One Voice — say it together",
+    "event": "On the count, everyone shouts the SAME words at the SAME instant. Your phone only counts you in — put in an EARBUD or watch the screen so the street hears your VOICE, not your speaker. Never play the line through your phone.",
+    "notes": "Change the line to your message. Two or three words land hardest. It repeats every few seconds, so people who just arrived can jump straight in.",
+    "exit": "Toward the main street, normal pace.",
+    "abort": "Stop chanting. Lower your phone. Walk to the exit at a normal pace."
+  },
+  "timeline": [
+    {
+      "id": "onevoice-01",
+      "time": "2026-09-02T01:00:10.000Z",
+      "action": "ICE out of Minneapolis",
+      "style": "alert",
+      "countdownSeconds": [
+        3,
+        2,
+        1
+      ],
+      "noticeSeconds": 0,
+      "hapticPattern": "triple"
+    }
+  ]
+}
