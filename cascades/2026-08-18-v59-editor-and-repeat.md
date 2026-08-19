@@ -33,7 +33,35 @@ Files: `docs/demos/` (.txt/.json), maybe a mini-pack.
 - Ground in research briefing (protest-precedents artifact from the research pass).
 
 ## Status
-- [x] Phase 1 (v59)  [ ] Phase 2  [ ] Phase 3
+- [x] Phase 1 (v59)  [x] Phase 2 (v60)  [ ] Phase 3
+
+### Phase 2 shipped (v60) — 2026-08-18
+Bounded repeat ("coda"). Model + runtime + editor + text format.
+- **Model (`models.js`):** `repeatUntil` (ISO UTC) + `codaGapSeconds` on
+  EmbeddedEvent/Event, threaded through embeddedEventToEvent / eventToEmbeddedEvent;
+  when set, `endTime = repeatUntil`. New `expandRepeats(event)` tiles the one-cycle
+  timeline (period = last−first action span + coda; single-action ⇒ period = coda)
+  from start to repeatUntil, minting fresh ids; returns the event untouched when it
+  doesn't repeat (zero cost for normal events). `DEFAULT_CODA_GAP_SEC = 4`. Guards:
+  period ≥ 1s, ≤ 5000 actions.
+- **Runtime (`index.html`):** the canonical/encoded `state.event` stays ONE cycle;
+  playback reads `state.playEvent = expandRepeats(state.event)`, set at enterLive /
+  enterPractice. `startAudioLoop` + `startPracticeLoop` read playEvent. Because the
+  flat timeline feeds the visual timeline, audio loop, and the offline bake alike,
+  the baked WAV carries every cycle and ends EXACTLY at repeatUntil (exact stop under
+  lock is free — no JS timer). Encode path untouched → URLs stay one-cycle + repeatUntil.
+- **Editor Step 1:** "Repeat the sequence until a set time" toggle → wall-clock
+  `ed-repeat-until` + `ed-coda` rest + live size note (`updateRepeatNote`, ~2.83 MB/
+  baked-min from the 170 MB/hr wart, gold >30 min). Persisted in drafts.
+- **Text format:** `RepeatUntil:` + `Coda:` headers (eventEncoder parse +
+  validateAndComplete passthrough). TEXT_FORMAT.md documented. Round-trip verified.
+- **Deferred:** true `<audio loop>` of a one-cycle WAV for all-day windows → IDEAS.md.
+- Labels v59→v60 + CACHE_NAME conductor-v60; regen. Verified in-browser: endTime
+  override, tiling+coda math, bake schedule repeats & stops at repeatUntil, editor
+  note accurate, encode round-trip. Suite at baseline (isolation-confirmed; full-run
+  failures are load flakes).
+
+⚠️ NEXT: Phase 3 (content) — "One Voice" + "The Wave" demo scripts in docs/demos/.
 
 ### Phase 1 shipped (v59) — 2026-08-18
 Editor-only. All in `docs/index.html` (+ regen `conductor.html`), no engine files touched.

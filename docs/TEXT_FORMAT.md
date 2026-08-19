@@ -48,8 +48,32 @@ These optional headers set event-level defaults:
 | `CountdownWindow` | Default countdown duration in seconds | `CountdownWindow: 5` |
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
+| `RepeatUntil` | Loop the whole sequence until this wall-clock time (same date formats as `Start`) | `RepeatUntil: 2026-03-15 2:20 PM` |
+| `Coda` | Rest in seconds between repeats (default: 4). Only used with `RepeatUntil` | `Coda: 10` |
 
 Per-action tags (below) override these event-level defaults.
+
+### Repeating a sequence (bounded repeat)
+
+Add `RepeatUntil` to loop the entire timeline from the start until a set time,
+with a short rest (the "coda") between cycles. This is built for a **seed-crystal**
+at an event — a short chant or wave that keeps re-firing so people who arrive late
+still catch a full cycle.
+
+```
+Title: One Voice
+Start: 2026-03-15 2:00 PM
+RepeatUntil: 2026-03-15 2:20 PM
+Coda: 10
+
+0:00  [countdown] Shout: our line here
+```
+
+The repeat period is the span of your actions plus the coda. A single-action chant
+like the example fires every `Coda` seconds. Going live pre-renders the whole
+window into the pocket-proof audio track and stops **exactly** at `RepeatUntil` —
+even with the screen locked. Keep the window tight on older phones: a long span is
+a large audio file held in memory (roughly 3 MB per minute).
 
 ## Timeline Actions
 

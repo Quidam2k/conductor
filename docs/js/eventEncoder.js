@@ -286,6 +286,8 @@ function validateAndComplete(eventData) {
         defaultCountdown: eventData.defaultCountdown ?? null,
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
+        repeatUntil: eventData.repeatUntil ?? null,
+        codaGapSeconds: eventData.codaGapSeconds ?? null,
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
     };
@@ -353,7 +355,7 @@ function parseTextFormat(text) {
         }
 
         // Try header: Key: Value (in 'header' or 'timeline' sections)
-        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -455,6 +457,17 @@ function parseTextFormat(text) {
     const startTime = startDate.toISOString();
     const startMs = startDate.getTime();
 
+    // Optional bounded repeat: "RepeatUntil:" wall-clock end + "Coda:" rest.
+    let repeatUntil = null;
+    if (headers.repeatuntil) {
+        const ru = new Date(headers.repeatuntil);
+        if (isNaN(ru.getTime())) {
+            throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
+        }
+        if (ru.getTime() > startMs) repeatUntil = ru.toISOString();
+    }
+    const codaGapSeconds = (repeatUntil && headers.coda) ? parseInt(headers.coda, 10) : undefined;
+
     // Default timezone to browser's local timezone
     const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -484,6 +497,8 @@ function parseTextFormat(text) {
         defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
+        repeatUntil: repeatUntil || undefined,
+        codaGapSeconds,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
 }
