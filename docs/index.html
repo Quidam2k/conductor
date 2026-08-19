@@ -1012,7 +1012,58 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* ─── Adjustable text size (zoom the whole UI) ─── */
+        html[data-fs="l"]   { zoom: 1.18; }
+        html[data-fs="xl"]  { zoom: 1.35; }
+        html[data-fs="xxl"] { zoom: 1.55; }
+        /* default (no attr / "m") = 1.0 */
+        /* Keep the letterspaced wordmark from clipping the viewport when zoomed. */
+        html[data-fs="xl"]  .app-logo h2 { letter-spacing: 2px; }
+        html[data-fs="xxl"] .app-logo h2 { letter-spacing: 0; }
+
+        .fs-control {
+            display: inline-flex;
+            gap: 4px;
+            margin-top: 10px;
+            padding: 4px;
+            background: var(--bg-input);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            vertical-align: middle;
+        }
+        .fs-control-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-right: 6px;
+            align-self: center;
+        }
+        .fs-btn {
+            min-width: 40px;
+            min-height: 40px;
+            padding: 4px 10px;
+            border: none;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+            font-family: inherit;
+        }
+        .fs-btn:hover { background: rgba(255, 255, 255, 0.06); }
+        .fs-btn[aria-pressed="true"] {
+            background: var(--accent-blue);
+            color: #06121f;
+            font-weight: 600;
+        }
     </style>
+    <script>
+        /* Flash-free: apply saved text size before first paint. */
+        try {
+            var fs = localStorage.getItem('conductor-fontscale');
+            if (fs) document.documentElement.dataset.fs = fs;
+        } catch (e) {}
+    </script>
 </head>
 <body>
 
@@ -1029,7 +1080,14 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v57</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v58</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
+                <span class="fs-control-label">Text size</span>
+                <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
+                <button type="button" class="fs-btn" data-fs-step="l"   aria-label="Large text size"   aria-pressed="false" style="font-size:18px;">A</button>
+                <button type="button" class="fs-btn" data-fs-step="xl"  aria-label="Larger text size"  aria-pressed="false" style="font-size:23px;">A</button>
+                <button type="button" class="fs-btn" data-fs-step="xxl" aria-label="Largest text size" aria-pressed="false" style="font-size:28px;">A</button>
+            </div>
         </div>
 
         <details class="app-about">
@@ -5284,6 +5342,27 @@ function loadDemo() {
 }
 $('btn-demo').addEventListener('click', loadDemo);
 $('btn-demo-fallback').addEventListener('click', loadDemo);
+
+// Text size (font-scale) control — global + persisted, applies across all screens.
+(function initFontScale() {
+    const control = $('fs-control');
+    if (!control) return;
+    const buttons = Array.from(control.querySelectorAll('.fs-btn'));
+    const current = document.documentElement.dataset.fs || 'm';
+    function reflect(step) {
+        buttons.forEach(b => b.setAttribute('aria-pressed', b.dataset.fsStep === step ? 'true' : 'false'));
+    }
+    reflect(current);
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const step = btn.dataset.fsStep;
+            if (step === 'm') delete document.documentElement.dataset.fs;
+            else document.documentElement.dataset.fs = step;
+            try { localStorage.setItem('conductor-fontscale', step); } catch (e) {}
+            reflect(step);
+        });
+    });
+})();
 
 $('btn-import-event').addEventListener('click', () => {
     $('event-file-input').click();
