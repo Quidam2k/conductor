@@ -248,6 +248,64 @@
         document.body.removeChild(tempCanvas);
 
         // ═════════════════════════════════════════════════════════════
+        // 8. Bounded repeat — expandRepeats (until-time / count / both)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>8. Bounded Repeat (expandRepeats)</h2>');
+
+        // A 3-cue cycle: cues at 0/10/20s, so the authored span is 20s.
+        function cycleEvent(extra) {
+            return embeddedEventToEvent(Object.assign({
+                title: 'Repeat Test',
+                startTime: new Date(BASE).toISOString(),
+                timezone: 'UTC',
+                codaGapSeconds: 4, // period = 20s span + 4s coda = 24s
+                timeline: [ actionAt(0, 'A'), actionAt(10, 'B'), actionAt(20, 'C') ],
+            }, extra));
+        }
+
+        // Count only: repeatCount:3 → exactly 3 cycles = 9 cues.
+        const countEvt = expandRepeats(cycleEvent({ repeatCount: 3 }));
+        assert('repeatCount:3 yields exactly 3 cycles (9 cues)',
+            countEvt.timeline.length === 9, `Got ${countEvt.timeline.length}`);
+        // Last cue sits at cycle 3's 'C' = 2*24s + 20s = 68s after start.
+        (() => {
+            const times = countEvt.timeline.map(a => a.timeMs).sort((x, y) => x - y);
+            const lastOffsetSec = (times[times.length - 1] - BASE) / 1000;
+            assert('repeatCount:3 last cue at 68s', lastOffsetSec === 68,
+                `Got ${lastOffsetSec}s`);
+        })();
+
+        // No bound: play-once event is returned UNCHANGED (3 cues).
+        const onceEvt = expandRepeats(cycleEvent({}));
+        assert('no repeat bound → 3 cues (unchanged)',
+            onceEvt.timeline.length === 3, `Got ${onceEvt.timeline.length}`);
+
+        // Until-time only: repeatUntil = start + 50s → cycles at k=0 (0-20s) and
+        // k=1 (24-44s) fit; k=2 would start at 48s but its 'B'/'C' pass 50s.
+        const untilEvt = expandRepeats(cycleEvent({
+            repeatUntil: new Date(BASE + 50000).toISOString(),
+        }));
+        assert('repeatUntil (50s) → 2 full cycles + next cycle A only (7 cues)',
+            untilEvt.timeline.length === 7, `Got ${untilEvt.timeline.length}`);
+
+        // Both bounds set → the tighter (first-to-fire) one wins. A huge count
+        // with a tight clock stops at the clock (7 cues, same as until-only).
+        const bothTightClock = expandRepeats(cycleEvent({
+            repeatCount: 99,
+            repeatUntil: new Date(BASE + 50000).toISOString(),
+        }));
+        assert('both bounds: tight clock wins over big count (7 cues)',
+            bothTightClock.timeline.length === 7, `Got ${bothTightClock.timeline.length}`);
+
+        // Both bounds set → a tight count wins over a far-off clock (3 cycles).
+        const bothTightCount = expandRepeats(cycleEvent({
+            repeatCount: 3,
+            repeatUntil: new Date(BASE + 3600000).toISOString(), // 1h away
+        }));
+        assert('both bounds: tight count wins over far clock (9 cues)',
+            bothTightCount.timeline.length === 9, `Got ${bothTightCount.timeline.length}`);
+
+        // ═════════════════════════════════════════════════════════════
         // SUMMARY
         // ═════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');

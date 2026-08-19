@@ -695,6 +695,54 @@
             assert('9.8 Round-trip', false, e.message);
         }
 
+        // 9.9 Bounded repeat headers: RepeatUntil (time) + Repeat (count) + Coda
+        try {
+            // Count bound: "Repeat: 3" → repeatCount:3 (total cycles incl. first).
+            const countText = [
+                'Title: Repeat Count',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                'Repeat: 3',
+                'Coda: 5',
+                '',
+                '0:00  A',
+                '0:20  B',
+            ].join('\n');
+            const cParsed = parseTextFormat(countText);
+            assert('9.9 Repeat: 3 → repeatCount 3', cParsed.repeatCount === 3,
+                'Got: ' + cParsed.repeatCount);
+            assert('9.9 Repeat: coda applies with count', cParsed.codaGapSeconds === 5);
+            assert('9.9 Repeat: count-only leaves repeatUntil unset',
+                cParsed.repeatUntil === undefined || cParsed.repeatUntil === null);
+            // Round-trips through encode/decode.
+            const cValidated = validateAndComplete(cParsed);
+            const cDecoded = decodeEvent(encodeEmbeddedEvent(cValidated));
+            assert('9.9 Repeat: repeatCount survives round-trip', cDecoded.repeatCount === 3,
+                'Got: ' + cDecoded.repeatCount);
+
+            // "Repeat: 1" is a no-op (min meaningful count is 2).
+            const oneParsed = parseTextFormat(countText.replace('Repeat: 3', 'Repeat: 1'));
+            assert('9.9 Repeat: 1 is ignored (no bound)',
+                oneParsed.repeatCount === undefined || oneParsed.repeatCount === null);
+
+            // Time bound still works, independently: "RepeatUntil:" → repeatUntil.
+            const untilText = [
+                'Title: Repeat Until',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                'RepeatUntil: 2026-06-01T14:10:00Z',
+                '',
+                '0:00  A',
+                '0:20  B',
+            ].join('\n');
+            const uParsed = parseTextFormat(untilText);
+            assert('9.9 RepeatUntil → repeatUntil set', !!uParsed.repeatUntil);
+            assert('9.9 RepeatUntil-only leaves repeatCount unset',
+                uParsed.repeatCount === undefined || uParsed.repeatCount === null);
+        } catch (e) {
+            assert('9.9 Bounded repeat headers', false, e.message);
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // TEST SUITE 10: Briefing Block Parsing
         // ═══════════════════════════════════════════════════════════════

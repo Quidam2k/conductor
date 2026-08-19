@@ -287,6 +287,7 @@ function validateAndComplete(eventData) {
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
         repeatUntil: eventData.repeatUntil ?? null,
+        repeatCount: eventData.repeatCount ?? null,
         codaGapSeconds: eventData.codaGapSeconds ?? null,
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
@@ -355,7 +356,7 @@ function parseTextFormat(text) {
         }
 
         // Try header: Key: Value (in 'header' or 'timeline' sections)
-        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda|repeat)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -457,7 +458,9 @@ function parseTextFormat(text) {
     const startTime = startDate.toISOString();
     const startMs = startDate.getTime();
 
-    // Optional bounded repeat: "RepeatUntil:" wall-clock end + "Coda:" rest.
+    // Optional bounded repeat: two ways to bound the same loop, either or both.
+    //   "RepeatUntil:" = wall-clock end;  "Repeat:" = a fixed cycle count.
+    //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
         const ru = new Date(headers.repeatuntil);
@@ -466,7 +469,13 @@ function parseTextFormat(text) {
         }
         if (ru.getTime() > startMs) repeatUntil = ru.toISOString();
     }
-    const codaGapSeconds = (repeatUntil && headers.coda) ? parseInt(headers.coda, 10) : undefined;
+    let repeatCount = null;
+    if (headers.repeat) {
+        const n = parseInt(headers.repeat, 10);
+        if (n > 1) repeatCount = n; // total cycles including the first
+    }
+    const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
+        ? parseInt(headers.coda, 10) : undefined;
 
     // Default timezone to browser's local timezone
     const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -498,6 +507,7 @@ function parseTextFormat(text) {
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
         repeatUntil: repeatUntil || undefined,
+        repeatCount: repeatCount || undefined,
         codaGapSeconds,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
