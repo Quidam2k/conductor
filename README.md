@@ -35,6 +35,8 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 - **Resource Packs** — Optional zip files with real voice cues (spoken cues that work even from a pocket). Record cues in your own voice right in the editor and share them as a pack
 - **Briefing Blocks** — Pre-event briefings displayed before coordination begins
 - **QR Scanning** — Camera-based QR scanning for phone-to-phone event sharing
+- **QR Beam** — Animated-QR, device-to-device transfer for events *and* resource packs — moves a desktop-built or oversized event onto a phone with no network (build at a keyboard, beam to the phone you'll carry)
+- **Adjustable Text Size** — A four-step whole-UI zoom on the home screen and every event screen, so cues stay readable at arm's length and can be bumped up mid-event
 - **Event Drafts** — Save work-in-progress events to IndexedDB, resume editing later
 - **Bundle Sharing** — Download a self-contained HTML file with both the app and your event baked in
 - **Multi-Format Input** — Paste event codes, use the text editor format, import JSON, or open files
