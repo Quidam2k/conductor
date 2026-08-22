@@ -339,7 +339,7 @@ test('beam receiver: accumulates frames, warns on mixed transfer, imports on com
             hasDecoder: !!state.beamDecoder,
         };
     });
-    expect(first.title).toBe('Receiving Pack');
+    expect(first.title).toBe('Receiving…');
     expect(first.status).toMatch(/Receiving… [▓░]+ 1\/\d+ blocks \(\d+%\)/);
     expect(first.rates[first.rates.length - 1]).toBe(15);
     expect(first.hasDecoder).toBe(true);
@@ -403,4 +403,153 @@ test('beam receiver: close mid-transfer aborts cleanly', async ({ page, browserN
     }));
     expect(after.decoder).toBe(null);
     expect(after.scanner).toBe(null);
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 7. Event beam optical loopback: an EVENT code (v1_) survives render +
+//    scan and reports payload type 'event' — the desktop→phone script
+//    transfer Todd calls his ideal workflow (chromium only)
+// ─────────────────────────────────────────────────────────────────────
+test('beam loopback: an event code survives render + scan as an event payload', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'scanImage worker loopback driven on chromium only');
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    const r = await page.evaluate(async () => {
+        const now = Date.now();
+        const embedded = {
+            title: 'Beam Event Test',
+            description: '',
+            startTime: new Date(now + 60000).toISOString(),
+            timezone: 'UTC',
+            timeline: [{ time: new Date(now + 80000).toISOString(), action: 'Wave' }],
+        };
+        const code = encodeEvent(validateAndComplete(embedded));
+        const payload = new TextEncoder().encode(code);
+        const enc = createBeamEncoder(payload, { blockSize: 500, payloadType: 'event' });
+        const dec = createBeamDecoder();
+        const canvas = document.createElement('canvas');
+
+        let final = null, frames = 0;
+        for (let seed = 0; seed < enc.cycleLength && !final; seed++) {
+            QrCreator.render({
+                text: enc.frameAt(seed),
+                radius: 0, ecLevel: 'L', fill: '#000000', background: '#ffffff', size: 480,
+            }, canvas);
+            const scanned = await QrScanner.scanImage(canvas, { returnDetailedScanResult: true });
+            const text = typeof scanned === 'string' ? scanned : scanned.data;
+            frames++;
+            const res = dec.addFrame(text);
+            if (res.status === 'complete') final = res;
+            else if (res.status === 'error' || res.status === 'rejected') {
+                return { ok: false, reason: res.status + ':' + (res.reason || '') };
+            }
+        }
+        if (!final) return { ok: false, reason: 'never completed after ' + frames + ' frames' };
+
+        const out = dec.getPayload();
+        const decoded = new TextDecoder().decode(out.bytes);
+        const reparsed = parseEventInput(decoded);
+        return {
+            ok: true, frames, k: enc.k, type: out.type,
+            sameCode: decoded === code, title: reparsed.title,
+        };
+    });
+
+    expect(r.ok, r.reason || '').toBe(true);
+    expect(r.type).toBe('event');
+    expect(r.sameCode).toBe(true);
+    expect(r.frames).toBe(r.k);
+    expect(r.title).toBe('Beam Event Test');
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 8. Event beam receiver: a completed event transfer routes through the
+//    normal event-load pipeline and lands on Preview (all browsers —
+//    frames injected directly, no camera/optical layer)
+// ─────────────────────────────────────────────────────────────────────
+test('beam receiver: a completed event transfer lands on Preview', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    await page.evaluate(() => {
+        window.QrScanner = class {
+            constructor() {}
+            start() { return Promise.resolve(); }
+            stop() {}
+            destroy() {}
+        };
+        state.qrScanner = new window.QrScanner();
+        document.getElementById('qr-scan-title').textContent = 'Scan QR Code';
+        document.getElementById('qr-overlay').style.display = 'flex';
+
+        const now = Date.now();
+        const embedded = {
+            title: 'Beamed Event',
+            description: '',
+            startTime: new Date(now + 60000).toISOString(),
+            timezone: 'UTC',
+            timeline: [{ time: new Date(now + 80000).toISOString(), action: 'Wave' }],
+        };
+        const code = encodeEvent(validateAndComplete(embedded));
+        const enc = createBeamEncoder(new TextEncoder().encode(code), { blockSize: 500, payloadType: 'event' });
+        window.__eventFrames = [];
+        for (let s = 0; s < enc.k; s++) window.__eventFrames.push(enc.frameAt(s));
+    });
+
+    await page.evaluate(() => {
+        for (const f of window.__eventFrames) handleQRResult(f);
+    });
+
+    await waitForScreen(page, 'screen-preview');
+    const info = await page.evaluate(() => ({
+        title: state.event && state.event.title,
+        decoder: state.beamDecoder,
+    }));
+    expect(info.title).toBe('Beamed Event');
+    expect(info.decoder).toBe(null);
+    await expect(page.locator('#qr-overlay')).toBeHidden();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 9. Event beam sender UI: the "Beam to a phone" button on the share
+//    overlay animates an EVENT transfer (payloadType 'event')
+// ─────────────────────────────────────────────────────────────────────
+test('beam sender: share-overlay Beam button animates an event transfer', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+
+    await page.evaluate(() => {
+        const now = Date.now();
+        const embedded = {
+            title: 'Sender Beam Event',
+            description: '',
+            startTime: new Date(now + 60000).toISOString(),
+            timezone: 'UTC',
+            timeline: [{ time: new Date(now + 80000).toISOString(), action: 'Wave' }],
+        };
+        handleQRResult(encodeEvent(validateAndComplete(embedded)));
+    });
+    await waitForScreen(page, 'screen-preview');
+
+    await page.click('#btn-share-qr-preview');
+    await expect(page.locator('#qr-display-overlay')).toBeVisible();
+    await expect(page.locator('#btn-qr-display-beam')).toBeVisible();
+
+    await page.click('#btn-qr-display-beam');
+    await expect(page.locator('#qr-beam-overlay')).toBeVisible();
+    await expect(page.locator('#qr-display-overlay')).toBeHidden();
+    await expect(page.locator('#qr-beam-status')).toHaveText(
+        /Sending Sender Beam Event — \d+ KB in \d+ blocks/, { timeout: 10000 });
+    await expect(page.locator('#qr-beam-canvas')).toBeVisible();
+
+    const kind = await page.evaluate(() => ({
+        payloadType: beamSender.payloadType,
+        hasEncoder: !!beamSender.encoder,
+    }));
+    expect(kind.payloadType).toBe('event');
+    expect(kind.hasEncoder).toBe(true);
+
+    await page.click('#btn-qr-beam-close');
+    await expect(page.locator('#qr-beam-overlay')).toBeHidden();
 });
