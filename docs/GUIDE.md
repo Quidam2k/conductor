@@ -40,8 +40,47 @@ From the preview screen, tap **Share QR Code**. The share screen gives you sever
 - **Copy Link** — Pastes a URL to your clipboard. Send it via text, email, whatever
 - **QR Code** — Show a scannable code on your screen. Others point their camera at it
 - **Share File** — Send a self-contained HTML file that has both the app and the event baked in
+- **Beam to a phone** — Play an *animated* QR code the other phone scans with its **Scan QR Code** button. Works even for events too big to fit in a single QR, and needs no network — see [The Desktop → Phone Workflow](#the-desktop--phone-workflow) below
 
 The person who receives your link just taps it and they're in. No install, no signup.
+
+---
+
+## Joining an Event (for Participants)
+
+Someone shared an event with you? Here's how to get in — pick whichever matches how they sent it:
+
+- **They texted or messaged you a link** — Just tap it. The app opens with the event already loaded. If you don't have the app cached yet, the link opens the online version; it works the same.
+- **They're showing a QR code on their screen** — Open Conductor, tap **Scan QR Code**, and point your camera at their screen. You'll drop straight into the event preview.
+- **They're showing an *animated* QR code (a "beam")** — Same thing: tap **Scan QR Code** and hold your camera on their screen. Keep it steady — the code cycles through frames and a progress bar fills as it receives. When it finishes you're in. (This is how larger events and resource packs transfer with no network.)
+- **They sent you a file** (AirDrop / Quick Share / a `conductor.html`) — Open it. If it's a bundled file, it *is* the app with the event baked in.
+- **You have an event code** (a `v1_…` string) — Open Conductor and paste it into the "Got an event code?" box on the home screen.
+
+Once you're in, tap **Start Practice** to rehearse, then be ready when the real event time arrives. If the event is password-protected, you'll be asked for the password the organizer gave you.
+
+---
+
+## The Desktop → Phone Workflow
+
+The most comfortable way to *build* an event is on a desktop or laptop — a real keyboard and mouse make writing the timeline fast. But you'll *run* it from your phone. Here's the bridge, and it needs no cables, accounts, or even a network at the phone:
+
+1. **Build it on the desktop.** Open Conductor in a desktop browser and create your event with the built-in editor (or paste a text/JSON script).
+2. **Open Share.** From the preview, tap **Share QR Code**.
+3. **Beam it.** Tap **Beam to a phone**. The desktop screen shows an animated QR code — a rotating sequence of frames that carries the whole event, even one too large for a single static QR.
+4. **Scan on the phone.** On the phone, open Conductor and tap **Scan QR Code**. Hold the camera up to the desktop screen and keep it steady. A progress bar fills as frames arrive.
+5. **You're in.** When the transfer completes, the phone jumps straight to the event preview. Practice, then go live from the phone.
+
+This is the same animated-QR "beam" used for resource packs — it now carries events too. Nothing leaves the two devices: no server, no upload, no link to intercept. It's ideal when you've drafted something big at a desk and just want it on the phone you'll actually carry.
+
+> **Tip:** For small events, the plain static **QR Code** or **Copy Link** is quicker. Reach for **Beam** when the event is large, when you want a purely device-to-device handoff, or when there's no network to paste a link into.
+
+---
+
+## Making the Text Bigger
+
+Small text on a phone in bright sun is hard for anyone. Conductor has a **Text size** control with four steps (from normal up to largest) that zooms the whole interface. It's on the home screen *and* on the Preview, Practice, and Live screens — so you can bump the size up mid-event without stopping, right when you need to read a cue at arm's length.
+
+Your choice is remembered on that device and applies everywhere in the app until you change it. The principle: it shouldn't matter how old your eyes are — you can still use it.
 
 ---
 
@@ -340,6 +379,40 @@ On the rare browser that can't pre-render audio, the app warns you when you go l
 
 ---
 
+## FAQ
+
+**How do I join an event someone sent me?**
+Tap their link, or open Conductor and use **Scan QR Code** / paste their `v1_…` code. Full details in [Joining an Event](#joining-an-event-for-participants).
+
+**How do I get an event I built on my computer onto my phone?**
+Use **Beam to a phone** from the Share screen and scan it with the phone. See [The Desktop → Phone Workflow](#the-desktop--phone-workflow).
+
+**Can I beam an event, or only resource packs?**
+Both. The animated-QR beam now carries events as well as packs — handy for events too big for a single static QR.
+
+**How do I edit an event I already made?**
+Open it (from a link, code, or a saved draft), then start a new event from it in the editor, or reopen your draft. Conductor auto-saves editor drafts to your device, so a work-in-progress event is waiting under the editor when you come back. Note that an event someone *shared* with you comes in as finished data — to change it, load it and rebuild the parts you want in the editor.
+
+**How do I password-protect an event?**
+In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a `v1e_` prefix. Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password.
+
+**The text is too small — can I make it bigger?**
+Yes. Use the **Text size** control (home screen and every event screen). See [Making the Text Bigger](#making-the-text-bigger).
+
+**Why did the spoken cues go quiet when I locked my phone?**
+Text-to-speech only plays with the screen on. Beeps and *resource-pack* voice cues are pre-rendered and keep playing in your pocket. For fully-voiced pocket use, cover your cues with a resource pack. See [Phone in Your Pocket](#phone-in-your-pocket).
+
+**My iPhone won't vibrate.**
+iPhones don't support vibration from web apps — haptics work on Android only. Everything else (audio, timing, visuals) works on both.
+
+**Do I need internet during the event?**
+No. Load the app and your event beforehand (over wifi or data). After that it runs offline, and you can still pass it to others phone-to-phone via beam, QR, or a shared file.
+
+**Nothing plays at all — what's wrong?**
+Make sure your ringer/media volume is up, tap the audio toggle so it's on, and (on the first cue) that you've interacted with the page so the browser allows audio. Run **Practice** first to confirm you hear cues before the real event.
+
+---
+
 ## Reference
 
 - **[TEXT_FORMAT.md](TEXT_FORMAT.md)** — Complete reference for the text event format (all tags, briefing blocks, config headers)
@@ -354,4 +427,6 @@ On the rare browser that can't pre-render audio, the app warns you when you go l
 - **Encryption** — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device
 - **Offline works** — Once you've opened the app in your browser, it caches itself. Works without internet after that
 - **Phone-to-phone** — Show a QR code on your screen, others scan it with their camera. No internet needed for the transfer
+- **Beam the big ones** — Build on a desktop, then **Beam to a phone** (animated QR) to move even large events device-to-device with no network. See [The Desktop → Phone Workflow](#the-desktop--phone-workflow)
+- **Bigger text, any time** — The **Text size** control is on every event screen, so you can zoom up mid-event without stopping
 - **Briefing blocks** — Add rally points, exit routes, and role assignments that display before the event starts. See TEXT_FORMAT.md for details

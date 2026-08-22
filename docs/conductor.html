@@ -1033,13 +1033,24 @@
         }
         .fs-control-label {
             font-size: 13px;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             margin-right: 6px;
             align-self: center;
         }
+        /* Compact variant used on Preview / Practice / Live so text size is
+           reachable mid-event, not only from Home. Centered, wraps on narrow phones. */
+        .fs-control.fs-control-inline {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 8px;
+            width: fit-content;
+            max-width: 100%;
+        }
         .fs-btn {
-            min-width: 40px;
-            min-height: 40px;
+            min-width: 44px;
+            min-height: 44px;
             padding: 4px 10px;
             border: none;
             border-radius: 7px;
@@ -1079,7 +1090,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v61</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v62</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1225,6 +1236,14 @@
 
         <div style="flex:1"></div>
 
+        <div class="fs-control fs-control-inline" role="group" aria-label="Text size">
+            <span class="fs-control-label">Text size</span>
+            <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="l"   aria-label="Large text size"   aria-pressed="false" style="font-size:18px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xl"  aria-label="Larger text size"  aria-pressed="false" style="font-size:23px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xxl" aria-label="Largest text size" aria-pressed="false" style="font-size:28px;">A</button>
+        </div>
+
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
             <button id="btn-start-practice" class="btn-green">&#x1f3af; Start Practice (rehearse now)</button>
             <button id="btn-go-live" class="btn-red">&#x1f534; Go Live (real event time)</button>
@@ -1265,6 +1284,13 @@
             <button id="btn-share-qr-practice" class="icon-btn" title="Share QR Code" aria-label="Share via QR code">&#x1f4e4;</button>
             <button id="btn-practice-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
         </div>
+        <div class="fs-control fs-control-inline" role="group" aria-label="Text size">
+            <span class="fs-control-label">Text size</span>
+            <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="l"   aria-label="Large text size"   aria-pressed="false" style="font-size:18px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xl"  aria-label="Larger text size"  aria-pressed="false" style="font-size:23px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xxl" aria-label="Largest text size" aria-pressed="false" style="font-size:28px;">A</button>
+        </div>
         <div id="practice-rehearsal-note" class="practice-rehearsal-note"></div>
         <div id="audio-debug-practice" class="audio-debug-row" role="button" tabindex="0" title="Tap to copy full audio diagnostics"></div>
     </div>
@@ -1293,6 +1319,13 @@
             <button id="btn-audio-toggle-live" class="icon-btn" title="Toggle audio" aria-label="Toggle audio" aria-pressed="false">&#x1f50a;</button>
             <span id="beep-dot-live" class="beep-dot" title="Flashes when a beep fires" aria-hidden="true"></span>
             <button id="btn-live-stop" class="btn-outline btn-small" style="flex:3">Stop</button>
+        </div>
+        <div class="fs-control fs-control-inline" role="group" aria-label="Text size">
+            <span class="fs-control-label">Text size</span>
+            <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="l"   aria-label="Large text size"   aria-pressed="false" style="font-size:18px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xl"  aria-label="Larger text size"  aria-pressed="false" style="font-size:23px;">A</button>
+            <button type="button" class="fs-btn" data-fs-step="xxl" aria-label="Largest text size" aria-pressed="false" style="font-size:28px;">A</button>
         </div>
         <div id="audio-debug-live" class="audio-debug-row" role="button" tabindex="0" title="Tap to copy full audio diagnostics"></div>
     </div>
@@ -1517,6 +1550,10 @@
             <button id="btn-qr-display-web-share" class="btn-primary btn-small" style="flex:1;">Share via...</button>
             <button id="btn-qr-display-share-file" class="btn-primary btn-small" style="flex:1;">Share File</button>
         </div>
+        <div style="max-width:320px; width:100%;">
+            <button id="btn-qr-display-beam" class="btn-outline btn-small" style="width:100%;">&#x1f4e1; Beam to a phone (animated QR)</button>
+            <p style="font-size:13px; color:var(--text-dim); text-align:center; margin-top:6px;">Best for phone-in-hand transfer — even events too big for a single QR. Point the other phone's Scan at this animation.</p>
+        </div>
     </div>
 </div>
 
@@ -1537,7 +1574,7 @@
             <button id="btn-qr-beam-speed" class="btn-outline btn-small">Speed: 5 fps</button>
             <button id="btn-qr-beam-smaller" class="btn-outline btn-small">Trouble scanning? Smaller frames</button>
         </div>
-        <p style="font-size:16px; color:var(--text-dim); text-align:center; max-width:480px;">On the other phone, open Conductor and tap Scan QR Code, then hold its camera up to this screen until it says the pack arrived.</p>
+        <p style="font-size:16px; color:var(--text-dim); text-align:center; max-width:480px;">On the other phone, open Conductor and tap Scan QR Code, then hold its camera up to this screen until it says the transfer arrived.</p>
     </div>
 </div>
 
@@ -7503,7 +7540,7 @@ function showPasswordPrompt(encryptedData, onSuccess, onCancel) {
 function handleBeamFrame(data) {
     if (!state.beamDecoder) {
         state.beamDecoder = createBeamDecoder();
-        $('qr-scan-title').textContent = 'Receiving Pack';
+        $('qr-scan-title').textContent = 'Receiving…';
         $('qr-scan-status').textContent = 'Receiving…';
         // Rebuild the scanner at a higher scan rate — frames arrive at 5-10
         // fps and every miss costs a loop; 5 scans/s can't keep up.
@@ -7540,13 +7577,24 @@ function handleBeamFrame(data) {
     // other rejects (bad-header etc.): stray frame noise — keep the status as is
 }
 
-/** Transfer complete: hand the payload to the normal pack import pipeline. */
+/** Transfer complete: hand the payload to the right import pipeline. */
 async function finishBeamReceive() {
     const payload = state.beamDecoder ? state.beamDecoder.getPayload() : null;
     if (!payload) return;
 
+    if (payload.type === 'event') {
+        // Beamed event: the payload IS the shareable code string (v1_/v1e_).
+        // Reuse the normal QR event-load path so encrypted events prompt for a
+        // password and everything lands on Preview.
+        state.beamDecoder = null;
+        $('qr-scan-title').textContent = 'Scan QR Code';
+        const code = new TextDecoder().decode(payload.bytes);
+        handleQRResult(code);
+        return;
+    }
+
     if (payload.type !== 'pack') {
-        // Future payload types (event/any) — this build only imports packs
+        // Unknown future payload type — sender is on a newer build than us
         $('qr-scan-status').textContent =
             'Received a transfer this version can’t open — ask the sender to update their Conductor.';
         state.beamDecoder = null;
@@ -10944,15 +10992,16 @@ $('btn-demo').addEventListener('click', loadDemo);
 $('btn-demo-fallback').addEventListener('click', loadDemo);
 
 // Text size (font-scale) control — global + persisted, applies across all screens.
+// The same control is mirrored on Home, Preview, Practice and Live so text size
+// is reachable mid-event; all instances stay in sync.
 (function initFontScale() {
-    const control = $('fs-control');
-    if (!control) return;
-    const buttons = Array.from(control.querySelectorAll('.fs-btn'));
-    const current = document.documentElement.dataset.fs || 'm';
+    const controls = Array.from(document.querySelectorAll('.fs-control'));
+    if (!controls.length) return;
+    const buttons = Array.from(document.querySelectorAll('.fs-control .fs-btn'));
     function reflect(step) {
         buttons.forEach(b => b.setAttribute('aria-pressed', b.dataset.fsStep === step ? 'true' : 'false'));
     }
-    reflect(current);
+    reflect(document.documentElement.dataset.fs || 'm');
     buttons.forEach(btn => {
         btn.addEventListener('click', () => {
             const step = btn.dataset.fsStep;
@@ -11229,8 +11278,10 @@ const BEAM_MAX_ZIP_BYTES = 1048576;
 
 const beamSender = {
     encoder: null,
-    payload: null,      // Uint8Array of the pack zip (kept for smaller-frame re-encode)
-    packName: '',
+    payload: null,      // Uint8Array of the payload (pack zip OR event code) — kept for smaller-frame re-encode
+    packName: '',       // display label for the current transfer
+    payloadType: 'pack',// 'pack' | 'event'
+    noun: 'pack',       // word shown in status/help ("pack" or "event")
     timerId: null,
     fps: 5,
     blockSize: 900,
@@ -11241,6 +11292,8 @@ async function startBeam(packId, packName) {
     const overlay = $('qr-beam-overlay');
     stopBeamLoop();
     beamSender.payload = null;
+    beamSender.payloadType = 'pack';
+    beamSender.noun = 'pack';
     beamSender.blockSize = 900;
     $('qr-beam-title').textContent = 'Beam: ' + packName;
     $('qr-beam-error').textContent = '';
@@ -11276,18 +11329,59 @@ async function startBeam(packId, packName) {
     startBeamLoop();
 }
 
+/**
+ * Beam the current event's shareable code (v1_/v1e_) via animated QR.
+ * Beams the code STRING bytes so the receiver reuses the entire event-load
+ * pipeline (including encrypted v1e_ password handling) with no new decode path.
+ */
+async function startBeamEvent() {
+    if (!state.event) return;
+    closeQRDisplay();
+    const overlay = $('qr-beam-overlay');
+    stopBeamLoop();
+    beamSender.payload = null;
+    beamSender.payloadType = 'event';
+    beamSender.noun = 'event';
+    beamSender.blockSize = 900;
+    const label = state.event.title || 'event';
+    $('qr-beam-title').textContent = 'Beam: ' + label;
+    $('qr-beam-error').textContent = '';
+    $('qr-beam-status').textContent = 'Preparing ' + label + '…';
+    $('qr-beam-canvas').style.display = 'none';
+    $('qr-beam-progress').style.width = '0%';
+    $('qr-beam-controls').style.display = 'none';
+    $('btn-qr-beam-smaller').disabled = false;
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+    requestWakeLock();  // the loop is useless with the screen off
+
+    let encoded;
+    try {
+        encoded = await getShareEncoded();
+    } catch (e) {
+        $('qr-beam-status').textContent = '';
+        $('qr-beam-error').textContent = 'Could not prepare this event — ' + (e.message || e);
+        return;
+    }
+    beamSender.payload = new TextEncoder().encode(encoded);
+    beamSender.packName = label;
+    $('qr-beam-controls').style.display = '';
+    startBeamLoop();
+}
+
 /** (Re)build the encoder at the current blockSize and start the frame timer. */
 function startBeamLoop() {
     stopBeamLoop();
     if (!beamSender.payload) return;
+    const noun = beamSender.noun || 'pack';
     try {
         beamSender.encoder = createBeamEncoder(beamSender.payload, {
             blockSize: beamSender.blockSize,
-            payloadType: 'pack',
+            payloadType: beamSender.payloadType || 'pack',
         });
     } catch (e) {
         $('qr-beam-status').textContent = '';
-        $('qr-beam-error').textContent = 'Could not encode pack — ' + (e.message || e);
+        $('qr-beam-error').textContent = 'Could not encode ' + noun + ' — ' + (e.message || e);
         return;
     }
     const kb = Math.max(1, Math.round(beamSender.payload.length / 1024));
@@ -11378,6 +11472,7 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
 $('btn-qr-display-share-file').addEventListener('click', function() {
     shareBundleFile(true, this);
 });
+$('btn-qr-display-beam').addEventListener('click', startBeamEvent);
 $('chk-encrypt').addEventListener('change', () => {
     const show = $('chk-encrypt').checked;
     $('pwd-fields').style.display = show ? '' : 'none';
