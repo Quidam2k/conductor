@@ -170,3 +170,125 @@ test('bug 3: entering Live after practicing a different event uses the new group
     const bMetaSize = await page.evaluate(() => state.actionMeta ? state.actionMeta.size : 0);
     expect(bMetaSize).toBe(1);
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// Codex audit fixes — normalization + safety (bugs 1, 2, 4, 9, 7).
+// These exercise the encoder/models only (no Web Audio), so they run on
+// all three browsers.
+// ═════════════════════════════════════════════════════════════════════
+
+// bug 1 — text-format Timezone is honored when parsing wall-clock dates.
+// Force the browser's own zone AWAY from the declared one so a naive local
+// parse would give the wrong instant.
+test.describe('bug 1: text-format Timezone', () => {
+    test.use({ timezoneId: 'America/Los_Angeles' });
+
+    test('wall-clock Start is interpreted in the declared IANA zone, not the browser zone', async ({ page }) => {
+        await page.goto('/');
+        await waitForScreen(page, 'screen-input');
+        const iso = await page.evaluate(() => {
+            const text = [
+                'Title: TZ Test',
+                'Start: 2026-03-15T14:00:00',
+                'Timezone: America/New_York',
+                '',
+                '0:00  Go',
+            ].join('\n');
+            return parseTextFormat(text).startTime;
+        });
+        // 2026-03-15 is EDT (UTC-4): 2 PM New York = 18:00 UTC. A naive parse in
+        // the LA test zone (PDT, UTC-7) would wrongly give 21:00 UTC.
+        expect(iso).toBe('2026-03-15T18:00:00.000Z');
+    });
+
+    test('RepeatUntil is interpreted in the declared zone too', async ({ page }) => {
+        await page.goto('/');
+        await waitForScreen(page, 'screen-input');
+        const iso = await page.evaluate(() => {
+            const text = [
+                'Title: TZ Repeat',
+                'Start: 2026-03-15T14:00:00',
+                'RepeatUntil: 2026-03-15T14:30:00',
+                'Timezone: America/New_York',
+                '',
+                '0:00  Go',
+            ].join('\n');
+            return parseTextFormat(text).repeatUntil;
+        });
+        expect(iso).toBe('2026-03-15T18:30:00.000Z');
+    });
+});
+
+// bug 2 — [no-countdown] is an explicit-disabled value, not "unspecified".
+test('bug 2: [no-countdown] parses to [] and suppresses beeps even under event defaults', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const r = await page.evaluate(() => {
+        const text = [
+            'Title: NC',
+            'Start: 2030-01-01T12:00:00',
+            '',
+            '0:30  Wave  [no-countdown]',
+        ].join('\n');
+        const action = parseTextFormat(text).timeline[0];
+        // Event defaults that WOULD add a 5-beep countdown; the explicit [] must win.
+        const beeps = audio.resolveCountdownBeeps(
+            action, 10, { defaultCountdown: true, defaultCountdownSeconds: 5 }, Infinity);
+        return { cds: action.countdownSeconds, beeps };
+    });
+    expect(Array.isArray(r.cds)).toBe(true);
+    expect(r.cds.length).toBe(0);   // explicit-disabled sentinel
+    expect(r.beeps).toBeNull();     // no beeps, defaults ignored
+});
+
+// bug 4 — restarting a past RepeatUntil event shifts the repeat bound.
+test('bug 4: rebaseEventToNow shifts repeatUntil with the start', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const r = await page.evaluate(() => {
+        const startPast = Date.now() - 3600 * 1000;          // 1h ago
+        const embedded = {
+            title: 'R', startTime: new Date(startPast).toISOString(), timezone: 'UTC',
+            repeatUntil: new Date(startPast + 600 * 1000).toISOString(),   // start + 10 min
+            timeline: [{ time: new Date(startPast + 30000).toISOString(), action: 'Go' }],
+        };
+        const evt = embeddedEventToEvent(embedded);
+        const rebased = rebaseEventToNow(evt);
+        const newStart = new Date(rebased.startTime).getTime();
+        const newRU = new Date(rebased.repeatUntil).getTime();
+        return { spanSec: Math.round((newRU - newStart) / 1000), ruInFuture: newRU > Date.now() };
+    });
+    expect(r.spanSec).toBe(600);     // the 10-minute repeat window is preserved
+    expect(r.ruInFuture).toBe(true); // and the bound is now in the future (was past)
+});
+
+// bug 9 — the zip-bomb guard bounds output DURING decompression.
+test('bug 9: an over-cap inflated payload is rejected; normal payloads still decode', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const r = await page.evaluate(() => {
+        const big = new Uint8Array(6 * 1024 * 1024);   // 6 MB of zeros → tiny gzip, inflates over cap
+        const gz = pako.gzip(big);
+        let threw = null;
+        try { ungzipBounded(gz, 5 * 1024 * 1024); } catch (e) { threw = e.message; }
+        const small = pako.gzip(new TextEncoder().encode('hello world'));
+        const ok = new TextDecoder().decode(ungzipBounded(small, 5 * 1024 * 1024));
+        return { threw, ok };
+    });
+    expect(r.threw).toMatch(/zip bomb/i);
+    expect(r.ok).toBe('hello world');
+});
+
+// bug 7 — share base URL never yields a "null/…" link.
+test('bug 7: shareBaseUrl produces a valid, null-free base', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const r = await page.evaluate(() => ({
+        base: shareBaseUrl(),
+        expectedHosted: location.origin + location.pathname,
+    }));
+    // On the hosted test origin it must equal origin+pathname exactly (no regression)…
+    expect(r.base).toBe(r.expectedHosted);
+    // …and never contain the bogus "null" origin that file:// produced before.
+    expect(r.base.startsWith('null')).toBe(false);
+});

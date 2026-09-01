@@ -401,6 +401,11 @@ function createAudioService() {
     function resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults = {}, gapFromPrevMs = Infinity) {
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
         let result;
+        // Explicitly disabled ([no-countdown] → countdownSeconds === []): no beeps,
+        // and event defaults / notice-window synthesis must NOT re-add them (bug 2).
+        if (Array.isArray(action.countdownSeconds) && action.countdownSeconds.length === 0) {
+            return null;
+        }
         if (action.countdownSeconds !== null && action.countdownSeconds !== undefined) {
             result = [...action.countdownSeconds];
         } else if (eventDefaults.defaultCountdown) {

@@ -576,8 +576,11 @@
             // no-notify
             assert('9.5 no-notify: audioAnnounce false', ntParsed.timeline[2].audioAnnounce === false);
             assert('9.5 no-notify: noticeSeconds 0', ntParsed.timeline[2].noticeSeconds === 0);
-            // no-countdown
-            assert('9.5 no-countdown: null countdown', ntParsed.timeline[3].countdownSeconds === null);
+            // no-countdown → explicit-disabled sentinel [] (bug 2): distinct from
+            // null (= unspecified), so event defaults / notice beeps never re-add it.
+            assert('9.5 no-countdown: explicit-disabled []',
+                Array.isArray(ntParsed.timeline[3].countdownSeconds) &&
+                ntParsed.timeline[3].countdownSeconds.length === 0);
         } catch (e) {
             assert('9.5 New bracket tags', false, e.message);
         }

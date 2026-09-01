@@ -60,6 +60,45 @@ function encodeEmbeddedEvent(embedded) {
  * @returns {EmbeddedEvent} Decoded and validated event with defaults filled
  * @throws {Error} If decoding fails or required fields are missing
  */
+/**
+ * Gzip-inflate with a hard output cap enforced DURING decompression (bug 9).
+ * pako streams output chunk by chunk; we accumulate and abort the moment the
+ * running total would exceed maxBytes, so an attacker-controlled event link
+ * can't force a massive allocation before a post-hoc length check. Bounds peak
+ * memory to roughly maxBytes rather than the full inflated size.
+ *
+ * @param {Uint8Array} bytes - gzip-compressed input
+ * @param {number} maxBytes - inclusive cap on inflated output
+ * @returns {Uint8Array} inflated bytes
+ * @throws {Error} 'Event data too large (possible zip bomb)' if the cap is hit
+ */
+function ungzipBounded(bytes, maxBytes) {
+    const inflator = new pako.Inflate();
+    const chunks = [];
+    let total = 0;
+    let overflow = false;
+    // Override the default sink so we can stop early. pako calls this per output
+    // chunk inside push(); throwing here interrupts the inflate loop before the
+    // rest of the input is expanded.
+    inflator.onData = function (chunk) {
+        total += chunk.length;
+        if (total > maxBytes) { overflow = true; throw new Error('zip-bomb-abort'); }
+        chunks.push(chunk);
+    };
+    try {
+        inflator.push(bytes, true);
+    } catch (e) {
+        if (overflow) throw new Error('Event data too large (possible zip bomb)');
+        throw e;
+    }
+    if (overflow) throw new Error('Event data too large (possible zip bomb)');
+    if (inflator.err) throw new Error('Decompression failed: ' + (inflator.msg || inflator.err));
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
+}
+
 function decodeEvent(encodedString) {
     let data;
     if (encodedString.startsWith('v1_')) {
@@ -72,10 +111,7 @@ function decodeEvent(encodedString) {
     try {
         const base64 = fromUrlSafeBase64(data);
         const compressed = base64ToBytes(base64);
-        const decompressed = pako.ungzip(compressed);
-        if (decompressed.length > 5 * 1024 * 1024) {
-            throw new Error('Event data too large (possible zip bomb)');
-        }
+        const decompressed = ungzipBounded(compressed, 5 * 1024 * 1024);
         const jsonString = new TextDecoder().decode(decompressed);
         const eventData = JSON.parse(jsonString);
         return validateAndComplete(eventData);
@@ -183,10 +219,7 @@ async function decodeEventEncrypted(encoded, password) {
         throw new Error('Wrong password');
     }
 
-    const decompressed = pako.ungzip(decrypted);
-    if (decompressed.length > 5 * 1024 * 1024) {
-        throw new Error('Event data too large (possible zip bomb)');
-    }
+    const decompressed = ungzipBounded(decrypted, 5 * 1024 * 1024);
     const jsonString = new TextDecoder().decode(decompressed);
     const eventData = JSON.parse(jsonString);
     return validateAndComplete(eventData);
@@ -312,6 +345,56 @@ function validateAndComplete(eventData) {
  * @param {string} text
  * @returns {Object} EmbeddedEvent-shaped object (needs validateAndComplete)
  */
+
+/**
+ * Offset (ms east of UTC) of an IANA zone at a given UTC instant, DST-aware.
+ * @param {string} zone - IANA zone id, e.g. "America/New_York"
+ * @param {number} utcMs - epoch ms
+ * @returns {number} offset in ms (e.g. -4h during EDT)
+ */
+function tzOffsetMs(zone, utcMs) {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    const map = {};
+    for (const p of dtf.formatToParts(new Date(utcMs))) map[p.type] = p.value;
+    let hour = parseInt(map.hour, 10);
+    if (hour === 24) hour = 0; // some engines render midnight as 24
+    const asIfUTC = Date.UTC(+map.year, +map.month - 1, +map.day, hour, +map.minute, +map.second);
+    return asIfUTC - utcMs;
+}
+
+/**
+ * Interpret a wall-clock date string as a time in the declared IANA zone and
+ * return the corresponding UTC epoch ms (bug 1). The string is parsed for its
+ * typed components with the platform's flexible Date parser, then those
+ * components are pinned to `zone` rather than the browser's local zone.
+ *
+ * When `zone` equals the browser's own zone this is identical to `new Date(str)`,
+ * so events without a Timezone header are unaffected. Strings that already carry
+ * an explicit offset/Z are outside the text format's wall-clock contract and are
+ * not specially handled here.
+ *
+ * @param {string} str
+ * @param {string} zone - IANA zone id
+ * @returns {number} epoch ms, or NaN if unparseable
+ */
+function wallClockToUTC(str, zone) {
+    const naive = new Date(str);
+    if (isNaN(naive.getTime())) return NaN;
+    // The digits the user typed, read back out of the local parse.
+    const asUTC = Date.UTC(
+        naive.getFullYear(), naive.getMonth(), naive.getDate(),
+        naive.getHours(), naive.getMinutes(), naive.getSeconds());
+    // Subtract the zone's offset to land on the real instant; refine once so a
+    // DST transition near the target resolves to the correct side.
+    let utc = asUTC - tzOffsetMs(zone, asUTC);
+    utc = asUTC - tzOffsetMs(zone, utc);
+    return utc;
+}
+
 function parseTextFormat(text) {
     const lines = text.split(/\r?\n/);
     const headers = {};
@@ -420,10 +503,14 @@ function parseTextFormat(text) {
                 }
             }
 
-            // Determine countdownSeconds array
+            // Determine countdownSeconds array.
+            // null  = unspecified → resolver applies event defaults / notice beeps
+            // []    = EXPLICITLY disabled ([no-countdown]) → resolver emits no beeps
+            //         even when event defaults would add a countdown (bug 2).
+            // [...] = an explicit list of beep seconds.
             let countdownSeconds = null;
             if (noCountdown) {
-                countdownSeconds = null;
+                countdownSeconds = [];
             } else if (countdownDuration != null) {
                 countdownSeconds = Array.from({length: countdownDuration}, (_, i) => countdownDuration - i);
             } else if (countdown) {
@@ -450,24 +537,28 @@ function parseTextFormat(text) {
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
     if (!headers.start) throw new Error('Text format: missing required "Start:" header');
 
-    // Parse start time flexibly
-    const startDate = new Date(headers.start);
-    if (isNaN(startDate.getTime())) {
+    // Resolve the declared timezone FIRST — the wall-clock Start/RepeatUntil
+    // below are interpreted in it (bug 1). No Timezone header → browser local,
+    // which makes wallClockToUTC identical to a plain local Date parse.
+    const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Parse start time flexibly, interpreting the wall clock in `timezone`.
+    const startMs = wallClockToUTC(headers.start, timezone);
+    if (isNaN(startMs)) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
     }
-    const startTime = startDate.toISOString();
-    const startMs = startDate.getTime();
+    const startTime = new Date(startMs).toISOString();
 
     // Optional bounded repeat: two ways to bound the same loop, either or both.
     //   "RepeatUntil:" = wall-clock end;  "Repeat:" = a fixed cycle count.
     //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
-        const ru = new Date(headers.repeatuntil);
-        if (isNaN(ru.getTime())) {
+        const ruMs = wallClockToUTC(headers.repeatuntil, timezone);
+        if (isNaN(ruMs)) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
-        if (ru.getTime() > startMs) repeatUntil = ru.toISOString();
+        if (ruMs > startMs) repeatUntil = new Date(ruMs).toISOString();
     }
     let repeatCount = null;
     if (headers.repeat) {
@@ -476,9 +567,6 @@ function parseTextFormat(text) {
     }
     const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
         ? parseInt(headers.coda, 10) : undefined;
-
-    // Default timezone to browser's local timezone
-    const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     // Convert action offsets to absolute ISO times
     const timeline = actions.map(a => {

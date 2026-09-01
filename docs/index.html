@@ -2040,6 +2040,14 @@ function rebaseEventToNow(embeddedEvent) {
         rebased.endTime = new Date(new Date(embeddedEvent.endTime).getTime() + delta).toISOString();
     }
 
+    // repeatUntil is an absolute wall-clock instant like start/end — shift it by
+    // the same delta (bug 4). Left unshifted it stays in the past, so repeat
+    // expansion sees an already-expired bound and the restarted event plays only
+    // its first cycle instead of repeating for the original duration.
+    if (rebased.repeatUntil) {
+        rebased.repeatUntil = new Date(new Date(embeddedEvent.repeatUntil).getTime() + delta).toISOString();
+    }
+
     if (rebased.timeline) {
         for (const action of rebased.timeline) {
             if (action.time) {
@@ -2616,6 +2624,18 @@ function showBanner(id, text, variant) {
     el.style.display = 'flex';
 }
 function hideBanner(id) { $(id).style.display = 'none'; }
+
+// Base URL for share links / QR codes. On file:// location.origin is the
+// string "null", which produces an unopenable "null/…#v1_…" link/QR even
+// though local-file operation is an advertised distribution path (bug 7).
+// Fall back to href-without-fragment — a valid file:/// URL that opens
+// locally. On a hosted origin this is exactly origin+pathname as before.
+function shareBaseUrl() {
+    if (location.origin && location.origin !== 'null') {
+        return location.origin + location.pathname;
+    }
+    return location.href.split('#')[0];
+}
 
 // One-shot pocket-readiness note on the live screen. Which message depends on
 // whether the bake took over (state.bakedActive); each variant shows once per
@@ -5247,7 +5267,7 @@ function renderEditorReview() {
     // URL length warning
     try {
         const encoded = encodeEvent(evt);
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
         if (fullUrl.length > 2000) {
             $('share-feedback').textContent = 'Long URL — "Copy Event Code" recommended over link sharing.';
             $('share-feedback').style.color = 'var(--accent-gold)';
@@ -5325,7 +5345,7 @@ async function copyEventCode() {
 async function copyShareableLink() {
     if (!validateSharePassword()) return;
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     showShareFeedback(ok ? 'Link copied!' : 'Copy failed — try again.');
 }
@@ -5334,7 +5354,7 @@ async function webShareEvent() {
     if (!state.event || !validateSharePassword()) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',
@@ -5997,7 +6017,7 @@ async function showQRDisplay() {
 
     try {
         const encoded = await getShareEncoded();
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
 
         if (fullUrl.length > 2953) {
             warning.textContent = 'Event too large for QR code — use Copy Link or Share instead.';
@@ -6210,7 +6230,7 @@ $('btn-share-qr-practice').addEventListener('click', showQRDisplay);
 $('btn-qr-display-close').addEventListener('click', closeQRDisplay);
 $('btn-qr-display-copy-link').addEventListener('click', async () => {
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     const btn = $('btn-qr-display-copy-link');
     const orig = btn.textContent;
@@ -6221,7 +6241,7 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
     if (!state.event) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',
