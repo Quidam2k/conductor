@@ -2470,6 +2470,13 @@ function renderPreview() {
     const evt = state.event;
     if (!evt) return;
 
+    // Bug 3: drop action-spacing metadata from any previously loaded event.
+    // It's derived from a specific timeline; a stale map would mis-group the
+    // new event's cues (wrong countdown capping / prep coalescing) if Live
+    // reused it. Live recomputes too, but clear here so nothing downstream
+    // ever reads another event's grouping.
+    state.actionMeta = null;
+
     $('preview-title').textContent = evt.title;
     $('preview-desc').textContent = evt.description || '';
     $('preview-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
@@ -2614,6 +2621,16 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 // whether the bake took over (state.bakedActive); each variant shows once per
 // device (localStorage), since it's orientation, not a per-run status.
 function showPocketBanner() {
+    // Bug 6: the bake was skipped because Live was entered far too early. Say
+    // what to DO, and show it every time (not one-shot) — it's an actionable
+    // state, not a per-device orientation note.
+    if (state.bakeSkipReason === 'too-early') {
+        const mins = Math.max(1, Math.round((state.bakeTooEarlySec || 0) / 60));
+        showBanner('live-pocket-banner',
+            'You went Live very early (~' + mins + ' min before the last cue), so audio isn’t pre-rendered for a locked screen yet. Leave Live and go Live again closer to the start for pocket-safe playback.',
+            'warning');
+        return;
+    }
     const variant = state.bakedActive ? 'baked' : 'fallback';
     const key = 'conductor-pocket-banner-' + variant;
     let seen = false;
@@ -2858,10 +2875,11 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
-    // Precompute per-action gaps + grouping (reuse if already computed in practice)
-    if (!state.actionMeta || state.actionMeta.size === 0) {
-        state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
-    }
+    // Precompute per-action gaps + grouping. Always recompute from THIS event's
+    // timeline (bug 3): the old reuse-if-present guard could keep a different
+    // event's metadata when entering Live directly after practicing another,
+    // mis-capping countdowns and prep grouping. Recompute is cheap.
+    state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
 
     // Create timeline renderer
     const canvas = $('canvas-live');
@@ -3189,6 +3207,7 @@ function unlockBakedTrack() {
 async function startBakedTrack(evt, evtDefs, opts = {}) {
     const el = document.getElementById('baked-track');
     if (!el) { setBakeStatus({ ok: false, reason: 'no-element' }); return false; }
+    state.bakeSkipReason = null;
     try {
         // Two separate clocks. anchorMs is the event-time the track's t=0 maps
         // to — wall-clock now when going live, but practice's virtual start when
@@ -3204,6 +3223,23 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
                 const b = packManager.getBuffer(packId + ':' + cueId);
                 return b ? b.duration : 0;
             });
+        // Too-early hard cap (bug 6). Baking runs from t=0 to the last future
+        // cue, so going Live long before the event allocates an enormous
+        // transient WAV (~48 KB/s → ~173 MB/hr) that can freeze or OOM the
+        // device. Above the cap, skip the bake and fall through to the live
+        // scheduler; showPocketBanner() then tells the user what to DO — go Live
+        // again closer to the start. The pocket-safe bake isn't needed this
+        // early anyway (you wouldn't pocket the phone an hour before the cue).
+        const BAKE_HARD_CAP_SEC = 45 * 60;
+        let lastOffsetSec = 0;
+        for (const ev of schedule) { if (ev.offsetSec > lastOffsetSec) lastOffsetSec = ev.offsetSec; }
+        if (lastOffsetSec > BAKE_HARD_CAP_SEC) {
+            state.bakeSkipReason = 'too-early';
+            state.bakeTooEarlySec = Math.round(lastOffsetSec);
+            setBakeStatus({ ok: false, reason: 'too-early',
+                projectedSec: Math.round(lastOffsetSec), capSec: BAKE_HARD_CAP_SEC });
+            return false;
+        }
         const baked = await bakeScheduleToWavBlob(
             schedule, (key) => packManager.getBuffer(key));
         if (!baked) { // OfflineAudioContext unavailable → live path
@@ -3217,9 +3253,31 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
 
         // Wait for metadata so currentTime is settable, then skip the head that
         // already elapsed while baking — keeps cues aligned to the wall clock.
-        await new Promise((resolve) => {
-            const onReady = () => { el.removeEventListener('loadedmetadata', onReady); resolve(); };
+        // Bounded + recoverable (bug 5): a Blob the browser can't decode, or a
+        // load that stalls, must NOT hang here forever. On error/abort/timeout we
+        // reject; the catch below logs + tears down and the caller falls through
+        // to the live scheduler (its loops run regardless of the bake).
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const cleanup = () => {
+                el.removeEventListener('loadedmetadata', onReady);
+                el.removeEventListener('error', onError);
+                el.removeEventListener('abort', onError);
+                clearTimeout(timer);
+            };
+            const onReady = () => { if (settled) return; settled = true; cleanup(); resolve(); };
+            const onError = () => {
+                if (settled) return; settled = true; cleanup();
+                reject(new Error('baked-track load failed (' +
+                    ((el.error && el.error.code) || 'unknown') + ')'));
+            };
+            const timer = setTimeout(() => {
+                if (settled) return; settled = true; cleanup();
+                reject(new Error('baked-track load timed out'));
+            }, 10000);
             el.addEventListener('loadedmetadata', onReady);
+            el.addEventListener('error', onError);
+            el.addEventListener('abort', onError);
             el.load();
         });
         const elapsed = (Date.now() - startWallMs) / 1000;
