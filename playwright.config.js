@@ -12,9 +12,19 @@ module.exports = defineConfig({
         port: 8080,
         reuseExistingServer: true,
     },
+    // Audio is muted at the browser level so a headless run is never audible on
+    // the dev machine — the live/practice paths schedule real Web Audio beeps and
+    // headless chromium/firefox otherwise route them to the system speakers.
+    // (WebKit headless on this platform emits no audio, so it needs no flag.)
     projects: [
-        { name: 'chromium', use: { browserName: 'chromium' } },
+        {
+            name: 'chromium',
+            use: { browserName: 'chromium', launchOptions: { args: ['--mute-audio'] } },
+        },
         { name: 'webkit', use: { browserName: 'webkit' } },
-        { name: 'firefox', use: { browserName: 'firefox' } },
+        {
+            name: 'firefox',
+            use: { browserName: 'firefox', launchOptions: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } } },
+        },
     ],
 });
