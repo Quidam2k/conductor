@@ -409,6 +409,7 @@ test('voice recording: recorded cue and stitched prep are baked into the live tr
     await page.goto('/#' + encoded);
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)
     await waitForScreen(page, 'screen-live');
 
     // Bake happens async inside enterLive — poll until it takes over (spec 55 pattern).

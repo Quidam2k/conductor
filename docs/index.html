@@ -912,6 +912,27 @@
         }
         .qr-scan-status { text-align:center; padding:12px 16px; font-size:16px; color:var(--text-dim); }
 
+        /* ─── Preflight ("Session Ready?") gate ─── */
+        .preflight-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+        .preflight-rows { display:flex; flex-direction:column; gap:8px; }
+        .preflight-row { display:flex; gap:10px; align-items:flex-start; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:10px 12px; }
+        .preflight-row .pf-icon { flex:none; width:22px; text-align:center; font-size:16px; line-height:1.4; }
+        .preflight-row .pf-text { flex:1; min-width:0; }
+        .preflight-row .pf-label { font-size:15px; font-weight:600; }
+        .preflight-row .pf-detail { font-size:14px; color:var(--text-secondary); margin-top:2px; }
+        .preflight-row.ok      { border-left:3px solid var(--accent-green); }
+        .preflight-row.ok .pf-icon { color:var(--accent-green); }
+        .preflight-row.warn    { border-left:3px solid var(--accent-gold); }
+        .preflight-row.warn .pf-icon { color:var(--accent-gold); }
+        .preflight-row.blocker { border-left:3px solid var(--accent-red); }
+        .preflight-row.blocker .pf-icon { color:var(--accent-red); }
+        .preflight-checking { color:var(--text-dim); font-size:15px; text-align:center; padding:24px 0; }
+        .preflight-actions { display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--border-subtle); }
+        .preflight-actions button { flex:1; }
+        .preflight-footer { font-size:12px; color:var(--text-dim); text-align:center; padding:0 16px 12px; }
+        .practice-preflight-line { font-size:13px; color:var(--text-dim); padding:2px 16px 0; text-align:center; }
+        .practice-preflight-line .pf-warn { color:var(--accent-gold); }
+
         /* ─── QR Display overlay ─── */
         #qr-display-canvas { max-width:280px; max-height:280px; }
 
@@ -1270,6 +1291,7 @@
         <div class="briefing-panel"></div>
     </details>
     <div id="practice-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
+    <div id="practice-preflight-line" class="practice-preflight-line"></div>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-practice"></canvas>
     </div>
@@ -1600,6 +1622,25 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- Preflight ("Session Ready?") gate — shown before entering Live           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="preflight-overlay" class="qr-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="preflight-title">
+    <div class="qr-overlay-header">
+        <h2 id="preflight-title">Session Ready?</h2>
+        <button id="btn-preflight-close" class="qr-close-btn" aria-label="Cancel">&times;</button>
+    </div>
+    <div class="preflight-body">
+        <div id="preflight-checking" class="preflight-checking">Checking&hellip;</div>
+        <div id="preflight-rows" class="preflight-rows" style="display:none;"></div>
+    </div>
+    <div id="preflight-footer" class="preflight-footer"></div>
+    <div class="preflight-actions">
+        <button id="btn-preflight-cancel" class="btn-outline">Back</button>
+        <button id="btn-preflight-go" class="btn-primary">Enter Live</button>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Batch Voice Recorder Overlay                                             -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <div id="batch-recorder-overlay" class="batch-recorder-overlay" style="display:none;" role="dialog" aria-modal="true">
@@ -1724,6 +1765,7 @@ const state = {
     qrScanner: null,            // QrScanner instance when scanning
     beamDecoder: null,          // QR Beam decoder while receiving a pack transfer
     sharePassword: null,        // Set when password-protect checkbox is checked
+    swUpdateWaiting: false,      // True once a newer Service Worker has installed and is waiting (preflight "refresh" warning)
     editor: {
         title: '',
         description: '',
@@ -2671,6 +2713,240 @@ function showPocketBanner() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PREFLIGHT — "Session Ready?" gate (Phase D)
+// ─────────────────────────────────────────────────────────────────────────
+// Automates the manual pre-session checks that have bitten real sessions:
+// stale cached build, missing voice pack, wrong-zone/wrong-day time, and the
+// pathological too-early bake. Shown as a full card before entering Live; a
+// lighter version+coverage line rides the Practice screen. Advisory by design —
+// only the over-cap bake (bug 6) hard-blocks; everything else warns but still
+// lets the user proceed, because the app is built to degrade to spoken audio.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Shared with startBakedTrack's too-early guard so both agree on the cap.
+const BAKE_HARD_CAP_SEC = 45 * 60;      // > this → refuse the bake / block Live
+const BAKE_SOFT_WARN_SEC = 30 * 60;     // > this → warn on transient size (matches audioBake)
+const BAKE_BYTES_PER_SEC = 24000 * 2;   // 24 kHz mono 16-bit → 48 KB/s
+
+const PF_ICON = { ok: '✓', warn: '⚠', blocker: '✗' };
+
+// Estimate bake length + transient WAV size without preloading buffers. The
+// bake runs from now to the last future cue, so time-to-last-cue dominates the
+// size exactly as the real guard sees it; pack-voice tails add only seconds.
+function estimateBake(evt) {
+    const now = Date.now();
+    let lastMs = 0;
+    for (const a of evt.timeline) {
+        const t = a.timeMs ?? new Date(a.time).getTime();
+        if (t > lastMs) lastMs = t;
+    }
+    const sec = Math.max(0, (lastMs - now) / 1000);
+    return { sec, mb: (sec * BAKE_BYTES_PER_SEC) / (1024 * 1024) };
+}
+
+function humanizeMinutes(mins) {
+    const m = Math.max(0, Math.round(mins));
+    if (m < 60) return m + ' min';
+    const h = Math.floor(m / 60), mm = m % 60;
+    return mm ? h + ' hr ' + mm + ' min' : h + ' hr';
+}
+
+// Event start rendered in the DEVICE's own zone (+ tz abbreviation) so a
+// wrong-zone or wrong-day event is caught by eye. Times are stored absolute
+// (UTC), so this is always the true local moment regardless of evt.timezone.
+function formatLocalStart(evt) {
+    const startMs = new Date(evt.startTime).getTime();
+    const deltaMin = (startMs - Date.now()) / 60000;
+    const timeStr = new Date(startMs).toLocaleString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short',
+    });
+    return { deltaMin, timeStr };
+}
+
+// Load referenced packs (idempotent/cached — enterLive's later preload is then
+// a no-op) and count how many trigger cues actually resolve.
+async function collectCueCoverage(evt) {
+    const packIds = new Set();
+    for (const a of evt.timeline) if (a.pack) packIds.add(a.pack);
+    await Promise.all([...packIds].map(id => packManager.ensurePackLoaded(id).catch(() => {})));
+    let total = 0, ready = 0;
+    for (const a of evt.timeline) {
+        if (a.pack && a.cue) { total++; if (packManager.hasCue(a.pack, a.cue)) ready++; }
+    }
+    return { total, ready, missing: total - ready };
+}
+
+/**
+ * Run the six checks and return { rows, hasBlocker }. Each row is
+ * { status:'ok'|'warn'|'blocker', label, detail }. Only the too-early bake
+ * sets hasBlocker (bug 6 cap).
+ */
+async function runPreflight(evt) {
+    const rows = [];
+    const version = ($('app-version') && $('app-version').textContent) || '?';
+
+    // 1. Build version — warn if a newer SW is waiting.
+    if (state.swUpdateWaiting) {
+        rows.push({ status: 'warn', label: 'Build ' + version + ' — update ready',
+            detail: 'A newer version has downloaded. Leave this screen, refresh the page, and re-check the build before the session.' });
+    } else {
+        rows.push({ status: 'ok', label: 'Build ' + version,
+            detail: 'Running the latest version this device has cached.' });
+    }
+
+    // 2. Local start time in the device's own zone.
+    const ls = formatLocalStart(evt);
+    if (ls.deltaMin > 0) {
+        rows.push({ status: 'ok', label: 'Starts in ' + humanizeMinutes(ls.deltaMin),
+            detail: ls.timeStr + ' — your device clock.' });
+    } else {
+        rows.push({ status: 'warn', label: 'Already started ' + humanizeMinutes(-ls.deltaMin) + ' ago',
+            detail: ls.timeStr + ' — you would join in progress.' });
+    }
+
+    // 3. Pack cue coverage.
+    const cov = await collectCueCoverage(evt);
+    if (cov.total === 0) {
+        rows.push({ status: 'ok', label: 'No recorded cues',
+            detail: 'This event uses spoken audio only.' });
+    } else if (cov.missing === 0) {
+        rows.push({ status: 'ok', label: cov.ready + ' of ' + cov.total + ' recorded cues ready',
+            detail: 'Every recorded cue is installed.' });
+    } else {
+        rows.push({ status: 'warn', label: cov.missing + ' of ' + cov.total + ' cues missing',
+            detail: cov.missing + ' cue' + (cov.missing === 1 ? '' : 's') + ' will fall back to spoken text, which needs the screen on. Import or beam the voice pack first.' });
+    }
+
+    // 4. Bake-size estimate — the only hard blocker.
+    const est = estimateBake(evt);
+    let hasBlocker = false;
+    if (!canBake()) {
+        rows.push({ status: 'warn', label: 'Screen-on audio only',
+            detail: "This browser can't pre-render audio for a locked screen." });
+    } else if (est.sec > BAKE_HARD_CAP_SEC) {
+        hasBlocker = true;
+        rows.push({ status: 'blocker', label: 'Too early to go Live',
+            detail: 'The last cue is ~' + humanizeMinutes(est.sec / 60) + ' away (~' + est.mb.toFixed(0) + ' MB pre-render). Come back within ' + Math.round(BAKE_HARD_CAP_SEC / 60) + ' minutes of the start.' });
+    } else if (est.sec > BAKE_SOFT_WARN_SEC) {
+        rows.push({ status: 'warn', label: 'Large pre-render (~' + est.mb.toFixed(0) + ' MB)',
+            detail: 'Going Live this far ahead builds a big audio file. Fine if intended, but you normally enter Live near the start.' });
+    } else {
+        rows.push({ status: 'ok', label: 'Audio pre-render ~' + est.mb.toFixed(1) + ' MB',
+            detail: 'Beeps and pack voices will play with the screen off.' });
+    }
+
+    // 5. Audio unlock — showPreflight already resumed the context in-gesture.
+    const ctx = packManager.getAudioContext && packManager.getAudioContext();
+    if (ctx && ctx.state === 'running') {
+        rows.push({ status: 'ok', label: 'Audio unlocked', detail: 'Sound is ready on this device.' });
+    } else {
+        rows.push({ status: 'warn', label: 'Audio not yet unlocked',
+            detail: 'Tap Enter Live to unlock sound — some browsers need the extra tap.' });
+    }
+
+    // 6. Pocket readiness.
+    if (canBake() && !hasBlocker && cov.missing === 0) {
+        rows.push({ status: 'ok', label: 'Pocket-ready',
+            detail: 'You can lock the screen — audio keeps playing.' });
+    } else if (canBake() && !hasBlocker) {
+        rows.push({ status: 'warn', label: 'Partly pocket-ready',
+            detail: 'Beeps play locked, but missing recorded cues need the screen on.' });
+    } else {
+        rows.push({ status: 'warn', label: 'Keep screen on',
+            detail: 'Locked-screen audio is not available for this run.' });
+    }
+
+    return { rows, hasBlocker };
+}
+
+/**
+ * Open the full preflight card before entering Live. onConfirm runs only if the
+ * user taps "Enter Live" (a fresh gesture that lets enterLive re-unlock audio).
+ * The opening gesture already unlocked audio here for the check-5 readout.
+ */
+function showPreflight(evt, onConfirm) {
+    const overlay = $('preflight-overlay');
+    const checkingEl = $('preflight-checking');
+    const rowsEl = $('preflight-rows');
+    const goBtn = $('btn-preflight-go');
+    const footer = $('preflight-footer');
+
+    checkingEl.style.display = '';
+    rowsEl.style.display = 'none';
+    rowsEl.innerHTML = '';
+    goBtn.disabled = true;
+    goBtn.textContent = 'Enter Live';
+    footer.textContent = '';
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+
+    // Unlock audio inside this opening gesture: powers the check-5 readout and
+    // primes the context before enterLive.
+    unlockSharedAudio();
+    if (canBake()) { try { unlockBakedTrack(); } catch (e) { /* best-effort */ } }
+
+    function close() { overlay.style.display = 'none'; releaseFocus(); cleanup(); }
+    function confirm() { if (goBtn.disabled) return; close(); onConfirm(); }
+    function cancel() { close(); }
+    function cleanup() {
+        goBtn.removeEventListener('click', confirm);
+        $('btn-preflight-cancel').removeEventListener('click', cancel);
+        $('btn-preflight-close').removeEventListener('click', cancel);
+    }
+    cleanup();
+    goBtn.addEventListener('click', confirm);
+    $('btn-preflight-cancel').addEventListener('click', cancel);
+    $('btn-preflight-close').addEventListener('click', cancel);
+
+    runPreflight(evt).then(({ rows, hasBlocker }) => {
+        if (overlay.style.display === 'none') return; // user backed out mid-check
+        checkingEl.style.display = 'none';
+        rowsEl.style.display = '';
+        rowsEl.innerHTML = rows.map(r =>
+            '<div class="preflight-row ' + r.status + '">' +
+            '<span class="pf-icon" aria-hidden="true">' + PF_ICON[r.status] + '</span>' +
+            '<span class="pf-text"><span class="pf-label">' + escapeHtml(r.label) + '</span>' +
+            '<span class="pf-detail">' + escapeHtml(r.detail) + '</span></span></div>'
+        ).join('');
+        footer.textContent = 'build ' + version() + ' · No telemetry · No tracking';
+        if (hasBlocker) { goBtn.disabled = true; goBtn.textContent = 'Too early'; }
+        else { goBtn.disabled = false; }
+        trapFocus(overlay); // re-trap so the now-enabled button joins the order
+    });
+
+    function version() { return ($('app-version') && $('app-version').textContent) || '?'; }
+}
+
+/**
+ * The lighter Practice-screen line: build + cue coverage only. Practice IS the
+ * natural "verify cues" step, so it gets a one-liner, not the blocking card.
+ * Uses the coverage already computed by enterPractice's preloadEventPacks.
+ */
+function updatePracticePreflightLine(evt, audioDbg) {
+    const el = $('practice-preflight-line');
+    if (!el) return;
+    const version = ($('app-version') && $('app-version').textContent) || '?';
+    const parts = [];
+    if (state.swUpdateWaiting) {
+        parts.push('<span class="pf-warn">Build ' + version + ' — update ready, refresh before the session</span>');
+    } else {
+        parts.push('Build ' + version);
+    }
+    let total = 0;
+    for (const a of evt.timeline) if (a.pack && a.cue) total++;
+    const missing = (audioDbg && audioDbg.missingCues) ? audioDbg.missingCues.length : 0;
+    if (total === 0) {
+        parts.push('spoken audio');
+    } else if (missing === 0) {
+        parts.push(total + '/' + total + ' cues ready');
+    } else {
+        parts.push('<span class="pf-warn">' + (total - missing) + '/' + total + ' cues ready — ' + missing + ' will speak</span>');
+    }
+    el.innerHTML = parts.join(' · ');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PRACTICE mode
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2720,6 +2996,9 @@ async function enterPractice() {
     } else {
         hideBanner('practice-banner');
     }
+
+    // Lighter preflight line: build + cue coverage (Practice is the verify step).
+    updatePracticePreflightLine(evt, audioDbg);
 
     // Set practice start: begin 15s before first action, but never before event start
     const sorted = [...evt.timeline].sort((a, b) =>
@@ -3250,7 +3529,8 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
         // scheduler; showPocketBanner() then tells the user what to DO — go Live
         // again closer to the start. The pocket-safe bake isn't needed this
         // early anyway (you wouldn't pocket the phone an hour before the cue).
-        const BAKE_HARD_CAP_SEC = 45 * 60;
+        // BAKE_HARD_CAP_SEC is defined once at module scope and shared with the
+        // preflight gate so both agree on what counts as "too early to bake".
         let lastOffsetSec = 0;
         for (const ev of schedule) { if (ev.offsetSec > lastOffsetSec) lastOffsetSec = ev.offsetSec; }
         if (lastOffsetSec > BAKE_HARD_CAP_SEC) {
@@ -5870,7 +6150,9 @@ $('btn-go-live').addEventListener('click', () => {
         state.actionMeta = null; // recompute from the rebased timeline
         renderPreview();
     }
-    transitionTo('live');
+    // Phase D: run the "Session Ready?" preflight before entering Live. The
+    // confirm tap is a fresh user gesture, so enterLive still unlocks audio.
+    showPreflight(state.event, () => transitionTo('live'));
 });
 
 $('btn-practice-stop').addEventListener('click', () => {
@@ -6471,7 +6753,26 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         });
     }
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
-        .then(reg => { reg.update().catch(() => {}); })
+        .then(reg => {
+            reg.update().catch(() => {});
+            // Track a waiting update so the preflight gate can warn "a newer
+            // version is ready — refresh before the session" (kills the
+            // silent-stale-build repeat). Only meaningful once a SW already
+            // controls the page (an initial install is not a stale build).
+            const noteWaiting = () => {
+                if (reg.waiting && navigator.serviceWorker.controller) state.swUpdateWaiting = true;
+            };
+            noteWaiting();
+            reg.addEventListener('updatefound', () => {
+                const nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                        state.swUpdateWaiting = true;
+                    }
+                });
+            });
+        })
         .catch(() => {});
 }
 

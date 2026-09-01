@@ -70,6 +70,7 @@ test('bug 5: an undecodable baked track falls back to live instead of hanging', 
     });
 
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (near-term event, not blocked)
     await waitForScreen(page, 'screen-live');
 
     // The one-shot pocket banner is emitted after the bake settles → execution
@@ -106,7 +107,11 @@ test('bug 6: going Live far before the event skips the huge bake and says what t
     await page.goto('/#' + eventCode);
     await waitForScreen(page, 'screen-preview');
 
-    await page.click('#btn-go-live');
+    // The Phase-D preflight now hard-blocks a 2h-early event at the button
+    // (asserted in preflight-gate.spec.js). This test exercises the bake-skip
+    // guard itself — the defense-in-depth net inside enterLive — so enter Live
+    // directly, past the gate.
+    await page.evaluate(() => transitionTo('live'));
     await waitForScreen(page, 'screen-live');
 
     // Guard fired: bake skipped, reason recorded, no giant WAV allocated.
@@ -164,6 +169,7 @@ test('bug 3: entering Live after practicing a different event uses the new group
     });
     await waitForScreen(page, 'screen-preview');
     await page.click('#screen-preview #btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (near-term event, not blocked)
     await waitForScreen(page, 'screen-live');
 
     // Live must describe B (1 action), not A (2). Pre-fix, Live reused A's map.

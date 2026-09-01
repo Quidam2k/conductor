@@ -65,6 +65,7 @@ test('navigation: Go Live on preview rebases an entirely-past event', async ({ p
         dialog.accept();
     });
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight after the rebase confirm
     await waitForScreen(page, 'screen-live');
 
     // The event was rebased into the future — we're live, not "completed".
