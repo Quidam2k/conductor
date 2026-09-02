@@ -25,6 +25,10 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 
 **[Getting Started](https://quidam2k.github.io/conductor/start.html)** — download, tutorial, and walkthrough
 
+## Help Wanted — Contribute From Anywhere
+
+You don't have to be in the room to help. Record a few voice cues in your own voice, write a short event script, or just try to break it and tell us how — all on your own time. **[Help from Anywhere](https://quidam2k.github.io/conductor/help.html)** ([HELP.md](docs/HELP.md)) walks a first-timer through exactly what to do and where to send it (a GitHub issue works today — no account of ours needed). The page refreshes on a regular cadence with the current week's ask.
+
 ## Features
 
 - **No Server** — Events live in URLs. Works on any static host or completely offline
