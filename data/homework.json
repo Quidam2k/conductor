@@ -1,0 +1,27 @@
+{
+  "weekOf": "2026-09-01",
+  "focus": [
+    {
+      "title": "Record a short voice pack for one demo event",
+      "detail": "Pick any bundled demo (The Stillness is the shortest — about six cues). Record every cue in your own voice with the in-app recorder and export it as a pack .zip. Clear, calm, one to three seconds each."
+    },
+    {
+      "title": "Write one new short event script",
+      "detail": "Four to eight cues, plain text, something a small crowd could pull off in a public space (a freeze, a wave, lights up, a slow turn). No recording needed — the script alone is genuinely useful."
+    },
+    {
+      "title": "Try to break it and tell us how",
+      "detail": "Open the app cold on your own phone, run the demo with the screen locked in your pocket, and note anything confusing, silent, or wrong. A plain-language bug report is worth as much as a recording."
+    }
+  ],
+  "sendTo": {
+    "githubIssues": "https://github.com/Quidam2k/conductor/issues/new",
+    "githubRepo": "https://github.com/Quidam2k/conductor",
+    "discordInvite": "TBD — Todd fills this in"
+  },
+  "nextSession": {
+    "note": "We meet in person to record together roughly every couple of weeks. Can't make it? Everything on this page is designed so you can help on your own time and send it in — you don't need to be in the room.",
+    "when": "TBD — Todd fills in the next in-person recording date/time"
+  },
+  "helpers": []
+}
