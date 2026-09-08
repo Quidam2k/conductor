@@ -824,6 +824,61 @@
             reorderSvc.getAnnouncedSet().has(`${reorderAction.id}-countdown-1`));
 
         // ═════════════════════════════════════════════════════════════
+        // 23. Clip mode — speaker plays the clip, no cue-beep/prep/trigger-word
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>23. Clip Mode</h2>');
+
+        // 23a. Clip mode via per-action mode, with a pack clip present → plays the
+        // clip at trigger, returns 'clip-pack', and fires NO notice/countdown.
+        const clipSvc = createAudioService();
+        clipSvc.initialize(() => {});
+        clipSvc.setMuted(true);
+        let clipPlayed = null;
+        clipSvc.setResourcePackResolver((cue, pack) => { clipPlayed = pack + ':' + cue; return true; });
+        const clipAction = actionAt(0, 'Play the anthem', {
+            noticeSeconds: 10, countdownSeconds: [3, 2, 1], cue: 'anthem', pack: 'demo', mode: 'clip',
+        });
+        // At the notice threshold — clip mode must NOT emit a "Get ready to" prep.
+        let cr = clipSvc.announceAction(clipAction, 10, 5);
+        assert('Clip: no notice/prep at noticeSeconds', cr === null, `Got: ${cr}`);
+        // At a countdown threshold — clip mode must NOT beep.
+        cr = clipSvc.announceAction(clipAction, 3, 5);
+        assert('Clip: no countdown beep', cr === null, `Got: ${cr}`);
+        // At trigger — the clip plays via the resolver.
+        cr = clipSvc.announceAction(clipAction, 0, 5);
+        assert('Clip: trigger plays the clip (clip-pack)',
+            cr === 'clip-pack: "anthem"', `Got: ${cr}`);
+        assert('Clip: resolver actually invoked with the cue', clipPlayed === 'demo:anthem',
+            `Got: ${clipPlayed}`);
+        // Only the trigger key was marked — no notice/countdown keys.
+        const clipSet = clipSvc.getAnnouncedSet();
+        assert('Clip: only the trigger key is marked', clipSet.size === 1,
+            `Got ${clipSet.size}: ${[...clipSet].join(', ')}`);
+
+        // 23b. Clip mode via event defaultMode, NO pack clip → speaks the full line
+        // (no trailing "!"), returns 'clip-tts'.
+        const clipTtsSvc = createAudioService();
+        clipTtsSvc.initialize(() => {});
+        clipTtsSvc.setMuted(true);
+        const bareLine = actionAt(0, 'All those moments lost in time', { noticeSeconds: 10 });
+        cr = clipTtsSvc.announceAction(bareLine, 0, 5, 1, { defaultMode: 'clip' });
+        assert('Clip via defaultMode, no pack → clip-tts of the full line',
+            cr === 'clip-tts: "All those moments lost in time"', `Got: ${cr}`);
+
+        // 23c. Per-action mode:'cue' overrides an event defaultMode:'clip' → beeps
+        // and the spoken trigger word come back (mixed-event guarantee).
+        const overrideSvc = createAudioService();
+        overrideSvc.initialize(() => {});
+        overrideSvc.setMuted(true);
+        const cueRow = actionAt(0, 'Freeze', { noticeSeconds: 10, countdownSeconds: [3, 2, 1], mode: 'cue' });
+        cr = overrideSvc.announceAction(cueRow, 3, 5, 1, { defaultMode: 'clip' });
+        assert('Cue override in clip event: countdown beep fires',
+            cr === 'countdown-beep: 3', `Got: ${cr}`);
+        cr = overrideSvc.announceAction(cueRow, 0, 5, 1, { defaultMode: 'clip' });
+        assert('Cue override in clip event: spoken trigger returns',
+            cr === 'trigger: "Freeze!"', `Got: ${cr}`);
+
+        // ═════════════════════════════════════════════════════════════
         // SUMMARY
         // ═════════════════════════════════════════════════════════════
         const summaryEl = document.getElementById('summary');

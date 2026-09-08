@@ -477,9 +477,12 @@ function createAudioService() {
             const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
             const groupStartFlag = meta ? meta.groupStartFlag : true;
             const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+            // Clip-mode actions bake the clip only — no cue-beep, no prep — so the
+            // locked-screen track carries exactly what the speaker plays live.
+            const isClip = ((action.mode || eventDefaults.defaultMode || 'cue') === 'clip');
 
             // Countdown beeps — same resolution (and gap capping) as the live path.
-            const beeps = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
+            const beeps = isClip ? null : resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
             if (beeps) {
                 for (const s of beeps) {
                     const key = Math.max(1, Math.min(8, Math.round(s)));
@@ -490,14 +493,18 @@ function createAudioService() {
                 }
             }
 
-            // Trigger beep — fires unconditionally at the downbeat (mirrors playTriggerBeep).
-            events.push({
-                offsetSec: (triggerMs - startMs) / 1000,
-                kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
-            });
+            // Trigger beep — fires at the downbeat in cue mode (mirrors playTriggerBeep).
+            // Clip mode omits it: the clip is the downbeat.
+            if (!isClip) {
+                events.push({
+                    offsetSec: (triggerMs - startMs) / 1000,
+                    kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
+                });
+            }
 
-            // Trigger pack cue — plays alongside the trigger beep, exactly as the
-            // live trigger path does when the resolver has the cue.
+            // Trigger pack cue — the clip itself, played at the downbeat in BOTH
+            // modes when the resolver has it (cue mode alongside the beep; clip mode
+            // alone). This is the line that survives a locked screen.
             if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
                 events.push({
                     offsetSec: (triggerMs - startMs) / 1000,
@@ -514,7 +521,7 @@ function createAudioService() {
             // the leader's pack has `prep-lead` AND ≥1 member cue clip exists;
             // members with missing clips are skipped. Otherwise emit nothing and
             // the live path speaks the TTS enumeration (screen-on only).
-            const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
+            const wantNotice = !isClip && groupStartFlag && noticeSeconds > 0 && action.announceActionName;
             if (wantNotice && getDurationSec && action.pack &&
                 hasCue && hasCue(action.pack, 'prep-lead')) {
                 const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
@@ -594,6 +601,12 @@ function createAudioService() {
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
         if (secondsUntil < -2) return null;
 
+        // Effective playback mode. 'clip' = the speaker plays a full clip and the
+        // human is out of the loop: no cue-beep (countdown or trigger), no "Get
+        // ready to" prep, no spoken trigger word — just the clip at the downbeat.
+        // Anything but 'clip' is 'cue' (today's behavior, unchanged).
+        const isClip = ((action.mode || eventDefaults.defaultMode || 'cue') === 'clip');
+
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
         const countdownSeconds = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrevMs);
@@ -619,7 +632,7 @@ function createAudioService() {
         //    Suppressed when groupStartFlag is false (cue is mid-rapid-sequence, group's
         //    prep already played on the group-leading cue).
         let noticeResult = null;
-        if (groupStartFlag && noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
+        if (!isClip && groupStartFlag && noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
@@ -654,7 +667,7 @@ function createAudioService() {
         //    preempted by the trigger's bulk-mark. Does NOT return early;
         //    saves result so trigger can still fire on the same tick.
         let countdownResult = null;
-        if (countdownSeconds && countdownSeconds.length > 0) {
+        if (!isClip && countdownSeconds && countdownSeconds.length > 0) {
             const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
 
             for (const cs of sortedCountdown) {
@@ -684,11 +697,32 @@ function createAudioService() {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
                 announced.add(key);
+
+                // Clip mode: no trigger beep, no countdown keys to reconcile — the
+                // speaker plays the clip itself. random take → resolveAudioCue;
+                // single cue → playPackCue (bake-safe); no clip → speak the full
+                // line naturally (screen-on, unbakeable). No trailing "!" and
+                // normal rate: clip lines are full sentences, not shouted cues.
+                if (isClip) {
+                    if (action.randomCues && action.randomCues.length > 0 && action.pack) {
+                        const spoken = resolveAudioCue(action, 'trigger', speedMultiplier);
+                        if (spoken !== null) speak(spoken, 1.2 * speedMultiplier);
+                        return 'clip-random: "' + (action.action || 'clip') + '"';
+                    }
+                    if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
+                        return 'clip-pack: "' + action.cue + '"';
+                    }
+                    const line = action.fallbackText || action.action || '';
+                    if (line) speak(line, 1.2 * speedMultiplier);
+                    return 'clip-tts: "' + line + '"';
+                }
+
                 if (countdownSeconds) {
                     for (const cs of countdownSeconds) {
                         announced.add(`${action.id}-countdown-${cs}`);
                     }
                 }
+
                 playTriggerBeep();
                 if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + action.cue + '"';

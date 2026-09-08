@@ -204,6 +204,39 @@
             assert('audioAnnounce=false → 0 events', s.length === 0, JSON.stringify(s));
 
             // ═══════════════════════════════════════════════════════════
+            // 5b. Clip mode — bakes the clip only (no cue-beep, no prep)
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>5b. Clip mode — clip only, no beeps/prep</h2>');
+
+            // Per-action mode:'clip' with a pack clip → ONLY the trigger packCue,
+            // no countdown beeps, no trigger beep. Contrast section 3 (cue mode:
+            // same action baked beeps + clip).
+            const clipAct = actionAt(30, 'Anthem', { cue: 'freeze', pack: 'demo', noticeSeconds: 10, mode: 'clip' });
+            s = svc.computeCueSchedule([clipAct], 10, null, BASE, {}, triggerOnly, oneSec);
+            assert('clip: exactly 1 event', s.length === 1, JSON.stringify(s));
+            assert('clip: it is the trigger packCue at 30s',
+                s[0].kind === 'packCue' && s[0].bufferKey === 'demo:freeze' && s[0].offsetSec === 30,
+                JSON.stringify(s));
+            assert('clip: zero beeps in schedule', s.every(e => e.kind !== 'beep'), JSON.stringify(s));
+
+            // Event-level defaultMode:'clip' reaches computeCueSchedule via eventDefaults.
+            const clipViaDefault = actionAt(30, 'Anthem', { cue: 'freeze', pack: 'demo', noticeSeconds: 10 });
+            s = svc.computeCueSchedule([clipViaDefault], 10, null, BASE, { defaultMode: 'clip' }, triggerOnly, oneSec);
+            assert('clip via defaultMode: 1 packCue, no beeps',
+                s.length === 1 && s[0].kind === 'packCue', JSON.stringify(s));
+
+            // Per-action [cue] overrides an event defaultMode:'clip' → beeps return.
+            const cueOverride = actionAt(30, 'Freeze', { cue: 'freeze', pack: 'demo', noticeSeconds: 10, mode: 'cue' });
+            s = svc.computeCueSchedule([cueOverride], 10, null, BASE, { defaultMode: 'clip' }, triggerOnly, oneSec);
+            assert('cue override in clip event: trigger beep returns',
+                s.some(e => e.kind === 'beep' && e.offsetSec === 30 && e.freqHz === TRIG), JSON.stringify(s));
+
+            // Clip mode with NO pack clip → bakes nothing (TTS is screen-on only).
+            const clipNoPack = actionAt(30, 'A spoken line', { noticeSeconds: 10, mode: 'clip' });
+            s = svc.computeCueSchedule([clipNoPack], 10, null, BASE, {}, triggerOnly, oneSec);
+            assert('clip with no pack clip → 0 baked events', s.length === 0, JSON.stringify(s));
+
+            // ═══════════════════════════════════════════════════════════
             // 6. encodeAudioBufferToWav — header + sample round-trip
             // ═══════════════════════════════════════════════════════════
             log('<h2>6. encodeAudioBufferToWav</h2>');
