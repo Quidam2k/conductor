@@ -743,6 +743,58 @@
             assert('9.9 Bounded repeat headers', false, e.message);
         }
 
+        // 9.10 Dual-mode: "Mode:" header (event defaultMode) + [clip]/[cue] tags
+        try {
+            const clipText = [
+                'Title: Clip Event',
+                'Start: 2026-06-01T14:00:00Z',
+                'Timezone: UTC',
+                'Mode: clip',
+                '',
+                '0:00  Bed cue',
+                '0:10  [cue] A human line',
+                '0:20  Another clip line',
+            ].join('\n');
+            const parsed = parseTextFormat(clipText);
+            assert('9.10 Mode: clip → defaultMode clip', parsed.defaultMode === 'clip',
+                'Got: ' + parsed.defaultMode);
+            assert('9.10 [cue] tag → action.mode cue', parsed.timeline[1].mode === 'cue',
+                'Got: ' + parsed.timeline[1].mode);
+            assert('9.10 untagged row inherits (mode null)',
+                parsed.timeline[0].mode === null || parsed.timeline[0].mode === undefined,
+                'Got: ' + parsed.timeline[0].mode);
+
+            // Round-trips through encode/decode: defaultMode + per-action override.
+            const validated = validateAndComplete(parsed);
+            assert('9.10 validateAndComplete carries defaultMode', validated.defaultMode === 'clip');
+            const decoded = decodeEvent(encodeEmbeddedEvent(validated));
+            assert('9.10 defaultMode survives round-trip', decoded.defaultMode === 'clip',
+                'Got: ' + decoded.defaultMode);
+            assert('9.10 per-action [cue] override survives round-trip',
+                decoded.timeline[1].mode === 'cue', 'Got: ' + decoded.timeline[1].mode);
+
+            // Default event (no Mode:) is cue — the byte-for-byte-unchanged path.
+            const plain = validateAndComplete(parseTextFormat([
+                'Title: Plain', 'Start: 2026-06-01T14:00:00Z', 'Timezone: UTC', '',
+                '0:00  Go',
+            ].join('\n')));
+            assert('9.10 no Mode: header → defaultMode cue', plain.defaultMode === 'cue',
+                'Got: ' + plain.defaultMode);
+
+            // A per-row [clip] in an otherwise-cue event (mixed event).
+            const mixed = validateAndComplete(parseTextFormat([
+                'Title: Mixed', 'Start: 2026-06-01T14:00:00Z', 'Timezone: UTC', '',
+                '0:00  Wave',
+                '0:10  [clip] Play the anthem',
+            ].join('\n')));
+            const mDecoded = decodeEvent(encodeEmbeddedEvent(mixed));
+            assert('9.10 mixed event: defaultMode cue', mDecoded.defaultMode === 'cue');
+            assert('9.10 mixed event: [clip] row overrides to clip',
+                mDecoded.timeline[1].mode === 'clip', 'Got: ' + mDecoded.timeline[1].mode);
+        } catch (e) {
+            assert('9.10 Dual-mode headers/tags', false, e.message);
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // TEST SUITE 10: Briefing Block Parsing
         // ═══════════════════════════════════════════════════════════════

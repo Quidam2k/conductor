@@ -64,6 +64,11 @@ function createTimelineAction(overrides = {}) {
         // Haptic
         hapticPattern: overrides.hapticPattern ?? 'double',
 
+        // Playback mode: 'cue' (cue-beep → human speaks) or 'clip' (speaker plays
+        // a full clip, human out of the loop). null = inherit the event defaultMode.
+        // Effective mode resolves via actionMode(action, event).
+        mode: overrides.mode ?? null,
+
         // Resource pack
         cue: overrides.cue ?? null,
         fallbackText: overrides.fallbackText ?? null,
@@ -212,6 +217,7 @@ function embeddedEventToEvent(embedded) {
         repeatUntil: repeatUntil,
         repeatCount: repeatCount,
         codaGapSeconds: embedded.codaGapSeconds ?? null,
+        defaultMode: embedded.defaultMode ?? 'cue',
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
         emergencyMode: false,
@@ -243,6 +249,7 @@ function eventToEmbeddedEvent(event) {
         repeatUntil: event.repeatUntil || null,
         repeatCount: (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : null,
         codaGapSeconds: event.codaGapSeconds || null,
+        defaultMode: (event.defaultMode && event.defaultMode !== 'cue') ? event.defaultMode : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
     };
@@ -310,6 +317,23 @@ function expandRepeats(event) {
         }
     }
     return { ...event, timeline: expanded };
+}
+
+// ─── Playback mode ────────────────────────────────────────────────────────────
+
+/**
+ * Resolve an action's effective playback mode. Per-action `mode` wins; otherwise
+ * the event's `defaultMode`; otherwise 'cue' (today's behavior). Any value other
+ * than 'clip' resolves to 'cue' so an unknown/garbage value degrades safely to
+ * the fully-supported cue path.
+ *
+ * @param {TimelineAction} action
+ * @param {{defaultMode?: string}|null} [event]
+ * @returns {'cue'|'clip'}
+ */
+function actionMode(action, event) {
+    const m = (action && action.mode) || (event && event.defaultMode) || 'cue';
+    return m === 'clip' ? 'clip' : 'cue';
 }
 
 // ─── Utilities ──────────────────────────────────────────────────────────────

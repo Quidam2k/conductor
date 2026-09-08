@@ -289,6 +289,7 @@ function validateAndComplete(eventData) {
         repeatUntil: eventData.repeatUntil ?? null,
         repeatCount: eventData.repeatCount ?? null,
         codaGapSeconds: eventData.codaGapSeconds ?? null,
+        defaultMode: eventData.defaultMode ?? 'cue',
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
     };
@@ -356,7 +357,7 @@ function parseTextFormat(text) {
         }
 
         // Try header: Key: Value (in 'header' or 'timeline' sections)
-        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda|repeat)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda|repeat|mode)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -398,10 +399,12 @@ function parseTextFormat(text) {
             let noNotify = false;
             let noticeSeconds = null;
             let countdownDuration = null;
+            let mode = null; // null = inherit event defaultMode
 
             if (tags) {
                 for (const tag of tags) {
                     if (tag === 'emphasis' || tag === 'alert' || tag === 'normal') style = tag;
+                    else if (tag === 'clip' || tag === 'cue') mode = tag;
                     else if (tag === 'countdown') countdown = true;
                     else if (tag === 'no-countdown') noCountdown = true;
                     else if (tag === 'no-notify') noNotify = true;
@@ -439,6 +442,7 @@ function parseTextFormat(text) {
                 countdownSeconds,
                 audioAnnounce: !noNotify,
                 noticeSeconds: noNotify ? 0 : (noticeSeconds ?? null),
+                mode,
             });
             continue;
         }
@@ -477,6 +481,15 @@ function parseTextFormat(text) {
     const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
         ? parseInt(headers.coda, 10) : undefined;
 
+    // Event-level default playback mode: "Mode: clip" makes every step clip-mode
+    // (speaker plays the audio) unless a row overrides with [cue]. Default cue.
+    let defaultMode;
+    if (headers.mode) {
+        const mv = headers.mode.toLowerCase();
+        if (mv === 'clip' || mv === 'cue') defaultMode = mv;
+        else warnings.push('Unknown Mode value: ' + headers.mode + ' (expected clip or cue)');
+    }
+
     // Default timezone to browser's local timezone
     const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -509,6 +522,7 @@ function parseTextFormat(text) {
         repeatUntil: repeatUntil || undefined,
         repeatCount: repeatCount || undefined,
         codaGapSeconds,
+        defaultMode,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
 }

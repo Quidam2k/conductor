@@ -51,8 +51,31 @@ These optional headers set event-level defaults:
 | `RepeatUntil` | Loop the whole sequence until this wall-clock time (same date formats as `Start`) | `RepeatUntil: 2026-03-15 2:20 PM` |
 | `Repeat` | Loop the whole sequence a fixed number of times, total (min 2) | `Repeat: 3` |
 | `Coda` | Rest in seconds between repeats (default: 4). Used with `RepeatUntil` or `Repeat` | `Coda: 10` |
+| `Mode` | Playback mode for the whole event: `cue` (default) or `clip` | `Mode: clip` |
 
 Per-action tags (below) override these event-level defaults.
+
+### Playback mode: cue vs clip
+
+Every step plays in one of two modes:
+
+- **`cue`** (default) — the original behavior. A cue-beep (and optional "Get
+  ready to…" heads-up) prompts a **person** to perform or speak. Beeps and the
+  spoken action name are the coordination signal; the human is the voice.
+- **`clip`** — the **speaker** plays a recorded audio clip for the step and the
+  human is out of the loop. There is **no cue-beep** and no "Get ready to" prep —
+  the clip *is* the moment. Clips can be long (a full spoken line, or a music
+  bed), and clips are allowed to overlap/layer with later steps (this is how
+  music beds and emergent-harmony `random` crowd-murmurs work).
+
+Set the event default with the `Mode:` header, or set it per step with a `[clip]`
+or `[cue]` tag. A single event may mix both — e.g. a `Mode: clip` scored piece
+with one `[cue]` step where a person still speaks. A clip step with no resource-pack
+audio falls back to speaking the line via TTS (screen-on only, like any TTS).
+
+> **Pockets:** as always, only recorded pack audio (clip mode's clips, cue mode's
+> beeps + pack voices) survives a locked screen. A clip step that relies on TTS is
+> screen-on only. See "Designing for Pockets" below.
 
 ### Repeating a sequence (bounded repeat)
 
@@ -165,7 +188,18 @@ Cues that land closer together than that lead share a single notice, announced b
 
 Note: Haptic works on Android. iOS does not support vibration from web apps.
 
-Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]`
+### Mode Tags
+
+| Tag | What it does |
+|-----|-------------|
+| `clip` | This step plays a recorded clip through the speaker (no cue-beep, no prep) |
+| `cue` | This step uses cue mode (beeps + prompt a person) — overrides `Mode: clip` |
+
+Use these to override the event's `Mode:` header on a single step, so one event
+can mix human-cued steps and speaker-clip steps. See "Playback mode: cue vs clip"
+above.
+
+Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]` or `[clip, haptic:triple]`
 
 ## Designing for Pockets
 

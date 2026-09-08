@@ -1091,7 +1091,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v62</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v63</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -2706,10 +2706,12 @@ async function enterPractice() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelinePractice.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -2873,10 +2875,12 @@ async function enterLive() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelineLive.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -3087,6 +3091,7 @@ function startAudioLoop(mode) {
                     defaultCountdownSeconds: evt.defaultCountdownSeconds,
                     defaultCountdown: evt.defaultCountdown,
                     defaultHapticMode: evt.defaultHapticMode,
+                    defaultMode: evt.defaultMode,
                 },
                 m.gapToNext,
                 m.groupStartFlag,
@@ -3098,7 +3103,7 @@ function startAudioLoop(mode) {
             // Haptic feedback — respects event-level haptic mode
             const hapticMode = evt.defaultHapticMode || 'action';
             if (result && hapticMode !== 'off') {
-                if (result.startsWith('trigger')) {
+                if (result.startsWith('trigger') || result.startsWith('clip')) {
                     audio.haptic(action.hapticPattern || 'double');
                 } else if (result.startsWith('countdown') && hapticMode === 'countdown') {
                     audio.haptic('single');
