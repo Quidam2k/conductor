@@ -1,0 +1,19 @@
+Title: Clip Mode Demo
+Description: Shows the two playback modes. Screen on for this TTS demo.
+Start: 2026-09-15 7:00 PM
+Timezone: America/New_York
+Mode: clip
+
+[TIMELINE]
+# Clip mode (event default): the phone's speaker plays each line. No cue-beep,
+# no "get ready" prep — the clip is the moment. In this TTS demo the lines are
+# spoken; a real clip event references recorded pack cues per line.
+0:00  Welcome to clip mode.
+0:06  The speaker plays each line for you.
+0:12  No beeps, no prompts — just the audio.
+# A single [cue] step drops back to cue mode inside a clip event: a countdown
+# beep prompts a PERSON to speak. This is a mixed event.
+0:22  [cue, countdown:3] Everyone, say hello together
+# Back to clip mode for the close.
+0:30  That was cue mode for one line.
+0:36  Clip and cue can live in the same event.
