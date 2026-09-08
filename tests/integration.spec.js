@@ -259,6 +259,60 @@ test('create event → copy code → load → same event', async ({ page }) => {
 });
 
 // ═════════════════════════════════════════════════════════════════════
+// 3b. Editor dual-mode: event defaultMode + per-row mode override
+// ═════════════════════════════════════════════════════════════════════
+
+test('editor: clip default mode + per-row cue override round-trips', async ({ page }) => {
+    await page.goto('/');
+
+    await page.click('#btn-create');
+    await waitForScreen(page, 'screen-editor-info');
+    await page.fill('#ed-title', 'Clip Editor Test');
+    // Event-level default → clip.
+    await page.selectOption('#ed-default-mode', 'clip');
+    await page.click('#btn-ed-next1');
+    await waitForScreen(page, 'screen-editor-timeline');
+
+    // Row 1: leave mode = Default (inherits clip).
+    await page.click('#btn-add-action');
+    let editForm = page.locator('.ed-action-edit');
+    await expect(editForm).toBeVisible();
+    await editForm.locator('.ed-action-text').fill('Play the anthem');
+    await editForm.locator('.ed-btn-save').click();
+
+    // Row 2: explicit per-row Cue override in an otherwise-clip event.
+    await page.click('#btn-add-action');
+    editForm = page.locator('.ed-action-edit');
+    await expect(editForm).toBeVisible();
+    await editForm.locator('.ed-action-text').fill('Everyone shout');
+    await editForm.locator('.ed-mode-group .ed-toggle-btn[data-val="cue"]').click();
+    await editForm.locator('.ed-btn-save').click();
+
+    // Finalize → review builds state.event.
+    await page.click('#btn-ed-next2');
+    await waitForScreen(page, 'screen-editor-review');
+
+    // Event carries defaultMode:'clip'; row 1 inherits (mode null), row 2 is 'cue'.
+    expect(await page.evaluate('state.event.defaultMode')).toBe('clip');
+    const modes = await page.evaluate('state.event.timeline.map(a => a.mode)');
+    expect(modes[0]).toBeNull();
+    expect(modes[1]).toBe('cue');
+    // Effective modes via the shipped helper: clip (inherited) then cue (override).
+    const eff = await page.evaluate('state.event.timeline.map(a => actionMode(a, state.event))');
+    expect(eff).toEqual(['clip', 'cue']);
+
+    // Encode → reload → defaultMode + override survive the URL round-trip.
+    const eventCode = await page.evaluate('encodeEvent(state.event)');
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await page.fill('#input-paste', eventCode);
+    await page.click('#btn-load');
+    await waitForScreen(page, 'screen-preview');
+    expect(await page.evaluate('state.event.defaultMode')).toBe('clip');
+    expect(await page.evaluate('state.event.timeline[1].mode')).toBe('cue');
+});
+
+// ═════════════════════════════════════════════════════════════════════
 // 4. Hash navigation: URL with #v1_... loads event automatically
 // ═════════════════════════════════════════════════════════════════════
 
