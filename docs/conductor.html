@@ -1090,7 +1090,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v62</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v64</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1371,6 +1371,13 @@
 
         <label class="field-label">Timezone</label>
         <select id="ed-timezone" class="field-select"></select>
+
+        <label class="field-label" title="Cue: a beep prompts a person to speak/act. Clip: the phone's speaker plays a recorded clip (no beep, no human).">Playback mode</label>
+        <select id="ed-default-mode" class="field-select">
+            <option value="cue">Cue — beep prompts a person (default)</option>
+            <option value="clip">Clip — speaker plays a recorded clip</option>
+        </select>
+        <div style="font-size:14px; color:var(--text-dim); margin-top:4px;">Sets the default for every step. You can override any single step in the timeline.</div>
 
         <label class="field-label">Timeline window</label>
         <select id="ed-time-window" class="field-select">
@@ -1819,6 +1826,11 @@ function createTimelineAction(overrides = {}) {
         // Haptic
         hapticPattern: overrides.hapticPattern ?? 'double',
 
+        // Playback mode: 'cue' (cue-beep → human speaks) or 'clip' (speaker plays
+        // a full clip, human out of the loop). null = inherit the event defaultMode.
+        // Effective mode resolves via actionMode(action, event).
+        mode: overrides.mode ?? null,
+
         // Resource pack
         cue: overrides.cue ?? null,
         fallbackText: overrides.fallbackText ?? null,
@@ -1967,6 +1979,7 @@ function embeddedEventToEvent(embedded) {
         repeatUntil: repeatUntil,
         repeatCount: repeatCount,
         codaGapSeconds: embedded.codaGapSeconds ?? null,
+        defaultMode: embedded.defaultMode ?? 'cue',
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
         emergencyMode: false,
@@ -1998,6 +2011,7 @@ function eventToEmbeddedEvent(event) {
         repeatUntil: event.repeatUntil || null,
         repeatCount: (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : null,
         codaGapSeconds: event.codaGapSeconds || null,
+        defaultMode: (event.defaultMode && event.defaultMode !== 'cue') ? event.defaultMode : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
     };
@@ -2065,6 +2079,23 @@ function expandRepeats(event) {
         }
     }
     return { ...event, timeline: expanded };
+}
+
+// ─── Playback mode ────────────────────────────────────────────────────────────
+
+/**
+ * Resolve an action's effective playback mode. Per-action `mode` wins; otherwise
+ * the event's `defaultMode`; otherwise 'cue' (today's behavior). Any value other
+ * than 'clip' resolves to 'cue' so an unknown/garbage value degrades safely to
+ * the fully-supported cue path.
+ *
+ * @param {TimelineAction} action
+ * @param {{defaultMode?: string}|null} [event]
+ * @returns {'cue'|'clip'}
+ */
+function actionMode(action, event) {
+    const m = (action && action.mode) || (event && event.defaultMode) || 'cue';
+    return m === 'clip' ? 'clip' : 'cue';
 }
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
@@ -2385,6 +2416,7 @@ function validateAndComplete(eventData) {
         repeatUntil: eventData.repeatUntil ?? null,
         repeatCount: eventData.repeatCount ?? null,
         codaGapSeconds: eventData.codaGapSeconds ?? null,
+        defaultMode: eventData.defaultMode ?? 'cue',
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
     };
@@ -2452,7 +2484,7 @@ function parseTextFormat(text) {
         }
 
         // Try header: Key: Value (in 'header' or 'timeline' sections)
-        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda|repeat)\s*:\s*(.+)$/i);
+        const headerMatch = line.match(/^(title|description|start|timezone|notifywindow|countdownwindow|countdown|haptic|repeatuntil|coda|repeat|mode)\s*:\s*(.+)$/i);
         if (headerMatch) {
             headers[headerMatch[1].toLowerCase()] = headerMatch[2].trim();
             continue;
@@ -2494,10 +2526,12 @@ function parseTextFormat(text) {
             let noNotify = false;
             let noticeSeconds = null;
             let countdownDuration = null;
+            let mode = null; // null = inherit event defaultMode
 
             if (tags) {
                 for (const tag of tags) {
                     if (tag === 'emphasis' || tag === 'alert' || tag === 'normal') style = tag;
+                    else if (tag === 'clip' || tag === 'cue') mode = tag;
                     else if (tag === 'countdown') countdown = true;
                     else if (tag === 'no-countdown') noCountdown = true;
                     else if (tag === 'no-notify') noNotify = true;
@@ -2535,6 +2569,7 @@ function parseTextFormat(text) {
                 countdownSeconds,
                 audioAnnounce: !noNotify,
                 noticeSeconds: noNotify ? 0 : (noticeSeconds ?? null),
+                mode,
             });
             continue;
         }
@@ -2573,6 +2608,15 @@ function parseTextFormat(text) {
     const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
         ? parseInt(headers.coda, 10) : undefined;
 
+    // Event-level default playback mode: "Mode: clip" makes every step clip-mode
+    // (speaker plays the audio) unless a row overrides with [cue]. Default cue.
+    let defaultMode;
+    if (headers.mode) {
+        const mv = headers.mode.toLowerCase();
+        if (mv === 'clip' || mv === 'cue') defaultMode = mv;
+        else warnings.push('Unknown Mode value: ' + headers.mode + ' (expected clip or cue)');
+    }
+
     // Default timezone to browser's local timezone
     const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -2605,6 +2649,7 @@ function parseTextFormat(text) {
         repeatUntil: repeatUntil || undefined,
         repeatCount: repeatCount || undefined,
         codaGapSeconds,
+        defaultMode,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
     };
 }
@@ -3444,9 +3489,12 @@ function createAudioService() {
             const gapFromPrev = meta ? meta.gapFromPrev : Infinity;
             const groupStartFlag = meta ? meta.groupStartFlag : true;
             const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+            // Clip-mode actions bake the clip only — no cue-beep, no prep — so the
+            // locked-screen track carries exactly what the speaker plays live.
+            const isClip = ((action.mode || eventDefaults.defaultMode || 'cue') === 'clip');
 
             // Countdown beeps — same resolution (and gap capping) as the live path.
-            const beeps = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
+            const beeps = isClip ? null : resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrev);
             if (beeps) {
                 for (const s of beeps) {
                     const key = Math.max(1, Math.min(8, Math.round(s)));
@@ -3457,14 +3505,18 @@ function createAudioService() {
                 }
             }
 
-            // Trigger beep — fires unconditionally at the downbeat (mirrors playTriggerBeep).
-            events.push({
-                offsetSec: (triggerMs - startMs) / 1000,
-                kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
-            });
+            // Trigger beep — fires at the downbeat in cue mode (mirrors playTriggerBeep).
+            // Clip mode omits it: the clip is the downbeat.
+            if (!isClip) {
+                events.push({
+                    offsetSec: (triggerMs - startMs) / 1000,
+                    kind: 'beep', freqHz: TRIGGER_FREQ_HZ, durMs: TRIGGER_BEEP_MS,
+                });
+            }
 
-            // Trigger pack cue — plays alongside the trigger beep, exactly as the
-            // live trigger path does when the resolver has the cue.
+            // Trigger pack cue — the clip itself, played at the downbeat in BOTH
+            // modes when the resolver has it (cue mode alongside the beep; clip mode
+            // alone). This is the line that survives a locked screen.
             if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
                 events.push({
                     offsetSec: (triggerMs - startMs) / 1000,
@@ -3481,7 +3533,7 @@ function createAudioService() {
             // the leader's pack has `prep-lead` AND ≥1 member cue clip exists;
             // members with missing clips are skipped. Otherwise emit nothing and
             // the live path speaks the TTS enumeration (screen-on only).
-            const wantNotice = groupStartFlag && noticeSeconds > 0 && action.announceActionName;
+            const wantNotice = !isClip && groupStartFlag && noticeSeconds > 0 && action.announceActionName;
             if (wantNotice && getDurationSec && action.pack &&
                 hasCue && hasCue(action.pack, 'prep-lead')) {
                 const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
@@ -3561,6 +3613,12 @@ function createAudioService() {
         // Smart clamp: don't announce actions that are already >2 seconds past trigger
         if (secondsUntil < -2) return null;
 
+        // Effective playback mode. 'clip' = the speaker plays a full clip and the
+        // human is out of the loop: no cue-beep (countdown or trigger), no "Get
+        // ready to" prep, no spoken trigger word — just the clip at the downbeat.
+        // Anything but 'clip' is 'cue' (today's behavior, unchanged).
+        const isClip = ((action.mode || eventDefaults.defaultMode || 'cue') === 'clip');
+
         const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
 
         const countdownSeconds = resolveCountdownBeeps(action, defaultNoticeSeconds, eventDefaults, gapFromPrevMs);
@@ -3586,7 +3644,7 @@ function createAudioService() {
         //    Suppressed when groupStartFlag is false (cue is mid-rapid-sequence, group's
         //    prep already played on the group-leading cue).
         let noticeResult = null;
-        if (groupStartFlag && noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
+        if (!isClip && groupStartFlag && noticeSeconds > 0 && crossed(noticeSeconds) && action.announceActionName) {
             const key = `${action.id}-notice`;
             if (!announced.has(key)) {
                 announced.add(key);
@@ -3621,7 +3679,7 @@ function createAudioService() {
         //    preempted by the trigger's bulk-mark. Does NOT return early;
         //    saves result so trigger can still fire on the same tick.
         let countdownResult = null;
-        if (countdownSeconds && countdownSeconds.length > 0) {
+        if (!isClip && countdownSeconds && countdownSeconds.length > 0) {
             const sortedCountdown = [...countdownSeconds].sort((a, b) => a - b);
 
             for (const cs of sortedCountdown) {
@@ -3651,11 +3709,32 @@ function createAudioService() {
             const key = `${action.id}-trigger`;
             if (!announced.has(key)) {
                 announced.add(key);
+
+                // Clip mode: no trigger beep, no countdown keys to reconcile — the
+                // speaker plays the clip itself. random take → resolveAudioCue;
+                // single cue → playPackCue (bake-safe); no clip → speak the full
+                // line naturally (screen-on, unbakeable). No trailing "!" and
+                // normal rate: clip lines are full sentences, not shouted cues.
+                if (isClip) {
+                    if (action.randomCues && action.randomCues.length > 0 && action.pack) {
+                        const spoken = resolveAudioCue(action, 'trigger', speedMultiplier);
+                        if (spoken !== null) speak(spoken, 1.2 * speedMultiplier);
+                        return 'clip-random: "' + (action.action || 'clip') + '"';
+                    }
+                    if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
+                        return 'clip-pack: "' + action.cue + '"';
+                    }
+                    const line = action.fallbackText || action.action || '';
+                    if (line) speak(line, 1.2 * speedMultiplier);
+                    return 'clip-tts: "' + line + '"';
+                }
+
                 if (countdownSeconds) {
                     for (const cs of countdownSeconds) {
                         announced.add(`${action.id}-countdown-${cs}`);
                     }
                 }
+
                 playTriggerBeep();
                 if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + action.cue + '"';
@@ -8002,10 +8081,12 @@ async function enterPractice() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelinePractice.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -8169,10 +8250,12 @@ async function enterLive() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelineLive.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -8383,6 +8466,7 @@ function startAudioLoop(mode) {
                     defaultCountdownSeconds: evt.defaultCountdownSeconds,
                     defaultCountdown: evt.defaultCountdown,
                     defaultHapticMode: evt.defaultHapticMode,
+                    defaultMode: evt.defaultMode,
                 },
                 m.gapToNext,
                 m.groupStartFlag,
@@ -8394,7 +8478,7 @@ function startAudioLoop(mode) {
             // Haptic feedback — respects event-level haptic mode
             const hapticMode = evt.defaultHapticMode || 'action';
             if (result && hapticMode !== 'off') {
-                if (result.startsWith('trigger')) {
+                if (result.startsWith('trigger') || result.startsWith('clip')) {
                     audio.haptic(action.hapticPattern || 'double');
                 } else if (result.startsWith('countdown') && hapticMode === 'countdown') {
                     audio.haptic('single');
@@ -8774,6 +8858,7 @@ function resetEditorState() {
         repeatUntil: '',        // "YYYY-MM-DDTHH:MM" local, '' = no time bound
         repeatCount: null,      // total cycles incl. first, null = no count bound
         codaGapSeconds: null,
+        defaultMode: 'cue',     // event-level default playback mode ('cue' | 'clip')
     };
 }
 
@@ -8817,6 +8902,7 @@ function initEditorInfo() {
     $('ed-datetime').value = ed.startDateTime || getDefaultDateTime();
     const tz = ed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     populateTimezoneSelect(tz);
+    $('ed-default-mode').value = ed.defaultMode || 'cue';
     $('ed-time-window').value = ed.timeWindowSeconds || '';
 
     // Repeat ("coda") fields — either bound turns the feature on.
@@ -8927,6 +9013,7 @@ function saveEditorInfo() {
     state.editor.description = $('ed-description').value.trim();
     state.editor.startDateTime = datetime;
     state.editor.timezone = $('ed-timezone').value;
+    state.editor.defaultMode = ($('ed-default-mode').value === 'clip') ? 'clip' : 'cue';
     const twVal = $('ed-time-window').value;
     state.editor.timeWindowSeconds = twVal ? parseInt(twVal, 10) : null;
 
@@ -9056,6 +9143,7 @@ function createActionDetails(action) {
     const rows = [
         ['Offset', formatOffset(action.offsetSeconds)],
         ['Style', action.style || 'normal'],
+        ['Mode', action.mode ? action.mode : 'default'],
         ['Haptic', action.hapticPattern || 'double'],
         ['Countdown beeps', action.countdown ? 'On' : 'Off'],
     ];
@@ -9184,6 +9272,13 @@ function createActionEditForm(action, index) {
             <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
             <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
             <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
+        </div>
+
+        <label class="field-label" title="Default: use the event's playback mode. Cue: beep prompts a person. Clip: speaker plays the recorded clip (no beep).">Playback mode</label>
+        <div class="ed-toggle-group ed-mode-group">
+            <button type="button" class="ed-toggle-btn${!action.mode ? ' selected' : ''}" data-val="default" title="Use the event-level playback mode">Default</button>
+            <button type="button" class="ed-toggle-btn${action.mode === 'cue' ? ' selected' : ''}" data-val="cue" title="A beep prompts a person to speak or act">Cue</button>
+            <button type="button" class="ed-toggle-btn${action.mode === 'clip' ? ' selected' : ''}" data-val="clip" title="The speaker plays the recorded clip — no beep, no human">Clip</button>
         </div>
 
         <label class="field-label">Haptic</label>
@@ -10199,6 +10294,7 @@ $('ed-action-list').addEventListener('click', (e) => {
 
         const styleBtn = editForm.querySelector('.ed-style-group .ed-toggle-btn.selected');
         const hapticBtn = editForm.querySelector('.ed-haptic-group .ed-toggle-btn.selected');
+        const modeBtn = editForm.querySelector('.ed-mode-group .ed-toggle-btn.selected');
         const countdownCheck = editForm.querySelector('.ed-countdown-check');
 
         const packSelect = editForm.querySelector('.ed-pack-select');
@@ -10218,6 +10314,7 @@ $('ed-action-list').addEventListener('click', (e) => {
             action: actionText,
             style: styleBtn ? styleBtn.dataset.val : 'normal',
             hapticPattern: hapticBtn ? hapticBtn.dataset.val : 'double',
+            mode: (modeBtn && (modeBtn.dataset.val === 'cue' || modeBtn.dataset.val === 'clip')) ? modeBtn.dataset.val : null,
             countdown: countdownCheck.checked,
             audioAnnounce: true,
             pack: packId || null,
@@ -10380,6 +10477,7 @@ function finalizeEditorEvent() {
         pack: a.pack || null,
         cue: a.cue || null,
         fallbackText: a.fallbackText || null,
+        mode: (a.mode === 'cue' || a.mode === 'clip') ? a.mode : null,
     }));
 
     const embedded = {
@@ -10389,6 +10487,7 @@ function finalizeEditorEvent() {
         timezone: ed.timezone,
         timeline: timeline,
         timeWindowSeconds: ed.timeWindowSeconds || undefined,
+        defaultMode: (ed.defaultMode === 'clip') ? 'clip' : undefined,
     };
 
     // Bounded repeat ("coda"): one bound only — until-a-time XOR a cycle count.
@@ -10927,6 +11026,7 @@ async function loadDraft(id) {
     state.editor.repeatUntil = draft.repeatUntil || '';
     state.editor.repeatCount = draft.repeatCount || null;
     state.editor.codaGapSeconds = draft.codaGapSeconds || null;
+    state.editor.defaultMode = (draft.defaultMode === 'clip') ? 'clip' : 'cue';
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
     transitionTo('editor-info');
@@ -10945,6 +11045,9 @@ function collectDraftFromEditor() {
         repeatUntil: state.editor.repeatUntil || '',
         repeatCount: state.editor.repeatCount || null,
         codaGapSeconds: state.editor.codaGapSeconds || null,
+        defaultMode: $('ed-default-mode')
+            ? (($('ed-default-mode').value === 'clip') ? 'clip' : 'cue')
+            : (state.editor.defaultMode || 'cue'),
     };
 }
 

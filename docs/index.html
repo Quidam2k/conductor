@@ -1091,7 +1091,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v62</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v64</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1372,6 +1372,13 @@
 
         <label class="field-label">Timezone</label>
         <select id="ed-timezone" class="field-select"></select>
+
+        <label class="field-label" title="Cue: a beep prompts a person to speak/act. Clip: the phone's speaker plays a recorded clip (no beep, no human).">Playback mode</label>
+        <select id="ed-default-mode" class="field-select">
+            <option value="cue">Cue — beep prompts a person (default)</option>
+            <option value="clip">Clip — speaker plays a recorded clip</option>
+        </select>
+        <div style="font-size:14px; color:var(--text-dim); margin-top:4px;">Sets the default for every step. You can override any single step in the timeline.</div>
 
         <label class="field-label">Timeline window</label>
         <select id="ed-time-window" class="field-select">
@@ -2706,10 +2713,12 @@ async function enterPractice() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelinePractice.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -2873,10 +2882,12 @@ async function enterLive() {
     const evtDefs = {
         defaultCountdownSeconds: evt.defaultCountdownSeconds,
         defaultCountdown: evt.defaultCountdown,
+        defaultMode: evt.defaultMode,
     };
     timelineLive.setOnCountdownTick((seconds, action) => {
         if (state.bakedActive) return; // beeps come from the baked track
         if (!action.audioAnnounce) return;
+        if (actionMode(action, evt) === 'clip') return; // clip mode has no cue-beep
         const m = state.actionMeta?.get(action.id);
         const beeps = audio.resolveCountdownBeeps(action, evt.defaultNoticeSeconds, evtDefs, m?.gapFromPrev ?? Infinity);
         if (beeps && beeps.includes(seconds)) {
@@ -3087,6 +3098,7 @@ function startAudioLoop(mode) {
                     defaultCountdownSeconds: evt.defaultCountdownSeconds,
                     defaultCountdown: evt.defaultCountdown,
                     defaultHapticMode: evt.defaultHapticMode,
+                    defaultMode: evt.defaultMode,
                 },
                 m.gapToNext,
                 m.groupStartFlag,
@@ -3098,7 +3110,7 @@ function startAudioLoop(mode) {
             // Haptic feedback — respects event-level haptic mode
             const hapticMode = evt.defaultHapticMode || 'action';
             if (result && hapticMode !== 'off') {
-                if (result.startsWith('trigger')) {
+                if (result.startsWith('trigger') || result.startsWith('clip')) {
                     audio.haptic(action.hapticPattern || 'double');
                 } else if (result.startsWith('countdown') && hapticMode === 'countdown') {
                     audio.haptic('single');
@@ -3478,6 +3490,7 @@ function resetEditorState() {
         repeatUntil: '',        // "YYYY-MM-DDTHH:MM" local, '' = no time bound
         repeatCount: null,      // total cycles incl. first, null = no count bound
         codaGapSeconds: null,
+        defaultMode: 'cue',     // event-level default playback mode ('cue' | 'clip')
     };
 }
 
@@ -3521,6 +3534,7 @@ function initEditorInfo() {
     $('ed-datetime').value = ed.startDateTime || getDefaultDateTime();
     const tz = ed.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     populateTimezoneSelect(tz);
+    $('ed-default-mode').value = ed.defaultMode || 'cue';
     $('ed-time-window').value = ed.timeWindowSeconds || '';
 
     // Repeat ("coda") fields — either bound turns the feature on.
@@ -3631,6 +3645,7 @@ function saveEditorInfo() {
     state.editor.description = $('ed-description').value.trim();
     state.editor.startDateTime = datetime;
     state.editor.timezone = $('ed-timezone').value;
+    state.editor.defaultMode = ($('ed-default-mode').value === 'clip') ? 'clip' : 'cue';
     const twVal = $('ed-time-window').value;
     state.editor.timeWindowSeconds = twVal ? parseInt(twVal, 10) : null;
 
@@ -3760,6 +3775,7 @@ function createActionDetails(action) {
     const rows = [
         ['Offset', formatOffset(action.offsetSeconds)],
         ['Style', action.style || 'normal'],
+        ['Mode', action.mode ? action.mode : 'default'],
         ['Haptic', action.hapticPattern || 'double'],
         ['Countdown beeps', action.countdown ? 'On' : 'Off'],
     ];
@@ -3888,6 +3904,13 @@ function createActionEditForm(action, index) {
             <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
             <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
             <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
+        </div>
+
+        <label class="field-label" title="Default: use the event's playback mode. Cue: beep prompts a person. Clip: speaker plays the recorded clip (no beep).">Playback mode</label>
+        <div class="ed-toggle-group ed-mode-group">
+            <button type="button" class="ed-toggle-btn${!action.mode ? ' selected' : ''}" data-val="default" title="Use the event-level playback mode">Default</button>
+            <button type="button" class="ed-toggle-btn${action.mode === 'cue' ? ' selected' : ''}" data-val="cue" title="A beep prompts a person to speak or act">Cue</button>
+            <button type="button" class="ed-toggle-btn${action.mode === 'clip' ? ' selected' : ''}" data-val="clip" title="The speaker plays the recorded clip — no beep, no human">Clip</button>
         </div>
 
         <label class="field-label">Haptic</label>
@@ -4903,6 +4926,7 @@ $('ed-action-list').addEventListener('click', (e) => {
 
         const styleBtn = editForm.querySelector('.ed-style-group .ed-toggle-btn.selected');
         const hapticBtn = editForm.querySelector('.ed-haptic-group .ed-toggle-btn.selected');
+        const modeBtn = editForm.querySelector('.ed-mode-group .ed-toggle-btn.selected');
         const countdownCheck = editForm.querySelector('.ed-countdown-check');
 
         const packSelect = editForm.querySelector('.ed-pack-select');
@@ -4922,6 +4946,7 @@ $('ed-action-list').addEventListener('click', (e) => {
             action: actionText,
             style: styleBtn ? styleBtn.dataset.val : 'normal',
             hapticPattern: hapticBtn ? hapticBtn.dataset.val : 'double',
+            mode: (modeBtn && (modeBtn.dataset.val === 'cue' || modeBtn.dataset.val === 'clip')) ? modeBtn.dataset.val : null,
             countdown: countdownCheck.checked,
             audioAnnounce: true,
             pack: packId || null,
@@ -5084,6 +5109,7 @@ function finalizeEditorEvent() {
         pack: a.pack || null,
         cue: a.cue || null,
         fallbackText: a.fallbackText || null,
+        mode: (a.mode === 'cue' || a.mode === 'clip') ? a.mode : null,
     }));
 
     const embedded = {
@@ -5093,6 +5119,7 @@ function finalizeEditorEvent() {
         timezone: ed.timezone,
         timeline: timeline,
         timeWindowSeconds: ed.timeWindowSeconds || undefined,
+        defaultMode: (ed.defaultMode === 'clip') ? 'clip' : undefined,
     };
 
     // Bounded repeat ("coda"): one bound only — until-a-time XOR a cycle count.
@@ -5631,6 +5658,7 @@ async function loadDraft(id) {
     state.editor.repeatUntil = draft.repeatUntil || '';
     state.editor.repeatCount = draft.repeatCount || null;
     state.editor.codaGapSeconds = draft.codaGapSeconds || null;
+    state.editor.defaultMode = (draft.defaultMode === 'clip') ? 'clip' : 'cue';
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
     transitionTo('editor-info');
@@ -5649,6 +5677,9 @@ function collectDraftFromEditor() {
         repeatUntil: state.editor.repeatUntil || '',
         repeatCount: state.editor.repeatCount || null,
         codaGapSeconds: state.editor.codaGapSeconds || null,
+        defaultMode: $('ed-default-mode')
+            ? (($('ed-default-mode').value === 'clip') ? 'clip' : 'cue')
+            : (state.editor.defaultMode || 'cue'),
     };
 }
 
