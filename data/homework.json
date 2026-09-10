@@ -1,17 +1,13 @@
 {
-  "weekOf": "2026-09-01",
+  "weekOf": "2026-09-08",
   "focus": [
     {
-      "title": "Record a short voice pack for one demo event",
-      "detail": "Pick any bundled demo (The Stillness is the shortest — about six cues). Record every cue in your own voice with the in-app recorder and export it as a pack .zip. Clear, calm, one to three seconds each."
+      "title": "Easiest (no install): suggest touchstones everyone would recognize",
+      "detail": "We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly (\"I am Spartacus,\" \"mad as hell,\" \"I have a dream\"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list."
     },
     {
-      "title": "Write one new short event script",
-      "detail": "Four to eight cues, plain text, something a small crowd could pull off in a public space (a freeze, a wave, lights up, a slow turn). No recording needed — the script alone is genuinely useful."
-    },
-    {
-      "title": "Try to break it and tell us how",
-      "detail": "Open the app cold on your own phone, run the demo with the screen locked in your pocket, and note anything confusing, silent, or wrong. A plain-language bug report is worth as much as a recording."
+      "title": "Go deeper: make a tiny event and tell us what confused you",
+      "detail": "Open the app, create a 3–4 cue script (something simple a small crowd could do — a freeze, a wave, lights up), and note every spot that was confusing or annoying. Report the friction in a GitHub issue. You're helping us grandma-proof it — a plain-language 'this part made no sense' is worth as much as any code."
     }
   ],
   "sendTo": {
