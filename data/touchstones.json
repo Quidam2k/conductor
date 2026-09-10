@@ -2,9 +2,38 @@
   "version": 1,
   "description": "Curated touchstone library for Conductor scripts. Source of truth. Human-editable. Migrated losslessly from the five killer-app seed pools (notes/2026-09-07-killer-app-FIVE-scripts.md, commit 82059d2). See notes/2026-09-10-touchstone-library.md for the dedupe map and tag vocabulary.",
   "tag_vocabulary": {
-    "theme": ["uprising", "obedience-psychology", "meta-darmok", "grief-memory", "memes-oneliners", "solidarity"],
-    "mood": ["anthemic", "defiant", "clinical-dread", "cathartic", "mythic", "elegiac", "tender", "rowdy", "comic", "triumphant", "wistful", "whimsical"],
-    "occasion": ["protest", "vigil", "party", "flash-mob", "demo", "memorial", "rally", "sports-event"]
+    "theme": [
+      "uprising",
+      "obedience-psychology",
+      "meta-darmok",
+      "grief-memory",
+      "memes-oneliners",
+      "solidarity"
+    ],
+    "mood": [
+      "anthemic",
+      "defiant",
+      "clinical-dread",
+      "cathartic",
+      "mythic",
+      "elegiac",
+      "tender",
+      "rowdy",
+      "comic",
+      "triumphant",
+      "wistful",
+      "whimsical"
+    ],
+    "occasion": [
+      "protest",
+      "vigil",
+      "party",
+      "flash-mob",
+      "demo",
+      "memorial",
+      "rally",
+      "sports-event"
+    ]
   },
   "field_notes": {
     "line": "Exact touchstone wording, verbatim from the seed-pool bullet (quoted phrase where the bullet quoted one, else the bullet's descriptor). Never paraphrased.",
@@ -18,7 +47,19 @@
       "id": "i-am-spartacus",
       "line": "I'm Spartacus",
       "source": "Spartacus (1960)",
-      "tags": { "theme": ["uprising"], "mood": ["anthemic", "defiant"], "occasion": ["protest", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -29,7 +70,18 @@
       "id": "never-take-our-freedom",
       "line": "FREEDOM / never take our freedom",
       "source": "Braveheart",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "anthemic"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": 80,
       "degrades": true,
       "shaka_risk": false,
@@ -40,7 +92,17 @@
       "id": "mad-as-hell",
       "line": "mad as hell",
       "source": "Network",
-      "tags": { "theme": ["uprising"], "mood": ["defiant"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": 60,
       "degrades": true,
       "shaka_risk": false,
@@ -51,7 +113,18 @@
       "id": "governments-afraid",
       "line": "governments should be afraid of their people",
       "source": "V for Vendetta",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "anthemic"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": 70,
       "degrades": true,
       "shaka_risk": false,
@@ -62,7 +135,17 @@
       "id": "escalation-ladder",
       "line": "Gandhi escalation ladder",
       "source": "Gandhi (attrib.)",
-      "tags": { "theme": ["uprising"], "mood": ["anthemic"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": 70,
       "degrades": true,
       "shaka_risk": false,
@@ -73,7 +156,17 @@
       "id": "ye-are-many",
       "line": "Ye are many — they are few",
       "source": "Shelley (The Masque of Anarchy)",
-      "tags": { "theme": ["uprising"], "mood": ["anthemic"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": 55,
       "degrades": true,
       "shaka_risk": false,
@@ -84,7 +177,17 @@
       "id": "free-at-last",
       "line": "free at last",
       "source": "MLK",
-      "tags": { "theme": ["uprising"], "mood": ["anthemic"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -95,7 +198,17 @@
       "id": "rosa-parks",
       "line": "Rosa Parks",
       "source": "civil rights movement",
-      "tags": { "theme": ["uprising"], "mood": ["defiant"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": null,
       "degrades": false,
       "shaka_risk": false,
@@ -106,7 +219,20 @@
       "id": "niemoller-first-they-came",
       "line": "first they came",
       "source": "Niemöller",
-      "tags": { "theme": ["uprising", "obedience-psychology"], "mood": ["clinical-dread", "defiant"], "occasion": ["protest", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 70,
       "degrades": true,
       "shaka_risk": false,
@@ -117,7 +243,18 @@
       "id": "torches-and-pitchforks",
       "line": "torches & pitchforks",
       "source": "folk idiom",
-      "tags": { "theme": ["uprising"], "mood": ["rowdy", "defiant"], "occasion": ["protest"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "rowdy",
+          "defiant"
+        ],
+        "occasion": [
+          "protest"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -128,7 +265,17 @@
       "id": "milgram-requires-continue",
       "line": "the experiment requires that you continue",
       "source": "Milgram",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 55,
       "degrades": true,
       "shaka_risk": false,
@@ -139,7 +286,17 @@
       "id": "stanford-prison",
       "line": "Stanford Prison",
       "source": "Zimbardo",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 60,
       "degrades": true,
       "shaka_risk": false,
@@ -150,7 +307,17 @@
       "id": "asch-conformity",
       "line": "Asch conformity (lines)",
       "source": "Asch",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 40,
       "degrades": true,
       "shaka_risk": true,
@@ -161,7 +328,17 @@
       "id": "bystander-kitty-genovese",
       "line": "bystander effect / Kitty Genovese",
       "source": "social psychology",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -172,7 +349,17 @@
       "id": "banality-of-evil",
       "line": "banality of evil",
       "source": "Arendt",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -183,7 +370,17 @@
       "id": "just-following-orders",
       "line": "just following orders",
       "source": "Nuremberg / colloquial",
-      "tags": { "theme": ["obedience-psychology"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "obedience-psychology"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -194,7 +391,17 @@
       "id": "darmok-jalad-tanagra",
       "line": "Darmok and Jalad at Tanagra",
       "source": "Star Trek: TNG, 'Darmok'",
-      "tags": { "theme": ["meta-darmok"], "mood": ["mythic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "meta-darmok"
+        ],
+        "mood": [
+          "mythic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 40,
       "degrades": true,
       "shaka_risk": true,
@@ -205,7 +412,17 @@
       "id": "temba-his-arms-wide",
       "line": "Temba, his arms wide",
       "source": "Star Trek: TNG, 'Darmok'",
-      "tags": { "theme": ["meta-darmok"], "mood": ["mythic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "meta-darmok"
+        ],
+        "mood": [
+          "mythic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 40,
       "degrades": true,
       "shaka_risk": true,
@@ -216,7 +433,17 @@
       "id": "shaka-when-the-walls-fell",
       "line": "Shaka, when the walls fell",
       "source": "Star Trek: TNG, 'Darmok'",
-      "tags": { "theme": ["meta-darmok"], "mood": ["mythic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "meta-darmok"
+        ],
+        "mood": [
+          "mythic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 45,
       "degrades": true,
       "shaka_risk": true,
@@ -227,7 +454,17 @@
       "id": "sokath-his-eyes-uncovered",
       "line": "Sokath, his eyes uncovered!",
       "source": "Star Trek: TNG, 'Darmok'",
-      "tags": { "theme": ["meta-darmok"], "mood": ["mythic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "meta-darmok"
+        ],
+        "mood": [
+          "mythic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 40,
       "degrades": true,
       "shaka_risk": true,
@@ -238,7 +475,17 @@
       "id": "darmok-jalad-on-the-ocean",
       "line": "Darmok and Jalad on the ocean",
       "source": "Star Trek: TNG, 'Darmok'",
-      "tags": { "theme": ["meta-darmok"], "mood": ["mythic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "meta-darmok"
+        ],
+        "mood": [
+          "mythic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 40,
       "degrades": true,
       "shaka_risk": true,
@@ -249,7 +496,18 @@
       "id": "tears-in-rain",
       "line": "like tears in rain / time to die",
       "source": "Blade Runner",
-      "tags": { "theme": ["grief-memory"], "mood": ["elegiac"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "elegiac"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 65,
       "degrades": true,
       "shaka_risk": false,
@@ -260,7 +518,18 @@
       "id": "ill-be-right-here",
       "line": "I'll be right here",
       "source": "E.T.",
-      "tags": { "theme": ["grief-memory"], "mood": ["tender"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "tender"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 70,
       "degrades": true,
       "shaka_risk": false,
@@ -271,7 +540,19 @@
       "id": "do-not-go-gentle",
       "line": "Do not go gentle / rage against the dying of the light",
       "source": "Dylan Thomas",
-      "tags": { "theme": ["grief-memory"], "mood": ["defiant", "elegiac"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "defiant",
+          "elegiac"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 70,
       "degrades": true,
       "shaka_risk": false,
@@ -282,7 +563,18 @@
       "id": "so-it-goes",
       "line": "So it goes",
       "source": "Vonnegut (Slaughterhouse-Five)",
-      "tags": { "theme": ["grief-memory"], "mood": ["elegiac"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "elegiac"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 50,
       "degrades": true,
       "shaka_risk": false,
@@ -293,7 +585,19 @@
       "id": "live-in-hearts",
       "line": "To live in hearts we leave behind is not to die",
       "source": "Thomas Campbell",
-      "tags": { "theme": ["grief-memory"], "mood": ["elegiac", "tender"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "elegiac",
+          "tender"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": null,
       "degrades": true,
       "shaka_risk": false,
@@ -304,7 +608,18 @@
       "id": "he-lives-in-you",
       "line": "he lives in you",
       "source": "The Lion King",
-      "tags": { "theme": ["grief-memory"], "mood": ["tender"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "grief-memory"
+        ],
+        "mood": [
+          "tender"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 55,
       "degrades": true,
       "shaka_risk": false,
@@ -315,7 +630,18 @@
       "id": "this-is-sparta",
       "line": "This is Sparta!",
       "source": "300",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 90,
       "degrades": false,
       "shaka_risk": false,
@@ -326,7 +652,18 @@
       "id": "ill-be-back",
       "line": "I'll be back",
       "source": "The Terminator",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 92,
       "degrades": false,
       "shaka_risk": false,
@@ -337,7 +674,18 @@
       "id": "you-shall-not-pass",
       "line": "You shall not pass!",
       "source": "The Lord of the Rings",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 88,
       "degrades": false,
       "shaka_risk": false,
@@ -348,7 +696,18 @@
       "id": "may-the-force",
       "line": "May the Force be with you",
       "source": "Star Wars",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 95,
       "degrades": false,
       "shaka_risk": false,
@@ -359,7 +718,17 @@
       "id": "heres-johnny",
       "line": "Here's Johnny!",
       "source": "The Shining",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": null,
       "degrades": false,
       "shaka_risk": false,
@@ -370,7 +739,18 @@
       "id": "over-9000",
       "line": "It's over 9000!",
       "source": "Dragon Ball Z",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 70,
       "degrades": false,
       "shaka_risk": false,
@@ -381,7 +761,17 @@
       "id": "wilhelm-scream",
       "line": "Wilhelm scream",
       "source": "stock sound effect",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": null,
       "degrades": false,
       "shaka_risk": false,
@@ -392,7 +782,17 @@
       "id": "wubba-lubba-dub-dub",
       "line": "Wubba lubba dub dub",
       "source": "Rick and Morty",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": null,
       "degrades": false,
       "shaka_risk": false,
@@ -403,7 +803,17 @@
       "id": "say-hello-little-friend",
       "line": "Say hello to my little friend.",
       "source": "Scarface",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": null,
       "degrades": false,
       "shaka_risk": false,
@@ -414,7 +824,18 @@
       "id": "frankly-my-dear",
       "line": "Frankly, my dear, I don't give a damn",
       "source": "Gone with the Wind (1939)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": 92,
       "degrades": false,
       "shaka_risk": false,
@@ -425,7 +846,19 @@
       "id": "heres-looking-at-you",
       "line": "Here's looking at you, kid",
       "source": "Casablanca (1942)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["wistful", "tender"], "occasion": ["party", "vigil"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "wistful",
+          "tender"
+        ],
+        "occasion": [
+          "party",
+          "vigil"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -436,7 +869,18 @@
       "id": "houston-we-have-a-problem",
       "line": "Houston, we have a problem",
       "source": "Apollo 13 (1995; actual NASA transmission was 'Houston, we've had a problem')",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["defiant"], "occasion": ["demo", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "flash-mob"
+        ]
+      },
       "recognition": 90,
       "degrades": true,
       "shaka_risk": false,
@@ -447,7 +891,17 @@
       "id": "gonna-need-bigger-boat",
       "line": "You're gonna need a bigger boat",
       "source": "Jaws (1975)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -458,7 +912,19 @@
       "id": "king-of-the-world",
       "line": "I'm the king of the world!",
       "source": "Titanic (1997)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["triumphant", "rowdy"], "occasion": ["party", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "triumphant",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "rally"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -469,7 +935,18 @@
       "id": "cant-handle-the-truth",
       "line": "You can't handle the truth!",
       "source": "A Few Good Men (1992)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["defiant"], "occasion": ["demo", "party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "party"
+        ]
+      },
       "recognition": 87,
       "degrades": true,
       "shaka_risk": false,
@@ -480,7 +957,20 @@
       "id": "no-place-like-home",
       "line": "There's no place like home",
       "source": "The Wizard of Oz (1939)",
-      "tags": { "theme": ["memes-oneliners", "grief-memory"], "mood": ["tender", "wistful"], "occasion": ["vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "grief-memory"
+        ],
+        "mood": [
+          "tender",
+          "wistful"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 92,
       "degrades": true,
       "shaka_risk": false,
@@ -491,7 +981,17 @@
       "id": "i-see-dead-people",
       "line": "I see dead people",
       "source": "The Sixth Sense (1999)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 88,
       "degrades": false,
       "shaka_risk": false,
@@ -502,7 +1002,19 @@
       "id": "just-keep-swimming",
       "line": "Just keep swimming",
       "source": "Finding Nemo (2003)",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -513,7 +1025,20 @@
       "id": "to-infinity-and-beyond",
       "line": "To infinity and beyond!",
       "source": "Toy Story (1995)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["triumphant", "rowdy"], "occasion": ["party", "flash-mob", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "triumphant",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob",
+          "rally"
+        ]
+      },
       "recognition": 90,
       "degrades": true,
       "shaka_risk": false,
@@ -524,7 +1049,18 @@
       "id": "box-of-chocolates",
       "line": "Life is like a box of chocolates; you never know what you're gonna get",
       "source": "Forrest Gump (1994)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["wistful", "comic"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "wistful",
+          "comic"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": 90,
       "degrades": true,
       "shaka_risk": false,
@@ -535,7 +1071,19 @@
       "id": "run-forrest-run",
       "line": "Run, Forrest, run!",
       "source": "Forrest Gump (1994)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy", "anthemic"], "occasion": ["flash-mob", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy",
+          "anthemic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "rally"
+        ]
+      },
       "recognition": 88,
       "degrades": false,
       "shaka_risk": false,
@@ -546,7 +1094,18 @@
       "id": "bond-james-bond",
       "line": "Bond. James Bond.",
       "source": "Dr. No (1962) and every Bond film",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": 92,
       "degrades": false,
       "shaka_risk": false,
@@ -557,7 +1116,19 @@
       "id": "hasta-la-vista",
       "line": "Hasta la vista, baby",
       "source": "Terminator 2: Judgment Day (1991)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 88,
       "degrades": false,
       "shaka_risk": false,
@@ -568,7 +1139,21 @@
       "id": "do-or-do-not",
       "line": "Do or do not. There is no try.",
       "source": "Star Wars: The Empire Strikes Back (1980), Yoda",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["anthemic", "defiant"], "occasion": ["protest", "rally", "demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
       "recognition": 90,
       "degrades": true,
       "shaka_risk": false,
@@ -579,7 +1164,18 @@
       "id": "no-i-am-your-father",
       "line": "No. I am your father.",
       "source": "Star Wars: The Empire Strikes Back (1980)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["defiant", "clinical-dread"], "occasion": ["demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "defiant",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo"
+        ]
+      },
       "recognition": 92,
       "degrades": false,
       "shaka_risk": false,
@@ -590,7 +1186,21 @@
       "id": "live-long-and-prosper",
       "line": "Live long and prosper",
       "source": "Star Trek (TV series, 1967), Spock",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["tender", "anthemic"], "occasion": ["party", "vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "tender",
+          "anthemic"
+        ],
+        "occasion": [
+          "party",
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -601,7 +1211,18 @@
       "id": "why-so-serious",
       "line": "Why so serious?",
       "source": "The Dark Knight (2008), the Joker",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "clinical-dread"], "occasion": ["party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
       "recognition": 87,
       "degrades": true,
       "shaka_risk": false,
@@ -612,7 +1233,19 @@
       "id": "its-a-trap",
       "line": "It's a trap!",
       "source": "Return of the Jedi (1983), Admiral Ackbar",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["defiant", "rowdy"], "occasion": ["demo", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "demo",
+          "flash-mob"
+        ]
+      },
       "recognition": 83,
       "degrades": true,
       "shaka_risk": false,
@@ -623,7 +1256,21 @@
       "id": "avengers-assemble",
       "line": "Avengers, assemble!",
       "source": "Avengers: Endgame (2019)",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["anthemic", "triumphant"], "occasion": ["protest", "flash-mob", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob",
+          "rally"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -634,7 +1281,20 @@
       "id": "great-power-responsibility",
       "line": "With great power comes great responsibility",
       "source": "Spider-Man (2002; the principle predates the film)",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["anthemic", "defiant"], "occasion": ["protest", "demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -645,7 +1305,20 @@
       "id": "i-volunteer-as-tribute",
       "line": "I volunteer! I volunteer as tribute!",
       "source": "The Hunger Games (2012)",
-      "tags": { "theme": ["uprising", "memes-oneliners"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "memes-oneliners"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob"
+        ]
+      },
       "recognition": 82,
       "degrades": false,
       "shaka_risk": false,
@@ -656,7 +1329,19 @@
       "id": "winter-is-coming",
       "line": "Winter is coming",
       "source": "Game of Thrones (TV, 2011–2019), House Stark motto",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["clinical-dread", "defiant"], "occasion": ["demo", "protest"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "clinical-dread",
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "protest"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -667,7 +1352,19 @@
       "id": "you-know-nothing",
       "line": "You know nothing, Jon Snow",
       "source": "Game of Thrones (TV), Ygritte",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["demo", "party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "party"
+        ]
+      },
       "recognition": 85,
       "degrades": false,
       "shaka_risk": false,
@@ -678,7 +1375,21 @@
       "id": "this-is-the-way",
       "line": "This is the way",
       "source": "The Mandalorian (Disney+, 2019–), Mandalorian creed",
-      "tags": { "theme": ["memes-oneliners", "solidarity"], "mood": ["anthemic", "defiant"], "occasion": ["flash-mob", "protest", "demo"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "flash-mob",
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 80,
       "degrades": true,
       "shaka_risk": false,
@@ -689,7 +1400,19 @@
       "id": "yippee-ki-yay",
       "line": "Yippee-ki-yay",
       "source": "Die Hard (1988), John McClane",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy", "defiant"], "occasion": ["party", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy",
+          "defiant"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
       "recognition": 85,
       "degrades": false,
       "shaka_risk": false,
@@ -700,7 +1423,19 @@
       "id": "show-me-the-money",
       "line": "Show me the money!",
       "source": "Jerry Maguire (1996)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["rowdy", "triumphant"], "occasion": ["party", "rally"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "party",
+          "rally"
+        ]
+      },
       "recognition": 83,
       "degrades": true,
       "shaka_risk": false,
@@ -711,7 +1446,19 @@
       "id": "one-does-not-simply",
       "line": "One does not simply walk into Mordor",
       "source": "The Lord of the Rings: The Fellowship of the Ring (2001), Boromir",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["demo", "party"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "party"
+        ]
+      },
       "recognition": 88,
       "degrades": false,
       "shaka_risk": false,
@@ -722,7 +1469,21 @@
       "id": "ask-not-what",
       "line": "Ask not what your country can do for you — ask what you can do for your country",
       "source": "JFK, Inaugural Address (January 20, 1961)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic", "defiant"], "occasion": ["protest", "rally", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
       "recognition": 92,
       "degrades": true,
       "shaka_risk": false,
@@ -733,7 +1494,20 @@
       "id": "only-thing-we-fear",
       "line": "The only thing we have to fear is fear itself",
       "source": "FDR, First Inaugural Address (March 4, 1933)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic", "defiant"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -744,7 +1518,20 @@
       "id": "four-score",
       "line": "Four score and seven years ago",
       "source": "Lincoln, Gettysburg Address (November 19, 1863)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["elegiac", "anthemic"], "occasion": ["memorial", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "elegiac",
+          "anthemic"
+        ],
+        "occasion": [
+          "memorial",
+          "rally"
+        ]
+      },
       "recognition": 85,
       "degrades": false,
       "shaka_risk": false,
@@ -755,7 +1542,20 @@
       "id": "i-have-a-dream",
       "line": "I have a dream",
       "source": "MLK, March on Washington (August 28, 1963)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "rally", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
       "recognition": 95,
       "degrades": true,
       "shaka_risk": false,
@@ -766,7 +1566,20 @@
       "id": "tear-down-this-wall",
       "line": "Mr. Gorbachev, tear down this wall!",
       "source": "Ronald Reagan, Brandenburg Gate, Berlin (June 12, 1987)",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "demo", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "demo",
+          "rally"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -777,7 +1590,20 @@
       "id": "one-small-step",
       "line": "That's one small step for man, one giant leap for mankind",
       "source": "Neil Armstrong, Moon landing (July 20, 1969)",
-      "tags": { "theme": ["solidarity"], "mood": ["anthemic", "triumphant"], "occasion": ["rally", "demo", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "rally",
+          "demo",
+          "flash-mob"
+        ]
+      },
       "recognition": 92,
       "degrades": true,
       "shaka_risk": false,
@@ -788,7 +1614,19 @@
       "id": "give-me-liberty",
       "line": "Give me liberty, or give me death!",
       "source": "Patrick Henry, Virginia Convention (March 23, 1775)",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 82,
       "degrades": true,
       "shaka_risk": false,
@@ -799,7 +1637,20 @@
       "id": "fight-on-the-beaches",
       "line": "We shall fight on the beaches",
       "source": "Winston Churchill, House of Commons (June 4, 1940)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 82,
       "degrades": true,
       "shaka_risk": false,
@@ -810,7 +1661,21 @@
       "id": "blood-toil-tears-sweat",
       "line": "I have nothing to offer but blood, toil, tears, and sweat",
       "source": "Winston Churchill, House of Commons (May 13, 1940)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "rally", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
       "recognition": 80,
       "degrades": true,
       "shaka_risk": false,
@@ -821,7 +1686,20 @@
       "id": "workers-unite",
       "line": "Workers of the world, unite!",
       "source": "Marx & Engels, Communist Manifesto (1848)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 80,
       "degrades": true,
       "shaka_risk": false,
@@ -832,7 +1710,19 @@
       "id": "veni-vidi-vici",
       "line": "Veni, vidi, vici",
       "source": "Julius Caesar (47 BC, after the Battle of Zela)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["triumphant", "defiant"], "occasion": ["rally", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "triumphant",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
       "recognition": 82,
       "degrades": false,
       "shaka_risk": false,
@@ -843,7 +1733,19 @@
       "id": "i-am-not-a-crook",
       "line": "I am not a crook",
       "source": "Richard Nixon (November 17, 1973)",
-      "tags": { "theme": ["memes-oneliners"], "mood": ["comic", "defiant"], "occasion": ["demo", "protest"] },
+      "tags": {
+        "theme": [
+          "memes-oneliners"
+        ],
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "protest"
+        ]
+      },
       "recognition": 82,
       "degrades": false,
       "shaka_risk": false,
@@ -854,7 +1756,20 @@
       "id": "yes-we-can",
       "line": "Yes we can",
       "source": "Obama 2008 presidential campaign (also United Farm Workers: 'Sí, se puede', 1972)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "rally", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -865,7 +1780,19 @@
       "id": "no-justice-no-peace",
       "line": "No justice, no peace",
       "source": "protest chant (emerged 1980s, especially Howard Beach incident 1986)",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -876,7 +1803,20 @@
       "id": "whose-streets",
       "line": "Whose streets? Our streets!",
       "source": "protest chant",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -887,7 +1827,19 @@
       "id": "people-united",
       "line": "The people, united, will never be defeated",
       "source": "translation of 'El pueblo unido, jamás será vencido' (Sergio Ortega, Chile, 1973)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 82,
       "degrades": true,
       "shaka_risk": false,
@@ -898,7 +1850,18 @@
       "id": "hell-no-wont-go",
       "line": "Hell no, we won't go!",
       "source": "Vietnam-era anti-draft protest chant (1960s)",
-      "tags": { "theme": ["uprising"], "mood": ["defiant"], "occasion": ["protest", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
       "recognition": 83,
       "degrades": true,
       "shaka_risk": false,
@@ -909,7 +1872,20 @@
       "id": "we-shall-overcome",
       "line": "We shall overcome",
       "source": "civil rights anthem (from 'I'll Overcome Someday', c.1900; popularized by Pete Seeger and SNCC)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "vigil", "memorial"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "vigil",
+          "memorial"
+        ]
+      },
       "recognition": 88,
       "degrades": true,
       "shaka_risk": false,
@@ -920,7 +1896,19 @@
       "id": "si-se-puede",
       "line": "Sí, se puede",
       "source": "United Farm Workers (Dolores Huerta and Cesar Chavez, 1972)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic"], "occasion": ["protest", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
       "recognition": 82,
       "degrades": true,
       "shaka_risk": false,
@@ -931,7 +1919,20 @@
       "id": "what-do-we-want",
       "line": "What do we want? [X]! When do we want it? Now!",
       "source": "universal protest call-and-response chant",
-      "tags": { "theme": ["uprising"], "mood": ["defiant", "rowdy"], "occasion": ["protest", "flash-mob", "demo"] },
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob",
+          "demo"
+        ]
+      },
       "recognition": 90,
       "degrades": true,
       "shaka_risk": false,
@@ -942,7 +1943,21 @@
       "id": "make-love-not-war",
       "line": "Make love, not war",
       "source": "1960s peace movement slogan (attributed to Gerd Stern / Diane di Prima, popularized 1965)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["anthemic", "comic"], "occasion": ["protest", "demo", "flash-mob"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "comic"
+        ],
+        "occasion": [
+          "protest",
+          "demo",
+          "flash-mob"
+        ]
+      },
       "recognition": 85,
       "degrades": true,
       "shaka_risk": false,
@@ -953,12 +1968,1014 @@
       "id": "power-to-the-people",
       "line": "Power to the people",
       "source": "Black Panther Party (1966); John Lennon song (1971)",
-      "tags": { "theme": ["uprising", "solidarity"], "mood": ["defiant", "anthemic"], "occasion": ["protest", "demo", "rally"] },
+      "tags": {
+        "theme": [
+          "uprising",
+          "solidarity"
+        ],
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "protest",
+          "demo",
+          "rally"
+        ]
+      },
       "recognition": 82,
       "degrades": true,
       "shaka_risk": false,
       "fire_as": "random",
       "notes": "Political slogan that crossed into pop culture via Lennon. As random: ripple-fire across phones."
+    },
+    {
+      "id": "we-will-rock-you",
+      "line": "We will, we will rock you",
+      "source": "We Will Rock You — Queen (1977)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 95,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The stomp-stomp-clap is inseparable from the chant; the line stands alone at any mass gathering."
+    },
+    {
+      "id": "dont-stop-believin",
+      "line": "Don't stop believin'",
+      "source": "Don't Stop Believin' — Journey (1981)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "rally",
+          "party"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Stadium singalong; cultural shorthand for perseverance. Known across age groups."
+    },
+    {
+      "id": "eye-of-the-tiger",
+      "line": "It's the eye of the tiger",
+      "source": "Eye of the Tiger — Survivor (1982)",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "anthemic"
+        ],
+        "occasion": [
+          "rally",
+          "sports-event"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Rocky III anthem; pure motivation shorthand. The opening line is the touchstone."
+    },
+    {
+      "id": "livin-on-a-prayer",
+      "line": "Livin' on a prayer",
+      "source": "Livin' on a Prayer — Bon Jovi (1986)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "party",
+          "rally"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Crowd singalong in the key change. The phrase signals blue-collar perseverance."
+    },
+    {
+      "id": "let-it-go",
+      "line": "Let it go",
+      "source": "Let It Go — Frozen (2013), sung by Idina Menzel",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "anthemic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 95,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Children know every word; adults have heard it until they couldn't take it. Near-universal recognition."
+    },
+    {
+      "id": "i-will-survive",
+      "line": "I will survive",
+      "source": "I Will Survive — Gloria Gaynor (1978)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "triumphant"
+        ],
+        "occasion": [
+          "party",
+          "rally"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Anthem of resilience; instantly recognizable even without the disco context."
+    },
+    {
+      "id": "sweet-caroline",
+      "line": "Sweet Caroline / ba-ba-ba / Good times never seemed so good",
+      "source": "Sweet Caroline — Neil Diamond (1969)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "anthemic"
+        ],
+        "occasion": [
+          "sports-event",
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 92,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "The 'ba-ba-ba' crowd response is a stadium ritual at Fenway and worldwide. Call-and-response staging is the payoff."
+    },
+    {
+      "id": "seven-nation-army-chant",
+      "line": "oh oh oh-oh-oh-oh-oh",
+      "source": "Seven Nation Army — The White Stripes (2003)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "anthemic"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Guitar riff rendered as crowd chant; the syllables are the lyric. One of the most replicated stadium chants of the 2000s."
+    },
+    {
+      "id": "hey-jude-nanana",
+      "line": "na na na na-na-na-na / Hey Jude",
+      "source": "Hey Jude — The Beatles (1968)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob",
+          "memorial"
+        ]
+      },
+      "recognition": 92,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "The coda is one of rock's great mass-participation moments; non-Beatles fans still join in."
+    },
+    {
+      "id": "ymca",
+      "line": "It's fun to stay at the YMCA",
+      "source": "Y.M.C.A. — Village People (1978)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "sports-event",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The arm-letter dance and chant are inseparable; near-universal recognition as a party and stadium staple."
+    },
+    {
+      "id": "bohemian-rhapsody-opening",
+      "line": "Is this the real life? Is this just fantasy?",
+      "source": "Bohemian Rhapsody — Queen (1975)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 92,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Wayne's World cemented its mass-sing status. Opening line is the touchstone moment."
+    },
+    {
+      "id": "shake-it-off",
+      "line": "Shake it off",
+      "source": "Shake It Off — Taylor Swift (2014)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Cultural penetration across age groups; the phrase signals brush-off and resilience."
+    },
+    {
+      "id": "born-to-run",
+      "line": "Born to run",
+      "source": "Born to Run — Bruce Springsteen (1975)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "protest"
+        ]
+      },
+      "recognition": 80,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Working-class escape anthem; the phrase stands alone as aspiration and breaking free."
+    },
+    {
+      "id": "smells-like-teen-spirit-hook",
+      "line": "Here we are now, entertain us",
+      "source": "Smells Like Teen Spirit — Nirvana (1991)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "protest",
+          "rally"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Gen X generational touchstone; sardonic crowd appeal."
+    },
+    {
+      "id": "we-are-family",
+      "line": "We are family",
+      "source": "We Are Family — Sister Sledge (1979)",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Universally deployed at team celebrations and community events."
+    },
+    {
+      "id": "ole-ole-ole",
+      "line": "Olé, olé, olé, olé",
+      "source": "International football / soccer stadium chant",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Adopted globally from Spanish football; universally legible as celebration regardless of origin."
+    },
+    {
+      "id": "defense-chant",
+      "line": "De-fense! De-fense!",
+      "source": "US sports stadium chant",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "defiant"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Fundamental audience-participation call at American football and basketball games."
+    },
+    {
+      "id": "lets-go-chant",
+      "line": "Let's go! [clap clap clap-clap-clap]",
+      "source": "US stadium chant (universal template)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "anthemic"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "The syncopated clap pattern is as recognizable as the words. Fires at any mass event."
+    },
+    {
+      "id": "mvp-chant",
+      "line": "MVP! MVP!",
+      "source": "US sports stadium chant",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "sports-event"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Crowd honor call; recognized even by non-sports fans."
+    },
+    {
+      "id": "nananana-goodbye",
+      "line": "Na na na na, na na na na, hey hey hey, goodbye",
+      "source": "Na Na Hey Hey Kiss Him Goodbye — Steam (1969) / stadium tradition",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "comic"
+        ],
+        "occasion": [
+          "sports-event",
+          "party"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Stadium standard for mocking the losing team; widely adopted by baseball crowds."
+    },
+    {
+      "id": "youll-never-walk-alone",
+      "line": "You'll never walk alone",
+      "source": "You'll Never Walk Alone — Gerry and the Pacemakers (1963) / Liverpool FC anthem",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic"
+        ],
+        "occasion": [
+          "sports-event",
+          "memorial",
+          "vigil"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Liverpool FC and Celtic FC crowd anthem; the phrase alone signals collective solidarity."
+    },
+    {
+      "id": "roll-tide",
+      "line": "Roll Tide!",
+      "source": "University of Alabama / SEC football cheer",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally"
+        ]
+      },
+      "recognition": 75,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "SEC football's most recognizable war cry; national prominence via college football."
+    },
+    {
+      "id": "just-do-it",
+      "line": "Just Do It",
+      "source": "Nike advertising slogan (1988–present)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 98,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "One of the most recognized advertising slogans ever. Fully autonomous from brand context."
+    },
+    {
+      "id": "im-lovin-it",
+      "line": "Ba da ba ba baa — I'm lovin' it",
+      "source": "McDonald's advertising slogan (2003–present)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 96,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The jingle hook is inseparable from the phrase; near-universal global recognition."
+    },
+    {
+      "id": "think-different",
+      "line": "Think different",
+      "source": "Apple advertising campaign (1997)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "rally",
+          "demo"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Became a Silicon Valley / counterculture touchstone; used ironically and sincerely."
+    },
+    {
+      "id": "got-milk",
+      "line": "Got milk?",
+      "source": "California Milk Processor Board advertising (1993)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The '[noun]?' parody template is itself a cultural artifact. Universally parodied."
+    },
+    {
+      "id": "wheres-the-beef",
+      "line": "Where's the beef?",
+      "source": "Wendy's advertising campaign (1984)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "protest"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "80s US political/pop culture shorthand for demanding substance. Clara Peller delivered it."
+    },
+    {
+      "id": "snap-crackle-pop",
+      "line": "Snap, crackle, pop",
+      "source": "Kellogg's Rice Krispies (1930s–present)",
+      "tags": {
+        "mood": [
+          "whimsical",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "One of the oldest recognized ad jingles in American culture. The three-beat rhythm is highly usable."
+    },
+    {
+      "id": "have-a-break",
+      "line": "Have a break, have a Kit Kat",
+      "source": "Kit Kat advertising (1957–present)",
+      "tags": {
+        "mood": [
+          "whimsical",
+          "comic"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "UK-originated; global reach. The 'break' pun is widely appreciated."
+    },
+    {
+      "id": "taste-the-rainbow",
+      "line": "Taste the rainbow",
+      "source": "Skittles advertising (1994–present)",
+      "tags": {
+        "mood": [
+          "whimsical",
+          "comic"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Became a cultural meme extending far beyond candy advertising."
+    },
+    {
+      "id": "be-all-you-can-be",
+      "line": "Be all you can be",
+      "source": "US Army recruiting slogan (1980–2001)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "rally"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Moved beyond its military context into general motivation and aspiration shorthand."
+    },
+    {
+      "id": "finger-lickin-good",
+      "line": "Finger lickin' good",
+      "source": "KFC advertising (1956–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Enduring idiom that escaped its advertising origin into general use."
+    },
+    {
+      "id": "yabba-dabba-doo",
+      "line": "Yabba dabba doo!",
+      "source": "Fred Flintstone — The Flintstones (1960–1966)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Fred's exultant shout; pure jubilation with no semantic content. Fires as a celebration trigger."
+    },
+    {
+      "id": "cowabunga",
+      "line": "Cowabunga!",
+      "source": "Teenage Mutant Ninja Turtles (1987 animated series)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "90s kids' shorthand for going for it. Migrated into general use as a surf/skate call."
+    },
+    {
+      "id": "its-morphin-time",
+      "line": "It's morphin' time!",
+      "source": "Mighty Morphin Power Rangers (1993)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "flash-mob",
+          "rally"
+        ]
+      },
+      "recognition": 82,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "Transformation call; recognized by 90s children globally. Shaka risk for non-viewers."
+    },
+    {
+      "id": "by-the-power-of-grayskull",
+      "line": "By the power of Grayskull!",
+      "source": "He-Man and the Masters of the Universe (1983)",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "anthemic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "rally"
+        ]
+      },
+      "recognition": 80,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "80s cartoon battle cry; culturally persistent beyond the show's run. Rings as dramatic invocation even without context."
+    },
+    {
+      "id": "autobots-roll-out",
+      "line": "Autobots, roll out!",
+      "source": "Optimus Prime — Transformers (animated series, 1984)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "triumphant"
+        ],
+        "occasion": [
+          "flash-mob",
+          "rally"
+        ]
+      },
+      "recognition": 82,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "Optimus Prime's deployment command; 80s/00s crossover recognition from the live-action films."
+    },
+    {
+      "id": "doh",
+      "line": "D'oh!",
+      "source": "Homer Simpson — The Simpsons (1989–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 97,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Added to the Oxford English Dictionary. Near-universal recognition across cultures. Homer's frustrated exclamation."
+    },
+    {
+      "id": "bazinga",
+      "line": "Bazinga!",
+      "source": "Sheldon Cooper — The Big Bang Theory (2007–2019)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 83,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "Sheldon's prank reveal; widely known via cultural osmosis. Shaka risk for non-viewers — the word means nothing on its own."
+    },
+    {
+      "id": "meep-meep",
+      "line": "Meep! Meep!",
+      "source": "Road Runner — Looney Tunes (1949–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Road Runner's escape sound; universally recognizable. Pure playground energy."
+    },
+    {
+      "id": "whats-up-doc",
+      "line": "What's up, Doc?",
+      "source": "Bugs Bunny — Looney Tunes (1940–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Bugs's nonchalant greeting; one of animation's most famous lines."
+    },
+    {
+      "id": "thats-all-folks",
+      "line": "That's all, folks!",
+      "source": "Porky Pig — Looney Tunes (1930–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Classic closing line; culturally recycled as an ending signifier in any context."
+    },
+    {
+      "id": "excellent-burns",
+      "line": "Excellent.",
+      "source": "C. Montgomery Burns — The Simpsons (1989–present)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Mr. Burns's scheming approval with finger-steeple; widely parodied. The word alone is legible as approval."
+    },
+    {
+      "id": "to-boldly-go",
+      "line": "To boldly go where no man has gone before",
+      "source": "Star Trek: The Original Series opening monologue (1966–1969)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Opening monologue of TOS; universally recognized as an aspiration and exploration call."
+    },
+    {
+      "id": "resistance-is-futile",
+      "line": "Resistance is futile",
+      "source": "The Borg — Star Trek: The Next Generation (1987–1994)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "protest",
+          "demo"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Borg collective's assimilation call; used ironically as cultural shorthand for inevitable forces."
+    },
+    {
+      "id": "theres-no-crying",
+      "line": "There's no crying in baseball!",
+      "source": "Jimmy Dugan — A League of Their Own (1992)",
+      "tags": {
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "sports-event",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Tom Hanks as manager; widely recycled with any '[noun]' substitution."
+    },
+    {
+      "id": "you-talking-to-me",
+      "line": "You talkin' to me?",
+      "source": "Travis Bickle — Taxi Driver (1976)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "protest"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Mirror monologue; cultural shorthand for challenge and confrontation. Widely parodied."
+    },
+    {
+      "id": "be-excellent",
+      "line": "Be excellent to each other",
+      "source": "Bill S. Preston — Bill & Ted's Excellent Adventure (1989)",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "whimsical",
+          "anthemic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Became an internet-age kindness shorthand. Degrades perfectly — the message is its own."
+    },
+    {
+      "id": "i-feel-the-need",
+      "line": "I feel the need — the need for speed!",
+      "source": "Maverick and Goose — Top Gun (1986)",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "rowdy"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Pre-flight ritual turned general enthusiasm signal. Widely parodied."
     }
   ]
 }
