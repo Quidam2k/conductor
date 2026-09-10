@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Community ratings for touchstone entries in data/touchstones.json. Fed by async helpers via docs/rate.html (prefilled GitHub issue) and folded in with `node scripts/touchstone-ratings.js ingest`. Source of truth for the wheat/chaff feedback loop: scripts/touchstones.js pick({useRatings:true}) floats high-rated entries up; lowRated() lists drop-candidates. Unrated entries score 3 by convention. Human-editable, git-diffable.",
+  "ratings": {},
+  "ingests": []
+}

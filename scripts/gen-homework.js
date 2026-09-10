@@ -372,6 +372,14 @@ function main() {
 
   console.log('gen-homework: wrote ' + path.relative(ROOT, OUT_MD) + ' and ' +
     path.relative(ROOT, OUT_HTML) + ' (week of ' + fmtDate(cfg.weekOf) + ')');
+
+  // Keep the touchstone rating page in lockstep: one command refreshes both,
+  // so the baked rate.html snapshot never drifts behind a homework regen.
+  try {
+    require('./gen-rate-page').generate();
+  } catch (e) {
+    fail('rate-page generation failed: ' + (e && e.message ? e.message : e));
+  }
 }
 
 main();
