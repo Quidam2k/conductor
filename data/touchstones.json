@@ -2976,6 +2976,1019 @@
       "shaka_risk": false,
       "fire_as": null,
       "notes": "Pre-flight ritual turned general enthusiasm signal. Widely parodied."
+    },
+    {
+      "id": "offer-cant-refuse",
+      "line": "I'm gonna make him an offer he can't refuse",
+      "source": "Don Vito Corleone — The Godfather (1972)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "flash-mob"
+        ]
+      },
+      "recognition": 92,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "One of the most parodied film lines ever. Works as threat, irony, or negotiation."
+    },
+    {
+      "id": "et-phone-home",
+      "line": "E.T. phone home",
+      "source": "E.T. the Extra-Terrestrial (1982)",
+      "tags": {
+        "mood": [
+          "tender",
+          "wistful"
+        ],
+        "occasion": [
+          "flash-mob",
+          "memorial"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Broken English from an alien; became global shorthand for homesickness and longing."
+    },
+    {
+      "id": "go-ahead-make-my-day",
+      "line": "Go ahead, make my day",
+      "source": "Harry Callahan — Sudden Impact (1983) / Dirty Harry franchise",
+      "tags": {
+        "mood": [
+          "defiant",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "protest"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Clint Eastwood's dare; widely recognized even without the Dirty Harry context."
+    },
+    {
+      "id": "great-scott",
+      "line": "Great Scott!",
+      "source": "Doc Brown — Back to the Future (1985)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Doc Brown's exclamation of wonder/alarm. Widely parodied as a general shock call."
+    },
+    {
+      "id": "roads-dont-need",
+      "line": "Roads? Where we're going we don't need roads",
+      "source": "Doc Brown — Back to the Future (1985)",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "whimsical"
+        ],
+        "occasion": [
+          "flash-mob",
+          "rally"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Classic exit line; signal for bold departure from convention."
+    },
+    {
+      "id": "get-busy-living",
+      "line": "Get busy living, or get busy dying",
+      "source": "Andy Dufresne — The Shawshank Redemption (1994)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Prison wisdom that became a general life-philosophy touchstone."
+    },
+    {
+      "id": "wax-on-wax-off",
+      "line": "Wax on, wax off",
+      "source": "Mr. Miyagi — The Karate Kid (1984)",
+      "tags": {
+        "mood": [
+          "whimsical",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Miyagi's hidden-lesson technique instruction; became shorthand for learning through repetition."
+    },
+    {
+      "id": "nobody-puts-baby",
+      "line": "Nobody puts Baby in a corner",
+      "source": "Johnny Castle — Dirty Dancing (1987)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Defense of a sidelined person; widely recycled as a general standing-up call."
+    },
+    {
+      "id": "inigo-montoya",
+      "line": "Hello. My name is Inigo Montoya. You killed my father. Prepare to die.",
+      "source": "Inigo Montoya — The Princess Bride (1987)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "flash-mob",
+          "protest"
+        ]
+      },
+      "recognition": 90,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "One of the most recognizable film monologues. Shaka risk: the power is in knowing the context."
+    },
+    {
+      "id": "as-you-wish",
+      "line": "As you wish",
+      "source": "Westley — The Princess Bride (1987)",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "tender",
+          "wistful"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Westley's coded declaration of love; widely recognized as devotion shorthand."
+    },
+    {
+      "id": "inconceivable",
+      "line": "Inconceivable!",
+      "source": "Vizzini — The Princess Bride (1987)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Vizzini's repeated disbelief. Irony: he keeps using it despite being wrong."
+    },
+    {
+      "id": "my-precious",
+      "line": "My precious",
+      "source": "Gollum — The Lord of the Rings: The Fellowship of the Ring (2001)",
+      "tags": {
+        "mood": [
+          "comic",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Gollum's obsessive refrain; widely recognized as shorthand for obsessive attachment."
+    },
+    {
+      "id": "tis-but-a-scratch",
+      "line": "'Tis but a scratch",
+      "source": "Black Knight — Monty Python and the Holy Grail (1975)",
+      "tags": {
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The Black Knight's denial of catastrophic injury; widely recycled as absurdist stoicism."
+    },
+    {
+      "id": "im-not-dead-yet",
+      "line": "I'm not dead yet!",
+      "source": "Plague victim — Monty Python and the Holy Grail (1975)",
+      "tags": {
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party",
+          "protest"
+        ]
+      },
+      "recognition": 80,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The insistence on survival; recycled as defiant refusal to be counted out."
+    },
+    {
+      "id": "we-are-the-knights-who-say-ni",
+      "line": "We are the knights who say 'Ni!'",
+      "source": "Knights Who Say Ni — Monty Python and the Holy Grail (1975)",
+      "tags": {
+        "mood": [
+          "comic",
+          "whimsical"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 78,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": "random",
+      "notes": "Absurdist demand; shaka risk for non-viewers, but the delivery carries."
+    },
+    {
+      "id": "yada-yada",
+      "line": "Yada yada yada",
+      "source": "Seinfeld, Season 8 (1997)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Shorthand for glossing over inconvenient details; now a standalone idiom."
+    },
+    {
+      "id": "no-soup-for-you",
+      "line": "No soup for you!",
+      "source": "The Soup Nazi — Seinfeld, Season 7 (1995)",
+      "tags": {
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 83,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Bureaucratic denial at its absurdist peak; widely parodied."
+    },
+    {
+      "id": "we-were-on-a-break",
+      "line": "We were on a break!",
+      "source": "Ross Geller — Friends (1997)",
+      "tags": {
+        "mood": [
+          "comic",
+          "defiant"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Ross's perpetual justification; shorthand for flimsy excuses."
+    },
+    {
+      "id": "how-you-doin",
+      "line": "How you doin'?",
+      "source": "Joey Tribbiani — Friends (1994–2004)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Joey's pickup line; recognized across cultures as a friendly/flirty opener."
+    },
+    {
+      "id": "truth-is-out-there",
+      "line": "The truth is out there",
+      "source": "The X-Files (1993–2018)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "anthemic"
+        ],
+        "occasion": [
+          "rally",
+          "protest",
+          "demo"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "X-Files tagline; became a general skepticism/truth-seeking rallying phrase."
+    },
+    {
+      "id": "i-want-to-believe",
+      "line": "I want to believe",
+      "source": "Fox Mulder — The X-Files (1993–2018)",
+      "tags": {
+        "mood": [
+          "wistful",
+          "anthemic"
+        ],
+        "occasion": [
+          "vigil",
+          "rally",
+          "protest"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The UFO poster on Mulder's wall. Became a general statement of hopeful faith in the face of doubt."
+    },
+    {
+      "id": "carpe-diem",
+      "line": "Carpe diem",
+      "source": "Horace — Odes (23 BC) / popularized by Dead Poets Society (1989)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Seize the day. Latin phrase with near-universal cultural reach."
+    },
+    {
+      "id": "oh-captain-my-captain",
+      "line": "O Captain! My Captain!",
+      "source": "Walt Whitman (1865) / Dead Poets Society (1989)",
+      "tags": {
+        "theme": [
+          "solidarity",
+          "grief-memory"
+        ],
+        "mood": [
+          "anthemic",
+          "elegiac"
+        ],
+        "occasion": [
+          "memorial",
+          "vigil",
+          "rally"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Whitman's elegy for Lincoln; Dead Poets Society gave it new emotional register. Standing-on-desks moment."
+    },
+    {
+      "id": "make-it-so",
+      "line": "Make it so",
+      "source": "Captain Jean-Luc Picard — Star Trek: The Next Generation (1987–1994)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Picard's quiet command. Became a general shorthand for decisive action."
+    },
+    {
+      "id": "beam-me-up",
+      "line": "Beam me up, Scotty",
+      "source": "Commonly attributed to Captain Kirk — Star Trek (phrase never appears verbatim in TOS, but universally recognized)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The most famous Star Trek misquote; recognized globally as escape/teleportation shorthand."
+    },
+    {
+      "id": "red-pill",
+      "line": "You take the red pill — you stay in Wonderland",
+      "source": "Morpheus — The Matrix (1999)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "demo"
+        ]
+      },
+      "recognition": 88,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "The choice between comfortable illusion and hard truth; became a massive cultural/political signifier."
+    },
+    {
+      "id": "there-is-no-spoon",
+      "line": "There is no spoon",
+      "source": "The Matrix (1999)",
+      "tags": {
+        "mood": [
+          "clinical-dread",
+          "defiant"
+        ],
+        "occasion": [
+          "demo",
+          "flash-mob"
+        ]
+      },
+      "recognition": 80,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "The boy's revelation about reality; became shorthand for mind-over-matter and questioning consensus reality."
+    },
+    {
+      "id": "use-the-force",
+      "line": "Use the Force, Luke",
+      "source": "Obi-Wan Kenobi (voice) — Star Wars: A New Hope (1977)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The decisive coaching moment; universally recognized even without Star Wars context."
+    },
+    {
+      "id": "i-am-iron-man",
+      "line": "I am Iron Man",
+      "source": "Tony Stark — Iron Man (2008) / Avengers: Endgame (2019)",
+      "tags": {
+        "mood": [
+          "triumphant",
+          "defiant"
+        ],
+        "occasion": [
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Endgame made this a sacrifice call; also the moment Tony reveals his identity in IM1. Dual resonance."
+    },
+    {
+      "id": "wakanda-forever",
+      "line": "Wakanda forever",
+      "source": "Black Panther — Black Panther (2018)",
+      "tags": {
+        "theme": [
+          "solidarity",
+          "uprising"
+        ],
+        "mood": [
+          "anthemic",
+          "triumphant"
+        ],
+        "occasion": [
+          "rally",
+          "protest",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Crossed over into real-world cultural celebration and tribute. The crossed-arms salute is inseparable."
+    },
+    {
+      "id": "i-am-groot",
+      "line": "I am Groot",
+      "source": "Groot — Guardians of the Galaxy (2014)",
+      "tags": {
+        "mood": [
+          "tender",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 82,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": "random",
+      "notes": "Groot's sole vocabulary item meaning everything; 'random' mode echoes the crowd murmur of all saying it at once."
+    },
+    {
+      "id": "imagine",
+      "line": "Imagine all the people / living life in peace",
+      "source": "Imagine — John Lennon (1971)",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "vigil",
+          "protest",
+          "memorial"
+        ]
+      },
+      "recognition": 90,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "One of the most recognized peace anthems in history. The lyric stands alone."
+    },
+    {
+      "id": "what-a-wonderful-world",
+      "line": "What a wonderful world",
+      "source": "What a Wonderful World — Louis Armstrong (1967)",
+      "tags": {
+        "mood": [
+          "tender",
+          "wistful"
+        ],
+        "occasion": [
+          "memorial",
+          "vigil",
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Timeless optimism; used at births, weddings, and funerals alike."
+    },
+    {
+      "id": "circle-of-life",
+      "line": "It's the circle of life",
+      "source": "Circle of Life — Elton John / The Lion King (1994)",
+      "tags": {
+        "mood": [
+          "anthemic",
+          "wistful"
+        ],
+        "occasion": [
+          "memorial",
+          "vigil",
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The Lion King's opening anthem; universally known as a statement of natural rhythm and continuity."
+    },
+    {
+      "id": "youve-got-a-friend",
+      "line": "You've got a friend in me",
+      "source": "You've Got a Friend in Me — Randy Newman / Toy Story (1995)",
+      "tags": {
+        "theme": [
+          "solidarity"
+        ],
+        "mood": [
+          "tender",
+          "wistful"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The Toy Story anthem; widely used as a general friendship/loyalty declaration."
+    },
+    {
+      "id": "somewhere-over-the-rainbow",
+      "line": "Somewhere over the rainbow",
+      "source": "Over the Rainbow — Judy Garland / The Wizard of Oz (1939)",
+      "tags": {
+        "mood": [
+          "wistful",
+          "anthemic"
+        ],
+        "occasion": [
+          "vigil",
+          "memorial",
+          "party"
+        ]
+      },
+      "recognition": 92,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "One of the most covered songs in history; the phrase alone evokes aspiration and escape."
+    },
+    {
+      "id": "elementary-my-dear",
+      "line": "Elementary, my dear Watson",
+      "source": "Attributed to Sherlock Holmes (phrase popularized in films; not verbatim in Doyle's original)",
+      "tags": {
+        "mood": [
+          "comic",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Iconic deduction call; recognized even as a misquote."
+    },
+    {
+      "id": "i-think-therefore-i-am",
+      "line": "I think, therefore I am",
+      "source": "René Descartes — Discourse on the Method (1637)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The foundational statement of Western philosophy; universally recognized beyond philosophy circles."
+    },
+    {
+      "id": "never-gonna-give-you-up",
+      "line": "Never gonna give you up, never gonna let you down",
+      "source": "Never Gonna Give You Up — Rick Astley (1987) / Rickrolling internet meme (2007–present)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "comic"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Rickrolling made this a global meme. High recognition across generations who'd never heard the original song."
+    },
+    {
+      "id": "gangnam-style",
+      "line": "Oppa Gangnam Style",
+      "source": "Gangnam Style — Psy (2012)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "whimsical"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party",
+          "sports-event"
+        ]
+      },
+      "recognition": 88,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "First YouTube video to 1 billion views; the horse-dance is inseparable. Near-universal 2012–2015 recognition."
+    },
+    {
+      "id": "we-dont-need-no-education",
+      "line": "We don't need no education",
+      "source": "Another Brick in the Wall, Pt. 2 — Pink Floyd (1979)",
+      "tags": {
+        "theme": [
+          "uprising"
+        ],
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "protest",
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 88,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": "random",
+      "notes": "Children's choir counterculture anthem. The double negative is intentional and famous."
+    },
+    {
+      "id": "another-one-bites-the-dust",
+      "line": "Another one bites the dust",
+      "source": "Another One Bites the Dust — Queen (1980)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "defiant"
+        ],
+        "occasion": [
+          "sports-event",
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Stadium and sports standby for a defeat. The bass line is inseparable."
+    },
+    {
+      "id": "welcome-to-the-jungle",
+      "line": "Welcome to the jungle",
+      "source": "Welcome to the Jungle — Guns N' Roses (1987)",
+      "tags": {
+        "mood": [
+          "rowdy",
+          "defiant"
+        ],
+        "occasion": [
+          "sports-event",
+          "rally",
+          "flash-mob"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "GnR's arena-rock opener; widely used as a stadium entrance and hype moment."
+    },
+    {
+      "id": "dont-you-forget-about-me",
+      "line": "Don't you forget about me",
+      "source": "Don't You (Forget About Me) — Simple Minds / The Breakfast Club (1985)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "wistful"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party",
+          "memorial"
+        ]
+      },
+      "recognition": 85,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The Breakfast Club's fist-in-the-air closing moment. Widely recognized across generations."
+    },
+    {
+      "id": "more-cowbell",
+      "line": "I've got a fever, and the only prescription is more cowbell",
+      "source": "Saturday Night Live — 'The Will Ferrell / Blue Öyster Cult' sketch (2000)",
+      "tags": {
+        "mood": [
+          "comic",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 80,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "SNL sketch that became a standalone meme. 'More cowbell' alone is the touchstone."
+    },
+    {
+      "id": "all-your-base",
+      "line": "All your base are belong to us",
+      "source": "Zero Wing (1992 Japanese game) / internet meme (2000–2001)",
+      "tags": {
+        "mood": [
+          "comic",
+          "clinical-dread"
+        ],
+        "occasion": [
+          "flash-mob",
+          "party"
+        ]
+      },
+      "recognition": 78,
+      "degrades": false,
+      "shaka_risk": true,
+      "fire_as": null,
+      "notes": "One of the first major internet memes. The bad translation became a rallying call for early internet culture."
+    },
+    {
+      "id": "in-space-no-one-hears",
+      "line": "In space, no one can hear you scream",
+      "source": "Alien (1979) — theatrical tagline",
+      "tags": {
+        "mood": [
+          "clinical-dread"
+        ],
+        "occasion": [
+          "demo",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "The Alien tagline; became a general statement about isolation and the indifference of the universe."
+    },
+    {
+      "id": "im-walking-here",
+      "line": "I'm walkin' here!",
+      "source": "Ratso Rizzo — Midnight Cowboy (1969)",
+      "tags": {
+        "mood": [
+          "defiant",
+          "rowdy"
+        ],
+        "occasion": [
+          "protest",
+          "flash-mob"
+        ]
+      },
+      "recognition": 78,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Reportedly improvised when an actual cab cut into the shot. General urban defiance signal."
+    },
+    {
+      "id": "you-had-me-at-hello",
+      "line": "You had me at hello",
+      "source": "Dorothy Boyd — Jerry Maguire (1996)",
+      "tags": {
+        "mood": [
+          "tender",
+          "rowdy"
+        ],
+        "occasion": [
+          "party",
+          "flash-mob"
+        ]
+      },
+      "recognition": 82,
+      "degrades": true,
+      "shaka_risk": false,
+      "fire_as": null,
+      "notes": "Renée Zellweger's acceptance speech; became a general affirmation of instant connection."
     }
   ]
 }
