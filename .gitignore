@@ -61,5 +61,8 @@ venv/
 # Test artifacts
 test-results/
 
+# Runtime state (touchstone ledger, safe-commit log, etc. — never repo content)
+data/runtime/
+
 # Screenshots (local scratch)
 screengrab/
