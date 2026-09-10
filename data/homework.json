@@ -2,6 +2,10 @@
   "weekOf": "2026-09-08",
   "focus": [
     {
+      "title": "Lowest lift of all: rate the touchstones we've collected",
+      "detail": "We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you."
+    },
+    {
       "title": "Easiest (no install): suggest touchstones everyone would recognize",
       "detail": "We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly (\"I am Spartacus,\" \"mad as hell,\" \"I have a dream\"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list."
     },

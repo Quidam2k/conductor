@@ -16,8 +16,11 @@ We record voice cues and write event scripts together in person every couple of 
 
 Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 
+- **Lowest lift of all: rate the touchstones we've collected** — We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you.
 - **Easiest (no install): suggest touchstones everyone would recognize** — We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly ("I am Spartacus," "mad as hell," "I have a dream"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list.
 - **Go deeper: make a tiny event and tell us what confused you** — Open the app, create a 3–4 cue script (something simple a small crowd could do — a freeze, a wave, lights up), and note every spot that was confusing or annoying. Report the friction in a GitHub issue. You're helping us grandma-proof it — a plain-language 'this part made no sense' is worth as much as any code.
+
+> **The two-minute option:** [rate the touchstones](https://quidam2k.github.io/conductor/rate.html). Tap 1–5 stars on the lines that jump out — good or bad — and **skip the middle**: leave the forgettable ones unrated. No download, no account of ours, and your taps build a prefilled GitHub issue you just submit. It's the single lowest-effort way to help, and it directly shapes which touchstones we keep.
 
 ---
 

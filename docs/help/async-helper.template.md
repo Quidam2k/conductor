@@ -16,6 +16,8 @@ Pick **one** of these. Any single one genuinely helps — you don't need to do b
 
 {{FOCUS_LIST}}
 
+> **The two-minute option:** [rate the touchstones](https://quidam2k.github.io/conductor/rate.html). Tap 1–5 stars on the lines that jump out — good or bad — and **skip the middle**: leave the forgettable ones unrated. No download, no account of ours, and your taps build a prefilled GitHub issue you just submit. It's the single lowest-effort way to help, and it directly shapes which touchstones we keep.
+
 ---
 
 ## How to record voice cues (step by step)

@@ -127,11 +127,11 @@ function weightOf(entry) {
 }
 
 /** One weighted draw (without replacement) from `pool`, mutating it. */
-function drawWeighted(pool, rng) {
-  const total = pool.reduce((s, e) => s + weightOf(e), 0);
+function drawWeighted(pool, rng, weightFn = weightOf) {
+  const total = pool.reduce((s, e) => s + weightFn(e), 0);
   let r = rng() * total;
   for (let i = 0; i < pool.length; i++) {
-    r -= weightOf(pool[i]);
+    r -= weightFn(pool[i]);
     if (r <= 0) return pool.splice(i, 1)[0];
   }
   return pool.splice(pool.length - 1, 1)[0]; // fp safety net
@@ -146,6 +146,12 @@ function drawWeighted(pool, rng) {
  *   excludeRecent  — auto-exclude the recently-used ledger (default true)
  *   recentDays     — ledger window in days (default 30)
  *   weighted       — weight by recognition score (default true); false = uniform
+ *   useRatings     — blend community ratings (data/touchstone-ratings.json) into
+ *                    the weight, so highly-rated touchstones float up and poorly-
+ *                    rated ones sink. OFF by default: existing callers are
+ *                    unchanged until #1899 opts in with pick({useRatings:true}).
+ *                    Only meaningful when weighted:true. An entry's effective
+ *                    weight becomes recognitionWeight * (mean/3); unrated = ×1.
  *   rng            — () => [0,1) for deterministic tests (default Math.random)
  *
  * Returns an array of entry objects (fewer than n if the filtered pool is small).
@@ -157,6 +163,7 @@ function pick(n, opts = {}) {
     excludeRecent = true,
     recentDays = DEFAULT_RECENT_DAYS,
     weighted = true,
+    useRatings = false,
     rng = Math.random,
   } = opts;
 
@@ -166,10 +173,19 @@ function pick(n, opts = {}) {
   let pool = filterByTags(all(), { theme, mood, occasion })
     .filter((e) => !banned.has(e.id));
 
+  // Optional community-ratings blend. Required lazily so the base library has no
+  // hard dependency on the ratings module or its ledger file.
+  let weightFn = weightOf;
+  if (useRatings) {
+    const ratings = require('./touchstone-ratings');
+    const rstats = ratings.stats();
+    weightFn = (e) => weightOf(e) * ratings.weightFactor(e.id, rstats);
+  }
+
   const out = [];
   const take = Math.min(n, pool.length);
   for (let i = 0; i < take; i++) {
-    out.push(weighted ? drawWeighted(pool, rng) : pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    out.push(weighted ? drawWeighted(pool, rng, weightFn) : pool.splice(Math.floor(rng() * pool.length), 1)[0]);
   }
   return out;
 }

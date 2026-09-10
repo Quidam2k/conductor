@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Conductor — Rate the Touchstones</title>
+    <meta name="description" content="Help separate the wheat from the chaff: rate the cultural touchstones Conductor scripts pull from. A quick, zero-setup task — rate only the ones that jump out.">
+    <!-- GENERATED FILE — do not hand-edit. Source: data/touchstones.json via scripts/gen-rate-page.js. Regenerate with: node scripts/gen-rate-page.js (or node scripts/gen-homework.js). -->
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0f0f23; --bg-surface: #171733; --bg-elevated: #1f1f42;
+            --text: #e8e6e3; --text-secondary: rgba(232, 230, 227, 0.7);
+            --text-dim: rgba(232, 230, 227, 0.4);
+            --accent-blue: #5ba3ff; --accent-green: #34d399; --accent-gold: #f0b429;
+            --accent-purple: #a78bfa; --accent-red: #ff4757;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg); color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6; min-height: 100vh; padding-bottom: 96px;
+        }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            max-width: 820px; margin: 0 auto; padding: 16px 24px; font-size: 0.9rem;
+        }
+        .topbar a { color: var(--text-secondary); }
+        .topbar .brand { font-weight: 700; letter-spacing: 0.5px; color: var(--text); }
+        .hero {
+            text-align: center; padding: 44px 24px 24px;
+            background: linear-gradient(180deg, #171733 0%, var(--bg) 100%);
+        }
+        .hero .icon { font-size: 40px; margin-bottom: 12px; }
+        .hero h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 10px; }
+        .hero p { color: var(--text-secondary); max-width: 600px; margin: 0 auto; }
+        main { max-width: 820px; margin: 0 auto; padding: 8px 24px 60px; }
+        .callout {
+            background: rgba(240, 180, 41, 0.10); border-left: 3px solid var(--accent-gold);
+            border-radius: 6px; padding: 14px 18px; margin: 20px 0 8px; color: var(--text-secondary);
+        }
+        .callout strong { color: var(--text); }
+        .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 22px 0 6px; }
+        .controls label { font-size: 0.85rem; color: var(--text-secondary); }
+        input[type=text], input[type=search] {
+            background: var(--bg-elevated); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 0.95rem;
+        }
+        #rater { min-width: 220px; }
+        #filter { flex: 1; min-width: 200px; }
+        .count-note { font-size: 0.82rem; color: var(--text-dim); margin: 4px 0 12px; }
+        ul.list { list-style: none; }
+        li.row {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+            padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        li.row .meta { flex: 1; min-width: 200px; }
+        li.row .line { color: var(--text); font-weight: 600; }
+        li.row .src { color: var(--text-dim); font-size: 0.82rem; }
+        .stars { display: inline-flex; gap: 2px; }
+        .stars button {
+            background: none; border: none; cursor: pointer; font-size: 1.5rem; line-height: 1;
+            color: rgba(255,255,255,0.22); padding: 2px; transition: color 0.1s, transform 0.1s;
+        }
+        .stars button:hover { transform: scale(1.15); }
+        .stars button.on { color: var(--accent-gold); }
+        .clear {
+            background: none; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
+            color: var(--text-dim); cursor: pointer; font-size: 0.75rem; padding: 4px 8px;
+            visibility: hidden;
+        }
+        li.row.rated .clear { visibility: visible; }
+        .bar {
+            position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-surface);
+            border-top: 1px solid rgba(255,255,255,0.10); padding: 14px 24px;
+            display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+        }
+        .bar .n { color: var(--text-secondary); font-size: 0.9rem; }
+        .btn {
+            background: var(--accent-blue); color: #06122b; border: none; border-radius: 9px;
+            font-weight: 700; font-size: 0.98rem; padding: 11px 22px; cursor: pointer;
+        }
+        .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+        footer { text-align: center; padding: 30px 24px 40px; color: var(--text-dim); font-size: 0.85rem; }
+        footer a { color: var(--text-secondary); }
+        @media (max-width: 600px) { main { padding: 8px 16px 48px; } .hero { padding: 32px 16px 20px; } }
+    </style>
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="start.html" class="brand">&#127926; Conductor</a>
+    <span>
+        <a href="help.html">Help from Anywhere</a>
+        &nbsp;&middot;&nbsp;
+        <a href="index.html">Open the App</a>
+    </span>
+</nav>
+
+<header class="hero">
+    <div class="icon" aria-hidden="true">&#11088;</div>
+    <h1>Rate the Touchstones</h1>
+    <p>Conductor scripts pull from a shared palette of cultural references &mdash; lines that unpack in your head instantly. Help us separate the wheat from the chaff.</p>
+</header>
+
+<main>
+    <div class="callout">
+        <strong>Skip the middle.</strong> You do <strong>not</strong> need to rate all of these &mdash;
+        please don't. Rate only the ones that jump out at you, good or bad: a <strong>5</strong> for a
+        line almost anyone would recognize and love, a <strong>1</strong> for one that falls flat or
+        nobody knows. Leave the forgettable, middle-of-the-bell-curve ones <strong>unrated</strong> &mdash;
+        that's a signal too. Even five ratings genuinely help.
+    </div>
+
+    <div class="controls">
+        <label>Your name/handle (optional): <input type="text" id="rater" placeholder="@yourhandle"></label>
+        <input type="search" id="filter" placeholder="Filter&hellip; (type a word or a source)">
+    </div>
+    <p class="count-note" id="countNote"></p>
+
+    <ul class="list" id="list"></ul>
+
+    <p style="margin-top:24px;color:var(--text-dim);font-size:0.85rem;">
+        Tapping the button opens a prefilled GitHub issue &mdash; review it and press submit.
+        A free GitHub account is the only requirement; we read the ratings from the issue.
+        No telemetry, no tracking.
+    </p>
+</main>
+
+<div class="bar">
+    <span class="n" id="ratedCount">0 rated</span>
+    <button class="btn" id="submit" disabled>Build my GitHub issue</button>
+</div>
+
+<footer>
+    <a href="help.html">Help from Anywhere</a>
+    &nbsp;&middot;&nbsp;
+    <a href="index.html">Open the App</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/Quidam2k/conductor">Project on GitHub</a>
+</footer>
+
+<script>
+const ENTRIES = [{"id":"i-am-spartacus","line":"I'm Spartacus","source":"Spartacus (1960)","theme":["uprising"]},{"id":"never-take-our-freedom","line":"FREEDOM / never take our freedom","source":"Braveheart","theme":["uprising"]},{"id":"mad-as-hell","line":"mad as hell","source":"Network","theme":["uprising"]},{"id":"governments-afraid","line":"governments should be afraid of their people","source":"V for Vendetta","theme":["uprising"]},{"id":"escalation-ladder","line":"Gandhi escalation ladder","source":"Gandhi (attrib.)","theme":["uprising"]},{"id":"ye-are-many","line":"Ye are many — they are few","source":"Shelley (The Masque of Anarchy)","theme":["uprising"]},{"id":"free-at-last","line":"free at last","source":"MLK","theme":["uprising"]},{"id":"rosa-parks","line":"Rosa Parks","source":"civil rights movement","theme":["uprising"]},{"id":"niemoller-first-they-came","line":"first they came","source":"Niemöller","theme":["uprising","obedience-psychology"]},{"id":"torches-and-pitchforks","line":"torches & pitchforks","source":"folk idiom","theme":["uprising"]},{"id":"milgram-requires-continue","line":"the experiment requires that you continue","source":"Milgram","theme":["obedience-psychology"]},{"id":"stanford-prison","line":"Stanford Prison","source":"Zimbardo","theme":["obedience-psychology"]},{"id":"asch-conformity","line":"Asch conformity (lines)","source":"Asch","theme":["obedience-psychology"]},{"id":"bystander-kitty-genovese","line":"bystander effect / Kitty Genovese","source":"social psychology","theme":["obedience-psychology"]},{"id":"banality-of-evil","line":"banality of evil","source":"Arendt","theme":["obedience-psychology"]},{"id":"just-following-orders","line":"just following orders","source":"Nuremberg / colloquial","theme":["obedience-psychology"]},{"id":"darmok-jalad-tanagra","line":"Darmok and Jalad at Tanagra","source":"Star Trek: TNG, 'Darmok'","theme":["meta-darmok"]},{"id":"temba-his-arms-wide","line":"Temba, his arms wide","source":"Star Trek: TNG, 'Darmok'","theme":["meta-darmok"]},{"id":"shaka-when-the-walls-fell","line":"Shaka, when the walls fell","source":"Star Trek: TNG, 'Darmok'","theme":["meta-darmok"]},{"id":"sokath-his-eyes-uncovered","line":"Sokath, his eyes uncovered!","source":"Star Trek: TNG, 'Darmok'","theme":["meta-darmok"]},{"id":"darmok-jalad-on-the-ocean","line":"Darmok and Jalad on the ocean","source":"Star Trek: TNG, 'Darmok'","theme":["meta-darmok"]},{"id":"tears-in-rain","line":"like tears in rain / time to die","source":"Blade Runner","theme":["grief-memory"]},{"id":"ill-be-right-here","line":"I'll be right here","source":"E.T.","theme":["grief-memory"]},{"id":"do-not-go-gentle","line":"Do not go gentle / rage against the dying of the light","source":"Dylan Thomas","theme":["grief-memory"]},{"id":"so-it-goes","line":"So it goes","source":"Vonnegut (Slaughterhouse-Five)","theme":["grief-memory"]},{"id":"live-in-hearts","line":"To live in hearts we leave behind is not to die","source":"Thomas Campbell","theme":["grief-memory"]},{"id":"he-lives-in-you","line":"he lives in you","source":"The Lion King","theme":["grief-memory"]},{"id":"this-is-sparta","line":"This is Sparta!","source":"300","theme":["memes-oneliners"]},{"id":"ill-be-back","line":"I'll be back","source":"The Terminator","theme":["memes-oneliners"]},{"id":"you-shall-not-pass","line":"You shall not pass!","source":"The Lord of the Rings","theme":["memes-oneliners"]},{"id":"may-the-force","line":"May the Force be with you","source":"Star Wars","theme":["memes-oneliners"]},{"id":"heres-johnny","line":"Here's Johnny!","source":"The Shining","theme":["memes-oneliners"]},{"id":"over-9000","line":"It's over 9000!","source":"Dragon Ball Z","theme":["memes-oneliners"]},{"id":"wilhelm-scream","line":"Wilhelm scream","source":"stock sound effect","theme":["memes-oneliners"]},{"id":"wubba-lubba-dub-dub","line":"Wubba lubba dub dub","source":"Rick and Morty","theme":["memes-oneliners"]},{"id":"say-hello-little-friend","line":"Say hello to my little friend.","source":"Scarface","theme":["memes-oneliners"]},{"id":"frankly-my-dear","line":"Frankly, my dear, I don't give a damn","source":"Gone with the Wind (1939)","theme":["memes-oneliners"]},{"id":"heres-looking-at-you","line":"Here's looking at you, kid","source":"Casablanca (1942)","theme":["memes-oneliners"]},{"id":"houston-we-have-a-problem","line":"Houston, we have a problem","source":"Apollo 13 (1995; actual NASA transmission was 'Houston, we've had a problem')","theme":["memes-oneliners"]},{"id":"gonna-need-bigger-boat","line":"You're gonna need a bigger boat","source":"Jaws (1975)","theme":["memes-oneliners"]},{"id":"king-of-the-world","line":"I'm the king of the world!","source":"Titanic (1997)","theme":["memes-oneliners"]},{"id":"cant-handle-the-truth","line":"You can't handle the truth!","source":"A Few Good Men (1992)","theme":["memes-oneliners"]},{"id":"no-place-like-home","line":"There's no place like home","source":"The Wizard of Oz (1939)","theme":["memes-oneliners","grief-memory"]},{"id":"i-see-dead-people","line":"I see dead people","source":"The Sixth Sense (1999)","theme":["memes-oneliners"]},{"id":"just-keep-swimming","line":"Just keep swimming","source":"Finding Nemo (2003)","theme":["memes-oneliners","solidarity"]},{"id":"to-infinity-and-beyond","line":"To infinity and beyond!","source":"Toy Story (1995)","theme":["memes-oneliners"]},{"id":"box-of-chocolates","line":"Life is like a box of chocolates; you never know what you're gonna get","source":"Forrest Gump (1994)","theme":["memes-oneliners"]},{"id":"run-forrest-run","line":"Run, Forrest, run!","source":"Forrest Gump (1994)","theme":["memes-oneliners"]},{"id":"bond-james-bond","line":"Bond. James Bond.","source":"Dr. No (1962) and every Bond film","theme":["memes-oneliners"]},{"id":"hasta-la-vista","line":"Hasta la vista, baby","source":"Terminator 2: Judgment Day (1991)","theme":["memes-oneliners"]},{"id":"do-or-do-not","line":"Do or do not. There is no try.","source":"Star Wars: The Empire Strikes Back (1980), Yoda","theme":["memes-oneliners","solidarity"]},{"id":"no-i-am-your-father","line":"No. I am your father.","source":"Star Wars: The Empire Strikes Back (1980)","theme":["memes-oneliners"]},{"id":"live-long-and-prosper","line":"Live long and prosper","source":"Star Trek (TV series, 1967), Spock","theme":["memes-oneliners","solidarity"]},{"id":"why-so-serious","line":"Why so serious?","source":"The Dark Knight (2008), the Joker","theme":["memes-oneliners"]},{"id":"its-a-trap","line":"It's a trap!","source":"Return of the Jedi (1983), Admiral Ackbar","theme":["memes-oneliners"]},{"id":"avengers-assemble","line":"Avengers, assemble!","source":"Avengers: Endgame (2019)","theme":["memes-oneliners","solidarity"]},{"id":"great-power-responsibility","line":"With great power comes great responsibility","source":"Spider-Man (2002; the principle predates the film)","theme":["memes-oneliners","solidarity"]},{"id":"i-volunteer-as-tribute","line":"I volunteer! I volunteer as tribute!","source":"The Hunger Games (2012)","theme":["uprising","memes-oneliners"]},{"id":"winter-is-coming","line":"Winter is coming","source":"Game of Thrones (TV, 2011–2019), House Stark motto","theme":["memes-oneliners"]},{"id":"you-know-nothing","line":"You know nothing, Jon Snow","source":"Game of Thrones (TV), Ygritte","theme":["memes-oneliners"]},{"id":"this-is-the-way","line":"This is the way","source":"The Mandalorian (Disney+, 2019–), Mandalorian creed","theme":["memes-oneliners","solidarity"]},{"id":"yippee-ki-yay","line":"Yippee-ki-yay","source":"Die Hard (1988), John McClane","theme":["memes-oneliners"]},{"id":"show-me-the-money","line":"Show me the money!","source":"Jerry Maguire (1996)","theme":["memes-oneliners"]},{"id":"one-does-not-simply","line":"One does not simply walk into Mordor","source":"The Lord of the Rings: The Fellowship of the Ring (2001), Boromir","theme":["memes-oneliners"]},{"id":"ask-not-what","line":"Ask not what your country can do for you — ask what you can do for your country","source":"JFK, Inaugural Address (January 20, 1961)","theme":["uprising","solidarity"]},{"id":"only-thing-we-fear","line":"The only thing we have to fear is fear itself","source":"FDR, First Inaugural Address (March 4, 1933)","theme":["uprising","solidarity"]},{"id":"four-score","line":"Four score and seven years ago","source":"Lincoln, Gettysburg Address (November 19, 1863)","theme":["uprising","solidarity"]},{"id":"i-have-a-dream","line":"I have a dream","source":"MLK, March on Washington (August 28, 1963)","theme":["uprising","solidarity"]},{"id":"tear-down-this-wall","line":"Mr. Gorbachev, tear down this wall!","source":"Ronald Reagan, Brandenburg Gate, Berlin (June 12, 1987)","theme":["uprising"]},{"id":"one-small-step","line":"That's one small step for man, one giant leap for mankind","source":"Neil Armstrong, Moon landing (July 20, 1969)","theme":["solidarity"]},{"id":"give-me-liberty","line":"Give me liberty, or give me death!","source":"Patrick Henry, Virginia Convention (March 23, 1775)","theme":["uprising"]},{"id":"fight-on-the-beaches","line":"We shall fight on the beaches","source":"Winston Churchill, House of Commons (June 4, 1940)","theme":["uprising","solidarity"]},{"id":"blood-toil-tears-sweat","line":"I have nothing to offer but blood, toil, tears, and sweat","source":"Winston Churchill, House of Commons (May 13, 1940)","theme":["uprising","solidarity"]},{"id":"workers-unite","line":"Workers of the world, unite!","source":"Marx & Engels, Communist Manifesto (1848)","theme":["uprising","solidarity"]},{"id":"veni-vidi-vici","line":"Veni, vidi, vici","source":"Julius Caesar (47 BC, after the Battle of Zela)","theme":["memes-oneliners"]},{"id":"i-am-not-a-crook","line":"I am not a crook","source":"Richard Nixon (November 17, 1973)","theme":["memes-oneliners"]},{"id":"yes-we-can","line":"Yes we can","source":"Obama 2008 presidential campaign (also United Farm Workers: 'Sí, se puede', 1972)","theme":["uprising","solidarity"]},{"id":"no-justice-no-peace","line":"No justice, no peace","source":"protest chant (emerged 1980s, especially Howard Beach incident 1986)","theme":["uprising"]},{"id":"whose-streets","line":"Whose streets? Our streets!","source":"protest chant","theme":["uprising","solidarity"]},{"id":"people-united","line":"The people, united, will never be defeated","source":"translation of 'El pueblo unido, jamás será vencido' (Sergio Ortega, Chile, 1973)","theme":["uprising","solidarity"]},{"id":"hell-no-wont-go","line":"Hell no, we won't go!","source":"Vietnam-era anti-draft protest chant (1960s)","theme":["uprising"]},{"id":"we-shall-overcome","line":"We shall overcome","source":"civil rights anthem (from 'I'll Overcome Someday', c.1900; popularized by Pete Seeger and SNCC)","theme":["uprising","solidarity"]},{"id":"si-se-puede","line":"Sí, se puede","source":"United Farm Workers (Dolores Huerta and Cesar Chavez, 1972)","theme":["uprising","solidarity"]},{"id":"what-do-we-want","line":"What do we want? [X]! When do we want it? Now!","source":"universal protest call-and-response chant","theme":["uprising"]},{"id":"make-love-not-war","line":"Make love, not war","source":"1960s peace movement slogan (attributed to Gerd Stern / Diane di Prima, popularized 1965)","theme":["uprising","solidarity"]},{"id":"power-to-the-people","line":"Power to the people","source":"Black Panther Party (1966); John Lennon song (1971)","theme":["uprising","solidarity"]},{"id":"we-will-rock-you","line":"We will, we will rock you","source":"We Will Rock You — Queen (1977)","theme":[]},{"id":"dont-stop-believin","line":"Don't stop believin'","source":"Don't Stop Believin' — Journey (1981)","theme":[]},{"id":"eye-of-the-tiger","line":"It's the eye of the tiger","source":"Eye of the Tiger — Survivor (1982)","theme":[]},{"id":"livin-on-a-prayer","line":"Livin' on a prayer","source":"Livin' on a Prayer — Bon Jovi (1986)","theme":[]},{"id":"let-it-go","line":"Let it go","source":"Let It Go — Frozen (2013), sung by Idina Menzel","theme":[]},{"id":"i-will-survive","line":"I will survive","source":"I Will Survive — Gloria Gaynor (1978)","theme":[]},{"id":"sweet-caroline","line":"Sweet Caroline / ba-ba-ba / Good times never seemed so good","source":"Sweet Caroline — Neil Diamond (1969)","theme":[]},{"id":"seven-nation-army-chant","line":"oh oh oh-oh-oh-oh-oh","source":"Seven Nation Army — The White Stripes (2003)","theme":[]},{"id":"hey-jude-nanana","line":"na na na na-na-na-na / Hey Jude","source":"Hey Jude — The Beatles (1968)","theme":[]},{"id":"ymca","line":"It's fun to stay at the YMCA","source":"Y.M.C.A. — Village People (1978)","theme":[]},{"id":"bohemian-rhapsody-opening","line":"Is this the real life? Is this just fantasy?","source":"Bohemian Rhapsody — Queen (1975)","theme":[]},{"id":"shake-it-off","line":"Shake it off","source":"Shake It Off — Taylor Swift (2014)","theme":[]},{"id":"born-to-run","line":"Born to run","source":"Born to Run — Bruce Springsteen (1975)","theme":[]},{"id":"smells-like-teen-spirit-hook","line":"Here we are now, entertain us","source":"Smells Like Teen Spirit — Nirvana (1991)","theme":[]},{"id":"we-are-family","line":"We are family","source":"We Are Family — Sister Sledge (1979)","theme":["solidarity"]},{"id":"ole-ole-ole","line":"Olé, olé, olé, olé","source":"International football / soccer stadium chant","theme":[]},{"id":"defense-chant","line":"De-fense! De-fense!","source":"US sports stadium chant","theme":[]},{"id":"lets-go-chant","line":"Let's go! [clap clap clap-clap-clap]","source":"US stadium chant (universal template)","theme":[]},{"id":"mvp-chant","line":"MVP! MVP!","source":"US sports stadium chant","theme":[]},{"id":"nananana-goodbye","line":"Na na na na, na na na na, hey hey hey, goodbye","source":"Na Na Hey Hey Kiss Him Goodbye — Steam (1969) / stadium tradition","theme":[]},{"id":"youll-never-walk-alone","line":"You'll never walk alone","source":"You'll Never Walk Alone — Gerry and the Pacemakers (1963) / Liverpool FC anthem","theme":["solidarity"]},{"id":"roll-tide","line":"Roll Tide!","source":"University of Alabama / SEC football cheer","theme":[]},{"id":"just-do-it","line":"Just Do It","source":"Nike advertising slogan (1988–present)","theme":[]},{"id":"im-lovin-it","line":"Ba da ba ba baa — I'm lovin' it","source":"McDonald's advertising slogan (2003–present)","theme":[]},{"id":"think-different","line":"Think different","source":"Apple advertising campaign (1997)","theme":[]},{"id":"got-milk","line":"Got milk?","source":"California Milk Processor Board advertising (1993)","theme":[]},{"id":"wheres-the-beef","line":"Where's the beef?","source":"Wendy's advertising campaign (1984)","theme":[]},{"id":"snap-crackle-pop","line":"Snap, crackle, pop","source":"Kellogg's Rice Krispies (1930s–present)","theme":[]},{"id":"have-a-break","line":"Have a break, have a Kit Kat","source":"Kit Kat advertising (1957–present)","theme":[]},{"id":"taste-the-rainbow","line":"Taste the rainbow","source":"Skittles advertising (1994–present)","theme":[]},{"id":"be-all-you-can-be","line":"Be all you can be","source":"US Army recruiting slogan (1980–2001)","theme":[]},{"id":"finger-lickin-good","line":"Finger lickin' good","source":"KFC advertising (1956–present)","theme":[]},{"id":"yabba-dabba-doo","line":"Yabba dabba doo!","source":"Fred Flintstone — The Flintstones (1960–1966)","theme":[]},{"id":"cowabunga","line":"Cowabunga!","source":"Teenage Mutant Ninja Turtles (1987 animated series)","theme":[]},{"id":"its-morphin-time","line":"It's morphin' time!","source":"Mighty Morphin Power Rangers (1993)","theme":[]},{"id":"by-the-power-of-grayskull","line":"By the power of Grayskull!","source":"He-Man and the Masters of the Universe (1983)","theme":[]},{"id":"autobots-roll-out","line":"Autobots, roll out!","source":"Optimus Prime — Transformers (animated series, 1984)","theme":[]},{"id":"doh","line":"D'oh!","source":"Homer Simpson — The Simpsons (1989–present)","theme":[]},{"id":"bazinga","line":"Bazinga!","source":"Sheldon Cooper — The Big Bang Theory (2007–2019)","theme":[]},{"id":"meep-meep","line":"Meep! Meep!","source":"Road Runner — Looney Tunes (1949–present)","theme":[]},{"id":"whats-up-doc","line":"What's up, Doc?","source":"Bugs Bunny — Looney Tunes (1940–present)","theme":[]},{"id":"thats-all-folks","line":"That's all, folks!","source":"Porky Pig — Looney Tunes (1930–present)","theme":[]},{"id":"excellent-burns","line":"Excellent.","source":"C. Montgomery Burns — The Simpsons (1989–present)","theme":[]},{"id":"to-boldly-go","line":"To boldly go where no man has gone before","source":"Star Trek: The Original Series opening monologue (1966–1969)","theme":[]},{"id":"resistance-is-futile","line":"Resistance is futile","source":"The Borg — Star Trek: The Next Generation (1987–1994)","theme":[]},{"id":"theres-no-crying","line":"There's no crying in baseball!","source":"Jimmy Dugan — A League of Their Own (1992)","theme":[]},{"id":"you-talking-to-me","line":"You talkin' to me?","source":"Travis Bickle — Taxi Driver (1976)","theme":[]},{"id":"be-excellent","line":"Be excellent to each other","source":"Bill S. Preston — Bill & Ted's Excellent Adventure (1989)","theme":["solidarity"]},{"id":"i-feel-the-need","line":"I feel the need — the need for speed!","source":"Maverick and Goose — Top Gun (1986)","theme":[]},{"id":"offer-cant-refuse","line":"I'm gonna make him an offer he can't refuse","source":"Don Vito Corleone — The Godfather (1972)","theme":[]},{"id":"et-phone-home","line":"E.T. phone home","source":"E.T. the Extra-Terrestrial (1982)","theme":[]},{"id":"go-ahead-make-my-day","line":"Go ahead, make my day","source":"Harry Callahan — Sudden Impact (1983) / Dirty Harry franchise","theme":[]},{"id":"great-scott","line":"Great Scott!","source":"Doc Brown — Back to the Future (1985)","theme":[]},{"id":"roads-dont-need","line":"Roads? Where we're going we don't need roads","source":"Doc Brown — Back to the Future (1985)","theme":[]},{"id":"get-busy-living","line":"Get busy living, or get busy dying","source":"Andy Dufresne — The Shawshank Redemption (1994)","theme":[]},{"id":"wax-on-wax-off","line":"Wax on, wax off","source":"Mr. Miyagi — The Karate Kid (1984)","theme":[]},{"id":"nobody-puts-baby","line":"Nobody puts Baby in a corner","source":"Johnny Castle — Dirty Dancing (1987)","theme":[]},{"id":"inigo-montoya","line":"Hello. My name is Inigo Montoya. You killed my father. Prepare to die.","source":"Inigo Montoya — The Princess Bride (1987)","theme":[]},{"id":"as-you-wish","line":"As you wish","source":"Westley — The Princess Bride (1987)","theme":["solidarity"]},{"id":"inconceivable","line":"Inconceivable!","source":"Vizzini — The Princess Bride (1987)","theme":[]},{"id":"my-precious","line":"My precious","source":"Gollum — The Lord of the Rings: The Fellowship of the Ring (2001)","theme":[]},{"id":"tis-but-a-scratch","line":"'Tis but a scratch","source":"Black Knight — Monty Python and the Holy Grail (1975)","theme":[]},{"id":"im-not-dead-yet","line":"I'm not dead yet!","source":"Plague victim — Monty Python and the Holy Grail (1975)","theme":[]},{"id":"we-are-the-knights-who-say-ni","line":"We are the knights who say 'Ni!'","source":"Knights Who Say Ni — Monty Python and the Holy Grail (1975)","theme":[]},{"id":"yada-yada","line":"Yada yada yada","source":"Seinfeld, Season 8 (1997)","theme":[]},{"id":"no-soup-for-you","line":"No soup for you!","source":"The Soup Nazi — Seinfeld, Season 7 (1995)","theme":[]},{"id":"we-were-on-a-break","line":"We were on a break!","source":"Ross Geller — Friends (1997)","theme":[]},{"id":"how-you-doin","line":"How you doin'?","source":"Joey Tribbiani — Friends (1994–2004)","theme":[]},{"id":"truth-is-out-there","line":"The truth is out there","source":"The X-Files (1993–2018)","theme":[]},{"id":"i-want-to-believe","line":"I want to believe","source":"Fox Mulder — The X-Files (1993–2018)","theme":[]},{"id":"carpe-diem","line":"Carpe diem","source":"Horace — Odes (23 BC) / popularized by Dead Poets Society (1989)","theme":[]},{"id":"oh-captain-my-captain","line":"O Captain! My Captain!","source":"Walt Whitman (1865) / Dead Poets Society (1989)","theme":["solidarity","grief-memory"]},{"id":"make-it-so","line":"Make it so","source":"Captain Jean-Luc Picard — Star Trek: The Next Generation (1987–1994)","theme":[]},{"id":"beam-me-up","line":"Beam me up, Scotty","source":"Commonly attributed to Captain Kirk — Star Trek (phrase never appears verbatim in TOS, but universally recognized)","theme":[]},{"id":"red-pill","line":"You take the red pill — you stay in Wonderland","source":"Morpheus — The Matrix (1999)","theme":[]},{"id":"there-is-no-spoon","line":"There is no spoon","source":"The Matrix (1999)","theme":[]},{"id":"use-the-force","line":"Use the Force, Luke","source":"Obi-Wan Kenobi (voice) — Star Wars: A New Hope (1977)","theme":[]},{"id":"i-am-iron-man","line":"I am Iron Man","source":"Tony Stark — Iron Man (2008) / Avengers: Endgame (2019)","theme":[]},{"id":"wakanda-forever","line":"Wakanda forever","source":"Black Panther — Black Panther (2018)","theme":["solidarity","uprising"]},{"id":"i-am-groot","line":"I am Groot","source":"Groot — Guardians of the Galaxy (2014)","theme":[]},{"id":"imagine","line":"Imagine all the people / living life in peace","source":"Imagine — John Lennon (1971)","theme":["solidarity"]},{"id":"what-a-wonderful-world","line":"What a wonderful world","source":"What a Wonderful World — Louis Armstrong (1967)","theme":[]},{"id":"circle-of-life","line":"It's the circle of life","source":"Circle of Life — Elton John / The Lion King (1994)","theme":[]},{"id":"youve-got-a-friend","line":"You've got a friend in me","source":"You've Got a Friend in Me — Randy Newman / Toy Story (1995)","theme":["solidarity"]},{"id":"somewhere-over-the-rainbow","line":"Somewhere over the rainbow","source":"Over the Rainbow — Judy Garland / The Wizard of Oz (1939)","theme":[]},{"id":"elementary-my-dear","line":"Elementary, my dear Watson","source":"Attributed to Sherlock Holmes (phrase popularized in films; not verbatim in Doyle's original)","theme":[]},{"id":"i-think-therefore-i-am","line":"I think, therefore I am","source":"René Descartes — Discourse on the Method (1637)","theme":[]},{"id":"never-gonna-give-you-up","line":"Never gonna give you up, never gonna let you down","source":"Never Gonna Give You Up — Rick Astley (1987) / Rickrolling internet meme (2007–present)","theme":[]},{"id":"gangnam-style","line":"Oppa Gangnam Style","source":"Gangnam Style — Psy (2012)","theme":[]},{"id":"we-dont-need-no-education","line":"We don't need no education","source":"Another Brick in the Wall, Pt. 2 — Pink Floyd (1979)","theme":["uprising"]},{"id":"another-one-bites-the-dust","line":"Another one bites the dust","source":"Another One Bites the Dust — Queen (1980)","theme":[]},{"id":"welcome-to-the-jungle","line":"Welcome to the jungle","source":"Welcome to the Jungle — Guns N' Roses (1987)","theme":[]},{"id":"dont-you-forget-about-me","line":"Don't you forget about me","source":"Don't You (Forget About Me) — Simple Minds / The Breakfast Club (1985)","theme":[]},{"id":"more-cowbell","line":"I've got a fever, and the only prescription is more cowbell","source":"Saturday Night Live — 'The Will Ferrell / Blue Öyster Cult' sketch (2000)","theme":[]},{"id":"all-your-base","line":"All your base are belong to us","source":"Zero Wing (1992 Japanese game) / internet meme (2000–2001)","theme":[]},{"id":"in-space-no-one-hears","line":"In space, no one can hear you scream","source":"Alien (1979) — theatrical tagline","theme":[]},{"id":"im-walking-here","line":"I'm walkin' here!","source":"Ratso Rizzo — Midnight Cowboy (1969)","theme":[]},{"id":"you-had-me-at-hello","line":"You had me at hello","source":"Dorothy Boyd — Jerry Maguire (1996)","theme":[]}];
+const ISSUES_NEW = "https://github.com/Quidam2k/conductor/issues/new";
+const FENCE = String.fromCharCode(96, 96, 96); // three backticks
+const STAR = String.fromCharCode(0x2605);
+const ratings = Object.create(null); // id -> 1..5
+
+const listEl = document.getElementById('list');
+const filterEl = document.getElementById('filter');
+const raterEl = document.getElementById('rater');
+const submitEl = document.getElementById('submit');
+const ratedCountEl = document.getElementById('ratedCount');
+const countNoteEl = document.getElementById('countNote');
+
+countNoteEl.textContent = ENTRIES.length + ' touchstones in the current library. Rate as few or as many as you like.';
+
+function render(filter) {
+  const q = (filter || '').trim().toLowerCase();
+  listEl.innerHTML = '';
+  for (const e of ENTRIES) {
+    if (q) {
+      const hay = (e.line + ' ' + e.source + ' ' + (e.theme || []).join(' ')).toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
+    const li = document.createElement('li');
+    li.className = 'row' + (ratings[e.id] ? ' rated' : '');
+    li.dataset.id = e.id;
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = e.line;
+    const src = document.createElement('div');
+    src.className = 'src';
+    src.textContent = e.source || '';
+    meta.appendChild(line); meta.appendChild(src);
+
+    const stars = document.createElement('div');
+    stars.className = 'stars';
+    for (let s = 1; s <= 5; s++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = STAR;
+      b.setAttribute('aria-label', s + ' star' + (s > 1 ? 's' : ''));
+      if (ratings[e.id] && s <= ratings[e.id]) b.classList.add('on');
+      b.addEventListener('click', () => { setRating(e.id, s); });
+      stars.appendChild(b);
+    }
+
+    const clr = document.createElement('button');
+    clr.className = 'clear';
+    clr.type = 'button';
+    clr.textContent = 'clear';
+    clr.addEventListener('click', () => { setRating(e.id, 0); });
+
+    li.appendChild(meta); li.appendChild(stars); li.appendChild(clr);
+    listEl.appendChild(li);
+  }
+}
+
+function setRating(id, stars) {
+  if (!stars) delete ratings[id];
+  else ratings[id] = stars;
+  render(filterEl.value);
+  updateCount();
+}
+
+function updateCount() {
+  const n = Object.keys(ratings).length;
+  ratedCountEl.textContent = n + ' rated';
+  submitEl.disabled = n === 0;
+}
+
+function buildBody() {
+  const rater = (raterEl.value || '').trim() || 'anonymous';
+  const lines = [FENCE + 'conductor-ratings', 'rater: ' + rater];
+  for (const e of ENTRIES) {
+    if (ratings[e.id]) lines.push(e.id + ': ' + ratings[e.id]);
+  }
+  lines.push(FENCE);
+  const preamble = 'My touchstone ratings (' + Object.keys(ratings).length +
+    ' rated). The block below is machine-read — please leave it intact; ' +
+    'add any comments above or below it.\n\n';
+  return preamble + lines.join('\n') + '\n';
+}
+
+submitEl.addEventListener('click', () => {
+  const title = 'Touchstone ratings';
+  const url = ISSUES_NEW + '?title=' + encodeURIComponent(title) +
+    '&body=' + encodeURIComponent(buildBody());
+  window.open(url, '_blank', 'noopener');
+});
+
+filterEl.addEventListener('input', () => render(filterEl.value));
+render('');
+updateCount();
+</script>
+
+</body>
+</html>
