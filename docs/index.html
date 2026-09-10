@@ -1091,7 +1091,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v64</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v65</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1450,7 +1450,7 @@
         <div id="ed-action-list" class="ed-action-list"></div>
         <datalist id="ed-action-text-options"></datalist>
         <button id="btn-add-action" class="btn-add-action">+ Add Action</button>
-        <button id="btn-record-batch" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record all cues</button>
+        <button id="btn-record-batch" class="btn-add-action" style="border-color:var(--border-medium); color:var(--text-secondary); display:none;">🎤 Optional: record everything at once</button>
         <button id="btn-record-missing" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record the missing ones</button>
         <button id="btn-play-all-cues" class="btn-add-action" style="border-color:rgba(91,163,255,0.3); color:var(--accent-blue); display:none;">&#x25b6; Play all cues</button>
         <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records the &ldquo;Get ready to&hellip;&rdquo; prep lead, then every cue. The app glues the lead to your cue names for each heads-up. Recorded audio plays in a pocket; the robot voice doesn&rsquo;t.</p>
@@ -3901,10 +3901,11 @@ function createActionEditForm(action, index) {
 
         <label class="field-label">Style</label>
         <div class="ed-toggle-group ed-style-group">
-            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" title="Standard voice announcement">Normal</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" title="Louder, more urgent announcement">Emphasis</button>
-            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" title="Highest priority — for critical moments">Alert</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'normal' ? ' selected' : ''}" data-val="normal" data-caption="Standard voice announcement." title="Standard voice announcement">Normal</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'emphasis' ? ' selected' : ''}" data-val="emphasis" data-caption="Louder, more urgent." title="Louder, more urgent announcement">Emphasis</button>
+            <button type="button" class="ed-toggle-btn${action.style === 'alert' ? ' selected' : ''}" data-val="alert" data-caption="Highest priority — for critical moments." title="Highest priority — for critical moments">Alert</button>
         </div>
+        <div class="ed-style-caption" style="font-size:14px; color:var(--text-dim); margin-top:4px;">${action.style === 'emphasis' ? 'Louder, more urgent.' : action.style === 'alert' ? 'Highest priority — for critical moments.' : 'Standard voice announcement.'}</div>
 
         <label class="field-label" title="Default: use the event's playback mode. Cue: beep prompts a person. Clip: speaker plays the recorded clip (no beep).">Playback mode</label>
         <div class="ed-toggle-group ed-mode-group">
@@ -3927,6 +3928,7 @@ function createActionEditForm(action, index) {
         ${freshTakeHtml}
 
         <label class="field-label">Resource Pack</label>
+        <div style="font-size:14px; color:var(--text-dim); margin:2px 0 4px;">Pick <strong>My Voice</strong> to record your own cues now, or a pre-made pack for ready audio.</div>
         <select class="field-select ed-pack-select">
             <option value="">None (TTS only)</option>
         </select>
@@ -3969,10 +3971,14 @@ async function populatePackDropdown(form, action) {
 
     try {
         const packs = await packManager.listPacks();
+        const syntheticId = packManager.getSyntheticPackId();
+        // U2: "My Voice" isn't a pre-made pack — it's record-on-the-fly. Label it
+        // so that's obvious, and float it to the top of the list.
+        packs.sort((a, b) => (a.id === syntheticId ? -1 : b.id === syntheticId ? 1 : 0));
         for (const pack of packs) {
             const opt = document.createElement('option');
             opt.value = pack.id;
-            opt.textContent = pack.name;
+            opt.textContent = pack.id === syntheticId ? '🎤 My Voice (record your own cues)' : pack.name;
             if (action.pack === pack.id) opt.selected = true;
             packSelect.appendChild(opt);
         }
@@ -4868,6 +4874,12 @@ $('ed-action-list').addEventListener('click', (e) => {
         const group = e.target.closest('.ed-toggle-group');
         group.querySelectorAll('.ed-toggle-btn').forEach(b => b.classList.remove('selected'));
         e.target.classList.add('selected');
+        // U1: touch devices can't see hover tooltips — mirror the style
+        // description into a live caption under the buttons.
+        if (group.classList.contains('ed-style-group') && e.target.dataset.caption) {
+            const caption = group.parentElement.querySelector('.ed-style-caption');
+            if (caption) caption.textContent = e.target.dataset.caption;
+        }
         return;
     }
 
