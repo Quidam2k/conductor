@@ -198,7 +198,7 @@ test('voice recording: per-action record flow through the UI', async ({ page, br
     expect(r.cue).toBe('wave-left-and-hold');
     expect(r.fallbackText).toBe('Wave left and hold');
     expect(r.packValue).toBe(r.pid);
-    expect(r.packLabel).toBe('My Voice');
+    expect(r.packLabel).toContain('My Voice'); // v65 U2: label is "🎤 My Voice (record your own cues)"
     expect(r.cueValue).toBe(r.cue);
 });
 
