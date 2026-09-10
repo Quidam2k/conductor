@@ -8,17 +8,16 @@ Conductor is a free, private tool that lets a group of people coordinate in real
 
 We record voice cues and write event scripts together in person every couple of weeks. But a lot of the most useful work doesn't need a meeting — you can do it on your own time, from anywhere, and send it in. This page is that work.
 
-*Generated September 2, 2026 · week of September 1, 2026. This page updates on a regular cadence — check back for the current ask.*
+*Generated September 10, 2026 · week of September 8, 2026. This page updates on a regular cadence — check back for the current ask.*
 
 ---
 
 ## What we could use this week
 
-Pick **one** of these. Any single one genuinely helps — you don't need to do all three.
+Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 
-- **Record a short voice pack for one demo event** — Pick any bundled demo (The Stillness is the shortest — about six cues). Record every cue in your own voice with the in-app recorder and export it as a pack .zip. Clear, calm, one to three seconds each.
-- **Write one new short event script** — Four to eight cues, plain text, something a small crowd could pull off in a public space (a freeze, a wave, lights up, a slow turn). No recording needed — the script alone is genuinely useful.
-- **Try to break it and tell us how** — Open the app cold on your own phone, run the demo with the screen locked in your pocket, and note anything confusing, silent, or wrong. A plain-language bug report is worth as much as a recording.
+- **Easiest (no install): suggest touchstones everyone would recognize** — We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly ("I am Spartacus," "mad as hell," "I have a dream"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list.
+- **Go deeper: make a tiny event and tell us what confused you** — Open the app, create a 3–4 cue script (something simple a small crowd could do — a freeze, a wave, lights up), and note every spot that was confusing or annoying. Report the friction in a GitHub issue. You're helping us grandma-proof it — a plain-language 'this part made no sense' is worth as much as any code.
 
 ---
 
