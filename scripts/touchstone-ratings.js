@@ -7,13 +7,22 @@
  *
  *     ```conductor-ratings
  *     rater: @somehandle
- *     i-am-spartacus: 5 +solidarity -uprising
- *     mad-as-hell: 1
+ *     i-am-spartacus: k5 l5 +solidarity -uprising
+ *     ye-are-many: k2 l5
+ *     mad-as-hell: skip
  *     sweet-caroline: +party +sports-event
  *     ```
+ *     ```conductor-notes
+ *     ye-are-many: never heard it, love it now
+ *     general: free text about the whole list
+ *     ```
  *
- * A line carries optional stars and/or tag edits (+tag = suggest adding, -tag =
- * suggest removing). Tag votes land in ledger.tagVotes and are NOT auto-applied to
+ * A line carries optional Known (k1-5: how well known) and Love (l1-5: how much
+ * you'd use it) stars, a legacy bare 1-5 (= love), `skip` ("come back later" —
+ * never a judgement, records no stars), and/or tag edits (+tag = suggest adding,
+ * -tag = suggest removing). A ledger record's `stars` is the mean of whichever of
+ * known/love is present, so every reader below works unchanged; a tag-only line
+ * that isn't skipped counts as 3 (Todd's rule). Notes land in ledger.notes. Tag votes land in ledger.tagVotes and are NOT auto-applied to
  * data/touchstones.json — the `tags` CLI lists them for a human to review/apply.
  *
  * An operator pastes that issue body into a file (or stdin) and folds it into the
@@ -29,6 +38,7 @@
  *   node scripts/touchstone-ratings.js stats [minCount]     # per-id mean+count table
  *   node scripts/touchstone-ratings.js low [thresh] [minN]  # drop-candidates
  *   node scripts/touchstone-ratings.js tags [minVotes]      # crowd tag suggestions (NEW = not in vocab)
+ *   node scripts/touchstone-ratings.js notes [id]           # rater notes (per entry + general)
  *   node scripts/touchstone-ratings.js ingest <file> --issue <n> [--dry-run]
  *   node scripts/touchstone-ratings.js ingest - --issue <n>  # read body from stdin
  */
@@ -47,7 +57,7 @@ const NEUTRAL_FACTOR = 1;  // weight multiplier for unrated entries (no push eit
 // --- ledger IO ---------------------------------------------------------------
 
 function emptyLedger() {
-  return { version: 1, description: '', ratings: {}, tagVotes: {}, ingests: [] };
+  return { version: 1, description: '', ratings: {}, tagVotes: {}, notes: {}, ingests: [] };
 }
 
 /** Load the ratings ledger. Missing/corrupt => an empty ledger (never throws). */
@@ -59,6 +69,7 @@ function load(ledgerPath = LEDGER_PATH) {
     }
     if (!Array.isArray(parsed.ingests)) parsed.ingests = [];
     if (!parsed.tagVotes || typeof parsed.tagVotes !== 'object') parsed.tagVotes = {};
+    if (!parsed.notes || typeof parsed.notes !== 'object') parsed.notes = {};
     return parsed;
   } catch (_e) {
     return emptyLedger();
@@ -72,7 +83,8 @@ function save(ledger, ledgerPath = LEDGER_PATH) {
 // --- aggregation (the read side the collector uses) --------------------------
 
 /**
- * Per-id aggregate: { <id>: { mean, count } } over all recorded ratings.
+ * Per-id aggregate: { <id>: { mean, count, knownMean?, loveMean? } } over all
+ * recorded ratings; knownMean/loveMean appear only when some record carries them.
  * Only ids that have at least one rating appear. `minCount` filters to ids with
  * at least that many ratings (default 1 = everything rated).
  */
@@ -84,6 +96,10 @@ function stats(ledger = load(), minCount = 1) {
     if (list.length < minCount) continue;
     const sum = list.reduce((s, r) => s + Number(r.stars), 0);
     out[id] = { mean: sum / list.length, count: list.length };
+    for (const k of ['known', 'love']) {
+      const vals = list.filter((r) => r[k] != null).map((r) => Number(r[k]));
+      if (vals.length) out[id][k + 'Mean'] = vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
   }
   return out;
 }
@@ -173,18 +189,25 @@ function normalizeTag(raw) {
 }
 
 /**
- * Parse a GitHub-issue body and pull out the conductor-ratings fenced block(s).
- * Returns { rater, entries: [{id, stars?, add?, remove?}] } — `add`/`remove` (tag
- * edit lists) appear only when non-empty, so star-only lines parse exactly as they
- * always did. Tolerant of extra prose around the fence and of "id: stars", "id 5",
- * "id: 5 +tag -tag" or "id: +tag" lines. Lines with out-of-range stars or any
- * unparseable token are skipped whole.
+ * Parse a GitHub-issue body: the conductor-ratings fence plus the optional
+ * conductor-notes fence. Returns { rater, entries: [{id, known?, love?, skip?,
+ * add?, remove?}], notes: [{id, text}] } — optional keys appear only when set; the
+ * general note has id 'general'. Tolerant of extra prose around the fences and of
+ * "id: 5", "id 5", "id: k4 l2 +tag -tag", "id: skip" or "id: +tag" lines. Lines
+ * with out-of-range stars or any unparseable token are skipped whole. With no
+ * ratings fence the whole body (minus any notes fence) is read.
  */
 function parseIssueBody(body) {
   const text = String(body).replace(/\r\n/g, '\n');
-  // Grab the first ```conductor-ratings ... ``` fence; fall back to whole body.
-  const fence = /```(?:conductor-ratings)?\s*\n([\s\S]*?)```/i.exec(text);
-  const block = fence ? fence[1] : text;
+  const fence = /```conductor-ratings[ \t]*\n([\s\S]*?)```/i.exec(text);
+  const block = fence ? fence[1] : text.replace(/```conductor-notes[\s\S]*?```/gi, '');
+
+  const notes = [];
+  const nf = /```conductor-notes[ \t]*\n([\s\S]*?)```/i.exec(text);
+  for (const raw of nf ? nf[1].split('\n') : []) {
+    const nm = /^\s*([a-z0-9][a-z0-9-]*)\s*:\s*(.*\S)\s*$/i.exec(raw);
+    if (nm) notes.push({ id: nm[1], text: nm[2] });
+  }
 
   let rater = 'anonymous';
   const entries = [];
@@ -196,20 +219,29 @@ function parseIssueBody(body) {
     const entry = parseEntryLine(line);
     if (entry) entries.push(entry);
   }
-  return { rater, entries };
+  return { rater, entries, notes };
 }
 
-// One "id: [stars] [+tag ...] [-tag ...]" line -> entry, or null if malformed.
+// One "id: [kN] [lN] [N] [skip] [+tag ...] [-tag ...]" line -> entry, or null if malformed.
 function parseEntryLine(line) {
   const m = /^([a-z0-9][a-z0-9-]*)\s*[:=]?\s*(.*)$/i.exec(line);
   if (!m) return null;
   const rest = m[2].replace(/\b([1-5])\s*stars?\b/i, '$1').trim();
   if (!rest) return null;
-  let stars = null;
+  let known = null;
+  let love = null;
+  let skip = false;
   const add = [];
   const remove = [];
   for (const tok of rest.split(/\s+/)) {
-    if (/^[1-5]$/.test(tok) && stars == null) { stars = Number(tok); continue; }
+    // A legacy bare 1-5 meant "how much do we like it" -> love.
+    if (/^[1-5]$/.test(tok) && love == null) { love = Number(tok); continue; }
+    const sm = /^([kl])([1-5])$/i.exec(tok);
+    if (sm) {
+      if (sm[1].toLowerCase() === 'k') known = Number(sm[2]); else love = Number(sm[2]);
+      continue;
+    }
+    if (/^skip$/i.test(tok)) { skip = true; continue; }
     const tm = /^([+-])(.+)$/.exec(tok);
     const tag = tm && normalizeTag(tm[2]);
     if (!tag) return null;
@@ -217,26 +249,44 @@ function parseEntryLine(line) {
     if (!list.includes(tag)) list.push(tag);
   }
   const entry = { id: m[1] };
-  if (stars != null) entry.stars = stars;
+  if (known != null) entry.known = known;
+  if (love != null) entry.love = love;
+  if (skip) entry.skip = true;
   if (add.length) entry.add = add;
   if (remove.length) entry.remove = remove;
   return entry;
 }
 
+// The ledger star value for a parsed entry: the mean of known/love when present;
+// a legacy `stars` passes through; a non-skipped tag-only line counts as 3
+// (Todd's rule); a skip line records nothing (null) — skip is never a judgement.
+function entryStars(e) {
+  if (e.skip) return null;
+  const vals = [e.known, e.love].filter((v) => v != null);
+  if (vals.length) return vals.reduce((a, b) => a + b, 0) / vals.length;
+  if (e.stars != null) return e.stars;
+  if ((e.add && e.add.length) || (e.remove && e.remove.length)) return UNRATED_SCORE;
+  return null;
+}
+
 /**
  * Fold a parsed issue into the ledger. One rating per (rater, id): a re-rate by
- * the same rater replaces their prior stars (latest wins). Stamps each rating and
+ * the same rater replaces their prior record (latest wins). Stamps each rating and
  * the ingest record with the source issue number for provenance.
- * Tag edits go to ledger.tagVotes[id] under the same latest-per-rater rule.
- * Returns { applied, replaced, tagEdits } (tagEdits = lines carrying tag edits).
+ * Tag edits go to ledger.tagVotes[id] and notes to ledger.notes[id] under the same
+ * latest-per-rater rule. Returns { applied, replaced, tagEdits, skipped, notes }.
  */
-function applyToLedger(ledger, { rater, entries }, { issue = null, at = new Date() } = {}) {
+function applyToLedger(ledger, { rater, entries, notes = [] }, { issue = null, at = new Date() } = {}) {
   const stamp = (at instanceof Date ? at : new Date(at)).toISOString();
   let applied = 0;
   let replaced = 0;
   let tagEdits = 0;
+  let skipped = 0;
   if (!ledger.tagVotes) ledger.tagVotes = {};
-  for (const { id, stars, add = [], remove = [] } of entries) {
+  if (!ledger.notes) ledger.notes = {};
+  for (const e of entries) {
+    const { id, known, love, add = [], remove = [] } = e;
+    if (e.skip) skipped++;
     if (add.length || remove.length) {
       if (!ledger.tagVotes[id]) ledger.tagVotes[id] = [];
       const votes = ledger.tagVotes[id];
@@ -247,14 +297,26 @@ function applyToLedger(ledger, { rater, entries }, { issue = null, at = new Date
       else votes.push(vote);
       tagEdits++;
     }
+    const stars = entryStars(e);
     if (stars == null) continue;
     if (!ledger.ratings[id]) ledger.ratings[id] = [];
     const list = ledger.ratings[id];
     const prior = list.findIndex((r) => r.rater === rater);
-    const record = { rater, stars, at: stamp };
+    const record = { rater };
+    if (known != null) record.known = known;
+    if (love != null) record.love = love;
+    Object.assign(record, { stars, at: stamp });
     if (issue != null) record.issue = issue;
     if (prior >= 0) { list[prior] = record; replaced++; }
     else { list.push(record); applied++; }
+  }
+  for (const { id, text } of notes) {
+    if (!ledger.notes[id]) ledger.notes[id] = [];
+    const list = ledger.notes[id];
+    const note = { rater, text, at: stamp };
+    if (issue != null) note.issue = issue;
+    const prior = list.findIndex((n) => n.rater === rater);
+    if (prior >= 0) list[prior] = note; else list.push(note);
   }
   ledger.ingests.push({
     issue: issue != null ? issue : null,
@@ -263,13 +325,15 @@ function applyToLedger(ledger, { rater, entries }, { issue = null, at = new Date
     applied,
     replaced,
     tagEdits,
+    skipped,
+    notes: notes.length,
   });
-  return { applied, replaced, tagEdits };
+  return { applied, replaced, tagEdits, skipped, notes: notes.length };
 }
 
 module.exports = {
   load, save, stats, scoreFor, weightFactor, lowRated,
-  parseIssueBody, applyToLedger, normalizeTag, tagSuggestions, loadVocabulary,
+  parseIssueBody, applyToLedger, entryStars, normalizeTag, tagSuggestions, loadVocabulary,
   UNRATED_SCORE, NEUTRAL_FACTOR, LEDGER_PATH,
 };
 
@@ -289,7 +353,11 @@ if (require.main === module) {
     const s = stats(load(), minCount);
     const ids = Object.keys(s).sort((a, b) => s[b].mean - s[a].mean);
     if (!ids.length) { console.log('(no ratings yet)'); process.exit(0); }
-    for (const id of ids) console.log(`${s[id].mean.toFixed(2)}  (${s[id].count})\t${id}`);
+    const f = (v) => (v == null ? '  -  ' : v.toFixed(2));
+    console.log('mean  known love   (n)\tid');
+    for (const id of ids) {
+      console.log(`${f(s[id].mean)}  ${f(s[id].knownMean)} ${f(s[id].loveMean)}  (${s[id].count})\t${id}`);
+    }
   } else if (cmd === 'low') {
     const nums = rest.filter((a) => /^\d+(\.\d+)?$/.test(a));
     const thresh = nums[0] != null ? Number(nums[0]) : 2;
@@ -309,6 +377,14 @@ if (require.main === module) {
         console.log(`  +${t.add} -${t.remove}\t${tag}  ${where}`);
       }
     }
+  } else if (cmd === 'notes') {
+    const all = load().notes || {};
+    const ids = (rest[0] ? [rest[0]] : Object.keys(all).sort()).filter((id) => all[id] && all[id].length);
+    if (!ids.length) { console.log('(no notes yet)'); process.exit(0); }
+    for (const id of ids) {
+      console.log(id);
+      for (const n of all[id]) console.log(`  ${n.rater}${n.issue != null ? ' #' + n.issue : ''}: ${n.text}`);
+    }
   } else if (cmd === 'ingest') {
     const src = rest[0];
     if (!src) { console.error('usage: ingest <file|-> --issue <n> [--dry-run]'); process.exit(1); }
@@ -322,7 +398,7 @@ if (require.main === module) {
       ? fs.readFileSync(0, 'utf8')
       : fs.readFileSync(src, 'utf8');
     const parsed = parseIssueBody(body);
-    if (!parsed.entries.length) {
+    if (!parsed.entries.length && !parsed.notes.length) {
       console.error('ingest: no valid "id: stars" / "id: +tag -tag" lines found in the body');
       process.exit(1);
     }
@@ -330,16 +406,20 @@ if (require.main === module) {
       console.log(`ingest (dry-run): issue #${issue}, rater ${parsed.rater}, ${parsed.entries.length} line(s):`);
       for (const e of parsed.entries) {
         const tags = [...(e.add || []).map((t) => '+' + t), ...(e.remove || []).map((t) => '-' + t)];
-        console.log(`  ${e.id}: ${[e.stars != null ? e.stars : '', ...tags].join(' ').trim()}`);
+        const st = [e.known != null ? 'k' + e.known : '', e.love != null ? 'l' + e.love : '', e.skip ? 'skip' : ''];
+        const line = [...st, ...tags].filter(Boolean).join(' ');
+        console.log(`  ${e.id}: ${line}  -> stars ${entryStars(e) == null ? 'none' : entryStars(e)}`);
       }
+      for (const n of parsed.notes) console.log(`  note ${n.id}: ${n.text}`);
       process.exit(0);
     }
     const ledger = load();
-    const { applied, replaced, tagEdits } = applyToLedger(ledger, parsed, { issue });
+    const r = applyToLedger(ledger, parsed, { issue });
     save(ledger);
-    console.log(`ingest: issue #${issue}, rater ${parsed.rater} — ${applied} new, ${replaced} replaced, ${tagEdits} tag-edit line(s).`);
+    console.log(`ingest: issue #${issue}, rater ${parsed.rater} — ${r.applied} new, ${r.replaced} replaced, ` +
+      `${r.tagEdits} tag-edit line(s), ${r.skipped} skipped, ${r.notes} note(s).`);
   } else {
-    console.log('usage: node scripts/touchstone-ratings.js <stats [minCount] | low [thresh] [minN] | tags [minVotes] | ingest <file|-> --issue <n> [--dry-run]>');
+    console.log('usage: node scripts/touchstone-ratings.js <stats [minCount] | low [thresh] [minN] | tags [minVotes] | notes [id] | ingest <file|-> --issue <n> [--dry-run]>');
     process.exit(cmd ? 1 : 0);
   }
 }

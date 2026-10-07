@@ -70,6 +70,7 @@
       "id": "never-take-our-freedom",
       "line": "FREEDOM / never take our freedom",
       "source": "Braveheart",
+      "context": "They may take our lives, but they'll never take our freedom!",
       "tags": {
         "theme": [
           "uprising"
@@ -92,6 +93,7 @@
       "id": "mad-as-hell",
       "line": "mad as hell",
       "source": "Network",
+      "context": "I'm as mad as hell, and I'm not going to take this anymore!",
       "tags": {
         "theme": [
           "uprising"
@@ -135,6 +137,7 @@
       "id": "escalation-ladder",
       "line": "Gandhi escalation ladder",
       "source": "Gandhi (attrib.)",
+      "context": "First they ignore you, then they laugh at you, then they fight you, then you win.",
       "tags": {
         "theme": [
           "uprising"
@@ -156,6 +159,7 @@
       "id": "ye-are-many",
       "line": "Ye are many — they are few",
       "source": "Shelley (The Masque of Anarchy)",
+      "context": "Rise like lions after slumber… ye are many, they are few.",
       "tags": {
         "theme": [
           "uprising"
@@ -177,6 +181,7 @@
       "id": "free-at-last",
       "line": "free at last",
       "source": "MLK",
+      "context": "Free at last! Free at last! Thank God almighty, we are free at last!",
       "tags": {
         "theme": [
           "uprising"
@@ -198,6 +203,7 @@
       "id": "rosa-parks",
       "line": "Rosa Parks",
       "source": "civil rights movement",
+      "context": "She refused to give up her bus seat (Montgomery, 1955), sparking the bus boycott.",
       "tags": {
         "theme": [
           "uprising"
@@ -219,6 +225,7 @@
       "id": "niemoller-first-they-came",
       "line": "first they came",
       "source": "Niemöller",
+      "context": "First they came for the socialists, and I did not speak out, because I was not a socialist…",
       "tags": {
         "theme": [
           "uprising",
@@ -243,6 +250,7 @@
       "id": "torches-and-pitchforks",
       "line": "torches & pitchforks",
       "source": "folk idiom",
+      "context": "The angry village mob marching on the castle.",
       "tags": {
         "theme": [
           "uprising"
@@ -286,6 +294,7 @@
       "id": "stanford-prison",
       "line": "Stanford Prison",
       "source": "Zimbardo",
+      "context": "Students assigned as guards and prisoners; it spiraled so fast the study was stopped after six days.",
       "tags": {
         "theme": [
           "obedience-psychology"
@@ -307,6 +316,7 @@
       "id": "asch-conformity",
       "line": "Asch conformity (lines)",
       "source": "Asch",
+      "context": "Asked which line matched, people gave the obviously wrong answer when everyone else did.",
       "tags": {
         "theme": [
           "obedience-psychology"
@@ -328,6 +338,7 @@
       "id": "bystander-kitty-genovese",
       "line": "bystander effect / Kitty Genovese",
       "source": "social psychology",
+      "context": "The more people who see someone in trouble, the less likely any one of them helps.",
       "tags": {
         "theme": [
           "obedience-psychology"
@@ -349,6 +360,7 @@
       "id": "banality-of-evil",
       "line": "banality of evil",
       "source": "Arendt",
+      "context": "Great harm done by ordinary people just following orders.",
       "tags": {
         "theme": [
           "obedience-psychology"
@@ -391,6 +403,7 @@
       "id": "darmok-jalad-tanagra",
       "line": "Darmok and Jalad at Tanagra",
       "source": "Star Trek: TNG, 'Darmok'",
+      "context": "Two strangers become allies by facing a common enemy together.",
       "tags": {
         "theme": [
           "meta-darmok"
@@ -412,6 +425,7 @@
       "id": "temba-his-arms-wide",
       "line": "Temba, his arms wide",
       "source": "Star Trek: TNG, 'Darmok'",
+      "context": "A gift; giving freely.",
       "tags": {
         "theme": [
           "meta-darmok"
@@ -433,6 +447,7 @@
       "id": "shaka-when-the-walls-fell",
       "line": "Shaka, when the walls fell",
       "source": "Star Trek: TNG, 'Darmok'",
+      "context": "Failure; it all fell apart.",
       "tags": {
         "theme": [
           "meta-darmok"
@@ -454,6 +469,7 @@
       "id": "sokath-his-eyes-uncovered",
       "line": "Sokath, his eyes uncovered!",
       "source": "Star Trek: TNG, 'Darmok'",
+      "context": "Sudden understanding: \"now I get it!\"",
       "tags": {
         "theme": [
           "meta-darmok"
@@ -475,6 +491,7 @@
       "id": "darmok-jalad-on-the-ocean",
       "line": "Darmok and Jalad on the ocean",
       "source": "Star Trek: TNG, 'Darmok'",
+      "context": "Two who fought side by side, now bonded for life.",
       "tags": {
         "theme": [
           "meta-darmok"
@@ -496,6 +513,7 @@
       "id": "tears-in-rain",
       "line": "like tears in rain / time to die",
       "source": "Blade Runner",
+      "context": "A dying replicant's farewell: everything he saw will be lost, like tears in rain.",
       "tags": {
         "theme": [
           "grief-memory"
@@ -608,6 +626,7 @@
       "id": "he-lives-in-you",
       "line": "he lives in you",
       "source": "The Lion King",
+      "context": "Those we lose live on in us.",
       "tags": {
         "theme": [
           "grief-memory"
@@ -761,6 +780,7 @@
       "id": "wilhelm-scream",
       "line": "Wilhelm scream",
       "source": "stock sound effect",
+      "context": "The stock scream sound effect reused in hundreds of films.",
       "tags": {
         "theme": [
           "memes-oneliners"
@@ -2135,6 +2155,7 @@
       "id": "seven-nation-army-chant",
       "line": "oh oh oh-oh-oh-oh-oh",
       "source": "Seven Nation Army — The White Stripes (2003)",
+      "context": "The famous guitar riff, sung by stadium crowds as \"oh, oh-oh-oh-oh-oh, oh\".",
       "tags": {
         "mood": [
           "rowdy",

@@ -3,12 +3,14 @@
  * gen-rate-page.js — generate docs/rate.html, the zero-setup touchstone rating page.
  *
  * Reads the touchstone library (data/touchstones.json) and bakes a snapshot
- * (id / line / source / tags) plus the tag vocabulary into a single static page.
- * A rater clicks stars on the few entries that jump out (good OR bad), optionally
- * strikes wrong tags / adds missing ones (vocab or brand-new), and taps
- * "Build my GitHub issue" — the page assembles a prefilled github.com issue whose
- * body carries a machine-parseable ```conductor-ratings fenced block. No backend,
- * no account of ours; a free GitHub login is the only requirement.
+ * (id / line / source / context / tags) plus the tag vocabulary into a single
+ * static page. A rater sets Known and/or Love stars on the few entries that jump
+ * out (good OR bad), may "Skip for now" (a bookmark, never a rating), add a per-row
+ * or general note, strike wrong tags / add missing ones (vocab or brand-new), and
+ * taps "Build my GitHub issue" — the page assembles a prefilled github.com issue
+ * whose body carries machine-parseable ```conductor-ratings and ```conductor-notes
+ * fenced blocks. No backend, no account of ours; a free GitHub login is the only
+ * requirement.
  *
  * The baked snapshot goes stale as the library grows, so this regenerates as part
  * of `node scripts/gen-homework.js` (one command refreshes the help page AND the
@@ -58,6 +60,7 @@ function buildPage(entries, vocabulary = {}) {
     id: e.id,
     line: e.line,
     source: e.source || '',
+    context: e.context || '',
     tags: flatTags(e.tags),
   }));
   const dataLiteral = toScriptLiteral(slim);
@@ -125,9 +128,37 @@ function buildPage(entries, vocabulary = {}) {
         li.row .meta { flex: 1; min-width: 200px; }
         li.row .line { color: var(--text); font-weight: 600; }
         li.row .src { color: var(--text-dim); font-size: 0.82rem; }
+        li.row .ctx { color: var(--text-secondary); font-size: 0.82rem; font-style: italic; }
+        li.row.skipped { opacity: 0.5; }
+        li.row.skipped .line::after {
+            content: 'skipped'; margin-left: 8px; font-size: 0.7rem; font-weight: 400;
+            color: var(--accent-purple); border: 1px solid rgba(167,139,250,0.5);
+            border-radius: 999px; padding: 0 7px; vertical-align: middle;
+        }
+        .rate { display: flex; flex-direction: column; gap: 2px; }
+        .starrow { display: flex; align-items: center; gap: 6px; }
+        .starrow .lbl { font-size: 0.75rem; color: var(--text-dim); width: 46px; text-align: right; }
+        .rowbtns { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+        .linkbtn {
+            background: none; border: none; color: var(--text-dim); cursor: pointer;
+            font-size: 0.78rem; text-decoration: underline; padding: 0;
+        }
+        .linkbtn.on { color: var(--accent-purple); }
+        .rownote { flex-basis: 100%; }
+        .rownote input { width: 100%; font-size: 0.85rem; padding: 6px 10px; }
+        #general {
+            width: 100%; min-height: 90px; margin-top: 8px; resize: vertical; font: inherit; font-size: 0.92rem;
+            background: var(--bg-elevated); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; color: var(--text); padding: 9px 12px;
+        }
+        select {
+            background: var(--bg-elevated); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; color: var(--text); padding: 8px 10px; font-size: 0.9rem;
+        }
+        .bar .warn { color: var(--accent-gold); font-size: 0.8rem; flex-basis: 100%; text-align: center; }
         .stars { display: inline-flex; gap: 2px; }
         .stars button {
-            background: none; border: none; cursor: pointer; font-size: 1.5rem; line-height: 1;
+            background: none; border: none; cursor: pointer; font-size: 1.3rem; line-height: 1;
             color: rgba(255,255,255,0.22); padding: 2px; transition: color 0.1s, transform 0.1s;
         }
         .stars button:hover { transform: scale(1.15); }
@@ -137,7 +168,7 @@ function buildPage(entries, vocabulary = {}) {
             color: var(--text-dim); cursor: pointer; font-size: 0.75rem; padding: 4px 8px;
             visibility: hidden;
         }
-        li.row.rated .clear { visibility: visible; }
+        .starrow.set .clear { visibility: visible; }
         .tags { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .chip {
             background: var(--bg-elevated); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
@@ -187,10 +218,13 @@ function buildPage(entries, vocabulary = {}) {
 <main>
     <div class="callout">
         <strong>Skip the middle.</strong> You do <strong>not</strong> need to rate all of these &mdash;
-        please don't. Rate only the ones that jump out at you, good or bad: a <strong>5</strong> for a
-        line almost anyone would recognize and love, a <strong>1</strong> for one that falls flat or
-        nobody knows. Leave the forgettable, middle-of-the-bell-curve ones <strong>unrated</strong> &mdash;
-        that's a signal too. Even five ratings genuinely help.
+        please don't. Rate only the ones that jump out at you, good or bad, and leave the forgettable,
+        middle-of-the-bell-curve ones <strong>unrated</strong> &mdash; that's a signal too. Even five ratings genuinely help.
+        <br><br>Each line has two star rows, both optional:
+        <br><strong>Known</strong> &mdash; how well known is it? <strong>1</strong> = &ldquo;I don't know it&rdquo;, <strong>5</strong> = everyone knows it.
+        <br><strong>Love it</strong> &mdash; how much do you love it, or want it in a script? &ldquo;Never heard it, love it now&rdquo; is Known 1, Love 5.
+        <br><br>Want to come back to one later? Tap <strong>Skip for now</strong> &mdash; it's not a rating, just a bookmark.
+        Got a thought? Tap <strong>note</strong> on any line, or use the notes box at the bottom.
         <br><br><strong>See a missing or wrong tag? Fix it</strong> &mdash; tap a tag to strike it,
         or <strong>+ tag</strong> to add one. New tag names are welcome.
     </div>
@@ -198,11 +232,21 @@ function buildPage(entries, vocabulary = {}) {
     <div class="controls">
         <label>Your name/handle (optional): <input type="text" id="rater" placeholder="@yourhandle"></label>
         <input type="search" id="filter" placeholder="Filter&hellip; (type a word or a source)">
+        <label>Show: <select id="show">
+            <option value="all">All</option>
+            <option value="skipped">Skipped</option>
+            <option value="untouched">Not touched yet</option>
+        </select></label>
     </div>
     <p class="count-note" id="countNote"></p>
 
     <ul class="list" id="list"></ul>
     <datalist id="tagVocab"></datalist>
+
+    <label for="general" style="display:block;margin-top:28px;color:var(--text-secondary);">
+        <strong>General notes</strong> (optional) &mdash; anything about the list as a whole: what's missing, what feels off, ideas.
+    </label>
+    <textarea id="general" placeholder="Your thoughts&hellip;"></textarea>
 
     <p style="margin-top:24px;color:var(--text-dim);font-size:0.85rem;">
         Your work saves in this browser as you go &mdash; leave and come back any time.
@@ -216,6 +260,7 @@ function buildPage(entries, vocabulary = {}) {
     <span class="n" id="ratedCount">0 rated</span>
     <button class="btn" id="submit" disabled>Build my GitHub issue</button>
     <button class="startover" id="startOver" type="button">Start over</button>
+    <span class="warn" id="submitWarn" hidden></span>
 </div>
 
 <footer>
@@ -232,11 +277,20 @@ const ISSUES_NEW = ${issuesLiteral};
 const VOCAB = ${vocabLiteral};
 const FENCE = String.fromCharCode(96, 96, 96); // three backticks
 const STAR = String.fromCharCode(0x2605);
-const ratings = Object.create(null); // id -> 1..5
+const NOTES_FENCE = 'conductor-notes';
+const MAX_URL = 8000; // GitHub's prefilled-issue URL stops working somewhere past this
+const known = Object.create(null); // id -> 1..5 (how well known; 1 = "I don't know it")
+const love = Object.create(null); // id -> 1..5 (how much you love it / would use it)
+const skipped = Object.create(null); // id -> true ("come back later" — never a rating)
+const notes = Object.create(null); // id -> free text
 const tagEdits = Object.create(null); // id -> { add: [], remove: [] }
+const noteOpen = new Set(); // ids whose note input is showing (not saved)
 
 const listEl = document.getElementById('list');
 const filterEl = document.getElementById('filter');
+const showEl = document.getElementById('show');
+const generalEl = document.getElementById('general');
+const submitWarnEl = document.getElementById('submitWarn');
 const raterEl = document.getElementById('rater');
 const submitEl = document.getElementById('submit');
 const ratedCountEl = document.getElementById('ratedCount');
@@ -327,44 +381,100 @@ const STORE_KEY = 'conductor-rate-v1';
 
 function saveState() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ rater: raterEl.value, ratings, tagEdits }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      rater: raterEl.value, known, love, skipped, notes, general: generalEl.value, tagEdits,
+    }));
   } catch (_e) { /* private mode / storage blocked: page still works, just unsaved */ }
+}
+
+function restoreStars(target, src, ids) {
+  for (const [id, st] of Object.entries(src || {})) {
+    if (ids.has(id) && st >= 1 && st <= 5) target[id] = st;
+  }
 }
 
 function restoreState() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (_e) { return 0; }
   if (!saved || typeof saved !== 'object') return 0;
-  const known = new Set(ENTRIES.map((e) => e.id));
+  const ids = new Set(ENTRIES.map((e) => e.id));
   if (typeof saved.rater === 'string') raterEl.value = saved.rater;
-  for (const [id, st] of Object.entries(saved.ratings || {})) {
-    if (known.has(id) && st >= 1 && st <= 5) ratings[id] = st;
+  if (typeof saved.general === 'string') generalEl.value = saved.general;
+  // v1 saves had one star row, "how much do we like it" -> love.
+  restoreStars(love, saved.ratings, ids);
+  restoreStars(love, saved.love, ids);
+  restoreStars(known, saved.known, ids);
+  for (const id of Object.keys(saved.skipped || {})) if (ids.has(id)) skipped[id] = true;
+  for (const [id, t] of Object.entries(saved.notes || {})) {
+    if (ids.has(id) && typeof t === 'string' && t.trim()) notes[id] = t;
   }
   for (const [id, ed] of Object.entries(saved.tagEdits || {})) {
-    if (!known.has(id) || !ed) continue;
+    if (!ids.has(id) || !ed) continue;
     const add = Array.isArray(ed.add) ? ed.add.filter((t) => typeof t === 'string') : [];
     const remove = Array.isArray(ed.remove) ? ed.remove.filter((t) => typeof t === 'string') : [];
     if (add.length || remove.length) tagEdits[id] = { add, remove };
   }
-  return Object.keys(ratings).length + tagEditCount();
+  return ratedIds().length + tagEditCount() + Object.keys(skipped).length +
+    Object.keys(notes).length + (generalEl.value.trim() ? 1 : 0);
+}
+
+function ratedIds() {
+  return ENTRIES.map((e) => e.id).filter((id) => known[id] || love[id]);
+}
+
+function touched(id) {
+  const ed = tagEdits[id];
+  return !!(known[id] || love[id] || skipped[id] || notes[id] || (ed && (ed.add.length || ed.remove.length)));
 }
 
 function changed() {
-  render(filterEl.value);
+  render();
   updateCount();
   saveState();
 }
 
-function render(filter) {
-  const q = (filter || '').trim().toLowerCase();
+function starRow(label, id, map) {
+  const row = document.createElement('div');
+  row.className = 'starrow' + (map[id] ? ' set' : '');
+  row.dataset.kind = map === known ? 'known' : 'love';
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = label;
+  row.appendChild(lbl);
+  const stars = document.createElement('div');
+  stars.className = 'stars';
+  for (let s = 1; s <= 5; s++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = STAR;
+    b.setAttribute('aria-label', label + ' ' + s + ' star' + (s > 1 ? 's' : ''));
+    if (map[id] && s <= map[id]) b.classList.add('on');
+    b.addEventListener('click', () => setStars(map, id, s));
+    stars.appendChild(b);
+  }
+  row.appendChild(stars);
+  const clr = document.createElement('button');
+  clr.className = 'clear';
+  clr.type = 'button';
+  clr.textContent = 'clear';
+  clr.addEventListener('click', () => setStars(map, id, 0));
+  row.appendChild(clr);
+  return row;
+}
+
+function render() {
+  const q = (filterEl.value || '').trim().toLowerCase();
+  const show = showEl.value;
   listEl.innerHTML = '';
   for (const e of ENTRIES) {
     if (q) {
-      const hay = (e.line + ' ' + e.source + ' ' + e.tags.join(' ')).toLowerCase();
+      const hay = (e.line + ' ' + e.source + ' ' + e.context + ' ' + e.tags.join(' ')).toLowerCase();
       if (!hay.includes(q)) continue;
     }
+    if (show === 'skipped' && !skipped[e.id]) continue;
+    if (show === 'untouched' && touched(e.id)) continue;
     const li = document.createElement('li');
-    li.className = 'row' + (ratings[e.id] ? ' rated' : '');
+    li.className = 'row' + (known[e.id] || love[e.id] ? ' rated' : '') + (skipped[e.id] ? ' skipped' : '');
     li.dataset.id = e.id;
 
     const meta = document.createElement('div');
@@ -376,80 +486,150 @@ function render(filter) {
     src.className = 'src';
     src.textContent = e.source || '';
     meta.appendChild(line); meta.appendChild(src);
-
-    const stars = document.createElement('div');
-    stars.className = 'stars';
-    for (let s = 1; s <= 5; s++) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = STAR;
-      b.setAttribute('aria-label', s + ' star' + (s > 1 ? 's' : ''));
-      if (ratings[e.id] && s <= ratings[e.id]) b.classList.add('on');
-      b.addEventListener('click', () => { setRating(e.id, s); });
-      stars.appendChild(b);
+    if (e.context) {
+      const ctx = document.createElement('div');
+      ctx.className = 'ctx';
+      ctx.textContent = e.context;
+      meta.appendChild(ctx);
     }
 
-    const clr = document.createElement('button');
-    clr.className = 'clear';
-    clr.type = 'button';
-    clr.textContent = 'clear';
-    clr.addEventListener('click', () => { setRating(e.id, 0); });
+    const rate = document.createElement('div');
+    rate.className = 'rate';
+    rate.appendChild(starRow('Known', e.id, known));
+    rate.appendChild(starRow('Love it', e.id, love));
 
-    li.appendChild(meta); li.appendChild(stars); li.appendChild(clr); li.appendChild(buildTags(e));
+    const btns = document.createElement('div');
+    btns.className = 'rowbtns';
+    // Skipping is "come back later"; rating a line un-skips it, so a rated
+    // line has nothing to skip (hidden, not removed, so the stars don't jump).
+    const skip = document.createElement('button');
+    skip.type = 'button';
+    skip.className = 'linkbtn skipbtn' + (skipped[e.id] ? ' on' : '');
+    skip.textContent = skipped[e.id] ? 'Unskip' : 'Skip for now';
+    if (known[e.id] || love[e.id]) skip.style.visibility = 'hidden';
+    skip.addEventListener('click', () => {
+      if (skipped[e.id]) delete skipped[e.id]; else skipped[e.id] = true;
+      changed();
+    });
+    btns.appendChild(skip);
+    const noteBtn = document.createElement('button');
+    noteBtn.type = 'button';
+    noteBtn.className = 'linkbtn notebtn' + (notes[e.id] ? ' on' : '');
+    noteBtn.textContent = notes[e.id] ? 'note ✓' : 'note';
+    noteBtn.addEventListener('click', () => {
+      if (noteOpen.has(e.id)) noteOpen.delete(e.id); else noteOpen.add(e.id);
+      render();
+      const inp = listEl.querySelector('li.row[data-id="' + e.id + '"] .rownote input');
+      if (inp) inp.focus();
+    });
+    btns.appendChild(noteBtn);
+
+    li.appendChild(meta); li.appendChild(rate); li.appendChild(btns); li.appendChild(buildTags(e));
+    if (noteOpen.has(e.id) || notes[e.id]) {
+      const wrap = document.createElement('div');
+      wrap.className = 'rownote';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = 'Why? (optional — e.g. "never heard it, but it’s great")';
+      inp.value = notes[e.id] || '';
+      // Typing must not re-render (it would steal focus); just record + save.
+      inp.addEventListener('input', () => {
+        if (inp.value.trim()) notes[e.id] = inp.value; else delete notes[e.id];
+        noteBtn.textContent = notes[e.id] ? 'note ✓' : 'note';
+        noteBtn.classList.toggle('on', !!notes[e.id]);
+        updateCount();
+        saveState();
+      });
+      wrap.appendChild(inp);
+      li.appendChild(wrap);
+    }
     listEl.appendChild(li);
   }
 }
 
-function setRating(id, stars) {
-  if (!stars) delete ratings[id];
-  else ratings[id] = stars;
+function setStars(map, id, stars) {
+  if (!stars) delete map[id];
+  else { map[id] = stars; delete skipped[id]; }
   changed();
 }
 
 function updateCount() {
-  const n = Object.keys(ratings).length;
+  const n = ratedIds().length;
   const m = tagEditCount();
-  ratedCountEl.textContent = n + ' rated \u00b7 ' + m + ' tag edit' + (m === 1 ? '' : 's');
-  submitEl.disabled = n === 0 && m === 0;
+  const k = Object.keys(skipped).length;
+  ratedCountEl.textContent = n + ' rated · ' + m + ' tag edit' + (m === 1 ? '' : 's') + ' · ' + k + ' skipped';
+  submitEl.disabled = !(n || m || k || Object.keys(notes).length || generalEl.value.trim());
 }
 
-function buildBody() {
-  const rater = (raterEl.value || '').trim() || 'anonymous';
+// One line, no backticks (a stray fence would cut the machine-read block short).
+const flat = (s) => String(s).split(FENCE.charAt(0)).join("'").replace(/\\s+/g, ' ').trim();
+
+// noteLimit: null = full notes, a number = truncate each note to that many chars,
+// 0 = leave the notes block out.
+function buildBody(noteLimit) {
+  const rater = flat(raterEl.value) || 'anonymous';
   const lines = [FENCE + 'conductor-ratings', 'rater: ' + rater];
   for (const e of ENTRIES) {
     const ed = tagEdits[e.id] || { add: [], remove: [] };
     const parts = [];
-    if (ratings[e.id]) parts.push(String(ratings[e.id]));
+    if (known[e.id]) parts.push('k' + known[e.id]);
+    if (love[e.id]) parts.push('l' + love[e.id]);
+    if (skipped[e.id]) parts.push('skip');
     for (const t of ed.add) parts.push('+' + t);
     for (const t of ed.remove) parts.push('-' + t);
     if (parts.length) lines.push(e.id + ': ' + parts.join(' '));
   }
   lines.push(FENCE);
-  const preamble = 'My touchstone ratings (' + Object.keys(ratings).length +
-    ' rated, ' + tagEditCount() + ' tag edits). The block below is machine-read — please leave it intact; ' +
-    'add any comments above or below it.\\n\\n';
+  const noteLines = [];
+  const clip = (t) => (noteLimit && t.length > noteLimit ? t.slice(0, noteLimit - 1) + '…' : t);
+  for (const e of ENTRIES) if (notes[e.id] && flat(notes[e.id])) noteLines.push(e.id + ': ' + clip(flat(notes[e.id])));
+  if (flat(generalEl.value)) noteLines.push('general: ' + clip(flat(generalEl.value)));
+  if (noteLines.length && noteLimit !== 0) {
+    lines.push('', FENCE + NOTES_FENCE, ...noteLines, FENCE);
+  }
+  const preamble = 'My touchstone ratings (' + ratedIds().length + ' rated, ' + tagEditCount() +
+    ' tag edits, ' + Object.keys(skipped).length + ' skipped). The blocks below are machine-read — please leave them intact; ' +
+    'add any comments above or below them.\\n\\n';
   return preamble + lines.join('\\n') + '\\n';
 }
 
+function issueUrl(body) {
+  return ISSUES_NEW + '?title=' + encodeURIComponent('Touchstone ratings') + '&body=' + encodeURIComponent(body);
+}
+
 submitEl.addEventListener('click', () => {
-  const title = 'Touchstone ratings';
-  const url = ISSUES_NEW + '?title=' + encodeURIComponent(title) +
-    '&body=' + encodeURIComponent(buildBody());
+  let url = issueUrl(buildBody(null));
+  let warn = '';
+  for (const lim of [300, 120, 40]) {
+    if (url.length <= MAX_URL) break;
+    url = issueUrl(buildBody(lim));
+    warn = 'Your notes were too long for a GitHub link, so they were shortened — paste the full text into the issue if you like.';
+  }
+  if (url.length > MAX_URL) {
+    url = issueUrl(buildBody(0));
+    warn = 'Your notes were too long for a GitHub link and were left out — please paste them into the issue.';
+  }
+  submitWarnEl.textContent = warn;
+  submitWarnEl.hidden = !warn;
   window.open(url, '_blank', 'noopener');
 });
 
-filterEl.addEventListener('input', () => render(filterEl.value));
+filterEl.addEventListener('input', render);
+showEl.addEventListener('change', render);
 raterEl.addEventListener('input', saveState);
+generalEl.addEventListener('input', () => { updateCount(); saveState(); });
 document.getElementById('startOver').addEventListener('click', () => {
-  if (!confirm('Clear all your ratings and tag edits on this page?')) return;
-  for (const id of Object.keys(ratings)) delete ratings[id];
-  for (const id of Object.keys(tagEdits)) delete tagEdits[id];
+  if (!confirm('Clear all your ratings, skips, notes and tag edits on this page?')) return;
+  for (const map of [known, love, skipped, notes, tagEdits]) for (const id of Object.keys(map)) delete map[id];
+  noteOpen.clear();
+  generalEl.value = '';
+  submitWarnEl.hidden = true;
   changed();
 });
 if (restoreState()) {
-  countNoteEl.textContent += ' Picked up where you left off — your earlier ratings and tag edits are restored.';
+  countNoteEl.textContent += ' Picked up where you left off — your earlier work is restored.';
 }
-render('');
+render();
 updateCount();
 </script>
 

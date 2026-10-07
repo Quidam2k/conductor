@@ -82,3 +82,28 @@ Raters can now also fix tags on `docs/rate.html`, not just star entries. ~Half t
   builds the issue URL and parses its body back). SW CACHE_NAME v66 → v67.
 - Testing gotcha: port 8080 may be held by another local service (radio_free_luna on 2026-10-06);
   `reuseExistingServer: true` then silently drives the wrong server → 404s. Run on a free port.
+
+## 2026-10-06 — Rate page v2: Known + Love, skip-for-later, notes, full quotes
+
+From the 2026-10-06 Jessica session (`notes/2026-10-06-jessica-touchstone-feedback.md`).
+- **Two star rows per line, both optional:** **Known** (1 = "I don't know it") and **Love it** (how much
+  you'd use it). "Never heard it, love it now" = Known 1, Love 5.
+- **Skip for now** = a bookmark, never a rating. Skipped rows dim and get a "skipped" badge. A **Show**
+  select (All / Skipped / Not touched yet) brings them back. Rating a line un-skips it.
+- **Notes:** a per-row "note" link opens a one-line input, and there's a general notes textarea.
+  Newlines are flattened and backticks stripped (so they can't break the fence). If the URL would exceed
+  8000 chars, notes are truncated (300→120→40 chars) or dropped, and the page shows a warning.
+- **`context` field** in `data/touchstones.json` on 21 entries whose `line` is a label, not words
+  (escalation-ladder, Darmok ×5, wilhelm-scream, …), shown as an italic line under the source.
+  Film/song entries get a short gloss rather than long verbatim passages (content-filter risk).
+- **Issue body:** `conductor-ratings` lines take `k1-5 l1-5 skip +tag -tag` (legacy bare `1-5` = love).
+  A second fence, `conductor-notes`, holds `id: text` lines plus `general: text`.
+- **Ledger:** records are `{rater, known?, love?, stars, at, issue}`, where `stars` = mean of the known/love
+  values present, so stats/scoreFor/weightFactor/lowRated/pick are unchanged. `stats` adds
+  knownMean/loveMean. A skip records no stars (its tag edits still count). **A tag-only non-skipped line = 3**
+  (Todd's rule, now the default). `ledger.notes[id]` keeps the latest note per rater. CLI: `notes [id]`,
+  `stats` shows known/love columns, and the ingest log counts skips and notes.
+- **Saved state:** same `conductor-rate-v1` key. An old `ratings` map loads as Love.
+- Tests: 5 new (parse k/l/skip + notes fence, ledger mean/skip/tag-only/notes, context baked, chromium
+  drive incl. Back/filter/round-trip/Start over, old-save migration). Also fixed a pre-existing
+  temp-file name race between browser projects. SW CACHE_NAME v68 → v69.
