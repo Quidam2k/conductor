@@ -265,3 +265,29 @@ test('real browser: rate, strike a tag, add vocab + new tags -> issue body parse
     expect(parsed.entries).toEqual(expect.arrayContaining(want));
     expect(parsed.entries).toHaveLength(want.length);
 });
+
+test('real browser: work survives navigating away and back; Start over clears it', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one real-browser drive is enough');
+    await page.goto('/rate.html');
+    const row = page.locator('li.row[data-id="i-am-spartacus"]');
+    await page.locator('#rater').fill('@jess');
+    await row.locator('.stars button').nth(3).click();
+    await row.locator('.chip.plus').click();
+    await row.locator('.tags input').fill('vigil');
+    await row.locator('.tags input').press('Enter');
+
+    // The accidental-navigation case: leave, then hit Back.
+    await page.goto('/help.html');
+    await page.goBack();
+    await expect(page.locator('#ratedCount')).toHaveText('1 rated \u00b7 1 tag edit');
+    await expect(page.locator('#rater')).toHaveValue('@jess');
+    await expect(row.locator('.stars button.on')).toHaveCount(4);
+    await expect(row.locator('.chip.add')).toHaveText(['+vigil']);
+    await expect(page.locator('#countNote')).toContainText('Picked up where you left off');
+
+    page.once('dialog', (d) => d.accept());
+    await page.locator('#startOver').click();
+    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits');
+    await page.reload();
+    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits');
+});

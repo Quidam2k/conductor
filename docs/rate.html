@@ -92,6 +92,10 @@
             font-weight: 700; font-size: 0.98rem; padding: 11px 22px; cursor: pointer;
         }
         .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+        .startover {
+            background: none; border: none; color: var(--text-dim); cursor: pointer;
+            font-size: 0.8rem; text-decoration: underline;
+        }
         footer { text-align: center; padding: 30px 24px 40px; color: var(--text-dim); font-size: 0.85rem; }
         footer a { color: var(--text-secondary); }
         @media (max-width: 600px) { main { padding: 8px 16px 48px; } .hero { padding: 32px 16px 20px; } }
@@ -135,6 +139,7 @@
     <datalist id="tagVocab"></datalist>
 
     <p style="margin-top:24px;color:var(--text-dim);font-size:0.85rem;">
+        Your work saves in this browser as you go &mdash; leave and come back any time.
         Tapping the button opens a prefilled GitHub issue &mdash; review it and press submit.
         A free GitHub account is the only requirement; we read the ratings from the issue.
         No telemetry, no tracking.
@@ -144,6 +149,7 @@
 <div class="bar">
     <span class="n" id="ratedCount">0 rated</span>
     <button class="btn" id="submit" disabled>Build my GitHub issue</button>
+    <button class="startover" id="startOver" type="button">Start over</button>
 </div>
 
 <footer>
@@ -253,9 +259,40 @@ function buildTags(e) {
   return box;
 }
 
+// Work-in-progress survives back-button / accidental navigation / reload:
+// everything is mirrored to localStorage on every change. Resubmitting is
+// harmless (ingest keeps each rater's latest), so state is kept after submit
+// until "Start over".
+const STORE_KEY = 'conductor-rate-v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ rater: raterEl.value, ratings, tagEdits }));
+  } catch (_e) { /* private mode / storage blocked: page still works, just unsaved */ }
+}
+
+function restoreState() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (_e) { return 0; }
+  if (!saved || typeof saved !== 'object') return 0;
+  const known = new Set(ENTRIES.map((e) => e.id));
+  if (typeof saved.rater === 'string') raterEl.value = saved.rater;
+  for (const [id, st] of Object.entries(saved.ratings || {})) {
+    if (known.has(id) && st >= 1 && st <= 5) ratings[id] = st;
+  }
+  for (const [id, ed] of Object.entries(saved.tagEdits || {})) {
+    if (!known.has(id) || !ed) continue;
+    const add = Array.isArray(ed.add) ? ed.add.filter((t) => typeof t === 'string') : [];
+    const remove = Array.isArray(ed.remove) ? ed.remove.filter((t) => typeof t === 'string') : [];
+    if (add.length || remove.length) tagEdits[id] = { add, remove };
+  }
+  return Object.keys(ratings).length + tagEditCount();
+}
+
 function changed() {
   render(filterEl.value);
   updateCount();
+  saveState();
 }
 
 function render(filter) {
@@ -342,6 +379,16 @@ submitEl.addEventListener('click', () => {
 });
 
 filterEl.addEventListener('input', () => render(filterEl.value));
+raterEl.addEventListener('input', saveState);
+document.getElementById('startOver').addEventListener('click', () => {
+  if (!confirm('Clear all your ratings and tag edits on this page?')) return;
+  for (const id of Object.keys(ratings)) delete ratings[id];
+  for (const id of Object.keys(tagEdits)) delete tagEdits[id];
+  changed();
+});
+if (restoreState()) {
+  countNoteEl.textContent += ' Picked up where you left off — your earlier ratings and tag edits are restored.';
+}
 render('');
 updateCount();
 </script>
