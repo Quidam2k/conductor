@@ -3,8 +3,9 @@
  * gen-rate-page.js — generate docs/rate.html, the zero-setup touchstone rating page.
  *
  * Reads the touchstone library (data/touchstones.json) and bakes a snapshot
- * (id / line / source / theme) into a single static page. A rater clicks stars on
- * the few entries that jump out (good OR bad), leaves the rest alone, and taps
+ * (id / line / source / tags) plus the tag vocabulary into a single static page.
+ * A rater clicks stars on the few entries that jump out (good OR bad), optionally
+ * strikes wrong tags / adds missing ones (vocab or brand-new), and taps
  * "Build my GitHub issue" — the page assembles a prefilled github.com issue whose
  * body carries a machine-parseable ```conductor-ratings fenced block. No backend,
  * no account of ours; a free GitHub login is the only requirement.
@@ -20,6 +21,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { normalizeTag } = require('./touchstone-ratings');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA_PATH = path.join(ROOT, 'data', 'touchstones.json');
@@ -45,14 +47,21 @@ function toScriptLiteral(value) {
     .split(SEP_2029).join('\\u2029');
 }
 
-function buildPage(entries) {
+// theme/mood/occasion flattened into one deduped list, in that order.
+function flatTags(tags) {
+  const t = tags || {};
+  return [...new Set([...(t.theme || []), ...(t.mood || []), ...(t.occasion || [])])];
+}
+
+function buildPage(entries, vocabulary = {}) {
   const slim = entries.map((e) => ({
     id: e.id,
     line: e.line,
     source: e.source || '',
-    theme: (e.tags && e.tags.theme) || [],
+    tags: flatTags(e.tags),
   }));
   const dataLiteral = toScriptLiteral(slim);
+  const vocabLiteral = toScriptLiteral(vocabulary || {});
   const issuesLiteral = toScriptLiteral(ISSUES_NEW);
 
   return `<!DOCTYPE html>
@@ -129,6 +138,15 @@ function buildPage(entries) {
             visibility: hidden;
         }
         li.row.rated .clear { visibility: visible; }
+        .tags { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .chip {
+            background: var(--bg-elevated); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+            color: var(--text-secondary); cursor: pointer; font-size: 0.75rem; padding: 2px 10px;
+        }
+        .chip.rm { color: var(--accent-red); border-color: rgba(255,71,87,0.5); text-decoration: line-through; }
+        .chip.add { color: var(--accent-green); border-color: rgba(52,211,153,0.5); }
+        .chip.plus { border-style: dashed; color: var(--text-dim); }
+        .tags input { font-size: 0.8rem; padding: 3px 8px; width: 160px; }
         .bar {
             position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-surface);
             border-top: 1px solid rgba(255,255,255,0.10); padding: 14px 24px;
@@ -169,6 +187,8 @@ function buildPage(entries) {
         line almost anyone would recognize and love, a <strong>1</strong> for one that falls flat or
         nobody knows. Leave the forgettable, middle-of-the-bell-curve ones <strong>unrated</strong> &mdash;
         that's a signal too. Even five ratings genuinely help.
+        <br><br><strong>See a missing or wrong tag? Fix it</strong> &mdash; tap a tag to strike it,
+        or <strong>+ tag</strong> to add one. New tag names are welcome.
     </div>
 
     <div class="controls">
@@ -178,6 +198,7 @@ function buildPage(entries) {
     <p class="count-note" id="countNote"></p>
 
     <ul class="list" id="list"></ul>
+    <datalist id="tagVocab"></datalist>
 
     <p style="margin-top:24px;color:var(--text-dim);font-size:0.85rem;">
         Tapping the button opens a prefilled GitHub issue &mdash; review it and press submit.
@@ -202,9 +223,11 @@ function buildPage(entries) {
 <script>
 const ENTRIES = ${dataLiteral};
 const ISSUES_NEW = ${issuesLiteral};
+const VOCAB = ${vocabLiteral};
 const FENCE = String.fromCharCode(96, 96, 96); // three backticks
 const STAR = String.fromCharCode(0x2605);
 const ratings = Object.create(null); // id -> 1..5
+const tagEdits = Object.create(null); // id -> { add: [], remove: [] }
 
 const listEl = document.getElementById('list');
 const filterEl = document.getElementById('filter');
@@ -215,12 +238,92 @@ const countNoteEl = document.getElementById('countNote');
 
 countNoteEl.textContent = ENTRIES.length + ' touchstones in the current library. Rate as few or as many as you like.';
 
+const vocabEl = document.getElementById('tagVocab');
+for (const t of [...new Set(Object.values(VOCAB).flat())].sort()) {
+  const o = document.createElement('option');
+  o.value = t;
+  vocabEl.appendChild(o);
+}
+
+// Same function as scripts/touchstone-ratings.js (inlined at generate time).
+${normalizeTag.toString()}
+
+function editsFor(id) {
+  if (!tagEdits[id]) tagEdits[id] = { add: [], remove: [] };
+  return tagEdits[id];
+}
+
+function toggleIn(list, tag) {
+  const i = list.indexOf(tag);
+  if (i >= 0) list.splice(i, 1); else list.push(tag);
+}
+
+function tagEditCount() {
+  let n = 0;
+  for (const id in tagEdits) n += tagEdits[id].add.length + tagEdits[id].remove.length;
+  return n;
+}
+
+function chip(text, cls, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'chip' + (cls ? ' ' + cls : '');
+  b.textContent = text;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function buildTags(e) {
+  const box = document.createElement('div');
+  box.className = 'tags';
+  const ed = tagEdits[e.id] || { add: [], remove: [] };
+  for (const t of e.tags) {
+    const c = chip(t, ed.remove.includes(t) ? 'rm' : '', () => { toggleIn(editsFor(e.id).remove, t); changed(); });
+    c.title = 'Tap to mark this tag wrong (tap again to undo)';
+    box.appendChild(c);
+  }
+  for (const t of ed.add) {
+    const c = chip('+' + t, 'add', () => { toggleIn(editsFor(e.id).add, t); changed(); });
+    c.title = 'Tap to undo';
+    box.appendChild(c);
+  }
+  const plus = chip('+ tag', 'plus', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.setAttribute('list', 'tagVocab');
+    input.placeholder = 'tag name';
+    let done = false;
+    const commit = (keep) => {
+      if (done) return;
+      done = true;
+      const tag = keep ? normalizeTag(input.value) : '';
+      const ed2 = editsFor(e.id);
+      if (tag && !e.tags.includes(tag) && !ed2.add.includes(tag)) ed2.add.push(tag);
+      changed();
+    };
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
+      else if (ev.key === 'Escape') commit(false);
+    });
+    input.addEventListener('blur', () => commit(true));
+    box.replaceChild(input, plus);
+    input.focus();
+  });
+  box.appendChild(plus);
+  return box;
+}
+
+function changed() {
+  render(filterEl.value);
+  updateCount();
+}
+
 function render(filter) {
   const q = (filter || '').trim().toLowerCase();
   listEl.innerHTML = '';
   for (const e of ENTRIES) {
     if (q) {
-      const hay = (e.line + ' ' + e.source + ' ' + (e.theme || []).join(' ')).toLowerCase();
+      const hay = (e.line + ' ' + e.source + ' ' + e.tags.join(' ')).toLowerCase();
       if (!hay.includes(q)) continue;
     }
     const li = document.createElement('li');
@@ -255,7 +358,7 @@ function render(filter) {
     clr.textContent = 'clear';
     clr.addEventListener('click', () => { setRating(e.id, 0); });
 
-    li.appendChild(meta); li.appendChild(stars); li.appendChild(clr);
+    li.appendChild(meta); li.appendChild(stars); li.appendChild(clr); li.appendChild(buildTags(e));
     listEl.appendChild(li);
   }
 }
@@ -263,25 +366,30 @@ function render(filter) {
 function setRating(id, stars) {
   if (!stars) delete ratings[id];
   else ratings[id] = stars;
-  render(filterEl.value);
-  updateCount();
+  changed();
 }
 
 function updateCount() {
   const n = Object.keys(ratings).length;
-  ratedCountEl.textContent = n + ' rated';
-  submitEl.disabled = n === 0;
+  const m = tagEditCount();
+  ratedCountEl.textContent = n + ' rated \u00b7 ' + m + ' tag edit' + (m === 1 ? '' : 's');
+  submitEl.disabled = n === 0 && m === 0;
 }
 
 function buildBody() {
   const rater = (raterEl.value || '').trim() || 'anonymous';
   const lines = [FENCE + 'conductor-ratings', 'rater: ' + rater];
   for (const e of ENTRIES) {
-    if (ratings[e.id]) lines.push(e.id + ': ' + ratings[e.id]);
+    const ed = tagEdits[e.id] || { add: [], remove: [] };
+    const parts = [];
+    if (ratings[e.id]) parts.push(String(ratings[e.id]));
+    for (const t of ed.add) parts.push('+' + t);
+    for (const t of ed.remove) parts.push('-' + t);
+    if (parts.length) lines.push(e.id + ': ' + parts.join(' '));
   }
   lines.push(FENCE);
   const preamble = 'My touchstone ratings (' + Object.keys(ratings).length +
-    ' rated). The block below is machine-read — please leave it intact; ' +
+    ' rated, ' + tagEditCount() + ' tag edits). The block below is machine-read — please leave it intact; ' +
     'add any comments above or below it.\\n\\n';
   return preamble + lines.join('\\n') + '\\n';
 }
@@ -315,7 +423,7 @@ function generate() {
   if (!data || !Array.isArray(data.entries) || data.entries.length === 0) {
     fail('touchstones.json has no non-empty "entries" array');
   }
-  const html = buildPage(data.entries);
+  const html = buildPage(data.entries, data.tag_vocabulary);
   fs.writeFileSync(OUT_HTML, html);
   console.log('gen-rate-page: wrote ' + path.relative(ROOT, OUT_HTML) +
     ' (' + data.entries.length + ' touchstones)');
@@ -324,4 +432,4 @@ function generate() {
 
 if (require.main === module) generate();
 
-module.exports = { buildPage, toScriptLiteral, generate, OUT_HTML };
+module.exports = { buildPage, flatTags, toScriptLiteral, generate, OUT_HTML };

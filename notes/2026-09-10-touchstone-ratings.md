@@ -56,3 +56,29 @@ precache ASSETS list (HTML is stale-while-revalidate); the bump just forces the 
 
 ## Not touched
 `data/touchstones.json` — grown concurrently by the touchstone-collect worker; read-only here.
+
+## Tag suggestions (added 2026-10-06)
+Raters can now also fix tags on `docs/rate.html`, not just star entries. ~Half the library
+(batches 2–3) has no theme, so crowd tagging fills a real gap. Still zero-backend.
+
+- **Page:** each row shows its current tags (theme/mood/occasion, flattened) as chips. Tap a chip →
+  red strikethrough = "remove" (tap again undoes). `+ tag` opens an input with a datalist of the
+  vocabulary; free text is allowed and normalized to lowercase-kebab. Added tags show green.
+  Counter reads "N rated · M tag edits"; submit works with either.
+- **Issue body** (backward compatible — plain `id: 5` lines parse exactly as before):
+  ```
+  i-am-spartacus: 5 +solidarity -uprising
+  sweet-caroline: +party +sports-event
+  ```
+- **Ledger:** `ingest` also writes `tagVotes[id] = [{rater, add, remove, at, issue}]`, latest per
+  rater wins (same rule as stars; a tag-only line doesn't touch that rater's stars). The ingest log
+  gains `tagEdits`.
+- **Review:** `node scripts/touchstone-ratings.js tags [minVotes]` lists per-entry +/- counts per
+  tag with its dimension, or **NEW** for tags outside `tag_vocabulary` (candidate vocab additions).
+- **Not auto-applied.** `data/touchstones.json` stays curated: a human reads `tags` output and
+  edits the entries (and the vocabulary for accepted NEW tags), then reruns `gen-rate-page.js`.
+- Tests: 5 more in `tests/touchstone-ratings.spec.js` (parse ±tags, normalizeTag, tagVotes
+  round-trip + latest-wins + NEW flag, page bakes vocab, one chromium real-browser drive that
+  builds the issue URL and parses its body back). SW CACHE_NAME v66 → v67.
+- Testing gotcha: port 8080 may be held by another local service (radio_free_luna on 2026-10-06);
+  `reuseExistingServer: true` then silently drives the wrong server → 404s. Run on a free port.
