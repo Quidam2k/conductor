@@ -72,13 +72,13 @@ test('parseIssueBody pulls the rater and 1-5 star lines from a fenced block', ()
     const parsed = ratings.parseIssueBody(body);
     expect(parsed.rater).toBe('@tester');
     expect(parsed.entries).toEqual([
-        { id: 'i-am-spartacus', stars: 5 },
-        { id: 'mad-as-hell', stars: 1 },
+        { id: 'i-am-spartacus', love: 5 }, // legacy bare stars = love
+        { id: 'mad-as-hell', love: 1 },
     ]);
 });
 
 test('ingest round-trips into a ledger with issue provenance; stats aggregate correctly', () => {
-    const tmp = path.join(os.tmpdir(), `ts-ratings-${Date.now()}.json`);
+    const tmp = path.join(os.tmpdir(), `ts-ratings-${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
     try {
         const ledger = { version: 1, ratings: {}, ingests: [] };
 
@@ -169,10 +169,10 @@ test('parseIssueBody reads +tag/-tag edits with and without stars; legacy lines 
     const parsed = ratings.parseIssueBody(body);
     expect(parsed.rater).toBe('@tagger');
     expect(parsed.entries).toEqual([
-        { id: 'i-am-spartacus', stars: 5, add: ['solidarity'], remove: ['uprising'] },
+        { id: 'i-am-spartacus', love: 5, add: ['solidarity'], remove: ['uprising'] },
         { id: 'sweet-caroline', add: ['party', 'sports-event'] },
-        { id: 'mad-as-hell', stars: 2 },
-        { id: 'legacy', stars: 4 },
+        { id: 'mad-as-hell', love: 2 },
+        { id: 'legacy', love: 4 },
     ]);
 });
 
@@ -183,14 +183,14 @@ test('normalizeTag lowercases and kebabs free text', () => {
 });
 
 test('tag votes round-trip through a ledger; latest per rater wins; stars untouched by tag-only lines', () => {
-    const tmp = path.join(os.tmpdir(), `ts-tagvotes-${Date.now()}.json`);
+    const tmp = path.join(os.tmpdir(), `ts-tagvotes-${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
     try {
         const ledger = { version: 1, ratings: {}, ingests: [] }; // legacy ledger: no tagVotes key
         const r1 = ratings.applyToLedger(ledger, { rater: '@a', entries: [
             { id: 'x', stars: 4, add: ['party'] },
             { id: 'y', add: ['brand-new-tag'], remove: ['uprising'] },
         ] }, { issue: 10 });
-        expect(r1).toEqual({ applied: 1, replaced: 0, tagEdits: 2 });
+        expect(r1).toEqual({ applied: 2, replaced: 0, tagEdits: 2, skipped: 0, notes: 0 }); // tag-only y = 3
         // Same rater revises their x tags: replaces, doesn't stack.
         ratings.applyToLedger(ledger, { rater: '@a', entries: [{ id: 'x', add: ['rally'] }] }, { issue: 11 });
         ratings.applyToLedger(ledger, { rater: '@b', entries: [{ id: 'y', add: ['brand-new-tag'] }] }, { issue: 12 });
@@ -199,7 +199,7 @@ test('tag votes round-trip through a ledger; latest per rater wins; stars untouc
         const reloaded = ratings.load(tmp);
         expect(reloaded.tagVotes.x).toHaveLength(1);
         expect(reloaded.tagVotes.x[0]).toMatchObject({ rater: '@a', add: ['rally'], remove: [], issue: 11 });
-        expect(ratings.stats(reloaded).x).toEqual({ mean: 4, count: 1 }); // tag-only re-submit kept the stars
+        expect(ratings.stats(reloaded).x).toEqual({ mean: 3, count: 1 }); // tag-only re-submit = 3 (Todd's rule)
         expect(reloaded.ingests.map((i) => i.tagEdits)).toEqual([2, 1, 1]);
 
         const vocab = { theme: ['uprising'], occasion: ['party', 'rally'] };
@@ -235,7 +235,7 @@ test('real browser: rate, strike a tag, add vocab + new tags -> issue body parse
     const row = page.locator('li.row[data-id="i-am-spartacus"]');
 
     await expect(page.locator('#submit')).toBeDisabled();
-    await row.locator('.stars button').nth(4).click();
+    await row.locator('.starrow[data-kind="love"] button').nth(4).click();
     await row.locator('.chip', { hasText: existing }).first().click();
     await expect(row.locator('.chip.rm')).toHaveText(existing);
 
@@ -246,7 +246,7 @@ test('real browser: rate, strike a tag, add vocab + new tags -> issue body parse
     await row.locator('.tags input').fill('Big Tent');
     await row.locator('.tags input').press('Enter');
     await expect(row.locator('.chip.add')).toHaveText(['+rally', '+big-tent']);
-    await expect(page.locator('#ratedCount')).toHaveText('1 rated · 3 tag edits');
+    await expect(page.locator('#ratedCount')).toHaveText('1 rated · 3 tag edits · 0 skipped');
 
     // A tag-only edit on a second row also counts.
     const row2 = page.locator('li.row[data-id="sweet-caroline"]');
@@ -260,7 +260,7 @@ test('real browser: rate, strike a tag, add vocab + new tags -> issue body parse
     const body = new URL(url).searchParams.get('body');
     const parsed = ratings.parseIssueBody(body);
     expect(parsed.rater).toBe('@drive');
-    const want = [{ id: 'i-am-spartacus', stars: 5, add: ['rally', 'big-tent'], remove: [existing] }];
+    const want = [{ id: 'i-am-spartacus', love: 5, add: ['rally', 'big-tent'], remove: [existing] }];
     want.push({ id: 'sweet-caroline', add: ['vigil'] });
     expect(parsed.entries).toEqual(expect.arrayContaining(want));
     expect(parsed.entries).toHaveLength(want.length);
@@ -271,7 +271,7 @@ test('real browser: work survives navigating away and back; Start over clears it
     await page.goto('/rate.html');
     const row = page.locator('li.row[data-id="i-am-spartacus"]');
     await page.locator('#rater').fill('@jess');
-    await row.locator('.stars button').nth(3).click();
+    await row.locator('.starrow[data-kind="love"] button').nth(3).click();
     await row.locator('.chip.plus').click();
     await row.locator('.tags input').fill('vigil');
     await row.locator('.tags input').press('Enter');
@@ -279,15 +279,166 @@ test('real browser: work survives navigating away and back; Start over clears it
     // The accidental-navigation case: leave, then hit Back.
     await page.goto('/help.html');
     await page.goBack();
-    await expect(page.locator('#ratedCount')).toHaveText('1 rated \u00b7 1 tag edit');
+    await expect(page.locator('#ratedCount')).toHaveText('1 rated \u00b7 1 tag edit \u00b7 0 skipped');
     await expect(page.locator('#rater')).toHaveValue('@jess');
-    await expect(row.locator('.stars button.on')).toHaveCount(4);
+    await expect(row.locator('.starrow[data-kind="love"] button.on')).toHaveCount(4);
     await expect(row.locator('.chip.add')).toHaveText(['+vigil']);
     await expect(page.locator('#countNote')).toContainText('Picked up where you left off');
 
     page.once('dialog', (d) => d.accept());
     await page.locator('#startOver').click();
-    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits');
+    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits \u00b7 0 skipped');
     await page.reload();
-    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits');
+    await expect(page.locator('#ratedCount')).toHaveText('0 rated \u00b7 0 tag edits \u00b7 0 skipped');
+});
+
+// --- v2: Known/Love star rows, skip-for-later, notes, context ----------------
+
+test('v2 parse: k/l/skip tokens, legacy bare stars, and the conductor-notes fence', () => {
+    const F = '`'.repeat(3);
+    const body = [
+        'Some prose.',
+        F + 'conductor-ratings',
+        'rater: @v2',
+        'i-am-spartacus: k5 l5 +solidarity',
+        'ye-are-many: k2 l5',
+        'mad-as-hell: skip',
+        'governments-afraid: k3',
+        'free-at-last: 4',
+        'bad-line: k9',
+        F,
+        '',
+        F + 'conductor-notes',
+        'ye-are-many: never heard it, love it now',
+        'general: more sports chants please',
+        F,
+    ].join('\n');
+    const parsed = ratings.parseIssueBody(body);
+    expect(parsed.rater).toBe('@v2');
+    expect(parsed.entries).toEqual([
+        { id: 'i-am-spartacus', known: 5, love: 5, add: ['solidarity'] },
+        { id: 'ye-are-many', known: 2, love: 5 },
+        { id: 'mad-as-hell', skip: true },
+        { id: 'governments-afraid', known: 3 },
+        { id: 'free-at-last', love: 4 },
+    ]);
+    expect(parsed.notes).toEqual([
+        { id: 'ye-are-many', text: 'never heard it, love it now' },
+        { id: 'general', text: 'more sports chants please' },
+    ]);
+    // A notes fence alone is never mistaken for ratings.
+    const notesOnly = ratings.parseIssueBody(F + 'conductor-notes\nx: hi\n' + F);
+    expect(notesOnly.entries).toEqual([]);
+    expect(notesOnly.notes).toEqual([{ id: 'x', text: 'hi' }]);
+});
+
+test('v2 ledger: stars = mean of known/love; skip records nothing; tag-only = 3; notes latest-wins', () => {
+    const ledger = { version: 1, ratings: {}, ingests: [] }; // legacy ledger: no notes key
+    const r = ratings.applyToLedger(ledger, { rater: '@a', entries: [
+        { id: 'both', known: 1, love: 5 },
+        { id: 'k-only', known: 2 },
+        { id: 'l-only', love: 4 },
+        { id: 'skipped', skip: true, add: ['vigil'] },
+        { id: 'tag-only', add: ['rally'] },
+    ], notes: [{ id: 'both', text: 'first' }, { id: 'general', text: 'g1' }] }, { issue: 7 });
+    expect(r).toEqual({ applied: 4, replaced: 0, tagEdits: 2, skipped: 1, notes: 2 });
+
+    const s = ratings.stats(ledger);
+    expect(s.both).toEqual({ mean: 3, count: 1, knownMean: 1, loveMean: 5 });
+    expect(s['k-only']).toEqual({ mean: 2, count: 1, knownMean: 2 });
+    expect(s['l-only']).toEqual({ mean: 4, count: 1, loveMean: 4 });
+    expect(s['tag-only']).toEqual({ mean: 3, count: 1 });
+    expect(s.skipped).toBeUndefined();                         // skip is never a 3
+    expect(ledger.tagVotes.skipped[0].add).toEqual(['vigil']); // but its tag edits count
+    expect(ledger.ratings.both[0]).toMatchObject({ rater: '@a', known: 1, love: 5, stars: 3, issue: 7 });
+
+    ratings.applyToLedger(ledger, { rater: '@a', entries: [], notes: [{ id: 'both', text: 'second' }] }, { issue: 8 });
+    ratings.applyToLedger(ledger, { rater: '@b', entries: [], notes: [{ id: 'both', text: 'other' }] }, { issue: 9 });
+    expect(ledger.notes.both.map((n) => [n.rater, n.text, n.issue])).toEqual([['@a', 'second', 8], ['@b', 'other', 9]]);
+    expect(ledger.notes.general[0].text).toBe('g1');
+});
+
+test('rate page bakes context for descriptor entries', () => {
+    const html = genRate.buildPage(touchstones.all());
+    const baked = eval(html.match(/const ENTRIES = (\[[\s\S]*?\]);/)[1]); // eslint-disable-line no-eval
+    const ladder = baked.find((e) => e.id === 'escalation-ladder');
+    expect(ladder.context).toContain('First they ignore you');
+    expect(baked.filter((e) => e.context).length).toBeGreaterThanOrEqual(21);
+    expect(baked.find((e) => e.id === 'i-am-spartacus').context).toBe('');
+    expect(html).toContain('conductor-notes');
+});
+
+test('real browser v2: known+love, skip, notes survive Back; Skipped filter; body round-trips', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one real-browser drive is enough');
+    await page.addInitScript(() => { window.open = (url) => { window.__opened = url; return null; }; });
+    await page.goto('/rate.html');
+    const row = (id) => page.locator(`li.row[data-id="${id}"]`);
+    const stars = (id, kind) => row(id).locator(`.starrow[data-kind="${kind}"] button`);
+
+    await expect(row('escalation-ladder').locator('.ctx')).toContainText('First they ignore you');
+    await stars('ye-are-many', 'known').nth(1).click(); // k2
+    await stars('ye-are-many', 'love').nth(4).click();  // l5
+    await stars('free-at-last', 'love').nth(3).click(); // l4 only
+    await row('mad-as-hell').locator('.skipbtn').click();
+    await expect(row('mad-as-hell')).toHaveClass(/skipped/);
+    await row('ye-are-many').locator('.notebtn').click();
+    await row('ye-are-many').locator('.rownote input').fill('never heard it,   love it now');
+    await page.locator('#general').fill('more chants\nplease');
+    await page.locator('#rater').fill('@v2drive');
+    await expect(page.locator('#ratedCount')).toHaveText('2 rated · 0 tag edits · 1 skipped');
+
+    await page.goto('/help.html');
+    await page.goBack();
+    await expect(page.locator('#ratedCount')).toHaveText('2 rated · 0 tag edits · 1 skipped');
+    await expect(row('ye-are-many').locator('.starrow[data-kind="known"] button.on')).toHaveCount(2);
+    await expect(row('ye-are-many').locator('.starrow[data-kind="love"] button.on')).toHaveCount(5);
+    await expect(row('ye-are-many').locator('.rownote input')).toHaveValue(/never heard it/);
+    await expect(page.locator('#general')).toHaveValue('more chants\nplease');
+    await expect(row('mad-as-hell')).toHaveClass(/skipped/);
+
+    await page.locator('#show').selectOption('skipped');
+    await expect(page.locator('li.row')).toHaveCount(1);
+    await expect(page.locator('li.row')).toHaveAttribute('data-id', 'mad-as-hell');
+    await page.locator('#show').selectOption('all');
+
+    await page.locator('#submit').click();
+    const body = new URL(await page.evaluate(() => window.__opened)).searchParams.get('body');
+    const parsed = ratings.parseIssueBody(body);
+    expect(parsed.rater).toBe('@v2drive');
+    expect(parsed.entries).toEqual(expect.arrayContaining([
+        { id: 'ye-are-many', known: 2, love: 5 },
+        { id: 'free-at-last', love: 4 },
+        { id: 'mad-as-hell', skip: true },
+    ]));
+    expect(parsed.entries).toHaveLength(3);
+    expect(parsed.notes).toEqual([
+        { id: 'ye-are-many', text: 'never heard it, love it now' },
+        { id: 'general', text: 'more chants please' },
+    ]);
+
+    page.once('dialog', (d) => d.accept());
+    await page.locator('#startOver').click();
+    await expect(page.locator('#ratedCount')).toHaveText('0 rated · 0 tag edits · 0 skipped');
+    await expect(page.locator('#general')).toHaveValue('');
+    await expect(page.locator('#submit')).toBeDisabled();
+});
+
+test('real browser v2: an old single-row save loads as Love', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one real-browser drive is enough');
+    await page.addInitScript(() => {
+        if (!sessionStorage.getItem('seeded')) {
+            sessionStorage.setItem('seeded', '1');
+            localStorage.setItem('conductor-rate-v1', JSON.stringify({
+                rater: '@old',
+                ratings: { 'i-am-spartacus': 4 },
+                tagEdits: { 'i-am-spartacus': { add: ['vigil'], remove: [] } },
+            }));
+        }
+    });
+    await page.goto('/rate.html');
+    const row = page.locator('li.row[data-id="i-am-spartacus"]');
+    await expect(row.locator('.starrow[data-kind="love"] button.on')).toHaveCount(4);
+    await expect(row.locator('.starrow[data-kind="known"] button.on')).toHaveCount(0);
+    await expect(page.locator('#ratedCount')).toHaveText('1 rated · 1 tag edit · 0 skipped');
+    await expect(page.locator('#rater')).toHaveValue('@old');
 });
