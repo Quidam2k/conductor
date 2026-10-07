@@ -152,3 +152,116 @@ test('pick({useRatings:true}) is opt-in and runs against the committed ledger', 
     expect(rated.length).toBe(plain.length);
     for (const e of rated) expect(e).toHaveProperty('id');
 });
+
+// --- tag suggestions (add / remove / suggest tags on the rate page) ----------
+
+test('parseIssueBody reads +tag/-tag edits with and without stars; legacy lines unchanged', () => {
+    const body = [
+        '```conductor-ratings',
+        'rater: @tagger',
+        'i-am-spartacus: 5 +solidarity -uprising',
+        'sweet-caroline: +party +Sports_Event',
+        'mad-as-hell: 2',
+        'legacy 4 stars',
+        'junk: 3 notatag',
+        '```',
+    ].join('\n');
+    const parsed = ratings.parseIssueBody(body);
+    expect(parsed.rater).toBe('@tagger');
+    expect(parsed.entries).toEqual([
+        { id: 'i-am-spartacus', stars: 5, add: ['solidarity'], remove: ['uprising'] },
+        { id: 'sweet-caroline', add: ['party', 'sports-event'] },
+        { id: 'mad-as-hell', stars: 2 },
+        { id: 'legacy', stars: 4 },
+    ]);
+});
+
+test('normalizeTag lowercases and kebabs free text', () => {
+    expect(ratings.normalizeTag('  Big Tent!! ')).toBe('big-tent');
+    expect(ratings.normalizeTag('Sports_Event')).toBe('sports-event');
+    expect(ratings.normalizeTag('---')).toBe('');
+});
+
+test('tag votes round-trip through a ledger; latest per rater wins; stars untouched by tag-only lines', () => {
+    const tmp = path.join(os.tmpdir(), `ts-tagvotes-${Date.now()}.json`);
+    try {
+        const ledger = { version: 1, ratings: {}, ingests: [] }; // legacy ledger: no tagVotes key
+        const r1 = ratings.applyToLedger(ledger, { rater: '@a', entries: [
+            { id: 'x', stars: 4, add: ['party'] },
+            { id: 'y', add: ['brand-new-tag'], remove: ['uprising'] },
+        ] }, { issue: 10 });
+        expect(r1).toEqual({ applied: 1, replaced: 0, tagEdits: 2 });
+        // Same rater revises their x tags: replaces, doesn't stack.
+        ratings.applyToLedger(ledger, { rater: '@a', entries: [{ id: 'x', add: ['rally'] }] }, { issue: 11 });
+        ratings.applyToLedger(ledger, { rater: '@b', entries: [{ id: 'y', add: ['brand-new-tag'] }] }, { issue: 12 });
+
+        ratings.save(ledger, tmp);
+        const reloaded = ratings.load(tmp);
+        expect(reloaded.tagVotes.x).toHaveLength(1);
+        expect(reloaded.tagVotes.x[0]).toMatchObject({ rater: '@a', add: ['rally'], remove: [], issue: 11 });
+        expect(ratings.stats(reloaded).x).toEqual({ mean: 4, count: 1 }); // tag-only re-submit kept the stars
+        expect(reloaded.ingests.map((i) => i.tagEdits)).toEqual([2, 1, 1]);
+
+        const vocab = { theme: ['uprising'], occasion: ['party', 'rally'] };
+        const sugg = ratings.tagSuggestions(1, reloaded, vocab);
+        expect(sugg.x).toEqual({ rally: { add: 1, remove: 0, inVocab: true, dim: 'occasion' } });
+        expect(sugg.y['brand-new-tag']).toEqual({ add: 2, remove: 0, inVocab: false, dim: null }); // NEW
+        expect(sugg.y.uprising).toEqual({ add: 0, remove: 1, inVocab: true, dim: 'theme' });
+        // minVotes filters out single votes.
+        expect(Object.keys(ratings.tagSuggestions(2, reloaded, vocab))).toEqual(['y']);
+    } finally {
+        if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    }
+});
+
+test('rate page bakes the tag vocabulary and per-entry tag lists', () => {
+    const html = genRate.buildPage(touchstones.all(), touchstones.vocabulary());
+    const vm = html.match(/const VOCAB = (\{[\s\S]*?\});/);
+    expect(vm, 'rate page should carry a VOCAB literal').toBeTruthy();
+    expect(JSON.parse(vm[1])).toEqual(touchstones.vocabulary());
+    const baked = eval(html.match(/const ENTRIES = (\[[\s\S]*?\]);/)[1]); // eslint-disable-line no-eval
+    const sparta = baked.find((e) => e.id === 'i-am-spartacus');
+    expect(sparta.tags.length).toBeGreaterThan(0);
+    expect(html).toContain('New tag names are welcome');
+});
+
+test('real browser: rate, strike a tag, add vocab + new tags -> issue body parses back', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one real-browser drive is enough');
+    await page.addInitScript(() => { window.open = (url) => { window.__opened = url; return null; }; });
+    await page.goto('/rate.html');
+    const lib = touchstones.all();
+    const target = lib.find((e) => e.id === 'i-am-spartacus');
+    const existing = genRate.flatTags(target.tags)[0];
+    const row = page.locator('li.row[data-id="i-am-spartacus"]');
+
+    await expect(page.locator('#submit')).toBeDisabled();
+    await row.locator('.stars button').nth(4).click();
+    await row.locator('.chip', { hasText: existing }).first().click();
+    await expect(row.locator('.chip.rm')).toHaveText(existing);
+
+    await row.locator('.chip.plus').click();
+    await row.locator('.tags input').fill('rally');
+    await row.locator('.tags input').press('Enter');
+    await row.locator('.chip.plus').click();
+    await row.locator('.tags input').fill('Big Tent');
+    await row.locator('.tags input').press('Enter');
+    await expect(row.locator('.chip.add')).toHaveText(['+rally', '+big-tent']);
+    await expect(page.locator('#ratedCount')).toHaveText('1 rated · 3 tag edits');
+
+    // A tag-only edit on a second row also counts.
+    const row2 = page.locator('li.row[data-id="sweet-caroline"]');
+    await row2.locator('.chip.plus').click();
+    await row2.locator('.tags input').fill('vigil');
+    await row2.locator('.tags input').press('Enter');
+
+    await page.locator('#rater').fill('@drive');
+    await page.locator('#submit').click();
+    const url = await page.evaluate(() => window.__opened);
+    const body = new URL(url).searchParams.get('body');
+    const parsed = ratings.parseIssueBody(body);
+    expect(parsed.rater).toBe('@drive');
+    const want = [{ id: 'i-am-spartacus', stars: 5, add: ['rally', 'big-tent'], remove: [existing] }];
+    want.push({ id: 'sweet-caroline', add: ['vigil'] });
+    expect(parsed.entries).toEqual(expect.arrayContaining(want));
+    expect(parsed.entries).toHaveLength(want.length);
+});
