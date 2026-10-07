@@ -1,6 +1,2173 @@
 {
   "version": 1,
   "description": "Community ratings for touchstone entries in data/touchstones.json. Fed by async helpers via docs/rate.html (prefilled GitHub issue) and folded in with `node scripts/touchstone-ratings.js ingest`. Source of truth for the wheat/chaff feedback loop: scripts/touchstones.js pick({useRatings:true}) floats high-rated entries up; lowRated() lists drop-candidates. Unrated entries score 3 by convention. Human-editable, git-diffable.",
-  "ratings": {},
-  "ingests": []
+  "ratings": {
+    "i-am-spartacus": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "never-take-our-freedom": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "mad-as-hell": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "governments-afraid": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "escalation-ladder": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "ye-are-many": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 3,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "free-at-last": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "rosa-parks": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 3,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "niemoller-first-they-came": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "torches-and-pitchforks": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 3,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 3,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "milgram-requires-continue": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "just-following-orders": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "darmok-jalad-tanagra": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "temba-his-arms-wide": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "shaka-when-the-walls-fell": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "sokath-his-eyes-uncovered": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "tears-in-rain": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "ill-be-right-here": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "do-not-go-gentle": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "so-it-goes": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "live-in-hearts": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "he-lives-in-you": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "this-is-sparta": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "ill-be-back": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "you-shall-not-pass": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "may-the-force": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "heres-johnny": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "wilhelm-scream": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "wubba-lubba-dub-dub": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "say-hello-little-friend": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "frankly-my-dear": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "heres-looking-at-you": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "houston-we-have-a-problem": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "gonna-need-bigger-boat": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "king-of-the-world": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "cant-handle-the-truth": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "no-place-like-home": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-see-dead-people": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 2,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "to-infinity-and-beyond": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "run-forrest-run": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "hasta-la-vista": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "do-or-do-not": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "live-long-and-prosper": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "why-so-serious": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "its-a-trap": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "great-power-responsibility": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-volunteer-as-tribute": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "winter-is-coming": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "this-is-the-way": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "yippee-ki-yay": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "show-me-the-money": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "one-does-not-simply": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "ask-not-what": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "only-thing-we-fear": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "four-score": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-have-a-dream": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "tear-down-this-wall": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "one-small-step": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "give-me-liberty": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "fight-on-the-beaches": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "blood-toil-tears-sweat": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "workers-unite": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "veni-vidi-vici": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-am-not-a-crook": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "yes-we-can": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "no-justice-no-peace": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "whose-streets": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "people-united": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "hell-no-wont-go": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "we-shall-overcome": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "what-do-we-want": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "make-love-not-war": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "power-to-the-people": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "we-will-rock-you": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "dont-stop-believin": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "eye-of-the-tiger": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "livin-on-a-prayer": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "let-it-go": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-will-survive": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "sweet-caroline": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "hey-jude-nanana": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "ymca": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "bohemian-rhapsody-opening": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "smells-like-teen-spirit-hook": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "we-are-family": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "ole-ole-ole": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "defense-chant": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "lets-go-chant": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "mvp-chant": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "nananana-goodbye": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "just-do-it": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "think-different": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "wheres-the-beef": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "be-all-you-can-be": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "finger-lickin-good": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "yabba-dabba-doo": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "cowabunga": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "by-the-power-of-grayskull": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "doh": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "bazinga": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "meep-meep": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "whats-up-doc": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "thats-all-folks": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "excellent-burns": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "to-boldly-go": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "resistance-is-futile": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "you-talking-to-me": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "be-excellent": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "offer-cant-refuse": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "et-phone-home": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "go-ahead-make-my-day": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "great-scott": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "roads-dont-need": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "wax-on-wax-off": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "nobody-puts-baby": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "inigo-montoya": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "as-you-wish": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "inconceivable": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "my-precious": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "tis-but-a-scratch": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "im-not-dead-yet": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "we-are-the-knights-who-say-ni": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "yada-yada": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 4,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "truth-is-out-there": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "carpe-diem": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "oh-captain-my-captain": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "make-it-so": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "beam-me-up": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "red-pill": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "there-is-no-spoon": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "use-the-force": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-am-groot": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "imagine": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "what-a-wonderful-world": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "circle-of-life": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "youve-got-a-friend": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "somewhere-over-the-rainbow": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "elementary-my-dear": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-think-therefore-i-am": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "never-gonna-give-you-up": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "we-dont-need-no-education": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "another-one-bites-the-dust": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "more-cowbell": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "all-your-base": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "in-space-no-one-hears": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "im-walking-here": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "you-had-me-at-hello": [
+      {
+        "rater": "@Teafaerie",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "you-know-nothing": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "si-se-puede": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "got-milk": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "taste-the-rainbow": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "no-soup-for-you": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-want-to-believe": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-am-iron-man": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "welcome-to-the-jungle": [
+      {
+        "rater": "Todd",
+        "stars": 5,
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ]
+  },
+  "ingests": [
+    {
+      "issue": 3,
+      "rater": "@Teafaerie",
+      "at": "2026-10-07T02:42:53.120Z",
+      "applied": 147,
+      "replaced": 0,
+      "tagEdits": 3,
+      "tagOnlyAsThree": 2
+    },
+    {
+      "issue": 4,
+      "rater": "Todd",
+      "at": "2026-10-07T02:42:53.123Z",
+      "applied": 123,
+      "replaced": 0,
+      "tagEdits": 16,
+      "tagOnlyAsThree": 1
+    }
+  ],
+  "tagVotes": {
+    "rosa-parks": [
+      {
+        "rater": "@Teafaerie",
+        "add": [
+          "raceism"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      }
+    ],
+    "torches-and-pitchforks": [
+      {
+        "rater": "@Teafaerie",
+        "add": [
+          "violent"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "add": [
+          "violent"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "just-following-orders": [
+      {
+        "rater": "@Teafaerie",
+        "add": [
+          "authoritarian"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.120Z",
+        "issue": 3
+      },
+      {
+        "rater": "Todd",
+        "add": [
+          "nazi",
+          "authoritarian"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "i-am-spartacus": [
+      {
+        "rater": "Todd",
+        "add": [
+          "solidarity"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "never-take-our-freedom": [
+      {
+        "rater": "Todd",
+        "add": [
+          "potentially-problematic"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "mad-as-hell": [
+      {
+        "rater": "Todd",
+        "add": [
+          "rage",
+          "energetic"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "governments-afraid": [
+      {
+        "rater": "Todd",
+        "add": [
+          "anti-authoritarian"
+        ],
+        "remove": [
+          "anthemic"
+        ],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "free-at-last": [
+      {
+        "rater": "Todd",
+        "add": [
+          "racism",
+          "nonviolence"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "niemoller-first-they-came": [
+      {
+        "rater": "Todd",
+        "add": [
+          "escalation"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "shaka-when-the-walls-fell": [
+      {
+        "rater": "Todd",
+        "add": [
+          "star-trek",
+          "metaphor"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "tears-in-rain": [
+      {
+        "rater": "Todd",
+        "add": [
+          "ai",
+          "robot"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "so-it-goes": [
+      {
+        "rater": "Todd",
+        "add": [
+          "time",
+          "wwii"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "this-is-sparta": [
+      {
+        "rater": "Todd",
+        "add": [
+          "violence"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "say-hello-little-friend": [
+      {
+        "rater": "Todd",
+        "add": [
+          "violence",
+          "crime"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "frankly-my-dear": [
+      {
+        "rater": "Todd",
+        "add": [
+          "racism",
+          "the-south"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "taste-the-rainbow": [
+      {
+        "rater": "Todd",
+        "add": [
+          "pride"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ],
+    "more-cowbell": [
+      {
+        "rater": "Todd",
+        "add": [
+          "call-and-response"
+        ],
+        "remove": [],
+        "at": "2026-10-07T02:42:53.123Z",
+        "issue": 4
+      }
+    ]
+  }
 }
