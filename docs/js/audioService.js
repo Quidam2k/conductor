@@ -419,7 +419,34 @@ function createAudioService() {
             result = result.filter(s => s < gapSec);
             if (result.length === 0) result = null;
         }
-        return result;
+        // [] is an explicit "no countdown" ([no-countdown] tag) — same as none.
+        return (result && result.length > 0) ? result : null;
+    }
+
+    /** @type {WeakMap<Object, string>} randomCues pick per action object. */
+    const randomPicks = new WeakMap();
+
+    /**
+     * The cue an action actually plays. A `randomCues` action picks one take
+     * (among the takes the pack actually has) the first time it's asked and
+     * remembers it, so the bake and the screen-on trigger play the same take.
+     * Repeat-expanded cycles are separate objects, so each cycle picks anew.
+     * @param {TimelineAction} action
+     * @param {function(string, string): boolean} [has=null] - (packId, cueId) →
+     *     present; defaults to the wired resource-pack existence check
+     * @returns {string|null}
+     */
+    function effectiveCue(action, has = null) {
+        if (!action.randomCues || action.randomCues.length === 0 || !action.pack) {
+            return action.cue || null;
+        }
+        if (!randomPicks.has(action)) {
+            const check = has || (resourcePackHasCue ? (p, c) => resourcePackHasCue(c, p) : null);
+            const present = check ? action.randomCues.filter(c => check(action.pack, c)) : [];
+            const pool = present.length > 0 ? present : action.randomCues;
+            randomPicks.set(action, pool[Math.floor(Math.random() * pool.length)]);
+        }
+        return randomPicks.get(action);
     }
 
     // Beep envelope lengths — kept here so the live path (playCountdownBeep /
@@ -505,11 +532,12 @@ function createAudioService() {
             // Trigger pack cue — the clip itself, played at the downbeat in BOTH
             // modes when the resolver has it (cue mode alongside the beep; clip mode
             // alone). This is the line that survives a locked screen.
-            if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
+            const cueId = effectiveCue(action, hasCue);
+            if (cueId && action.pack && hasCue && hasCue(action.pack, cueId)) {
                 events.push({
                     offsetSec: (triggerMs - startMs) / 1000,
-                    kind: 'packCue', packId: action.pack, cueId: action.cue,
-                    bufferKey: action.pack + ':' + action.cue,
+                    kind: 'packCue', packId: action.pack, cueId,
+                    bufferKey: action.pack + ':' + cueId,
                 });
             }
 
@@ -527,8 +555,9 @@ function createAudioService() {
                 const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
                 const clips = [{ packId: action.pack, cueId: 'prep-lead' }];
                 for (const m of members) {
-                    if (m.cue && m.pack && hasCue(m.pack, m.cue)) {
-                        clips.push({ packId: m.pack, cueId: m.cue });
+                    const mCue = effectiveCue(m, hasCue);
+                    if (mCue && m.pack && hasCue(m.pack, mCue)) {
+                        clips.push({ packId: m.pack, cueId: mCue });
                     }
                 }
                 if (clips.length >= 2) {
@@ -699,18 +728,15 @@ function createAudioService() {
                 announced.add(key);
 
                 // Clip mode: no trigger beep, no countdown keys to reconcile — the
-                // speaker plays the clip itself. random take → resolveAudioCue;
-                // single cue → playPackCue (bake-safe); no clip → speak the full
+                // speaker plays the clip itself. Pack clip (the one random take
+                // effectiveCue chose, or the single cue) → playPackCue
+                // (bake-safe); no clip → speak the full
                 // line naturally (screen-on, unbakeable). No trailing "!" and
                 // normal rate: clip lines are full sentences, not shouted cues.
                 if (isClip) {
-                    if (action.randomCues && action.randomCues.length > 0 && action.pack) {
-                        const spoken = resolveAudioCue(action, 'trigger', speedMultiplier);
-                        if (spoken !== null) speak(spoken, 1.2 * speedMultiplier);
-                        return 'clip-random: "' + (action.action || 'clip') + '"';
-                    }
-                    if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
-                        return 'clip-pack: "' + action.cue + '"';
+                    const clipCue = effectiveCue(action);
+                    if (clipCue && action.pack && playPackCue(clipCue, action.pack, speedMultiplier)) {
+                        return 'clip-pack: "' + clipCue + '"';
                     }
                     const line = action.fallbackText || action.action || '';
                     if (line) speak(line, 1.2 * speedMultiplier);
@@ -724,8 +750,9 @@ function createAudioService() {
                 }
 
                 playTriggerBeep();
-                if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
-                    return 'trigger-pack: "' + action.cue + '"';
+                const triggerCue = effectiveCue(action);
+                if (triggerCue && action.pack && playPackCue(triggerCue, action.pack, speedMultiplier)) {
+                    return 'trigger-pack: "' + triggerCue + '"';
                 }
                 const triggerText = action.action || 'Go';
                 speak(triggerText + '!', 1.5 * speedMultiplier);
@@ -754,27 +781,10 @@ function createAudioService() {
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
     function resolveAudioCue(action, context, speed = 1) {
-        // Random cues — pick one at random
-        if (action.randomCues && action.randomCues.length > 0 && action.pack) {
-            const randomIndex = Math.floor(Math.random() * action.randomCues.length);
-            const cueId = action.randomCues[randomIndex];
-
-            // Try resource pack first
-            const randomPlayed = !!(resourcePackResolver && resourcePackResolver(cueId, action.pack, speed));
-            recordCueAttempt({
-                at: Date.now(), cueId, packId: action.pack, random: true,
-                outcome: randomPlayed ? 'played' : (resourcePackResolver ? 'missing-buffer' : 'no-resolver'),
-            });
-            if (randomPlayed) {
-                return null; // Resource pack played it
-            }
-        }
-
-        // Single cue
-        if (action.cue && action.pack) {
-            if (playPackCue(action.cue, action.pack, speed)) {
-                return null; // Resource pack played it (or it's in the baked track)
-            }
+        // Pack cue — the single cue, or the random take effectiveCue chose
+        const cueId = effectiveCue(action);
+        if (cueId && action.pack && playPackCue(cueId, action.pack, speed)) {
+            return null; // Resource pack played it (or it's in the baked track)
         }
 
         // Fallback to text
@@ -887,6 +897,7 @@ function createAudioService() {
         announceAction,
         resolveAudioCue,
         resolveCountdownBeeps,
+        effectiveCue,
         computeCueSchedule,
         haptic,
         playCountdownBeep,

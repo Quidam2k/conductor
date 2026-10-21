@@ -1090,7 +1090,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v65</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v66</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -2199,16 +2199,48 @@ function decodeEvent(encodedString) {
     try {
         const base64 = fromUrlSafeBase64(data);
         const compressed = base64ToBytes(base64);
-        const decompressed = pako.ungzip(compressed);
-        if (decompressed.length > 5 * 1024 * 1024) {
-            throw new Error('Event data too large (possible zip bomb)');
-        }
+        const decompressed = safeUngzip(compressed);
         const jsonString = new TextDecoder().decode(decompressed);
         const eventData = JSON.parse(jsonString);
         return validateAndComplete(eventData);
     } catch (e) {
         throw new Error('Failed to decode event: ' + e.message);
     }
+}
+
+const MAX_EVENT_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Gunzip with a hard output cap. Streams through pako.Inflate and aborts as
+ * soon as the output passes MAX_EVENT_BYTES, so a zip bomb is rejected before
+ * it is fully inflated into memory (checking length after pako.ungzip was too late).
+ * @param {Uint8Array} bytes
+ * @returns {Uint8Array}
+ * @throws {Error} If the data is too large or not valid gzip
+ */
+function safeUngzip(bytes) {
+    const inflator = new pako.Inflate();
+    const chunks = [];
+    let total = 0;
+    let tooLarge = false;
+    inflator.onData = (chunk) => {
+        if (tooLarge) return;
+        total += chunk.length;
+        if (total > MAX_EVENT_BYTES) { tooLarge = true; return; }
+        chunks.push(chunk);
+    };
+    // Feed in small slices so we can stop between them once the cap trips.
+    const SLICE = 16 * 1024;
+    for (let i = 0; i < bytes.length && !tooLarge; i += SLICE) {
+        inflator.push(bytes.subarray(i, i + SLICE), i + SLICE >= bytes.length);
+        if (inflator.err) throw new Error(inflator.msg || 'invalid compressed data');
+    }
+    if (tooLarge) throw new Error('Event data too large (possible zip bomb)');
+    if (!inflator.ended) throw new Error('truncated compressed data');
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
 }
 
 // ─── Encryption (AES-256-GCM) ────────────────────────────────────────────────
@@ -2310,10 +2342,7 @@ async function decodeEventEncrypted(encoded, password) {
         throw new Error('Wrong password');
     }
 
-    const decompressed = pako.ungzip(decrypted);
-    if (decompressed.length > 5 * 1024 * 1024) {
-        throw new Error('Event data too large (possible zip bomb)');
-    }
+    const decompressed = safeUngzip(decrypted);
     const jsonString = new TextDecoder().decode(decompressed);
     const eventData = JSON.parse(jsonString);
     return validateAndComplete(eventData);
@@ -2553,7 +2582,7 @@ function parseTextFormat(text) {
             // Determine countdownSeconds array
             let countdownSeconds = null;
             if (noCountdown) {
-                countdownSeconds = null;
+                countdownSeconds = []; // explicit off — null would fall through to the event default
             } else if (countdownDuration != null) {
                 countdownSeconds = Array.from({length: countdownDuration}, (_, i) => countdownDuration - i);
             } else if (countdown) {
@@ -2581,8 +2610,10 @@ function parseTextFormat(text) {
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
     if (!headers.start) throw new Error('Text format: missing required "Start:" header');
 
-    // Parse start time flexibly
-    const startDate = new Date(headers.start);
+    // Parse start time flexibly. Without an explicit offset the browser reads
+    // the string as ITS local time; when a Timezone: header is given, re-read
+    // the same wall clock in that zone instead.
+    const startDate = parseWallClock(headers.start, headers.timezone);
     if (isNaN(startDate.getTime())) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
     }
@@ -2594,7 +2625,7 @@ function parseTextFormat(text) {
     //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
-        const ru = new Date(headers.repeatuntil);
+        const ru = parseWallClock(headers.repeatuntil, headers.timezone);
         if (isNaN(ru.getTime())) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
@@ -2714,6 +2745,72 @@ function getCompressionStats(event) {
 }
 
 // ─── Utility ────────────────────────────────────────────────────────────────
+
+/**
+ * Convert a "YYYY-MM-DDTHH:MM" wall-clock time in an IANA timezone to a UTC
+ * ISO string. Iterates against Intl so DST offsets resolve correctly.
+ * @param {string} localStr - "YYYY-MM-DDTHH:MM"
+ * @param {string} timezone - IANA zone, e.g. "America/New_York"
+ * @returns {string} UTC ISO 8601
+ */
+function localDateTimeToUTC(localStr, timezone) {
+    const [datePart, timePart] = localStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+
+    // Initial guess: create a Date from UTC and adjust
+    let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+    // Use Intl to find what the local time would be at our guess
+    for (let i = 0; i < 3; i++) {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        });
+        const parts = {};
+        for (const p of fmt.formatToParts(guess)) {
+            parts[p.type] = parseInt(p.value);
+        }
+        // hour can be 24 in some locales meaning midnight
+        if (parts.hour === 24) parts.hour = 0;
+
+        // Compare full dates — a bare day-of-month diff breaks across month ends
+        const diffMs = Date.UTC(year, month - 1, day, hour, minute)
+            - Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+        if (diffMs === 0) break;
+        guess = new Date(guess.getTime() + diffMs);
+    }
+
+    return guess.toISOString();
+}
+
+/**
+ * Parse a text-format date. A string with an explicit offset ("Z", "+02:00")
+ * is taken as-is; otherwise, if a timezone is given, the browser-parsed
+ * wall-clock components are re-read in that zone (seconds preserved).
+ * @param {string} str
+ * @param {string} [timezone]
+ * @returns {Date} (Invalid Date if unparseable)
+ */
+function parseWallClock(str, timezone) {
+    const d = new Date(str);
+    if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})\s*$/i.test(str.trim())) return d;
+    const pad = (n) => String(n).padStart(2, '0');
+    // ISO-ish strings: take the written components directly, so a time that
+    // falls in the BROWSER's DST gap isn't normalized before conversion.
+    // Anything looser ("Nov 15 2026 7pm"): use the browser's local reading.
+    const m = str.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    const local = m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + pad(m[4]) + ':' + m[5]
+        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    const seconds = m ? Number(m[6] || 0) : d.getSeconds();
+    try {
+        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + seconds * 1000);
+    } catch (e) {
+        return d; // unknown zone name → keep the browser-local reading
+    }
+}
 
 /**
  * Remove null/undefined values from an object (shallow).
@@ -3431,7 +3528,34 @@ function createAudioService() {
             result = result.filter(s => s < gapSec);
             if (result.length === 0) result = null;
         }
-        return result;
+        // [] is an explicit "no countdown" ([no-countdown] tag) — same as none.
+        return (result && result.length > 0) ? result : null;
+    }
+
+    /** @type {WeakMap<Object, string>} randomCues pick per action object. */
+    const randomPicks = new WeakMap();
+
+    /**
+     * The cue an action actually plays. A `randomCues` action picks one take
+     * (among the takes the pack actually has) the first time it's asked and
+     * remembers it, so the bake and the screen-on trigger play the same take.
+     * Repeat-expanded cycles are separate objects, so each cycle picks anew.
+     * @param {TimelineAction} action
+     * @param {function(string, string): boolean} [has=null] - (packId, cueId) →
+     *     present; defaults to the wired resource-pack existence check
+     * @returns {string|null}
+     */
+    function effectiveCue(action, has = null) {
+        if (!action.randomCues || action.randomCues.length === 0 || !action.pack) {
+            return action.cue || null;
+        }
+        if (!randomPicks.has(action)) {
+            const check = has || (resourcePackHasCue ? (p, c) => resourcePackHasCue(c, p) : null);
+            const present = check ? action.randomCues.filter(c => check(action.pack, c)) : [];
+            const pool = present.length > 0 ? present : action.randomCues;
+            randomPicks.set(action, pool[Math.floor(Math.random() * pool.length)]);
+        }
+        return randomPicks.get(action);
     }
 
     // Beep envelope lengths — kept here so the live path (playCountdownBeep /
@@ -3517,11 +3641,12 @@ function createAudioService() {
             // Trigger pack cue — the clip itself, played at the downbeat in BOTH
             // modes when the resolver has it (cue mode alongside the beep; clip mode
             // alone). This is the line that survives a locked screen.
-            if (action.cue && action.pack && hasCue && hasCue(action.pack, action.cue)) {
+            const cueId = effectiveCue(action, hasCue);
+            if (cueId && action.pack && hasCue && hasCue(action.pack, cueId)) {
                 events.push({
                     offsetSec: (triggerMs - startMs) / 1000,
-                    kind: 'packCue', packId: action.pack, cueId: action.cue,
-                    bufferKey: action.pack + ':' + action.cue,
+                    kind: 'packCue', packId: action.pack, cueId,
+                    bufferKey: action.pack + ':' + cueId,
                 });
             }
 
@@ -3539,8 +3664,9 @@ function createAudioService() {
                 const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
                 const clips = [{ packId: action.pack, cueId: 'prep-lead' }];
                 for (const m of members) {
-                    if (m.cue && m.pack && hasCue(m.pack, m.cue)) {
-                        clips.push({ packId: m.pack, cueId: m.cue });
+                    const mCue = effectiveCue(m, hasCue);
+                    if (mCue && m.pack && hasCue(m.pack, mCue)) {
+                        clips.push({ packId: m.pack, cueId: mCue });
                     }
                 }
                 if (clips.length >= 2) {
@@ -3711,18 +3837,15 @@ function createAudioService() {
                 announced.add(key);
 
                 // Clip mode: no trigger beep, no countdown keys to reconcile — the
-                // speaker plays the clip itself. random take → resolveAudioCue;
-                // single cue → playPackCue (bake-safe); no clip → speak the full
+                // speaker plays the clip itself. Pack clip (the one random take
+                // effectiveCue chose, or the single cue) → playPackCue
+                // (bake-safe); no clip → speak the full
                 // line naturally (screen-on, unbakeable). No trailing "!" and
                 // normal rate: clip lines are full sentences, not shouted cues.
                 if (isClip) {
-                    if (action.randomCues && action.randomCues.length > 0 && action.pack) {
-                        const spoken = resolveAudioCue(action, 'trigger', speedMultiplier);
-                        if (spoken !== null) speak(spoken, 1.2 * speedMultiplier);
-                        return 'clip-random: "' + (action.action || 'clip') + '"';
-                    }
-                    if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
-                        return 'clip-pack: "' + action.cue + '"';
+                    const clipCue = effectiveCue(action);
+                    if (clipCue && action.pack && playPackCue(clipCue, action.pack, speedMultiplier)) {
+                        return 'clip-pack: "' + clipCue + '"';
                     }
                     const line = action.fallbackText || action.action || '';
                     if (line) speak(line, 1.2 * speedMultiplier);
@@ -3736,8 +3859,9 @@ function createAudioService() {
                 }
 
                 playTriggerBeep();
-                if (action.cue && action.pack && playPackCue(action.cue, action.pack, speedMultiplier)) {
-                    return 'trigger-pack: "' + action.cue + '"';
+                const triggerCue = effectiveCue(action);
+                if (triggerCue && action.pack && playPackCue(triggerCue, action.pack, speedMultiplier)) {
+                    return 'trigger-pack: "' + triggerCue + '"';
                 }
                 const triggerText = action.action || 'Go';
                 speak(triggerText + '!', 1.5 * speedMultiplier);
@@ -3766,27 +3890,10 @@ function createAudioService() {
      * @returns {string|null} Text to speak (null if resource pack handled it)
      */
     function resolveAudioCue(action, context, speed = 1) {
-        // Random cues — pick one at random
-        if (action.randomCues && action.randomCues.length > 0 && action.pack) {
-            const randomIndex = Math.floor(Math.random() * action.randomCues.length);
-            const cueId = action.randomCues[randomIndex];
-
-            // Try resource pack first
-            const randomPlayed = !!(resourcePackResolver && resourcePackResolver(cueId, action.pack, speed));
-            recordCueAttempt({
-                at: Date.now(), cueId, packId: action.pack, random: true,
-                outcome: randomPlayed ? 'played' : (resourcePackResolver ? 'missing-buffer' : 'no-resolver'),
-            });
-            if (randomPlayed) {
-                return null; // Resource pack played it
-            }
-        }
-
-        // Single cue
-        if (action.cue && action.pack) {
-            if (playPackCue(action.cue, action.pack, speed)) {
-                return null; // Resource pack played it (or it's in the baked track)
-            }
+        // Pack cue — the single cue, or the random take effectiveCue chose
+        const cueId = effectiveCue(action);
+        if (cueId && action.pack && playPackCue(cueId, action.pack, speed)) {
+            return null; // Resource pack played it (or it's in the baked track)
         }
 
         // Fallback to text
@@ -3899,6 +4006,7 @@ function createAudioService() {
         announceAction,
         resolveAudioCue,
         resolveCountdownBeeps,
+        effectiveCue,
         computeCueSchedule,
         haptic,
         playCountdownBeep,
@@ -7414,6 +7522,11 @@ function rebaseEventToNow(embeddedEvent) {
     if (rebased.endTime) {
         rebased.endTime = new Date(new Date(embeddedEvent.endTime).getTime() + delta).toISOString();
     }
+    // A repeat-until bound is wall-clock too — left alone, it would sit in the
+    // past and the restarted loop would stop after one cycle (or never start).
+    if (rebased.repeatUntil) {
+        rebased.repeatUntil = new Date(new Date(embeddedEvent.repeatUntil).getTime() + delta).toISOString();
+    }
 
     if (rebased.timeline) {
         for (const action of rebased.timeline) {
@@ -8235,10 +8348,9 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
-    // Precompute per-action gaps + grouping (reuse if already computed in practice)
-    if (!state.actionMeta || state.actionMeta.size === 0) {
-        state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
-    }
+    // Precompute per-action gaps + grouping. Always recompute: a cached map
+    // from practicing a different event would mis-group this one.
+    state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
 
     // Create timeline renderer
     const canvas = $('canvas-live');
@@ -8597,9 +8709,23 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
 
         // Wait for metadata so currentTime is settable, then skip the head that
         // already elapsed while baking — keeps cues aligned to the wall clock.
-        await new Promise((resolve) => {
-            const onReady = () => { el.removeEventListener('loadedmetadata', onReady); resolve(); };
+        // A bad blob fires error/abort instead — reject (or time out) so the
+        // catch below falls back to live audio rather than hanging Go Live.
+        await new Promise((resolve, reject) => {
+            let timer = null;
+            const done = (err) => {
+                clearTimeout(timer);
+                el.removeEventListener('loadedmetadata', onReady);
+                el.removeEventListener('error', onFail);
+                el.removeEventListener('abort', onFail);
+                err ? reject(err) : resolve();
+            };
+            const onReady = () => done();
+            const onFail = (e) => done(new Error('baked track ' + e.type));
             el.addEventListener('loadedmetadata', onReady);
+            el.addEventListener('error', onFail);
+            el.addEventListener('abort', onFail);
+            timer = setTimeout(() => done(new Error('baked track metadata timeout')), 10000);
             el.load();
         });
         const elapsed = (Date.now() - startWallMs) / 1000;
@@ -10399,39 +10525,18 @@ function addNewAction() {
 // EDITOR — Review & Share (Step 3)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function localDateTimeToUTC(localStr, timezone) {
-    // localStr is "YYYY-MM-DDTHH:MM"
-    // We need to interpret this as a time in the given timezone and convert to UTC
-    const [datePart, timePart] = localStr.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-
-    // Initial guess: create a Date from UTC and adjust
-    let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-
-    // Use Intl to find what the local time would be at our guess
-    for (let i = 0; i < 3; i++) {
-        const fmt = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: false,
-        });
-        const parts = {};
-        for (const p of fmt.formatToParts(guess)) {
-            parts[p.type] = parseInt(p.value);
-        }
-        // hour can be 24 in some locales meaning midnight
-        if (parts.hour === 24) parts.hour = 0;
-
-        const diffMin = (hour - parts.hour) * 60 + (minute - parts.minute);
-        const diffDay = day - parts.day;
-
-        if (diffMin === 0 && diffDay === 0) break;
-        guess = new Date(guess.getTime() + (diffMin + diffDay * 24 * 60) * 60000);
-    }
-
-    return guess.toISOString();
+/**
+ * Base URL for links we hand to other people. From a downloaded file:// copy,
+ * location.origin is "null" and the path is the sender's disk — useless to a
+ * recipient — so point at the public mirror instead.
+ * @returns {string}
+ */
+function shareBaseUrl() {
+    if (location.protocol === 'file:') return 'https://quidam2k.github.io/conductor/';
+    return location.origin + location.pathname;
 }
+
+// localDateTimeToUTC() lives in js/eventEncoder.js (shared with the text parser).
 
 /**
  * Guard the timeline before it leaves the editor. Two problems can be authored
@@ -10596,7 +10701,7 @@ function renderEditorReview() {
     // URL length warning
     try {
         const encoded = encodeEvent(evt);
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
         if (fullUrl.length > 2000) {
             $('share-feedback').textContent = 'Long URL — "Copy Event Code" recommended over link sharing.';
             $('share-feedback').style.color = 'var(--accent-gold)';
@@ -10674,7 +10779,7 @@ async function copyEventCode() {
 async function copyShareableLink() {
     if (!validateSharePassword()) return;
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     showShareFeedback(ok ? 'Link copied!' : 'Copy failed — try again.');
 }
@@ -10683,7 +10788,7 @@ async function webShareEvent() {
     if (!state.event || !validateSharePassword()) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',
@@ -11190,6 +11295,7 @@ $('btn-audio-toggle').addEventListener('click', toggleMute);
 // Go Live — from the preview screen, a peer of Start Practice. If the whole
 // event is already in the past (an old draft), offer a quick restart instead
 // of landing the user on "event completed".
+const LIVE_OPENS_BEFORE_MS = 20 * 60 * 1000;
 $('btn-go-live').addEventListener('click', () => {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
@@ -11202,6 +11308,21 @@ $('btn-go-live').addEventListener('click', () => {
         state.event = rebaseEventToNow(evt);
         state.actionMeta = null; // recompute from the rebased timeline
         renderPreview();
+    } else {
+        // Going live bakes the whole wait into the audio track (an hour early
+        // ≈ 170 MB) and drains the battery, so Live opens 20 min before the
+        // first upcoming cue. Practice is always available.
+        const nextMs = Math.min(...evt.timeline
+            .map(a => a.timeMs ?? new Date(a.time).getTime())
+            .filter(t => t >= now));
+        const opensMs = nextMs - LIVE_OPENS_BEFORE_MS;
+        if (now < opensMs) {
+            const opens = new Date(opensMs).toLocaleString([], {
+                weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            showBanner('preview-banner', 'Live opens at ' + opens
+                + ' (20 minutes before the first cue). Try Start Practice in the meantime.', 'info');
+            return;
+        }
     }
     transitionTo('live');
 });
@@ -11350,7 +11471,7 @@ async function showQRDisplay() {
 
     try {
         const encoded = await getShareEncoded();
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
 
         if (fullUrl.length > 2953) {
             warning.textContent = 'Event too large for QR code — use Copy Link or Share instead.';
@@ -11563,7 +11684,7 @@ $('btn-share-qr-practice').addEventListener('click', showQRDisplay);
 $('btn-qr-display-close').addEventListener('click', closeQRDisplay);
 $('btn-qr-display-copy-link').addEventListener('click', async () => {
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     const btn = $('btn-qr-display-copy-link');
     const orig = btn.textContent;
@@ -11574,7 +11695,7 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
     if (!state.event) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',

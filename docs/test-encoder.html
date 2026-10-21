@@ -577,7 +577,7 @@
             assert('9.5 no-notify: audioAnnounce false', ntParsed.timeline[2].audioAnnounce === false);
             assert('9.5 no-notify: noticeSeconds 0', ntParsed.timeline[2].noticeSeconds === 0);
             // no-countdown
-            assert('9.5 no-countdown: null countdown', ntParsed.timeline[3].countdownSeconds === null);
+            assert('9.5 no-countdown: explicit empty countdown', Array.isArray(ntParsed.timeline[3].countdownSeconds) && ntParsed.timeline[3].countdownSeconds.length === 0);
         } catch (e) {
             assert('9.5 New bracket tags', false, e.message);
         }

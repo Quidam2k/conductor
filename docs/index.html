@@ -1091,7 +1091,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v65</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v66</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -2046,6 +2046,11 @@ function rebaseEventToNow(embeddedEvent) {
     if (rebased.endTime) {
         rebased.endTime = new Date(new Date(embeddedEvent.endTime).getTime() + delta).toISOString();
     }
+    // A repeat-until bound is wall-clock too — left alone, it would sit in the
+    // past and the restarted loop would stop after one cycle (or never start).
+    if (rebased.repeatUntil) {
+        rebased.repeatUntil = new Date(new Date(embeddedEvent.repeatUntil).getTime() + delta).toISOString();
+    }
 
     if (rebased.timeline) {
         for (const action of rebased.timeline) {
@@ -2867,10 +2872,9 @@ async function enterLive() {
     // Cache endTime for per-frame completion check
     state.liveEndMs = new Date(evt.endTime).getTime();
 
-    // Precompute per-action gaps + grouping (reuse if already computed in practice)
-    if (!state.actionMeta || state.actionMeta.size === 0) {
-        state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
-    }
+    // Precompute per-action gaps + grouping. Always recompute: a cached map
+    // from practicing a different event would mis-group this one.
+    state.actionMeta = computeActionMeta(evt.timeline, evt.defaultNoticeSeconds);
 
     // Create timeline renderer
     const canvas = $('canvas-live');
@@ -3229,9 +3233,23 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
 
         // Wait for metadata so currentTime is settable, then skip the head that
         // already elapsed while baking — keeps cues aligned to the wall clock.
-        await new Promise((resolve) => {
-            const onReady = () => { el.removeEventListener('loadedmetadata', onReady); resolve(); };
+        // A bad blob fires error/abort instead — reject (or time out) so the
+        // catch below falls back to live audio rather than hanging Go Live.
+        await new Promise((resolve, reject) => {
+            let timer = null;
+            const done = (err) => {
+                clearTimeout(timer);
+                el.removeEventListener('loadedmetadata', onReady);
+                el.removeEventListener('error', onFail);
+                el.removeEventListener('abort', onFail);
+                err ? reject(err) : resolve();
+            };
+            const onReady = () => done();
+            const onFail = (e) => done(new Error('baked track ' + e.type));
             el.addEventListener('loadedmetadata', onReady);
+            el.addEventListener('error', onFail);
+            el.addEventListener('abort', onFail);
+            timer = setTimeout(() => done(new Error('baked track metadata timeout')), 10000);
             el.load();
         });
         const elapsed = (Date.now() - startWallMs) / 1000;
@@ -5031,39 +5049,18 @@ function addNewAction() {
 // EDITOR — Review & Share (Step 3)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function localDateTimeToUTC(localStr, timezone) {
-    // localStr is "YYYY-MM-DDTHH:MM"
-    // We need to interpret this as a time in the given timezone and convert to UTC
-    const [datePart, timePart] = localStr.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-
-    // Initial guess: create a Date from UTC and adjust
-    let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-
-    // Use Intl to find what the local time would be at our guess
-    for (let i = 0; i < 3; i++) {
-        const fmt = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: false,
-        });
-        const parts = {};
-        for (const p of fmt.formatToParts(guess)) {
-            parts[p.type] = parseInt(p.value);
-        }
-        // hour can be 24 in some locales meaning midnight
-        if (parts.hour === 24) parts.hour = 0;
-
-        const diffMin = (hour - parts.hour) * 60 + (minute - parts.minute);
-        const diffDay = day - parts.day;
-
-        if (diffMin === 0 && diffDay === 0) break;
-        guess = new Date(guess.getTime() + (diffMin + diffDay * 24 * 60) * 60000);
-    }
-
-    return guess.toISOString();
+/**
+ * Base URL for links we hand to other people. From a downloaded file:// copy,
+ * location.origin is "null" and the path is the sender's disk — useless to a
+ * recipient — so point at the public mirror instead.
+ * @returns {string}
+ */
+function shareBaseUrl() {
+    if (location.protocol === 'file:') return 'https://quidam2k.github.io/conductor/';
+    return location.origin + location.pathname;
 }
+
+// localDateTimeToUTC() lives in js/eventEncoder.js (shared with the text parser).
 
 /**
  * Guard the timeline before it leaves the editor. Two problems can be authored
@@ -5228,7 +5225,7 @@ function renderEditorReview() {
     // URL length warning
     try {
         const encoded = encodeEvent(evt);
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
         if (fullUrl.length > 2000) {
             $('share-feedback').textContent = 'Long URL — "Copy Event Code" recommended over link sharing.';
             $('share-feedback').style.color = 'var(--accent-gold)';
@@ -5306,7 +5303,7 @@ async function copyEventCode() {
 async function copyShareableLink() {
     if (!validateSharePassword()) return;
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     showShareFeedback(ok ? 'Link copied!' : 'Copy failed — try again.');
 }
@@ -5315,7 +5312,7 @@ async function webShareEvent() {
     if (!state.event || !validateSharePassword()) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',
@@ -5822,6 +5819,7 @@ $('btn-audio-toggle').addEventListener('click', toggleMute);
 // Go Live — from the preview screen, a peer of Start Practice. If the whole
 // event is already in the past (an old draft), offer a quick restart instead
 // of landing the user on "event completed".
+const LIVE_OPENS_BEFORE_MS = 20 * 60 * 1000;
 $('btn-go-live').addEventListener('click', () => {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
@@ -5834,6 +5832,21 @@ $('btn-go-live').addEventListener('click', () => {
         state.event = rebaseEventToNow(evt);
         state.actionMeta = null; // recompute from the rebased timeline
         renderPreview();
+    } else {
+        // Going live bakes the whole wait into the audio track (an hour early
+        // ≈ 170 MB) and drains the battery, so Live opens 20 min before the
+        // first upcoming cue. Practice is always available.
+        const nextMs = Math.min(...evt.timeline
+            .map(a => a.timeMs ?? new Date(a.time).getTime())
+            .filter(t => t >= now));
+        const opensMs = nextMs - LIVE_OPENS_BEFORE_MS;
+        if (now < opensMs) {
+            const opens = new Date(opensMs).toLocaleString([], {
+                weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            showBanner('preview-banner', 'Live opens at ' + opens
+                + ' (20 minutes before the first cue). Try Start Practice in the meantime.', 'info');
+            return;
+        }
     }
     transitionTo('live');
 });
@@ -5982,7 +5995,7 @@ async function showQRDisplay() {
 
     try {
         const encoded = await getShareEncoded();
-        const fullUrl = location.origin + location.pathname + '#' + encoded;
+        const fullUrl = shareBaseUrl() + '#' + encoded;
 
         if (fullUrl.length > 2953) {
             warning.textContent = 'Event too large for QR code — use Copy Link or Share instead.';
@@ -6195,7 +6208,7 @@ $('btn-share-qr-practice').addEventListener('click', showQRDisplay);
 $('btn-qr-display-close').addEventListener('click', closeQRDisplay);
 $('btn-qr-display-copy-link').addEventListener('click', async () => {
     const encoded = await getShareEncoded();
-    const url = location.origin + location.pathname + '#' + encoded;
+    const url = shareBaseUrl() + '#' + encoded;
     const ok = await copyToClipboard(url);
     const btn = $('btn-qr-display-copy-link');
     const orig = btn.textContent;
@@ -6206,7 +6219,7 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
     if (!state.event) return;
     try {
         const encoded = await getShareEncoded();
-        const url = location.origin + location.pathname + '#' + encoded;
+        const url = shareBaseUrl() + '#' + encoded;
         await navigator.share({
             title: state.event.title,
             text: state.event.description || 'Join this Conductor event!',

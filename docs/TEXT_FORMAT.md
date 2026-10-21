@@ -31,7 +31,7 @@ Put these at the top of the file, one per line:
 | `Description` | No | `Description: Meet by the fountain` |
 | `Timezone` | No | `Timezone: America/New_York` |
 
-If you leave out `Timezone`, it defaults to your browser's local timezone.
+If you leave out `Timezone`, it defaults to your browser's local timezone. When you give one, `Start` (and `RepeatUntil`) are read as clock times in that zone — `Start: 2026-11-15T19:00` with `Timezone: America/New_York` means 7 PM in New York wherever the phone is. A time ending in `Z` or an offset like `-05:00` is taken exactly as written.
 
 **Start time is flexible** — all of these work:
 - `2026-03-15 2:00 PM`

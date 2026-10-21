@@ -72,16 +72,48 @@ function decodeEvent(encodedString) {
     try {
         const base64 = fromUrlSafeBase64(data);
         const compressed = base64ToBytes(base64);
-        const decompressed = pako.ungzip(compressed);
-        if (decompressed.length > 5 * 1024 * 1024) {
-            throw new Error('Event data too large (possible zip bomb)');
-        }
+        const decompressed = safeUngzip(compressed);
         const jsonString = new TextDecoder().decode(decompressed);
         const eventData = JSON.parse(jsonString);
         return validateAndComplete(eventData);
     } catch (e) {
         throw new Error('Failed to decode event: ' + e.message);
     }
+}
+
+const MAX_EVENT_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Gunzip with a hard output cap. Streams through pako.Inflate and aborts as
+ * soon as the output passes MAX_EVENT_BYTES, so a zip bomb is rejected before
+ * it is fully inflated into memory (checking length after pako.ungzip was too late).
+ * @param {Uint8Array} bytes
+ * @returns {Uint8Array}
+ * @throws {Error} If the data is too large or not valid gzip
+ */
+function safeUngzip(bytes) {
+    const inflator = new pako.Inflate();
+    const chunks = [];
+    let total = 0;
+    let tooLarge = false;
+    inflator.onData = (chunk) => {
+        if (tooLarge) return;
+        total += chunk.length;
+        if (total > MAX_EVENT_BYTES) { tooLarge = true; return; }
+        chunks.push(chunk);
+    };
+    // Feed in small slices so we can stop between them once the cap trips.
+    const SLICE = 16 * 1024;
+    for (let i = 0; i < bytes.length && !tooLarge; i += SLICE) {
+        inflator.push(bytes.subarray(i, i + SLICE), i + SLICE >= bytes.length);
+        if (inflator.err) throw new Error(inflator.msg || 'invalid compressed data');
+    }
+    if (tooLarge) throw new Error('Event data too large (possible zip bomb)');
+    if (!inflator.ended) throw new Error('truncated compressed data');
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
 }
 
 // ─── Encryption (AES-256-GCM) ────────────────────────────────────────────────
@@ -183,10 +215,7 @@ async function decodeEventEncrypted(encoded, password) {
         throw new Error('Wrong password');
     }
 
-    const decompressed = pako.ungzip(decrypted);
-    if (decompressed.length > 5 * 1024 * 1024) {
-        throw new Error('Event data too large (possible zip bomb)');
-    }
+    const decompressed = safeUngzip(decrypted);
     const jsonString = new TextDecoder().decode(decompressed);
     const eventData = JSON.parse(jsonString);
     return validateAndComplete(eventData);
@@ -426,7 +455,7 @@ function parseTextFormat(text) {
             // Determine countdownSeconds array
             let countdownSeconds = null;
             if (noCountdown) {
-                countdownSeconds = null;
+                countdownSeconds = []; // explicit off — null would fall through to the event default
             } else if (countdownDuration != null) {
                 countdownSeconds = Array.from({length: countdownDuration}, (_, i) => countdownDuration - i);
             } else if (countdown) {
@@ -454,8 +483,10 @@ function parseTextFormat(text) {
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
     if (!headers.start) throw new Error('Text format: missing required "Start:" header');
 
-    // Parse start time flexibly
-    const startDate = new Date(headers.start);
+    // Parse start time flexibly. Without an explicit offset the browser reads
+    // the string as ITS local time; when a Timezone: header is given, re-read
+    // the same wall clock in that zone instead.
+    const startDate = parseWallClock(headers.start, headers.timezone);
     if (isNaN(startDate.getTime())) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
     }
@@ -467,7 +498,7 @@ function parseTextFormat(text) {
     //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
-        const ru = new Date(headers.repeatuntil);
+        const ru = parseWallClock(headers.repeatuntil, headers.timezone);
         if (isNaN(ru.getTime())) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
@@ -587,6 +618,72 @@ function getCompressionStats(event) {
 }
 
 // ─── Utility ────────────────────────────────────────────────────────────────
+
+/**
+ * Convert a "YYYY-MM-DDTHH:MM" wall-clock time in an IANA timezone to a UTC
+ * ISO string. Iterates against Intl so DST offsets resolve correctly.
+ * @param {string} localStr - "YYYY-MM-DDTHH:MM"
+ * @param {string} timezone - IANA zone, e.g. "America/New_York"
+ * @returns {string} UTC ISO 8601
+ */
+function localDateTimeToUTC(localStr, timezone) {
+    const [datePart, timePart] = localStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+
+    // Initial guess: create a Date from UTC and adjust
+    let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+    // Use Intl to find what the local time would be at our guess
+    for (let i = 0; i < 3; i++) {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        });
+        const parts = {};
+        for (const p of fmt.formatToParts(guess)) {
+            parts[p.type] = parseInt(p.value);
+        }
+        // hour can be 24 in some locales meaning midnight
+        if (parts.hour === 24) parts.hour = 0;
+
+        // Compare full dates — a bare day-of-month diff breaks across month ends
+        const diffMs = Date.UTC(year, month - 1, day, hour, minute)
+            - Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+        if (diffMs === 0) break;
+        guess = new Date(guess.getTime() + diffMs);
+    }
+
+    return guess.toISOString();
+}
+
+/**
+ * Parse a text-format date. A string with an explicit offset ("Z", "+02:00")
+ * is taken as-is; otherwise, if a timezone is given, the browser-parsed
+ * wall-clock components are re-read in that zone (seconds preserved).
+ * @param {string} str
+ * @param {string} [timezone]
+ * @returns {Date} (Invalid Date if unparseable)
+ */
+function parseWallClock(str, timezone) {
+    const d = new Date(str);
+    if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})\s*$/i.test(str.trim())) return d;
+    const pad = (n) => String(n).padStart(2, '0');
+    // ISO-ish strings: take the written components directly, so a time that
+    // falls in the BROWSER's DST gap isn't normalized before conversion.
+    // Anything looser ("Nov 15 2026 7pm"): use the browser's local reading.
+    const m = str.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    const local = m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + pad(m[4]) + ':' + m[5]
+        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    const seconds = m ? Number(m[6] || 0) : d.getSeconds();
+    try {
+        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + seconds * 1000);
+    } catch (e) {
+        return d; // unknown zone name → keep the browser-local reading
+    }
+}
 
 /**
  * Remove null/undefined values from an object (shallow).

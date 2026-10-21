@@ -369,6 +369,9 @@ test('screen transitions: all screens are reachable', async ({ page }) => {
     // 7. Live — v50: Go Live moved to the preview screen (peer of practice)
     await page.click('#btn-practice-stop');
     await waitForScreen(page, 'screen-preview');
+    // v66: Live opens 20 min before the first cue — the editor's default start
+    // can be further out, so pull the event to 1 min from now first.
+    await page.evaluate(() => { state.event = rebaseEventToNow(state.event); });
     await page.click('#btn-go-live');
     await waitForScreen(page, 'screen-live');
 
