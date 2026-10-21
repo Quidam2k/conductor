@@ -321,9 +321,12 @@ test('practice audio: telemetry row shows health and tap copies JSON', async ({ 
 
     // Row reflects the failed pack + unresolvable cue.
     const row = page.locator('#audio-debug-practice');
-    await expect(row).toContainText('packs 0/1', { timeout: 10000 });
-    await expect(row).toContainText('cues 0/1');
-    await expect(row).toContainText('beeps');
+    // Plain words on screen; the raw numbers ride in data-detail (+ tooltip).
+    await expect(row).toContainText('1 recording missing', { timeout: 10000 });
+    await expect(row).toContainText('tap for details');
+    await expect(row).toHaveAttribute('data-detail', /packs 0\/1/);
+    await expect(row).toHaveAttribute('data-detail', /cues 0\/1/);
+    await expect(row).toHaveAttribute('data-detail', /beeps/);
 
     // Tap → full JSON on the clipboard.
     await row.click();

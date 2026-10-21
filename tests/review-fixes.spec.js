@@ -200,6 +200,7 @@ test.describe('v66 review fixes', () => {
     });
     await loadEmbeddedEvent(page, embedded);
     await page.locator('#btn-go-live').click();
+    await page.locator('#btn-preflight-go').click(); // v70 "Session ready?" card
     await expect(page.locator('#screen-live')).toHaveClass(/active/);
 
     await expect.poll(() => page.evaluate(() => ({
@@ -323,6 +324,7 @@ test.describe('v66 review fixes', () => {
     });
 
     await page.locator('#btn-go-live').click();
+    await page.locator('#btn-preflight-go').click();
     await expect(page.locator('#screen-live')).toHaveClass(/active/);
   });
 

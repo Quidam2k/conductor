@@ -79,7 +79,8 @@ test('practice bake: hands audio to the baked track and suppresses live beeps', 
     await expect(page.locator('#practice-rehearsal-note')).toContainText(/Pocket rehearsal/i);
 
     // Bake status reaches the paste-back telemetry from the practice screen.
-    await expect(page.locator('#audio-debug-practice')).toContainText(/bake \d+s OK/);
+    await expect(page.locator('#audio-debug-practice')).toContainText('Sound check');
+    await expect(page.locator('#audio-debug-practice')).toHaveAttribute('data-detail', /bake \d+s OK/);
 });
 
 test('practice bake: schedule is anchored at the practice start, not the wall clock', async ({ page, browserName }) => {

@@ -369,10 +369,10 @@ test('screen transitions: all screens are reachable', async ({ page }) => {
     // 7. Live — v50: Go Live moved to the preview screen (peer of practice)
     await page.click('#btn-practice-stop');
     await waitForScreen(page, 'screen-preview');
-    // v66: Live opens 20 min before the first cue — the editor's default start
-    // can be further out, so pull the event to 1 min from now first.
-    await page.evaluate(() => { state.event = rebaseEventToNow(state.event); });
-    await page.click('#btn-go-live');
+    // The editor defaults the start to +1h, which the Phase-D preflight gate
+    // correctly blocks ("too early"). This is a screen-reachability check, so
+    // enter Live directly past the gate (the gate has its own spec).
+    await page.evaluate(() => transitionTo('live'));
     await waitForScreen(page, 'screen-live');
 
     // Stop live → back to preview (confirm dialog)
@@ -2156,6 +2156,7 @@ test('live bake (v46): baked track active on chromium; live beeps suppressed; po
     await page.click('#btn-demo');
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)
     await waitForScreen(page, 'screen-live');
 
     // The bake happens async inside enterLive — poll until it takes over.
@@ -2199,6 +2200,7 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     await page.click('#btn-demo');
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)
     await waitForScreen(page, 'screen-live');
 
     await expect(page.locator('#live-pocket-banner')).toBeVisible();
@@ -2218,6 +2220,7 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     await page.click('#btn-live-stop');
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)
     await waitForScreen(page, 'screen-live');
     await expect(page.locator('#live-pocket-banner')).toBeHidden();
 });
