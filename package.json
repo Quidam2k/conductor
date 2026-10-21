@@ -1,18 +1,31 @@
 {
   "name": "conductor",
   "version": "1.0.0",
-  "description": "**A serverless PWA for coordinating synchronized real-world actions.**",
-  "main": "index.js",
+  "description": "A no-server web app that cues a crowd to act together: events travel in links and QR codes, audio keeps playing with the phone in your pocket.",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "playwright test",
+    "build": "python scripts/build-standalone.py"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "pwa",
+    "flash-mob",
+    "coordination",
+    "protest",
+    "offline",
+    "qr-code"
+  ],
+  "author": "Todd Walker (Quidam)",
+  "license": "AGPL-3.0-only",
   "devDependencies": {
     "@playwright/test": "^1.58.2"
+  },
+  "private": true,
+  "homepage": "https://quidam2k.github.io/conductor/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Quidam2k/conductor.git"
   }
 }

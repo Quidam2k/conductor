@@ -2,9 +2,13 @@
 
 **Coordinate groups in real time with shared timed cues. No accounts, no servers, no app required.**
 
+**[▶ Open Conductor](https://quidam2k.github.io/conductor/)** · [Try the demo](https://quidam2k.github.io/conductor/index.html?demo) · [Getting started](https://quidam2k.github.io/conductor/start.html) · [What's new](https://quidam2k.github.io/conductor/changelog.html)
+
+![Three phone screens: the Conductor home screen, an event preview listing its timed steps, and practice mode with the circular countdown](docs/screens.png)
+
 Conductor is a free web app for coordinating groups of people in real time — performances, community events, demonstrations, art installations. An organizer creates a timed sequence of cues, shares it as a link, and every participant's phone plays the same cues at the same moment.
 
-No app to install, no account to make, no server in the middle. You open a link in your browser and you're in. (The whole app and your event live inside a single link — no servers, no accounts, no app store.)
+No app to install, no account to make, no server in the middle. You open a link in your browser and you're in — the event itself lives inside the link.
 
 Designed for peaceful coordination. No telemetry, no tracking, no data collection. By design.
 

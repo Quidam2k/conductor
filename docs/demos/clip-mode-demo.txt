@@ -1,5 +1,5 @@
 Title: Clip Mode Demo
-Description: Shows the two playback modes. Screen on for this TTS demo.
+Description: Shows the two playback modes. Keep the screen on: this demo uses the phone’s spoken voice, not recordings.
 Start: 2026-09-15 7:00 PM
 Timezone: America/New_York
 Mode: clip

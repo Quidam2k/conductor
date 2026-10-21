@@ -3,8 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <title>Conductor — Help from Anywhere</title>
     <meta name="description" content="Contribute to Conductor without attending: record voice cues, write an event script, or send a bug report. Everything you need, on your own time.">
+    <meta property="og:title" content="Conductor: help from anywhere">
+    <meta property="og:description" content="Contribute to Conductor without attending: record voice cues, write an event script, or send a bug report.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://quidam2k.github.io/conductor/help.html">
+    <meta property="og:image" content="https://quidam2k.github.io/conductor/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Conductor: cue a crowd to act together, from a link or QR code">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://quidam2k.github.io/conductor/og-card.png">
     <!-- GENERATED FILE — do not hand-edit. Source: docs/help/async-helper.template.md + data/homework.json. Regenerate with: node scripts/gen-homework.js -->
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,7 +33,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             line-height: 1.6; min-height: 100vh;
         }
-        a { color: var(--accent-blue); text-decoration: none; }
+        a { color: var(--accent-blue); text-decoration: none; overflow-wrap: anywhere; }
         a:hover { text-decoration: underline; }
         .topbar {
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -101,7 +113,7 @@
 <h2>How to record voice cues (step by step)</h2>
 <p>You record right inside the app — no separate software, no account. Do it on the phone or laptop you already have.</p>
 <ol>
-  <li>Open the app: <a href="https://quidam2k.github.io/conductor/">https://quidam2k.github.io/conductor/</a> — check the bottom of the screen says <strong>v62</strong> or higher.</li>
+  <li>Open the app: <a href="https://quidam2k.github.io/conductor/">https://quidam2k.github.io/conductor/</a> — check the build number at the bottom of the screen matches the newest one on <a href="https://quidam2k.github.io/conductor/changelog.html">What’s new</a>.</li>
   <li>Load an event to record for. Easiest: tap <strong>Try the Demo</strong> to load "The Stillness," or tap <strong>Create New Event</strong> and write a short script (4–8 cues).</li>
   <li>Go into the editor for that event. Next to each action you'll see a <strong>🎤 Record</strong> button.</li>
   <li>Tap <strong>🎤 Record</strong> on an action, say the cue clearly (a second or two — "freeze", "hold", "get ready"), and stop. Tap <strong>✓ Use &amp; Next</strong> to keep it and move on.</li>

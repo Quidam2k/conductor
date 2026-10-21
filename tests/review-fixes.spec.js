@@ -436,4 +436,45 @@ test.describe('v66 review fixes', () => {
     expect(result.smallText).toBe('hello');
     expect(result.decodeError).toMatch(/too large/);
   });
+
+  // v68: phones cue off their own clocks; warn when this one disagrees
+  // with the server's Date header.
+  test('demo offers its voice pack in one tap', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'pack import (IndexedDB blobs) is not exercised on headless webkit');
+    await page.click('#btn-demo');
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    const install = page.locator('#preview-pack-hint [data-install-pack]');
+    await expect(install).toBeVisible();
+    await install.click();
+    await expect.poll(() => page.evaluate(() => packManager.hasPack('demo-the-stillness')),
+      { timeout: 15000 }).toBe(true);
+    await expect(page.locator('#preview-pack-hint')).toBeHidden();
+    await expect(page.locator('#preview-banner')).toBeHidden();
+  });
+
+  test.describe('clock check', () => {
+  // A service-worker-controlled page escapes page.route() in WebKit.
+  test.use({ serviceWorkers: 'block' });
+  for (const [label, offsetMs, warns] of [
+    ['phone 90 s fast → warning', -90000, true],
+    ['phone in sync → no warning', 0, false],
+  ]) {
+    test(`clock check: ${label}`, async ({ page }) => {
+      await page.route(/\?clock=/, (route) => route.fulfill({
+        status: 200, body: '',
+        headers: { Date: new Date(Date.now() + offsetMs).toUTCString() },
+      }));
+      await page.click('#btn-demo');
+      await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+      const banner = page.locator('#preview-clock-banner');
+      if (warns) {
+        await expect(banner).toBeVisible();
+        await expect(banner).toContainText('fast');
+      } else {
+        await expect.poll(() => page.evaluate(() => state.clockSkewSec)).not.toBeUndefined();
+        await expect(banner).toBeHidden();
+      }
+    });
+  }
+  });
 });

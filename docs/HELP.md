@@ -29,7 +29,7 @@ Pick **one** of these. Any single one genuinely helps — you don't need to do b
 
 You record right inside the app — no separate software, no account. Do it on the phone or laptop you already have.
 
-1. Open the app: <https://quidam2k.github.io/conductor/> — check the bottom of the screen says **v62** or higher.
+1. Open the app: <https://quidam2k.github.io/conductor/> — check the build number at the bottom of the screen matches the newest one on [What’s new](https://quidam2k.github.io/conductor/changelog.html).
 2. Load an event to record for. Easiest: tap **Try the Demo** to load "The Stillness," or tap **Create New Event** and write a short script (4–8 cues).
 3. Go into the editor for that event. Next to each action you'll see a **🎤 Record** button.
 4. Tap **🎤 Record** on an action, say the cue clearly (a second or two — "freeze", "hold", "get ready"), and stop. Tap **✓ Use & Next** to keep it and move on.

@@ -395,5 +395,5 @@ test('practice audio: missing pack surfaces a warning instead of silent TTS', as
     // …and the user must see it: warning banner on the practice screen.
     const banner = page.locator('#practice-banner');
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText(/can.t play/i);
+    await expect(banner).toContainText(/on this phone yet/i);
 });

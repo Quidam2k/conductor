@@ -224,8 +224,20 @@ function htmlShell(bodyHtml, generatedLinePlain) {
 '<head>\n' +
 '    <meta charset="UTF-8">\n' +
 '    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">\n' +
+'    <link rel="icon" href="icon.svg" type="image/svg+xml">\n' +
+'    <link rel="apple-touch-icon" href="icon-192.png">\n' +
 '    <title>Conductor — Help from Anywhere</title>\n' +
 '    <meta name="description" content="Contribute to Conductor without attending: record voice cues, write an event script, or send a bug report. Everything you need, on your own time.">\n' +
+'    <meta property="og:title" content="Conductor: help from anywhere">\n' +
+'    <meta property="og:description" content="Contribute to Conductor without attending: record voice cues, write an event script, or send a bug report.">\n' +
+'    <meta property="og:type" content="website">\n' +
+'    <meta property="og:url" content="https://quidam2k.github.io/conductor/help.html">\n' +
+'    <meta property="og:image" content="https://quidam2k.github.io/conductor/og-card.png">\n' +
+'    <meta property="og:image:width" content="1200">\n' +
+'    <meta property="og:image:height" content="630">\n' +
+'    <meta property="og:image:alt" content="Conductor: cue a crowd to act together, from a link or QR code">\n' +
+'    <meta name="twitter:card" content="summary_large_image">\n' +
+'    <meta name="twitter:image" content="https://quidam2k.github.io/conductor/og-card.png">\n' +
 '    <!-- GENERATED FILE — do not hand-edit. Source: docs/help/async-helper.template.md + data/homework.json. Regenerate with: node scripts/gen-homework.js -->\n' +
 '    <style>\n' +
 '        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n' +
@@ -242,7 +254,7 @@ function htmlShell(bodyHtml, generatedLinePlain) {
 "            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;\n" +
 '            line-height: 1.6; min-height: 100vh;\n' +
 '        }\n' +
-'        a { color: var(--accent-blue); text-decoration: none; }\n' +
+'        a { color: var(--accent-blue); text-decoration: none; overflow-wrap: anywhere; }\n' +
 '        a:hover { text-decoration: underline; }\n' +
 '        .topbar {\n' +
 '            display: flex; align-items: center; justify-content: space-between; gap: 12px;\n' +

@@ -11,11 +11,13 @@
     <meta property="og:description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://quidam2k.github.io/conductor/">
-    <meta property="og:image" content="https://quidam2k.github.io/conductor/icon-512.png">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image" content="https://quidam2k.github.io/conductor/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Conductor">
     <meta name="twitter:description" content="Synchronized coordination for real-world actions. No server, no app store, no accounts.">
-    <meta name="twitter:image" content="https://quidam2k.github.io/conductor/icon-512.png">
+    <meta name="twitter:image" content="https://quidam2k.github.io/conductor/og-card.png">
     <meta name="apple-mobile-web-app-title" content="Conductor">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -1090,7 +1092,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v67</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v68</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1219,6 +1221,7 @@
     </div>
     <div class="content" role="main">
         <div id="preview-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
+        <div id="preview-clock-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
         <div class="event-info">
             <h2 id="preview-title"></h2>
             <div id="preview-desc" class="desc"></div>
@@ -7972,9 +7975,39 @@ function openNavigation(coordsStr, label) {
 // PREVIEW screen logic
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Every phone cues off its own clock — nothing syncs them — so a phone set
+ * by hand can be minutes off and act at the wrong moment. When online,
+ * compare against the server's Date header (1 s resolution; a HEAD request
+ * bypasses the service worker) and warn on a clear disagreement. Once per load.
+ */
+const CLOCK_SKEW_WARN_SEC = 5;
+let _clockChecked = false;
+async function checkClockSkew() {
+    if (_clockChecked || !/^https?:$/.test(location.protocol) || !navigator.onLine) return;
+    _clockChecked = true;
+    try {
+        const t0 = Date.now();
+        const resp = await fetch(location.pathname + '?clock=' + t0, { method: 'HEAD', cache: 'no-store' });
+        const t1 = Date.now();
+        const server = Date.parse(resp.headers.get('Date') || '');
+        if (isNaN(server)) return;
+        // The header truncates to the second, so the true server time is ~+0.5 s.
+        const skewSec = Math.round(((t0 + t1) / 2 - (server + 500)) / 1000);
+        state.clockSkewSec = skewSec;
+        if (Math.abs(skewSec) < CLOCK_SKEW_WARN_SEC) return;
+        const n = Math.abs(skewSec);
+        const amount = n >= 120 ? Math.round(n / 60) + ' minutes' : n + ' seconds';
+        showBanner('preview-clock-banner', 'This phone’s clock is about ' + amount +
+            (skewSec > 0 ? ' fast' : ' slow') + '. Everyone’s cues follow their own phone’s clock — ' +
+            'turn on automatic date & time in Settings to stay in sync.', 'warning');
+    } catch (e) { /* offline or blocked — no warning beats a wrong one */ }
+}
+
 function renderPreview() {
     const evt = state.event;
     if (!evt) return;
+    checkClockSkew();
 
     $('preview-title').textContent = evt.title;
     $('preview-desc').textContent = evt.description || '';
@@ -8090,6 +8123,13 @@ async function renderPackHint(evt) {
     let html = '';
     for (const packId of missing) {
         const urlForPack = urlMap.get(packId);
+        // Our own demo packs ship beside the app — offer them in one tap, so a
+        // first-timer's demo gets real recorded voices that work in a pocket.
+        if (/^demo-[a-z0-9-]+$/.test(packId) && /^https?:$/.test(location.protocol)) {
+            html += `This event has recorded voices that keep playing with the screen locked. ` +
+                `<button type="button" class="btn-outline btn-small" data-install-pack="${escapeHtml(packId)}">Install voices</button><br>`;
+            continue;
+        }
         html += `This event uses pack: <strong>${escapeHtml(packId)}</strong>. It works fine without it — packs add higher-quality audio.`;
         if (urlForPack) {
             if (/^https?:\/\//i.test(urlForPack)) {
@@ -8102,6 +8142,26 @@ async function renderPackHint(evt) {
     }
     hintEl.innerHTML = html;
     hintEl.style.display = '';
+    for (const btn of hintEl.querySelectorAll('[data-install-pack]')) {
+        btn.addEventListener('click', () => installHostedPack(btn, btn.dataset.installPack));
+    }
+}
+
+/** Fetch a demo pack from beside the app (docs/packs/) and install it. */
+async function installHostedPack(btn, packId) {
+    btn.disabled = true;
+    btn.textContent = 'Installing…';
+    try {
+        const resp = await fetch('packs/' + encodeURIComponent(packId) + '.zip');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const { manifest } = await packManager.importPackWithValidation(await resp.arrayBuffer());
+        await packManager.ensurePackLoaded(manifest.id);
+        hideBanner('preview-banner');
+        renderPreview(); // re-runs the pack hint + missing-cue check
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Couldn’t download — try again';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8545,6 +8605,7 @@ async function copyAudioDebugJson(mode) {
         audioMode: audio.getMode(),
         ctxState,
         audioDebug: state.audioDebug,
+        clockSkewSec: state.clockSkewSec ?? null,
         beepLog: audio.getBeepLog(),
         cueLog: audio.getCueLog(),
         baked: { active: state.bakedActive, durationSec: state.bakedDurationSec || 0 },
@@ -8947,9 +9008,11 @@ async function preloadEventPacks(evt, context) {
 /** Shared banner line for unresolvable cues. Returns null when all resolve. */
 function missingCueBannerText(missingCues) {
     if (!missingCues || missingCues.length === 0) return null;
-    const n = missingCues.length;
-    return n + ' recorded cue' + (n === 1 ? '' : 's') +
-        " can't play on this device — using spoken text.";
+    // Count distinct recordings, not steps — a cue used twice is one missing
+    // file (preview and practice used to disagree, "6" vs "9", for one event).
+    const n = new Set(missingCues.map(m => m.packId + ':' + m.cueId)).size;
+    return n + (n === 1 ? ' recording isn’t' : ' recordings aren’t') +
+        ' on this phone yet, so those steps will be spoken aloud instead (screen on only).';
 }
 
 function escapeHtml(str) {

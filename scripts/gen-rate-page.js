@@ -72,6 +72,8 @@ function buildPage(entries, vocabulary = {}) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <title>Conductor — Rate the Touchstones</title>
     <meta name="description" content="Help separate the wheat from the chaff: rate the cultural touchstones Conductor scripts pull from. A quick, zero-setup task — rate only the ones that jump out.">
     <!-- GENERATED FILE — do not hand-edit. Source: data/touchstones.json via scripts/gen-rate-page.js. Regenerate with: node scripts/gen-rate-page.js (or node scripts/gen-homework.js). -->
@@ -160,6 +162,7 @@ function buildPage(entries, vocabulary = {}) {
         .stars button {
             background: none; border: none; cursor: pointer; font-size: 1.3rem; line-height: 1;
             color: rgba(255,255,255,0.22); padding: 2px; transition: color 0.1s, transform 0.1s;
+            min-width: 36px; min-height: 40px; /* thumb-sized tap target */
         }
         .stars button:hover { transform: scale(1.15); }
         .stars button.on { color: var(--accent-gold); }
