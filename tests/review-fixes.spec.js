@@ -90,6 +90,12 @@ test.describe('v66 review fixes', () => {
           localStart: withoutTimezone.startTime,
           expectedLocalStart: new Date('2026-11-15T19:00:00').toISOString(),
           monthBoundary: localDateTimeToUTC('2026-05-01T00:00', 'America/Los_Angeles'),
+          // Safari can't parse "2:00 PM" natively — the parser handles it
+          ampmZoned: parseTextFormat(text.replace('Start: 2026-11-15T19:00:00', 'Start: 2026-03-15 2:00 PM')
+            .replace('RepeatUntil: 2026-11-15T20:00:00\n', '')).startTime,
+          ampmLocal: parseTextFormat(text.replace('Start: 2026-11-15T19:00:00', 'Start: 2026-03-15 12:30 AM')
+            .replace('Timezone: America/New_York\n', '').replace('RepeatUntil: 2026-11-15T20:00:00\n', '')).startTime,
+          ampmLocalExpected: new Date(2026, 2, 15, 0, 30).toISOString(),
         };
       });
 
@@ -98,6 +104,8 @@ test.describe('v66 review fixes', () => {
       expect(result.explicitOffsetStart).toBe('2026-11-15T19:00:00.000Z');
       expect(result.localStart).toBe(result.expectedLocalStart);
       expect(result.monthBoundary).toBe('2026-05-01T07:00:00.000Z');
+      expect(result.ampmZoned).toBe('2026-03-15T18:00:00.000Z');
+      expect(result.ampmLocal).toBe(result.ampmLocalExpected);
     } finally {
       await context.close();
     }

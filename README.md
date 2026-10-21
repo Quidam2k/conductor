@@ -25,6 +25,8 @@ The event data lives in the URL fragment itself. No server ever sees your plans.
 
 **[Getting Started](https://quidam2k.github.io/conductor/start.html)** — download, tutorial, and walkthrough
 
+**[What's New](https://quidam2k.github.io/conductor/changelog.html)** — recent changes, build by build
+
 ## Help Wanted — Contribute From Anywhere
 
 You don't have to be in the room to help. Record a few voice cues in your own voice, write a short event script, or just try to break it and tell us how — all on your own time. **[Help from Anywhere](https://quidam2k.github.io/conductor/help.html)** ([HELP.md](docs/HELP.md)) walks a first-timer through exactly what to do and where to send it (a GitHub issue works today — no account of ours needed). The page refreshes on a regular cadence with the current week's ask.
@@ -45,7 +47,11 @@ You don't have to be in the room to help. Record a few voice cues in your own vo
 - **Bundle Sharing** — Download a self-contained HTML file with both the app and your event baked in
 - **Multi-Format Input** — Paste event codes, use the text editor format, import JSON, or open files
 - **Practice Mode** — Rehearse at variable speed (1-5x) before the real event
-- **Pocket-Ready Audio** — When you go live, beeps and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket
+- **Cues and Clips** — Each step is either a *cue* (beeps count a person in to act or speak) or a *clip* (the phone itself plays a recording — no beeps, any length, clips can overlap). Mix both in one event; a phone on a speaker becomes part of the show
+- **Repeat** — Loop the whole sequence a set number of times or until a clock time, with an optional pause between rounds
+- **Random Takes** — A step can list several recordings (JSON events, for now); each phone picks one, so a crowd plays a mix
+- **Live Window** — Go Live opens 20 minutes before the first cue (so a phone isn't left running for hours ahead of time); Practice works any time
+- **Pocket-Ready Audio** — When you go live, beeps, "Get ready to…" preps, and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket
 - **Audio & Haptics** — Countdown and trigger beeps, resource pack voice cues, vibration patterns; text-to-speech reads cue text while the screen is on
 - **Cross-Platform** — Works on Android, iPhone, desktop — anything with a browser
 
@@ -62,7 +68,7 @@ Conductor is built to be private by default:
 
 ## The Demo Packs
 
-Each demo event has its own small voice pack (roughly 50–180 KB — quick to download even on weak signal, and small enough to beam phone-to-phone via QR). Each pack bundles one event script plus every voice cue that event uses:
+Each demo event has its own small voice pack (roughly 100–350 KB — quick to download even on weak signal, and small enough to beam phone-to-phone via QR). Each pack bundles one event script plus every voice cue that event uses:
 
 - **The Stillness** — Freeze mob: sudden collective stillness, no props
 - **The Bloom** — Umbrella performance: raise, open, sway, light, close
@@ -74,6 +80,8 @@ Each demo event has its own small voice pack (roughly 50–180 KB — quick to d
 - **The Cascade** — Rapid-fire cue bursts in a one-minute run, a stress test for close-spaced timing
 
 Download packs from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab them from the `docs/packs/` folder (`demo-the-stillness.zip`, `demo-the-bloom.zip`, …). The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket.
+
+More example scripts live in [`docs/demos/`](docs/demos/) as plain text you can paste into the app — including `clip-mode-demo.txt`, a short tour of cue mode vs clip mode (screen on; it uses text-to-speech in place of recordings).
 
 ## Concepts & Techniques
 
@@ -107,6 +115,8 @@ Conductor is designed to be uncensorable. Host your own copy:
 
 Events created on one host work on any other — the data is in the URL.
 
+One note for file copies: a link has to point *somewhere* a recipient can open, so links shared from a copy opened as a local file (`file://`) point at the public mirror, `https://quidam2k.github.io/conductor/`. The event still lives entirely in the link, and recipients who already have the app can paste the event code (or scan the QR) into their own copy instead.
+
 ## Contributing
 
 ```bash
@@ -122,7 +132,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/Quidam2k/conduct
 ### Contributors
 
 - **[Quidam2k](https://github.com/Quidam2k)** (Todd) — Creator, lead developer
-- **[Teafaerie](https://github.com/Teafaerie)** (Teafaerie) — Design collaborator, iOS testing, voice cloning, resource pack vision. Confirmed iOS audio feasibility (Feb 2026) and drove the resource pack architecture through hands-on testing.
+- **[Teafaerie](https://github.com/Teafaerie)** (Teafaerie) — Design collaborator, iOS testing, resource pack vision. Confirmed iOS audio feasibility (Feb 2026) and drove the resource pack architecture through hands-on testing.
 
 ## License
 

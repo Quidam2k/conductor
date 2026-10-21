@@ -1090,7 +1090,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v66</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v67</span> &middot; <a href="ios-audio-test/" style="color:var(--text-secondary);">iOS audio not working? Run diagnostics &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1124,12 +1124,13 @@
             <div class="about-body" style="text-align:left;">
                 <strong>Use the built-in editor:</strong> Tap <em>Create New Event</em> below. Give it a title, start time, and description, then add actions with timestamps. The editor walks you through it step by step.
                 <br><br>
-                <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line (e.g. <code>0:30 Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
+                <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line, with at least two spaces after the time (e.g. <code>0:30&nbsp;&nbsp;Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
                 <br><br>
                 <strong>Start from the demo:</strong> Tap <em>Try the Demo</em> to see how a finished event looks. You can study the format and adapt it for your own event.
                 <br><br>
                 <a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md" style="color:var(--accent-blue);">Text Format Reference</a> &mdash; full tag list, config headers, and briefing blocks.<br>
-                <a href="GUIDE.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; step-by-step tutorial with examples.
+                <a href="GUIDE.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; step-by-step tutorial with examples.<br>
+                <a href="changelog.html" style="color:var(--accent-blue);">What's new</a> &mdash; what changed in each build.
             </div>
         </details>
 
@@ -1763,6 +1764,7 @@ c._disableBarcodeDetector=!1;c._workerMessageId=0;var e=Object.freeze({__proto__
 /**
  * Conductor PWA - Data Models
  * Ported from conductor-mobile/shared/.../Event.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Types: TimelineAction, EmbeddedEvent, Event
  * Helpers: createTimelineAction, embeddedEventToEvent, eventToEmbeddedEvent
@@ -2128,6 +2130,7 @@ function generateId() {
 /**
  * Conductor PWA - Event Encoder/Decoder
  * Ported from conductor-mobile/shared/.../EventEncoder.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Pipeline:
  *   Encode: Event → EmbeddedEvent → JSON → gzip (pako) → base64url → "v1_" prefix
@@ -2786,29 +2789,41 @@ function localDateTimeToUTC(localStr, timezone) {
 }
 
 /**
- * Parse a text-format date. A string with an explicit offset ("Z", "+02:00")
- * is taken as-is; otherwise, if a timezone is given, the browser-parsed
- * wall-clock components are re-read in that zone (seconds preserved).
+ * Parse a text-format date. "YYYY-MM-DD HH:MM[:SS]" (T or space, optional
+ * AM/PM) is parsed here, not by the browser: Safari rejects the "2:00 PM"
+ * form the docs use, and reading the written components directly keeps a
+ * time in the BROWSER's DST gap from being normalized. With a timezone the
+ * wall clock is read in that zone; without one, in the browser's zone.
+ * Anything else ("Z"/offset strings, "March 15, 2026 2:00 PM") goes to the
+ * browser parser; an explicit offset is taken exactly as written.
  * @param {string} str
  * @param {string} [timezone]
  * @returns {Date} (Invalid Date if unparseable)
  */
 function parseWallClock(str, timezone) {
-    const d = new Date(str);
-    if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})\s*$/i.test(str.trim())) return d;
+    const s = str.trim();
     const pad = (n) => String(n).padStart(2, '0');
-    // ISO-ish strings: take the written components directly, so a time that
-    // falls in the BROWSER's DST gap isn't normalized before conversion.
-    // Anything looser ("Nov 15 2026 7pm"): use the browser's local reading.
-    const m = str.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    const local = m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + pad(m[4]) + ':' + m[5]
-        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
-            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    const seconds = m ? Number(m[6] || 0) : d.getSeconds();
+    let p;
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)?$/i);
+    if (m) {
+        let hour = Number(m[4]);
+        const ampm = (m[7] || '').toUpperCase();
+        if (ampm === 'PM' && hour < 12) hour += 12;
+        if (ampm === 'AM' && hour === 12) hour = 0;
+        p = { y: +m[1], mo: +m[2], d: +m[3], h: hour, mi: +m[5], sec: Number(m[6] || 0) };
+    } else {
+        const d = new Date(s);
+        if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})$/i.test(s)) return d;
+        p = { y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(),
+              h: d.getHours(), mi: d.getMinutes(), sec: d.getSeconds() };
+    }
+    const browserLocal = () => new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.sec);
+    if (!timezone) return browserLocal();
     try {
-        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + seconds * 1000);
+        const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
+        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
     } catch (e) {
-        return d; // unknown zone name → keep the browser-local reading
+        return browserLocal(); // unknown zone name → keep the browser-local reading
     }
 }
 
@@ -2833,6 +2848,7 @@ function stripNulls(obj) {
 /**
  * Conductor PWA - Timing Engine
  * Ported from conductor-mobile/shared/.../TimingEngine.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * All timing logic for event coordination: current action detection,
  * upcoming actions, announcement scheduling, circular position calculation,
@@ -3110,6 +3126,7 @@ function getPracticeNow(realNowMs, practiceStartRealMs, practiceStartEventMs, sp
 /**
  * Conductor PWA - Audio Service
  * Ported from conductor-mobile/androidApp/.../AudioService.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Handles TTS announcements for event coordination:
  * - Web Speech API wrapper with voice selection
@@ -6624,6 +6641,7 @@ function createDraftManager() {
 /**
  * Conductor PWA - Circular Timeline Renderer
  * Ported from conductor-mobile/androidApp/.../CircularTimeline.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * "Guitar Hero" style circular timeline on HTML5 Canvas.
  * Actions rotate clockwise toward 12 o'clock (the trigger point).

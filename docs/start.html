@@ -341,7 +341,7 @@
         &nbsp;&middot;&nbsp;
         <a href="packs/demo-the-stillness.zip">demo voice pack</a> <span style="font-size:0.85em">(optional, a small ~80 KB zip of voice recordings that keeps speaking when your phone is locked)</span>
     </p>
-    <p style="font-size:11px; color:var(--text-dim); margin-top:18px;">build <span id="app-version">v66</span></p>
+    <p style="font-size:11px; color:var(--text-dim); margin-top:18px;">build <span id="app-version">v67</span></p>
 </header>
 
 <!-- ═══ Work-in-progress note ═══ -->
@@ -376,14 +376,14 @@
             <div class="step-number" aria-label="Step 3"></div>
             <div class="step-content">
                 <h3>Import a Resource Pack <span style="font-size:0.8em; font-weight:400; color:var(--text-dim);">(optional)</span></h3>
-                <p>The Demo Event works fine with just beeps. But if you want spoken cues to keep playing when the phone is in your pocket, you need a resource pack. Download the <a href="packs/demo-the-stillness.zip" style="color:var(--accent-green);">demo voice pack</a> &mdash; it's tiny (about 80&nbsp;KB, a few seconds even on weak signal) &mdash; then tap <strong>Manage Packs</strong> in the app to import it. Pack voices are the only spoken audio that survives a locked screen. (No pack? Your phone reads cues aloud, but only while the screen stays on.)</p>
+                <p>The Demo Event works fine with just beeps. But if you want spoken cues to keep playing when the phone is in your pocket, you need a resource pack. Download the <a href="packs/demo-the-stillness.zip" style="color:var(--accent-green);">demo voice pack</a> &mdash; it's tiny (about 150&nbsp;KB, a few seconds even on weak signal) &mdash; then tap <strong>Manage Packs</strong> in the app to import it. Pack voices are the only spoken audio that survives a locked screen. (No pack? Your phone reads cues aloud, but only while the screen stays on.)</p>
             </div>
         </div>
         <div class="step">
             <div class="step-number" aria-label="Step 4"></div>
             <div class="step-content">
                 <h3>Practice</h3>
-                <p>Tap <strong>Practice</strong> to run through the event solo at up to 5&times; speed. You'll hear every cue and feel every vibration, so you know exactly what to expect. This is a private rehearsal &mdash; the real event runs at the scheduled time.</p>
+                <p>Tap <strong>Practice</strong> to run through the event solo at up to 5&times; speed. You'll hear every cue and feel every vibration, so you know exactly what to expect. This is a private rehearsal &mdash; the real event runs at the scheduled time. <strong>Go Live</strong> opens 20 minutes before the first cue (so your phone isn't left playing silence for hours); until then, Practice is always there.</p>
             </div>
         </div>
         <div class="step">
@@ -567,7 +567,9 @@
     <span class="file">walk.wav</span></pre>
             </div>
             <p>
-                Record short (1&ndash;3 second) audio clips for each cue in your event. Name them to match the action text.
+                Record a clip for each step in your event and name it to match the action text.
+                For <strong>cues</strong> (beeps count a person in), keep the recording short &mdash; a spoken phrase of 1&ndash;3 seconds.
+                For <strong>clips</strong> (the phone itself plays the audio), any length works, and clips can overlap.
                 The app plays matching audio from your pack; anything without a match falls back to text-to-speech.
             </p>
         </div>
@@ -587,12 +589,14 @@
         <div class="subsection">
             <h3>Glossary</h3>
             <ul>
-                <li><strong>Cue</strong> &mdash; A sound the app plays at a specific time (a spoken announcement, a countdown, or a vibration).</li>
+                <li><strong>Cue</strong> &mdash; A step that prompts a <em>person</em>: countdown beeps, then a short spoken cue (and vibration) at the moment to act or speak. The default playback mode.</li>
+                <li><strong>Clip</strong> &mdash; A step where the <em>phone</em> is the performer: it plays a recording (a line, music, ambience) at its time, with no beeps or "get ready". Clips can be any length and can overlap. Events can mix cues and clips.</li>
+                <li><strong>Go Live</strong> &mdash; Running the event for real, on the clock. It opens 20 minutes before the first cue.</li>
                 <li><strong>Briefing</strong> &mdash; On-screen reference info shown during the event (e.g. "Exit via north gate" or "Rally at the fountain").</li>
                 <li><strong>Notice</strong> &mdash; A heads-up announcement that plays shortly before an action (e.g. "Get ready to wave left").</li>
                 <li><strong>Resource pack</strong> &mdash; An optional zip file with pre-recorded audio that replaces the robotic text-to-speech voice &mdash; and keeps playing while the phone is locked.</li>
                 <li><strong>Practice Mode</strong> &mdash; A private rehearsal where you run through your event solo at your own speed (up to 5&times; faster) to hear every cue and feel every vibration before the real event.</li>
-                <li><strong>Pocket-ready</strong> &mdash; Audio that keeps playing when the phone is locked in a pocket &mdash; beeps and resource-pack voice cues. Text-to-speech is screen-on only.</li>
+                <li><strong>Pocket-ready</strong> &mdash; Audio that keeps playing when the phone is locked in a pocket &mdash; beeps, resource-pack voice cues and clips, and "Get ready to&hellip;" preps built from pack recordings. Text-to-speech is screen-on only.</li>
                 <li><strong>Beam</strong> &mdash; A device-to-device transfer over an animated QR code. Carries events and resource packs between phones with no network, even when they're too big for a single still QR.</li>
                 <li><strong>Text size</strong> &mdash; A four-step control (on the home screen and every event screen) that zooms the whole app, so cues stay readable at arm's length &mdash; adjustable even mid-event.</li>
             </ul>

@@ -1,5 +1,7 @@
 # Conductor — Real-Device Testing Checklist
 
+> **HISTORICAL (as of v66, 2026-10-20):** pre-bake (TTS-era) checklist; the current tester flow is docs/test/index.html.
+
 Test on the hosted version: https://quidam2k.github.io/conductor/
 
 ## Android Chrome

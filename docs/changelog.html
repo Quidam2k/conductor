@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Conductor — What's New</title>
+    <meta name="description" content="What changed in each Conductor build, newest first.">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f23;
+            --bg-surface: #171733;
+            --text: #e8e6e3;
+            --text-secondary: rgba(232, 230, 227, 0.7);
+            --text-dim: rgba(232, 230, 227, 0.4);
+            --accent-blue: #5ba3ff;
+            --accent-green: #34d399;
+            --border: rgba(232, 230, 227, 0.12);
+            --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.55;
+            font-size: 17px;
+            padding: 0 16px 80px;
+        }
+        .wrap { max-width: 640px; margin: 0 auto; }
+
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        header { padding: 36px 0 18px; }
+        .eyebrow {
+            font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
+        }
+        h1 { font-size: clamp(28px, 6vw, 38px); line-height: 1.12; margin-bottom: 12px; }
+        .standfirst { color: var(--text-secondary); margin-bottom: 8px; }
+
+        .release {
+            background: var(--bg-surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 14px 16px; margin-top: 16px;
+        }
+        .release h2 { font-size: 19px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+        .release h2 .date { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--text-dim); }
+        .release h2 .tag {
+            font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--accent-green);
+            border: 1px solid var(--accent-green); border-radius: 4px; padding: 0 5px;
+        }
+        .release ul { margin: 8px 0 0 20px; color: var(--text-secondary); font-size: 15.5px; }
+        .release li { margin-bottom: 5px; }
+        .release li strong { color: var(--text); }
+        h3 { font-size: 15px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase;
+             letter-spacing: 0.1em; margin: 34px 0 0; }
+        footer { margin-top: 36px; color: var(--text-dim); font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <p class="eyebrow">Conductor &middot; build v67</p>
+        <h1>What's new</h1>
+        <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
+        <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
+    </header>
+
+    <section class="release" id="v67">
+        <h2>v67 <span class="date">2026-10-20</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>iPhone fix:</strong> text events written like <code>Start: 2026-03-15 2:00 PM</code> (the format the guides use) failed to load in Safari. They now work everywhere.</li>
+            <li>Refreshed guides covering cues vs clips, repeating events, the Go Live window and time zones. This page is new too.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v66">
+        <h2>v66 <span class="date">2026-10-20</span></h2>
+        <ul>
+            <li><strong>Go Live opens 20 minutes before the first cue.</strong> Before that, the app tells you when Live opens and suggests Practice. Going live hours early drained batteries and built a huge mostly-silent audio track.</li>
+            <li><strong>Time zones in text events now work.</strong> <code>Start: 2026-11-15T19:00</code> with <code>Timezone: America/New_York</code> means 7 PM in New York, wherever the phone is.</li>
+            <li>The editor no longer lands an event a month off when its date crosses a month boundary in another time zone.</li>
+            <li><code>[no-countdown]</code> steps are now truly silent, even when the event has countdowns turned on.</li>
+            <li>Random takes (<code>randomCues</code>) now really pick at random, and the pocket track and the screen play the same take.</li>
+            <li>Links shared from a downloaded copy of the app now point at the public site instead of a broken <code>null/</code> address.</li>
+            <li>Restarting a past repeating event now repeats for the right length. If the pocket audio track fails to load, the app falls back to live audio instead of hanging.</li>
+            <li>The old experimental Android app has been retired. Conductor is a web app that runs on any phone.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v65">
+        <h2>v65 <span class="date">2026-09-10</span></h2>
+        <ul>
+            <li>Editor: the style buttons (Normal / Emphasis / Alert) now show a caption when tapped, since phones can't show hover tips.</li>
+            <li>"My Voice (record your own cues)" sits at the top of the cue list, and "record everything at once" is clearly optional.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v64">
+        <h2>v63 &amp; v64 <span class="date">2026-09-07</span></h2>
+        <ul>
+            <li><strong>Cues and clips.</strong> Each step is either a <em>cue</em> (a beep, then people act or speak) or a <em>clip</em> (the phone itself plays a recorded clip: music, crowd murmur, a voice). Clips can be long and can overlap.</li>
+            <li>Set it for the whole event (<code>Mode: clip</code>) or per step (<code>[clip]</code> / <code>[cue]</code>), or use the Playback mode setting and per-step toggle in the editor.</li>
+            <li>A clip-mode demo script shows the idea.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v62">
+        <h2>v62 <span class="date">2026-08-22</span></h2>
+        <ul>
+            <li><strong>Beam an event by QR code</strong> straight from the share screen, phone to phone.</li>
+            <li>The text-size control is reachable during practice and live events.</li>
+            <li>Refreshed FAQ and how-to docs, plus a public "Help from Anywhere" page for remote helpers.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v61">
+        <h2>v58 &ndash; v61 <span class="date">2026-08-18 &ndash; 19</span></h2>
+        <ul>
+            <li><strong>Repeating events.</strong> Loop the whole script until a set time (<code>RepeatUntil:</code>), a set number of times (<code>Repeat:</code>), or both. <code>Coda:</code> adds a rest between loops.</li>
+            <li>Editor: clone a step in one tap. You're warned when two steps land too close together.</li>
+            <li>Adjustable text size for the whole app.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v57">
+        <h2>v53 &ndash; v57 <span class="date">2026-08-06 &ndash; 12</span></h2>
+        <ul>
+            <li><strong>"Get ready to…" in your own voice.</strong> Record one "Get ready to" lead. The app stitches it to each cue's recording, and it plays with the phone in your pocket.</li>
+            <li><strong>QR beam for sound packs.</strong> Send a pack to a nearby phone as a moving QR code, with no internet needed.</li>
+            <li>Packs are now small MP3s. Each demo script has its own tiny pack.</li>
+            <li>Fixed the pack file picker showing "No items" on iPhone and Android, and demo packs that wouldn't play on iPhone.</li>
+        </ul>
+    </section>
+
+    <section class="release" id="v52">
+        <h2>v45 &ndash; v52 <span class="date">2026-07-06 &ndash; 08-04</span></h2>
+        <ul>
+            <li><strong>Works with the phone locked in your pocket.</strong> Going live builds the event's beeps and recorded cues into one audio track, the only kind of audio phones keep playing when the screen is locked.</li>
+            <li><strong>Record your own cues</strong> in the editor ("My Voice") and share them as a pack.</li>
+            <li>Practice rehearses through the same pocket track as the real event.</li>
+            <li>A public <a href="test/">Help Us Test</a> page for checking your own phone.</li>
+        </ul>
+    </section>
+
+    <h3>Earlier</h3>
+    <section class="release">
+        <h2>v1 &ndash; v44 <span class="date">2026-02 &ndash; 06</span></h2>
+        <ul>
+            <li>The single-file "record player" app. Events travel inside links and QR codes, with no server and no accounts.</li>
+            <li>Editor, practice mode, live mode, circular timeline, optional password encryption, sound packs, tonal countdown beeps, and phone audio diagnostics.</li>
+        </ul>
+    </section>
+
+    <footer>
+        Conductor is open source (AGPL-3.0) &middot; <a href="https://github.com/Quidam2k/conductor">GitHub</a>
+    </footer>
+</div>
+</body>
+</html>

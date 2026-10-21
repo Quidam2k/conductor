@@ -31,7 +31,10 @@ Desktop.ini
 *.swo
 *~
 
-# Build outputs (covered by conductor-mobile/.gitignore too)
+# Retired Android/KMM app — removed from main in v66; ignore any local leftovers
+conductor-mobile/
+
+# Build outputs
 build/
 .gradle/
 *.apk

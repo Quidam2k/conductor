@@ -1,6 +1,7 @@
 /**
  * Conductor PWA - Data Models
  * Ported from conductor-mobile/shared/.../Event.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Types: TimelineAction, EmbeddedEvent, Event
  * Helpers: createTimelineAction, embeddedEventToEvent, eventToEmbeddedEvent

@@ -1,6 +1,7 @@
 /**
  * Conductor PWA - Audio Service
  * Ported from conductor-mobile/androidApp/.../AudioService.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Handles TTS announcements for event coordination:
  * - Web Speech API wrapper with voice selection

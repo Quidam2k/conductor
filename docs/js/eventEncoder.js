@@ -1,6 +1,7 @@
 /**
  * Conductor PWA - Event Encoder/Decoder
  * Ported from conductor-mobile/shared/.../EventEncoder.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * Pipeline:
  *   Encode: Event → EmbeddedEvent → JSON → gzip (pako) → base64url → "v1_" prefix
@@ -659,29 +660,41 @@ function localDateTimeToUTC(localStr, timezone) {
 }
 
 /**
- * Parse a text-format date. A string with an explicit offset ("Z", "+02:00")
- * is taken as-is; otherwise, if a timezone is given, the browser-parsed
- * wall-clock components are re-read in that zone (seconds preserved).
+ * Parse a text-format date. "YYYY-MM-DD HH:MM[:SS]" (T or space, optional
+ * AM/PM) is parsed here, not by the browser: Safari rejects the "2:00 PM"
+ * form the docs use, and reading the written components directly keeps a
+ * time in the BROWSER's DST gap from being normalized. With a timezone the
+ * wall clock is read in that zone; without one, in the browser's zone.
+ * Anything else ("Z"/offset strings, "March 15, 2026 2:00 PM") goes to the
+ * browser parser; an explicit offset is taken exactly as written.
  * @param {string} str
  * @param {string} [timezone]
  * @returns {Date} (Invalid Date if unparseable)
  */
 function parseWallClock(str, timezone) {
-    const d = new Date(str);
-    if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})\s*$/i.test(str.trim())) return d;
+    const s = str.trim();
     const pad = (n) => String(n).padStart(2, '0');
-    // ISO-ish strings: take the written components directly, so a time that
-    // falls in the BROWSER's DST gap isn't normalized before conversion.
-    // Anything looser ("Nov 15 2026 7pm"): use the browser's local reading.
-    const m = str.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    const local = m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + pad(m[4]) + ':' + m[5]
-        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
-            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    const seconds = m ? Number(m[6] || 0) : d.getSeconds();
+    let p;
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)?$/i);
+    if (m) {
+        let hour = Number(m[4]);
+        const ampm = (m[7] || '').toUpperCase();
+        if (ampm === 'PM' && hour < 12) hour += 12;
+        if (ampm === 'AM' && hour === 12) hour = 0;
+        p = { y: +m[1], mo: +m[2], d: +m[3], h: hour, mi: +m[5], sec: Number(m[6] || 0) };
+    } else {
+        const d = new Date(s);
+        if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})$/i.test(s)) return d;
+        p = { y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(),
+              h: d.getHours(), mi: d.getMinutes(), sec: d.getSeconds() };
+    }
+    const browserLocal = () => new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.sec);
+    if (!timezone) return browserLocal();
     try {
-        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + seconds * 1000);
+        const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
+        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
     } catch (e) {
-        return d; // unknown zone name → keep the browser-local reading
+        return browserLocal(); // unknown zone name → keep the browser-local reading
     }
 }
 

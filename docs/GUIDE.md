@@ -56,7 +56,7 @@ Someone shared an event with you? Here's how to get in — pick whichever matche
 - **They sent you a file** (AirDrop / Quick Share / a `conductor.html`) — Open it. If it's a bundled file, it *is* the app with the event baked in.
 - **You have an event code** (a `v1_…` string) — Open Conductor and paste it into the "Got an event code?" box on the home screen.
 
-Once you're in, tap **Start Practice** to rehearse, then be ready when the real event time arrives. If the event is password-protected, you'll be asked for the password the organizer gave you.
+Once you're in, tap **Start Practice** to rehearse, then tap **Go Live** when the real event is close — Live opens 20 minutes before the first cue (see [Going Live](#going-live)). If the event is password-protected, you'll be asked for the password the organizer gave you.
 
 ---
 
@@ -68,7 +68,7 @@ The most comfortable way to *build* an event is on a desktop or laptop — a rea
 2. **Open Share.** From the preview, tap **Share QR Code**.
 3. **Beam it.** Tap **Beam to a phone**. The desktop screen shows an animated QR code — a rotating sequence of frames that carries the whole event, even one too large for a single static QR.
 4. **Scan on the phone.** On the phone, open Conductor and tap **Scan QR Code**. Hold the camera up to the desktop screen and keep it steady. A progress bar fills as frames arrive.
-5. **You're in.** When the transfer completes, the phone jumps straight to the event preview. Practice, then go live from the phone.
+5. **You're in.** When the transfer completes, the phone jumps straight to the event preview. Practice, then go live from the phone (Live opens 20 minutes before the first cue).
 
 This is the same animated-QR "beam" used for resource packs — it now carries events too. Nothing leaves the two devices: no server, no upload, no link to intercept. It's ideal when you've drafted something big at a desk and just want it on the phone you'll actually carry.
 
@@ -134,13 +134,16 @@ There are three ways to create events. Pick whichever feels most natural.
 The easiest way. No coding, no special formats.
 
 1. Tap **Create New Event** on the main screen
-2. **Step 1** — Fill in the title, description, and start time
+2. **Step 1** — Fill in the title, description, start time, and timezone. Also here:
+   - **Playback mode** — *Cue* (a beep prompts a person, the default) or *Clip* (the phone plays a recorded clip). See [Cues and Clips](#cues-and-clips)
+   - **Repeat the sequence** — loop it until a set time or a set number of times, with a rest between rounds. See [Repeating an Event](#repeating-an-event)
 3. **Step 2** — Build your timeline:
    - Tap **Add Action** to add a cue
    - Set the time offset (minutes and seconds from the start)
    - Type what should be announced (e.g., "Freeze in place")
-   - Choose a style (normal, emphasis, or alert)
+   - Choose a style (normal, emphasis, or alert), and a per-step playback mode (Default, Cue, or Clip)
    - Toggle countdown, notice, and haptic options
+   - Pick **My Voice** as the pack and tap **🎤 Record** to record your own cues — or record them all in one pass. Recorded audio plays in a pocket; the robot voice doesn't
 4. **Step 3** — Review everything, then share via link, QR code, or file
 
 ### Option 2: Write a Text File
@@ -193,6 +196,8 @@ The three **styles** change how an action looks on screen:
 
 Combine them with commas: `[alert, countdown:3, haptic:triple]`
 
+**Timezone:** `Start` is read as a clock time *in the `Timezone` you give* — 2:00 PM New York stays 2:00 PM New York on a phone in California. Leave `Timezone` out and it uses the phone's own zone.
+
 For the full reference with all tags, briefing blocks, and advanced features, see [TEXT_FORMAT.md](TEXT_FORMAT.md).
 
 ### Option 3: Write JSON
@@ -215,6 +220,37 @@ For programmers or anyone generating events from code, you can write raw JSON:
 ```
 
 Paste the JSON into the input field or save it as a `.json` file and import it.
+
+---
+
+## Cues and Clips
+
+Every step in an event plays one of two ways:
+
+- **Cue** (the default) — countdown beeps, then a beep on the moment, and a *person* acts or speaks. The app gives a "Get ready to…" heads-up first.
+- **Clip** — the *phone itself* plays a recorded clip at that moment. No beeps, no heads-up — the clip is the moment. Clips can be any length and may overlap later steps: music beds, crowd murmur, a phone on a speaker playing its part.
+
+Set the default for the whole event (editor **Playback mode**, or `Mode: clip` in a text file), then override any single step (the step's Default/Cue/Clip toggle, or a `[clip]` / `[cue]` tag). One event can mix both. A clip step needs recorded audio to play in a pocket — without it, the phone reads the line aloud, screen-on only.
+
+---
+
+## Repeating an Event
+
+Turn on **Repeat the sequence** (or use the text headers) to loop the whole timeline:
+
+- **Until a set time** (`RepeatUntil:`) — everyone stops at the same moment, so latecomers still join a round in progress.
+- **A set number of times** (`Repeat: 3`) — best for a rehearsed drill where everyone starts together.
+- **Rest between repeats** (`Coda:`, default 4 seconds) — the pause between rounds.
+
+Set both and whichever ends first wins. Details in [TEXT_FORMAT.md](TEXT_FORMAT.md).
+
+---
+
+## Going Live
+
+**Practice** works any time. **Go Live** opens **20 minutes before the first cue**. Tap it earlier and the app tells you when Live opens and suggests practicing meanwhile.
+
+Why: going live builds the event's whole audio track up front so it keeps playing with your phone locked in a pocket — and starts holding the screen and audio awake. Doing that hours early wastes battery and memory. If an event's times have all passed (an old draft), Go Live offers to restart it one minute from now.
 
 ---
 
@@ -305,7 +341,7 @@ Zip it up, import it, and any event action containing "go" will play your audio 
 
 | Folder | What goes in it |
 |--------|----------------|
-| `audio/` | System cues (countdown voice, trigger sounds) |
+| `audio/` | Clips — music beds, sound effects, longer recordings |
 | `voices/` | Action cues — the main spoken prompts — plus the `prep-lead` clip |
 | `events/` | Bundled event scripts (JSON format) |
 
@@ -313,7 +349,7 @@ These are conventions, not requirements. The app finds files by the `file` path 
 
 ### Recording Tips
 
-- **Keep it short** — 1-3 seconds per cue is ideal. The cue needs to finish before the next one starts
+- **Cues short, clips any length** — a spoken cue ("Freeze") works best at 1–3 seconds so it lands on the beat. Clips (music, murmur, full spoken lines) can run as long as you like and may overlap the next step
 - **Be clear** — Speak at a normal pace, enunciate. This plays through phone speakers in noisy environments
 - **Consistent volume** — Normalize your recordings so they're all roughly the same loudness
 - **WAV or MP3** — Both work. WAV is higher quality, MP3 is smaller. For voice cues, MP3 is fine
@@ -393,6 +429,9 @@ Both. The animated-QR beam now carries events as well as packs — handy for eve
 **How do I edit an event I already made?**
 Open it (from a link, code, or a saved draft), then start a new event from it in the editor, or reopen your draft. Conductor auto-saves editor drafts to your device, so a work-in-progress event is waiting under the editor when you come back. Note that an event someone *shared* with you comes in as finished data — to change it, load it and rebuild the parts you want in the editor.
 
+**Why won't Go Live start?**
+Live opens 20 minutes before the first cue. Earlier than that, the app shows when it opens — use **Practice** until then. See [Going Live](#going-live).
+
 **How do I password-protect an event?**
 In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a `v1e_` prefix. Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password.
 
@@ -422,7 +461,7 @@ Make sure your ringer/media volume is up, tap the audio toggle so it's on, and (
 
 ## Tips
 
-- **Practice first** — Always run through your event in practice mode before the real thing. Use the speed slider to go fast
+- **Practice first** — Always run through your event in practice mode before the real thing. Use the speed slider to go fast. Go Live opens 20 minutes before the first cue
 - **Pocket it** — Once you're live, lock the phone and pocket it. Beeps and pack voices keep playing; spoken text needs the screen on. Disable battery saver so the browser isn't killed mid-event
 - **Encryption** — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device
 - **Offline works** — Once you've opened the app in your browser, it caches itself. Works without internet after that

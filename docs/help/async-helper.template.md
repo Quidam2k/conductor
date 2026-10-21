@@ -31,7 +31,7 @@ You record right inside the app — no separate software, no account. Do it on t
 5. When you've recorded every cue, go to the **Review & Share** step and **export the recordings as a resource pack** — that gives you a single `.zip` file.
 6. Rename the `.zip` to something we'll recognise (like `stillness-yourname.zip`) and send it to us (see below).
 
-**Recording tips:** somewhere quiet, normal speaking pace, keep each cue to one to three seconds, and keep the volume even across cues. It plays through a phone speaker in a noisy crowd, so clear beats fancy.
+**Recording tips:** somewhere quiet, normal speaking pace, keep each cue to one to three seconds (longer is fine for a *clip* step, where the phone plays the recording itself instead of prompting a person), and keep the volume even across cues. It plays through a phone speaker in a noisy crowd, so clear beats fancy.
 
 ---
 

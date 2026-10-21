@@ -8,7 +8,7 @@ Conductor is a free, private tool that lets a group of people coordinate in real
 
 We record voice cues and write event scripts together in person every couple of weeks. But a lot of the most useful work doesn't need a meeting — you can do it on your own time, from anywhere, and send it in. This page is that work.
 
-*Generated September 10, 2026 · week of September 8, 2026. This page updates on a regular cadence — check back for the current ask.*
+*Generated October 21, 2026 · week of October 20, 2026. This page updates on a regular cadence — check back for the current ask.*
 
 ---
 
@@ -17,6 +17,7 @@ We record voice cues and write event scripts together in person every couple of 
 Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 
 - **Lowest lift of all: rate the touchstones we've collected** — We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you.
+- **Five minutes with your phone: does it work in your pocket?** — Open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) on your phone and follow the steps. It checks whether Conductor's audio keeps playing with the screen locked on YOUR device. Nothing is sent unless you choose to send it. Tell us your phone model and what you heard in a GitHub issue — iPhones and older Androids are especially useful.
 - **Easiest (no install): suggest touchstones everyone would recognize** — We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly ("I am Spartacus," "mad as hell," "I have a dream"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list.
 - **Go deeper: make a tiny event and tell us what confused you** — Open the app, create a 3–4 cue script (something simple a small crowd could do — a freeze, a wave, lights up), and note every spot that was confusing or annoying. Report the friction in a GitHub issue. You're helping us grandma-proof it — a plain-language 'this part made no sense' is worth as much as any code.
 
@@ -35,7 +36,7 @@ You record right inside the app — no separate software, no account. Do it on t
 5. When you've recorded every cue, go to the **Review & Share** step and **export the recordings as a resource pack** — that gives you a single `.zip` file.
 6. Rename the `.zip` to something we'll recognise (like `stillness-yourname.zip`) and send it to us (see below).
 
-**Recording tips:** somewhere quiet, normal speaking pace, keep each cue to one to three seconds, and keep the volume even across cues. It plays through a phone speaker in a noisy crowd, so clear beats fancy.
+**Recording tips:** somewhere quiet, normal speaking pace, keep each cue to one to three seconds (longer is fine for a *clip* step, where the phone plays the recording itself instead of prompting a person), and keep the volume even across cues. It plays through a phone speaker in a noisy crowd, so clear beats fancy.
 
 ---
 

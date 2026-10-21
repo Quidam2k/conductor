@@ -266,7 +266,7 @@
             <li><strong>They sent you a file</strong> (AirDrop / Quick Share / a <code>conductor.html</code>) — Open it. If it's a bundled file, it <em>is</em> the app with the event baked in.</li>
             <li><strong>You have an event code</strong> (a <code>v1_…</code> string) — Open Conductor and paste it into the "Got an event code?" box on the home screen.</li>
         </ul>
-        <p>Once you're in, tap <strong>Start Practice</strong> to rehearse, then be ready when the real event time arrives. If the event is password-protected, you'll be asked for the password the organizer gave you.</p>
+        <p>Once you're in, tap <strong>Start Practice</strong> to rehearse, then tap <strong>Go Live</strong> when the real event is close — Live opens 20 minutes before the first cue (see <a href="#going-live">Going Live</a>). If the event is password-protected, you'll be asked for the password the organizer gave you.</p>
     </section>
 
     <hr>
@@ -279,7 +279,7 @@
             <li><strong>Open Share.</strong> From the preview, tap <strong>Share QR Code</strong>.</li>
             <li><strong>Beam it.</strong> Tap <strong>Beam to a phone</strong>. The desktop screen shows an animated QR code — a rotating sequence of frames that carries the whole event, even one too large for a single static QR.</li>
             <li><strong>Scan on the phone.</strong> On the phone, open Conductor and tap <strong>Scan QR Code</strong>. Hold the camera up to the desktop screen and keep it steady. A progress bar fills as frames arrive.</li>
-            <li><strong>You're in.</strong> When the transfer completes, the phone jumps straight to the event preview. Practice, then go live from the phone.</li>
+            <li><strong>You're in.</strong> When the transfer completes, the phone jumps straight to the event preview. Practice, then go live from the phone (Live opens 20 minutes before the first cue).</li>
         </ol>
         <p>This is the same animated-QR "beam" used for resource packs — it now carries events too. Nothing leaves the two devices: no server, no upload, no link to intercept. It's ideal when you've drafted something big at a desk and just want it on the phone you'll actually carry.</p>
         <blockquote>
@@ -297,14 +297,12 @@
 
     <hr>
 
-    <hr>
-
     <section>
         <h2 id="importing-a-resource-pack">Importing a Resource Pack</h2>
         <p>Resource packs are real voice recordings that keep playing when the phone is locked in your pocket. They're optional — everything works without them — but they sound much better. You can record cues in your own voice right in the editor and share them as a pack.</p>
 
         <h3>Record Your Own Voice Cues</h3>
-        <p>While editing an event, use the 🎤 Record button next to each action to capture your own voice cue. The editor stores your recordings locally, and on the Review &amp; Share step, you can export them as a standard resource pack and share it with your participants.</p>
+        <p>While editing an event, pick <strong>My Voice</strong> as the pack and use the 🎤 Record button next to each action to capture your own voice cue — or record them all in one pass, starting with the "Get ready to…" prep lead. The editor stores your recordings locally, and on the Review &amp; Share step, you can export them as a standard resource pack and share it with your participants.</p>
 
         <h3>What You Need</h3>
         <p>A resource pack is a <code>.zip</code> file containing audio files and a <code>manifest.json</code> that tells the app what's inside.</p>
@@ -328,7 +326,7 @@
         <p>From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio. Anything without a matching file falls back to the phone's spoken voice (screen-on only).</p>
 
         <h3>The Demo Packs</h3>
-        <p>Each demo event has its own small voice pack — roughly 50&ndash;180&nbsp;KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice and notice cue that event uses. Grab the one for the event you're running:</p>
+        <p>Each demo event has its own small voice pack — roughly 50&ndash;180&nbsp;KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead). Grab the one for the event you're running:</p>
         <ul>
             <li><a href="packs/demo-the-stillness.zip">The Stillness</a> — freeze mob: sudden collective stillness, no props</li>
             <li><a href="packs/demo-the-bloom.zip">The Bloom</a> — umbrella performance: raise, open, sway, light, close</li>
@@ -351,14 +349,20 @@
         <p>The easiest way. No coding, no special formats.</p>
         <ol>
             <li>Tap <strong>Create New Event</strong> on the main screen.</li>
-            <li><strong>Step 1</strong> — Fill in the title, description, and start time.</li>
+            <li><strong>Step 1</strong> — Fill in the title, description, start time, and timezone. Also here:
+                <ul>
+                    <li><strong>Playback mode</strong> — <em>Cue</em> (a beep prompts a person, the default) or <em>Clip</em> (the phone plays a recorded clip). See <a href="#cues-and-clips">Cues and Clips</a></li>
+                    <li><strong>Repeat the sequence</strong> — loop it until a set time or a set number of times, with a rest between rounds. See <a href="#repeating-an-event">Repeating an Event</a></li>
+                </ul>
+            </li>
             <li><strong>Step 2</strong> — Build your timeline:
                 <ul>
                     <li>Tap <strong>Add Action</strong> to add a cue</li>
                     <li>Set the time offset (minutes and seconds from the start)</li>
                     <li>Type what should be announced (e.g., "Freeze in place")</li>
-                    <li>Choose a style (normal, emphasis, or alert)</li>
+                    <li>Choose a style (normal, emphasis, or alert), and a per-step playback mode (Default, Cue, or Clip)</li>
                     <li>Toggle countdown, notice, and haptic options</li>
+                    <li>Pick <strong>My Voice</strong> as the pack and tap <strong>🎤 Record</strong> to record your own cues. Recorded audio plays in a pocket; the robot voice doesn't</li>
                 </ul>
             </li>
             <li><strong>Step 3</strong> — Review everything, then share via link, QR code, or file.</li>
@@ -394,7 +398,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         </blockquote>
 
         <h4>Notices, styles, and haptics:</h4>
-        <p>Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called <strong>notices</strong>. You can control them with <code>NotifyWindow</code> (event-level) or <code>[notify:N]</code> / <code>[no-notify]</code> (per-action).</p>
+        <p>Before each action, the app gives you a heads-up (e.g., "Get ready to wave left"). These advance warnings are called <strong>notices</strong>. You can control them with <code>NotifyWindow</code> (event-level) or <code>[notify:N]</code> / <code>[no-notify]</code> (per-action). With a resource pack installed, the heads-up is assembled from the pack's "Get ready to…" prep-lead clip plus the named cue clips — so it plays in the pack voice, even from a pocket.</p>
         <p>The three <strong>styles</strong> change how an action looks on screen:</p>
         <ul>
             <li><code>normal</code> — blue (default)</li>
@@ -411,6 +415,7 @@ Countdown: true      # event-level: all actions get a countdown by default
             <li><code>[haptic:triple]</code> — vibration pattern</li>
         </ul>
         <p>Combine them with commas: <code>[alert, countdown:3, haptic:triple]</code></p>
+        <p><strong>Timezone:</strong> <code>Start</code> is read as a clock time <em>in the <code>Timezone</code> you give</em> — 2:00 PM New York stays 2:00 PM New York on a phone in California. Leave <code>Timezone</code> out and it uses the phone's own zone.</p>
         <p>For the full reference with all tags, briefing blocks, and advanced features, see the <a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md">Text Format Reference</a>.</p>
 
         <h3>Option 3: Write JSON</h3>
@@ -433,6 +438,39 @@ Countdown: true      # event-level: all actions get a countdown by default
     <hr>
 
     <section>
+        <h2 id="cues-and-clips">Cues and Clips</h2>
+        <p>Every step in an event plays one of two ways:</p>
+        <ul>
+            <li><strong>Cue</strong> (the default) — countdown beeps, then a beep on the moment, and a <em>person</em> acts or speaks. The app gives a "Get ready to…" heads-up first.</li>
+            <li><strong>Clip</strong> — the <em>phone itself</em> plays a recorded clip at that moment. No beeps, no heads-up — the clip is the moment. Clips can be any length and may overlap later steps: music beds, crowd murmur, a phone on a speaker playing its part.</li>
+        </ul>
+        <p>Set the default for the whole event (editor <strong>Playback mode</strong>, or <code>Mode: clip</code> in a text file), then override any single step (the step's Default/Cue/Clip toggle, or a <code>[clip]</code> / <code>[cue]</code> tag). One event can mix both. A clip step needs recorded audio to play in a pocket — without it, the phone reads the line aloud, screen-on only.</p>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="repeating-an-event">Repeating an Event</h2>
+        <p>Turn on <strong>Repeat the sequence</strong> (or use the text headers) to loop the whole timeline:</p>
+        <ul>
+            <li><strong>Until a set time</strong> (<code>RepeatUntil:</code>) — everyone stops at the same moment, so latecomers still join a round in progress.</li>
+            <li><strong>A set number of times</strong> (<code>Repeat: 3</code>) — best for a rehearsed drill where everyone starts together.</li>
+            <li><strong>Rest between repeats</strong> (<code>Coda:</code>, default 4 seconds) — the pause between rounds.</li>
+        </ul>
+        <p>Set both and whichever ends first wins. Details in the <a href="https://github.com/Quidam2k/conductor/blob/main/docs/TEXT_FORMAT.md">Text Format Reference</a>.</p>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2 id="going-live">Going Live</h2>
+        <p><strong>Practice</strong> works any time. <strong>Go Live</strong> opens <strong>20 minutes before the first cue</strong>. Tap it earlier and the app tells you when Live opens and suggests practicing meanwhile.</p>
+        <p>Why: going live builds the event's whole audio track up front so it keeps playing with your phone locked in a pocket — and starts holding the screen and audio awake. Doing that hours early wastes battery and memory. If an event's times have all passed (an old draft), Go Live offers to restart it one minute from now.</p>
+    </section>
+
+    <hr>
+
+    <section>
         <h2 id="adapting-the-demo-pack">Adapting a Demo Pack</h2>
         <p>Want to use a demo pack as a starting point for your own? Here's how.</p>
 
@@ -442,10 +480,7 @@ Countdown: true      # event-level: all actions get a countdown by default
 ├── voices/
 │   ├── freeze.mp3             # Action cues
 │   ├── hold.mp3
-│   └── ...
-├── notices/
-│   ├── notice-freeze.mp3      # Notice cues ("Get ready to…")
-│   ├── notice-hold.mp3
+│   ├── prep-lead.mp3          # The "Get ready to…" prep lead
 │   └── ...
 └── events/
     └── the-stillness.json     # The bundled event script</code></pre>
@@ -476,7 +511,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         <h3>Adding Your Own Cues</h3>
         <ol>
             <li>Record your audio file.</li>
-            <li>Put it in the <code>voices/</code> folder (or <code>notices/</code> for notice variants).</li>
+            <li>Put it in the <code>voices/</code> folder.</li>
             <li>Add an entry to the <code>cues</code> object in <code>manifest.json</code>.</li>
             <li>Reference the cue in your event text — the app matches cue IDs to action text automatically.</li>
         </ol>
@@ -510,9 +545,8 @@ Countdown: true      # event-level: all actions get a countdown by default
         <table>
             <thead><tr><th>Folder</th><th>What goes in it</th></tr></thead>
             <tbody>
-                <tr><td><code>audio/</code></td><td>System cues (countdown voice, trigger sounds)</td></tr>
-                <tr><td><code>voices/</code></td><td>Action cues — the main spoken prompts</td></tr>
-                <tr><td><code>notices/</code></td><td>Notice cues — "get ready to..." variants, prefixed with <code>notice-</code></td></tr>
+                <tr><td><code>audio/</code></td><td>Clips — music beds, sound effects, longer recordings</td></tr>
+                <tr><td><code>voices/</code></td><td>Action cues — the main spoken prompts — plus the <code>prep-lead</code> clip</td></tr>
                 <tr><td><code>events/</code></td><td>Bundled event scripts (JSON format)</td></tr>
             </tbody>
         </table>
@@ -521,11 +555,11 @@ Countdown: true      # event-level: all actions get a countdown by default
 
         <h3>Recording Tips</h3>
         <ul>
-            <li><strong>Keep it short</strong> — 1-3 seconds per cue is ideal. The cue needs to finish before the next one starts.</li>
+            <li><strong>Cues short, clips any length</strong> — a spoken cue ("Freeze") works best at 1&ndash;3 seconds so it lands on the beat. Clips (music, murmur, full spoken lines) can run as long as you like and may overlap the next step.</li>
             <li><strong>Be clear</strong> — Speak at a normal pace, enunciate. This plays through phone speakers in noisy environments.</li>
             <li><strong>Consistent volume</strong> — Normalize your recordings so they're all roughly the same loudness.</li>
             <li><strong>WAV or MP3</strong> — Both work. WAV is higher quality, MP3 is smaller. For voice cues, MP3 is fine.</li>
-            <li><strong>Notice variants</strong> — Record a softer "heads up" version of each action cue. Name it <code>notice-{cue-id}.wav</code> and put it in <code>notices/</code>. The app plays these as advance warnings before the main cue.</li>
+            <li><strong>The prep lead</strong> — Record one clip that says just "Get ready to…" and store it under the reserved cue ID <code>prep-lead</code>. The app glues it to your cue clips to build every advance warning ("Get ready to… freeze"), so one take covers the whole pack.</li>
         </ul>
 
         <h3>Bundling Events</h3>
@@ -569,8 +603,10 @@ Countdown: true      # event-level: all actions get a countdown by default
             <li><strong>Countdown beeps</strong> — the ascending beeps before each action.</li>
             <li><strong>Trigger beeps</strong> — the "go" beep at the action moment.</li>
             <li><strong>Resource-pack voice cues</strong> — spoken cues from an imported pack.</li>
+            <li><strong>Clips</strong> — recorded clips on clip-mode steps.</li>
+            <li><strong>"Get ready to…" heads-ups</strong> — stitched from the pack's <code>prep-lead</code> clip plus the named cue clips.</li>
         </ul>
-        <p>What does <strong>not</strong> play under lock: text-to-speech. The "Get ready to…" notices and any cue text read aloud by the phone's own voice only play while the screen is on. The app shows a note about this when you go live.</p>
+        <p>What does <strong>not</strong> play under lock: text-to-speech. Any cue text read aloud by the phone's own robot voice — including heads-ups when the pack has no <code>prep-lead</code> clip — only plays while the screen is on. The app shows a note about this when you go live.</p>
         <p>For organizers:</p>
         <ul>
             <li><strong>Want spoken cues in pockets? Use a resource pack.</strong> Pack voices are the only spoken audio that survives the pocket. Cover your event's cues with pack audio and the pocketed experience is fully voiced.</li>
@@ -596,6 +632,9 @@ Countdown: true      # event-level: all actions get a countdown by default
 
         <h3>How do I edit an event I already made?</h3>
         <p>Open it (from a link, code, or a saved draft), then start a new event from it in the editor, or reopen your draft. Conductor auto-saves editor drafts to your device, so a work-in-progress event is waiting under the editor when you come back. Note that an event someone <em>shared</em> with you comes in as finished data — to change it, load it and rebuild the parts you want in the editor.</p>
+
+        <h3>Why won't Go Live start?</h3>
+        <p>Live opens 20 minutes before the first cue. Earlier than that, the app shows when it opens — use <strong>Practice</strong> until then. See <a href="#going-live">Going Live</a>.</p>
 
         <h3>How do I password-protect an event?</h3>
         <p>In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a <code>v1e_</code> prefix. Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password.</p>
@@ -629,7 +668,7 @@ Countdown: true      # event-level: all actions get a countdown by default
     <section>
         <h2 id="tips">Tips</h2>
         <ul>
-            <li><strong>Practice first</strong> — Always run through your event in practice mode before the real thing. Use the speed slider to go fast.</li>
+            <li><strong>Practice first</strong> — Always run through your event in practice mode before the real thing. Use the speed slider to go fast. Go Live opens 20 minutes before the first cue.</li>
             <li><strong>Pocket it</strong> — Once you're live, lock the phone and pocket it. Beeps and pack voices keep playing; spoken text needs the screen on. Disable battery saver so the browser isn't killed mid-event.</li>
             <li><strong>Encryption</strong> — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device.</li>
             <li><strong>Offline works</strong> — Once you've opened the app in your browser, it caches itself. Works without internet after that.</li>
@@ -652,7 +691,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         &nbsp;&middot;&nbsp;
         <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
     </p>
-    <p class="build">build v66 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+    <p class="build">build v67 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
 </footer>
 
 </body>

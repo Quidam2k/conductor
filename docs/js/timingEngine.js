@@ -1,6 +1,7 @@
 /**
  * Conductor PWA - Timing Engine
  * Ported from conductor-mobile/shared/.../TimingEngine.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * All timing logic for event coordination: current action detection,
  * upcoming actions, announcement scheduling, circular position calculation,

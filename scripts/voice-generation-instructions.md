@@ -1,4 +1,7 @@
 # Voice Generation Instructions — Conductor Demo Pack v3 (Incremental)
+> **RETIRED (2026-08-12).** Voice synthesis (Chatterbox / voice-forge) is retired —
+> cues are hand-recorded in the app (My Voice). Kept for history only.
+
 
 ## Overview
 

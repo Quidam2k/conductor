@@ -9,18 +9,18 @@ Resource packs are optional zip files that enhance Conductor events with pre-rec
 ```
 my-pack.zip
 ├── manifest.json              # Required: pack metadata + cue mappings
-├── audio/                     # System audio (countdown)
-│   └── countdown-voice.wav
 ├── voices/                    # Full-phrase action cues + the prep lead
-│   ├── stand-by.wav
-│   ├── prep-lead.wav
+│   ├── stand-by.mp3
+│   ├── prep-lead.mp3
+│   └── ...
+├── audio/                     # Longer clips: music beds, ambience (optional)
 │   └── ...
 └── events/                    # Bundled event scripts (optional)
     ├── the-stillness.json
     └── ...
 ```
 
-All audio files should be WAV format. MP3 and OGG are also supported (anything `AudioContext.decodeAudioData()` handles).
+Audio can be WAV or MP3 (anything `AudioContext.decodeAudioData()` handles). For iPhones, MP3s must be **MPEG-1 at 44.1 kHz** — Safari refuses low-sample-rate (MPEG-2) MP3s. Packs exported from the app are already in the right format.
 
 Folder names are conventions, not requirements — the manifest maps cue IDs to file paths, so any path within the zip works.
 
@@ -35,9 +35,8 @@ Folder names are conventions, not requirements — the manifest maps cue IDs to 
   "url": "https://example.com/my-pack",
 
   "cues": {
-    "countdown-voice": "audio/countdown-voice.wav",
-    "stand-by": "voices/stand-by.wav",
-    "prep-lead": "voices/prep-lead.wav"
+    "stand-by": "voices/stand-by.mp3",
+    "prep-lead": "voices/prep-lead.mp3"
   },
 
   "events": [
@@ -90,6 +89,30 @@ Referenced by the `cue` field on timeline actions. The cue ID is typically a keb
 }
 ```
 
+### Cue Mode and Clip Mode
+
+Every step plays in one of two modes, set per event (`Mode: clip` in the text format, or the editor's Playback mode) and overridable per step:
+
+- **Cue mode** (default) — the phone prompts a *person*: countdown beeps, a "Get ready to…" prep, then the action's cue clip at the downbeat. Cue clips should be short — a spoken phrase.
+- **Clip mode** — the phone *is* the performer: the clip plays at its time with no beeps and no prep. Clips can be any length (a music bed, a long reading) and may overlap the next step's clip — they layer rather than cut each other off.
+
+The pack format is the same for both; a cue ID is just a file. The mode only changes how the app plays it.
+
+### Random Takes (`randomCues`)
+
+An action can name several cue IDs instead of one:
+
+```json
+{
+  "time": "2026-03-15T18:02:00Z",
+  "action": "Murmur",
+  "randomCues": ["murmur-a", "murmur-b", "murmur-c"],
+  "pack": "my-pack-id"
+}
+```
+
+Each phone picks one of the takes it actually has, so a crowd of phones plays a mix — emergent harmony from one script. The pick is made once per step, so the locked-screen track and the screen-on audio agree; in a repeating event each cycle picks again. `randomCues` is set in JSON (the text format and editor don't have syntax for it yet).
+
 ### The Prep Lead (reserved cue: `prep-lead`)
 
 For the "Get ready to [action]" announcement that fires before an action, a pack records **one reusable lead clip** — just the words "Get ready to…" — stored under the reserved cue ID `prep-lead` and listed in the `cues` map like any other cue.
@@ -109,7 +132,7 @@ Rules:
 When the system needs to play audio for an action, it tries these sources in order:
 
 ### For action cues:
-1. **Full phrase cue** — exact match in `cues` map → play the WAV
+1. **Full phrase cue** — exact match in `cues` map (for `randomCues`, the take this phone picked) → play the clip
 2. **TTS** — speak `fallbackText` or `action` text via Web Speech API
 
 ### For prep announcements ("Get ready to…"):
@@ -180,8 +203,7 @@ When a pack is imported, the system validates that bundled events have full audi
 The pack manager displays uncovered actions after import:
 
 ```
-Pack imported: Conductor Demo
-120 cues · 8 events
+Imported "My Flash Mob" (14 cues, 2 events)
 
 ⚠ 2 actions will fall back to TTS:
   • "Custom phrase" (reveal @ 1:30)
@@ -192,12 +214,12 @@ This helps pack creators catch missing recordings before distribution.
 
 ## Minimal Valid Pack
 
-The simplest possible pack — just a manifest with one cue:
+The simplest possible pack — just a manifest with one action cue:
 
 ```
 minimal.zip
 ├── manifest.json
-└── beep.wav
+└── freeze.mp3
 ```
 
 ```json
@@ -205,19 +227,19 @@ minimal.zip
   "id": "minimal",
   "name": "Minimal Pack",
   "cues": {
-    "trigger": "beep.wav"
+    "freeze": "freeze.mp3"
   }
 }
 ```
 
-This replaces "Now!" with a beep for every action. Everything else falls back to TTS.
+Any action with `"cue": "freeze", "pack": "minimal"` plays this recording at its downbeat (and from a locked phone). Everything else falls back to TTS while the screen is on.
 
 ## File Size Guidelines
 
-- Individual audio files: aim for under 500KB each
-- Total pack size: no hard limit, but consider mobile data
-- WAV is largest but most compatible; MP3/OGG significantly smaller
-- A resource pack for a 3-minute event with 20 phrases: ~2-5 MB depending on format
+- Spoken cues compress well: at 32 kbps mono MP3 (what the app exports) a few seconds of speech is ~10–20 KB
+- The demo packs (one event, 10–20 cues each) are 90–350 KB
+- Keep packs small enough to pass phone-to-phone — QR beam and messaging apps both get slow past a megabyte or two
+- Long clip-mode audio (music beds) is what makes a pack big; budget for it
 
 ## Packs Recorded In-App
 
@@ -233,7 +255,7 @@ The Conductor editor lets you record cues in your own voice directly in the app.
 ### Storage & Export
 
 - Recordings are stored in your browser's local IndexedDB storage
-- Exporting generates a 100% standard resource pack zip file (manifest.json + voices/{cueId}.wav)
+- Exporting generates a 100% standard resource pack zip file (manifest.json + voices/{cueId}.mp3). Recordings are slimmed to 32 kbps mono MP3 on export; the full-quality originals stay on your device
 - The exported zip is identical to any other Conductor resource pack — it can be re-imported elsewhere, shared, or published
 
 ### Fallback

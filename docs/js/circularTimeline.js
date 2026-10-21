@@ -1,6 +1,7 @@
 /**
  * Conductor PWA - Circular Timeline Renderer
  * Ported from conductor-mobile/androidApp/.../CircularTimeline.kt
+ * (the Kotlin app was removed in v66; see git history before 98c7683)
  *
  * "Guitar Hero" style circular timeline on HTML5 Canvas.
  * Actions rotate clockwise toward 12 o'clock (the trigger point).

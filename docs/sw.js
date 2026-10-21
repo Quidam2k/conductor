@@ -1,10 +1,11 @@
-const CACHE_NAME = 'conductor-v70';
+const CACHE_NAME = 'conductor-v71';
 const ASSETS = [
     './index.html',
     './conductor.html',
     './start.html',
     './GUIDE.html',
     './GUIDE.md',
+    './changelog.html',
     './TEXT_FORMAT.md',
     './RESOURCE_PACK_FORMAT.md',
     './ios-audio-test/index.html',

@@ -1,4 +1,7 @@
 # Conductor Demo — WAV File Manifest
+> **RETIRED (2026-08-12).** Voice synthesis (Chatterbox / voice-forge) is retired —
+> cues are hand-recorded in the app (My Voice). Kept for history only.
+
 
 Complete list of WAV files needed for the `conductor-demo` resource pack.
 **120 files total** across 3 categories.

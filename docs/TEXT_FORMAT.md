@@ -77,6 +77,23 @@ audio falls back to speaking the line via TTS (screen-on only, like any TTS).
 > beeps + pack voices) survives a locked screen. A clip step that relies on TTS is
 > screen-on only. See "Designing for Pockets" below.
 
+#### Random takes (`randomCues`, JSON only)
+
+A step can name several recordings and let each phone pick one — with a crowd of
+phones, that's a layered murmur or chord from a single script. The text format has
+no syntax for this yet; set it in the JSON format (see "Other Supported Formats")
+with a `randomCues` list on the action:
+
+```json
+{ "time": "2026-03-15T18:02:00Z", "action": "Murmur",
+  "randomCues": ["murmur-a", "murmur-b", "murmur-c"], "pack": "my-pack" }
+```
+
+Each phone picks among the takes its pack actually has, once per step — the
+pocket track and the screen-on audio play the same take. In a repeating event,
+each round picks again. A phone without the pack speaks the action text instead
+(screen-on only).
+
 ### Repeating a sequence (bounded repeat)
 
 There are two ways to bound the loop, and they encode different intent:
@@ -117,6 +134,11 @@ The repeat period is the span of your actions plus the coda. Going live pre-rend
 the whole run into the pocket-proof audio track and stops **exactly** on its bound —
 even with the screen locked. Keep it tight on older phones: a long run is a large
 audio file held in memory (roughly 3 MB per minute).
+
+> **When can you go live?** Go Live opens **20 minutes before the first cue**. The
+> pocket track covers everything from the moment you go live, so going live hours
+> early would mean a huge file full of silence (and a drained battery). Earlier
+> than that, the app tells you when Live opens — use Practice in the meantime.
 
 ## Timeline Actions
 

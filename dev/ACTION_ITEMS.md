@@ -1,5 +1,7 @@
 # Conductor — Action Items
 
+> **HISTORICAL (as of v66, 2026-10-20):** superseded — current state lives in notes/ and the changelog (docs/changelog.html).
+
 Last updated: 2026-03-01
 
 ---

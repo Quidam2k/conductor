@@ -1,5 +1,8 @@
 """Build the demo resource packs from voice-forge output + demo manifest + events.
 
+NOTE (2026-08-12): voice-forge synthesis is RETIRED and the demo packs are frozen.
+This still works given hand-recorded sources passed via --voice-source.
+
 Default (v53+): per-event MINI-PACKS — one small zip per demo event, audio
 transcoded to 64 kbps mono MPEG-1 MP3 so each pack is beamable via QR and light on
 weak signal (~100-250 KB each vs the 19 MB WAV monolith).

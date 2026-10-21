@@ -1,9 +1,13 @@
 {
-  "weekOf": "2026-09-08",
+  "weekOf": "2026-10-20",
   "focus": [
     {
       "title": "Lowest lift of all: rate the touchstones we've collected",
       "detail": "We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you."
+    },
+    {
+      "title": "Five minutes with your phone: does it work in your pocket?",
+      "detail": "Open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) on your phone and follow the steps. It checks whether Conductor's audio keeps playing with the screen locked on YOUR device. Nothing is sent unless you choose to send it. Tell us your phone model and what you heard in a GitHub issue — iPhones and older Androids are especially useful."
     },
     {
       "title": "Easiest (no install): suggest touchstones everyone would recognize",
