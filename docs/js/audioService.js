@@ -73,8 +73,7 @@ function createAudioService() {
      * (countdown beeps, trigger beeps, pack voice clips) for the event. When
      * set, the live path suppresses those — the track plays them at the media
      * layer so they survive iOS screen lock (diagnostic test 11). Live TTS for
-     * no-pack actions still fires (it can't be baked). See
-     * cascades/2026-06-23-locked-screen-bake.md.
+     * no-pack actions still fires (it can't be baked).
      */
     let bakedActive = false;
 

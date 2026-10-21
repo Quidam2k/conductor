@@ -135,7 +135,7 @@
 
 <div class="test">
   <div class="test-title">1. TTS alone</div>
-  <div class="test-desc">Speak "Hello Teafaerie" via speechSynthesis.</div>
+  <div class="test-desc">Speak "Hello, this is a sound test" via speechSynthesis.</div>
   <div class="test-row">
     <button onclick="test1()">Run</button>
     <span class="result pending" id="r1">—</span>
@@ -610,7 +610,7 @@ async function getFreezeWavBytes(label) {
 async function test1() {
   setResult('r1', 'running…', 'info');
   log('--- Test 1: TTS alone ---');
-  const r = await speak('Hello Teafaerie', 1.0, 'T1');
+  const r = await speak('Hello, this is a sound test', 1.0, 'T1');
   if (!r.ok) { applyVerdict('r1', false, null, r.reason || 'no onstart'); return; }
   const v = await awaitAudibility('r1', 'API ran — did you hear it?');
   log('T1: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
@@ -620,7 +620,7 @@ async function test1() {
 async function test2() {
   setResult('r2', 'running…', 'info');
   log('--- Test 2: TTS at iOS-scaled rate (0.96) ---');
-  const r = await speak('Hello Teafaerie', 0.96, 'T2');
+  const r = await speak('Hello, this is a sound test', 0.96, 'T2');
   if (!r.ok) { applyVerdict('r2', false, null, r.reason || 'no onstart'); return; }
   const v = await awaitAudibility('r2', 'API ran — did you hear it?');
   log('T2: audibility = ' + v.toUpperCase(), v === 'heard' ? 'ok' : 'err');
@@ -688,7 +688,7 @@ async function test6() {
   log('T6: ctx state=' + ctx.state);
   ctx.resume?.();
   log('T6: called ctx.resume() (sync), state now=' + ctx.state);
-  const t = await speak('Hello Teafaerie after resume', 1.0, 'T6');
+  const t = await speak('Hello again after resume', 1.0, 'T6');
   ctx.close().catch(() => {});
   if (!t.ok) { applyVerdict('r6', false, null, t.reason || 'no onstart'); return; }
   const v = await awaitAudibility('r6', 'API ran — did you hear it?');

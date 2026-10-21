@@ -1093,7 +1093,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v68</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v69</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1127,7 +1127,7 @@
             <div class="about-body" style="text-align:left;">
                 <strong>Use the built-in editor:</strong> Tap <em>Create New Event</em> below. Give it a title, start time, and description, then add actions with timestamps. The editor walks you through it step by step.
                 <br><br>
-                <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line, with at least two spaces after the time (e.g. <code>0:30&nbsp;&nbsp;Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
+                <strong>Write a text file:</strong> Create a <code>.txt</code> file with timestamps and actions &mdash; one per line (e.g. <code>0:30 Wave left</code>). Add optional tags like <code>[emphasis]</code> for gold highlighting, <code>[countdown]</code> for an audible countdown, or <code>[alert]</code> for urgent red cues. Paste the text into the input field below or import the file.
                 <br><br>
                 <strong>Start from the demo:</strong> Tap <em>Try the Demo</em> to see how a finished event looks. You can study the format and adapt it for your own event.
                 <br><br>
@@ -1646,7 +1646,7 @@
 <!-- Hidden media element for the on-the-fly baked audio track. At Start we
      render the whole event's beeps + pack voice into one WAV and play it here;
      a decoded media file in <audio>.src is the only channel that survives iOS
-     screen lock (diagnostic test 11). See cascades/2026-06-23-locked-screen-bake.md -->
+     screen lock (diagnostic test 11). -->
 <audio id="baked-track" playsinline preload="auto" style="display:none"></audio>
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
@@ -2966,7 +2966,7 @@ async function enterLive() {
     // throttled under multi-minute lock (tests 14/15). As of v46 the bake runs
     // on every platform that can — Android/desktop background-timer throttling
     // is sidestepped the same way. Falls back to live if the bake fails.
-    // See cascades/2026-06-23-locked-screen-bake.md.
+    // (Design record: the 2026-06-23 locked-screen bake plan, kept privately.)
     if (canBake()) {
         await startBakedTrack(evt, evtDefs);
         if (gen !== enterGen) {

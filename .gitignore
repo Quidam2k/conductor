@@ -69,3 +69,7 @@ data/runtime/
 
 # Screenshots (local scratch)
 screengrab/
+
+# Session notes + plans are kept privately since v68
+notes/
+cascades/

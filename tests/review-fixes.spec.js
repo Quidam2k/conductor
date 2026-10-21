@@ -439,6 +439,20 @@ test.describe('v66 review fixes', () => {
 
   // v68: phones cue off their own clocks; warn when this one disagrees
   // with the server's Date header.
+  test('text format: one space after the time is enough', async ({ page }) => {
+    const parsed = await page.evaluate(() => parseTextFormat([
+      'Title: One Space',
+      'Start: 2026-11-15 7:00 PM',
+      '',
+      '0:30 Wave left',
+      '1:00:05 [emphasis] Freeze',
+      '1:30\tTab still works',
+    ].join('\n')));
+    expect(parsed.timeline.map(a => a.action)).toEqual(['Wave left', 'Freeze', 'Tab still works']);
+    const start = Date.parse(parsed.startTime);
+    expect(parsed.timeline.map(a => (Date.parse(a.time) - start) / 1000)).toEqual([30, 3605, 90]);
+  });
+
   test('demo offers its voice pack in one tap', async ({ page, browserName }) => {
     test.skip(browserName === 'webkit', 'pack import (IndexedDB blobs) is not exercised on headless webkit');
     await page.click('#btn-demo');

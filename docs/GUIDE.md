@@ -171,7 +171,7 @@ Countdown: true      # event-level: all actions get a countdown by default
 **The basics:**
 - Put your title, start time, and other settings at the top
 - Leave a blank line, then list your actions
-- Each action is a timestamp, two spaces, then the text to speak
+- Each action is a timestamp, a space, then the text to speak
 - Timestamps count up from the event start: `0:00` = start, `1:30` = one minute thirty seconds in
 
 > **Countdown — two levels:** The header `Countdown: true` turns on a countdown for *every* action in the event by default. The per-action tag `[countdown]` (or `[no-countdown]`) overrides that default for a single action.

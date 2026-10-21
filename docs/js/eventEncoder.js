@@ -393,9 +393,9 @@ function parseTextFormat(text) {
             continue;
         }
 
-        // Try timeline action: M:SS or H:MM:SS followed by 2+ spaces or tab then text
-        const actionMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s{2,}(.+)$/) ||
-                            line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\t(.+)$/);
+        // Try timeline action: M:SS or H:MM:SS, whitespace, then text. One
+        // space is enough (v68) — it's how people type; two still works.
+        const actionMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)$/);
         if (actionMatch) {
             const timeParts = actionMatch[1].split(':').map(Number);
             let offsetSeconds;

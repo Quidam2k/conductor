@@ -142,7 +142,7 @@ audio file held in memory (roughly 3 MB per minute).
 
 ## Timeline Actions
 
-After the headers, add a blank line, then list your actions. Each line is a timestamp followed by **two or more spaces** (or a tab), then the action text:
+After the headers, add a blank line, then list your actions. Each line is a timestamp, a space, then the action text:
 
 ```
 M:SS  Action text here

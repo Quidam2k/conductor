@@ -12,7 +12,7 @@
  * context clock provably accurate). So we bake everything that routes through
  * Web Audio (beeps + pack voice clips) into a file and let the media layer play
  * it. System TTS can't be baked (it doesn't route through Web Audio); it stays
- * on the live path, screen-on only. See cascades/2026-06-23-locked-screen-bake.md.
+ * on the live path, screen-on only.
  *
  * Pure and app-agnostic: depends only on OfflineAudioContext + a getBuffer
  * callback for pack clips. No DOM, no AudioContext, no pack manager.
