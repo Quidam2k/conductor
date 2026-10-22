@@ -1,17 +1,21 @@
 {
-  "weekOf": "2026-10-20",
+  "weekOf": "2026-10-21",
   "focus": [
     {
-      "title": "Lowest lift of all: rate the touchstones we've collected",
-      "detail": "We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you."
+      "title": "iPhone on iOS 26? Does the robot voice keep talking with your screen locked?",
+      "detail": "This one could change how Conductor works. Older iPhones go silent on spoken cues once the screen locks, so today you need a downloaded voice pack to hear anything in your pocket. iOS 26 may have changed that. On an iPhone running iOS 26: open the app (<https://quidam2k.github.io/conductor/>), tap Share → Add to Home Screen, and open it from that icon (Safari's new bottom toolbar can cover the Go Live button). Don't install any voices. Tap Try the Demo → Go Live → Enter Live, then lock the phone and put it in your pocket for the 3½-minute demo. Tell us in a GitHub issue: your iOS version, whether every line played out loud, whether they were on time, and whether you heard beeps."
+    },
+    {
+      "title": "Two phones on hand? Time a voice-pack beam",
+      "detail": "Conductor can send a voice pack from one phone to another with no internet, as an animated QR code. Our first real test took about 3 minutes, and we want it faster. On phone A: open the app, tap Try the Demo → Install voices, then Manage Packs → Beam on that pack. On phone B: open the app → Scan QR Code → aim at phone A. If it stalls, tap \"Trouble scanning? Smaller frames\" on phone A or lower the speed. Report both phone models, the seconds it took, and the speed and frame settings that worked."
     },
     {
       "title": "Five minutes with your phone: does it work in your pocket?",
       "detail": "Open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) on your phone and follow the steps. It checks whether Conductor's audio keeps playing with the screen locked on YOUR device. Nothing is sent unless you choose to send it. Tell us your phone model and what you heard in a GitHub issue — iPhones and older Androids are especially useful."
     },
     {
-      "title": "Easiest (no install): suggest touchstones everyone would recognize",
-      "detail": "We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly (\"I am Spartacus,\" \"mad as hell,\" \"I have a dream\"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list."
+      "title": "Lowest lift of all: rate the touchstones we've collected",
+      "detail": "We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you."
     },
     {
       "title": "Go deeper: make a tiny event and tell us what confused you",
@@ -21,7 +25,7 @@
   "sendTo": {
     "githubIssues": "https://github.com/Quidam2k/conductor/issues/new",
     "githubRepo": "https://github.com/Quidam2k/conductor",
-    "discordInvite": "TBD — Todd fills this in"
+    "discordInvite": ""
   },
   "nextSession": {
     "note": "We meet in person to record together roughly every couple of weeks. Can't make it? Everything on this page is designed so you can help on your own time and send it in — you don't need to be in the room.",

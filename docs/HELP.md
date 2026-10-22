@@ -8,7 +8,7 @@ Conductor is a free, private tool that lets a group of people coordinate in real
 
 We record voice cues and write event scripts together in person every couple of weeks. But a lot of the most useful work doesn't need a meeting — you can do it on your own time, from anywhere, and send it in. This page is that work.
 
-*Generated October 21, 2026 · week of October 20, 2026. This page updates on a regular cadence — check back for the current ask.*
+*Generated October 22, 2026 · week of October 21, 2026. This page updates on a regular cadence — check back for the current ask.*
 
 ---
 
@@ -16,9 +16,10 @@ We record voice cues and write event scripts together in person every couple of 
 
 Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 
-- **Lowest lift of all: rate the touchstones we've collected** — We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you.
+- **iPhone on iOS 26? Does the robot voice keep talking with your screen locked?** — This one could change how Conductor works. Older iPhones go silent on spoken cues once the screen locks, so today you need a downloaded voice pack to hear anything in your pocket. iOS 26 may have changed that. On an iPhone running iOS 26: open the app (<https://quidam2k.github.io/conductor/>), tap Share → Add to Home Screen, and open it from that icon (Safari's new bottom toolbar can cover the Go Live button). Don't install any voices. Tap Try the Demo → Go Live → Enter Live, then lock the phone and put it in your pocket for the 3½-minute demo. Tell us in a GitHub issue: your iOS version, whether every line played out loud, whether they were on time, and whether you heard beeps.
+- **Two phones on hand? Time a voice-pack beam** — Conductor can send a voice pack from one phone to another with no internet, as an animated QR code. Our first real test took about 3 minutes, and we want it faster. On phone A: open the app, tap Try the Demo → Install voices, then Manage Packs → Beam on that pack. On phone B: open the app → Scan QR Code → aim at phone A. If it stalls, tap "Trouble scanning? Smaller frames" on phone A or lower the speed. Report both phone models, the seconds it took, and the speed and frame settings that worked.
 - **Five minutes with your phone: does it work in your pocket?** — Open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) on your phone and follow the steps. It checks whether Conductor's audio keeps playing with the screen locked on YOUR device. Nothing is sent unless you choose to send it. Tell us your phone model and what you heard in a GitHub issue — iPhones and older Androids are especially useful.
-- **Easiest (no install): suggest touchstones everyone would recognize** — We're building a shared palette of high-recognition cultural references — lines that unpack in your head instantly ("I am Spartacus," "mad as hell," "I have a dream"). Send us 5–10 that almost anyone would recognize, in a GitHub issue. Bonus: group a few that work together on a theme (freedom, grief, immigration, courage). No app, no download — just the list.
+- **Lowest lift of all: rate the touchstones we've collected** — We've gathered a big pile of cultural touchstones — recognizable lines that scripts pull from — and we need help separating the wheat from the chaff. Open the rating page (<https://quidam2k.github.io/conductor/rate.html>) and give a quick 1–5 stars to the ones that jump out at you, good or bad. Don't rate all of them — please don't. Skip the middle: 5 stars for a line almost anyone would know and love, 1 star for one that falls flat, and leave the forgettable ones unrated (that's a signal too). Even five ratings genuinely help. No download, no typing — just tap stars and submit the prefilled issue it builds for you.
 - **Go deeper: make a tiny event and tell us what confused you** — Open the app, create a 3–4 cue script (something simple a small crowd could do — a freeze, a wave, lights up), and note every spot that was confusing or annoying. Report the friction in a GitHub issue. You're helping us grandma-proof it — a plain-language 'this part made no sense' is worth as much as any code.
 
 > **The two-minute option:** [rate the touchstones](https://quidam2k.github.io/conductor/rate.html). Tap 1–5 stars on the lines that jump out — good or bad — and **skip the middle**: leave the forgettable ones unrated. No download, no account of ours, and your taps build a prefilled GitHub issue you just submit. It's the single lowest-effort way to help, and it directly shapes which touchstones we keep.
@@ -53,7 +54,6 @@ Whatever you've got. A single recorded cue or a two-line bug note is worth sendi
 ## Where to send it
 
 - **Open a GitHub issue and attach your file** *(easiest — works today, no account of ours, nothing to sign up for)*: [open a new issue](https://github.com/Quidam2k/conductor/issues/new). Describe what you're sending, drag your `.zip`/`.txt` into the issue, and submit. A free GitHub account is the only requirement.
-- **Discord:** a project chat invite is coming soon — for now, the GitHub issue above is the reliable way in.
 - **Not sure where something goes?** Open an issue on [the project on GitHub](https://github.com/Quidam2k/conductor) and ask. No question is too small.
 
 ---

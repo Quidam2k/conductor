@@ -69,8 +69,6 @@ function buildSendTo(cfg) {
   }
   if (s.discordInvite && !/^tbd/i.test(String(s.discordInvite).trim())) {
     lines.push('- **Or join our Discord** and drop it in the help channel: [' + s.discordInvite + '](' + s.discordInvite + ').');
-  } else {
-    lines.push('- **Discord:** a project chat invite is coming soon — for now, the GitHub issue above is the reliable way in.');
   }
   if (s.githubRepo) {
     lines.push('- **Not sure where something goes?** Open an issue on [the project on GitHub](' + s.githubRepo + ') and ask. No question is too small.');

@@ -73,3 +73,6 @@ screengrab/
 # Session notes + plans are kept privately since v68
 notes/
 cascades/
+
+# Private names the hygiene test guards against (never tracked)
+tests/.private-names.txt
