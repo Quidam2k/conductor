@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<meta name="robots" content="noindex">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icon-192.png">
+<title>Conductor — Lock-screen audio matrix</title>
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+        --bg: #0f0f23; --surface: #171733; --elev: #1f1f42;
+        --text: #e8e6e3; --dim: rgba(232,230,227,0.55);
+        --blue: #5ba3ff; --green: #34d399; --gold: #f0b429; --red: #ff4757;
+        --border: rgba(232,230,227,0.14);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    body { background: var(--bg); color: var(--text); line-height: 1.5; font-size: 16px;
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+           padding: 0 16px 60px; }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 26px; margin: 26px 0 6px; }
+    h2 { font-size: 18px; margin: 26px 0 8px; }
+    p.lead { color: var(--dim); margin-bottom: 14px; font-size: 15px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            padding: 14px 15px; margin-bottom: 12px; }
+    label { display: block; font-size: 13px; color: var(--dim); margin: 10px 0 4px;
+            font-family: var(--mono); letter-spacing: 0.04em; }
+    label:first-child { margin-top: 0; }
+    select, input[type=text] { width: 100%; font: inherit; font-size: 16px; background: var(--bg);
+            color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+    button { font: inherit; font-size: 16px; font-weight: 600; background: var(--elev); color: var(--text);
+             border: 1px solid var(--border); border-radius: 6px; padding: 11px 16px; min-height: 46px; cursor: pointer; }
+    button.primary { background: var(--blue); color: #0f0f23; border: none; width: 100%; font-size: 18px; margin-top: 14px; }
+    button.v-good { border-color: var(--green); color: var(--green); }
+    button.v-late { border-color: var(--gold); color: var(--gold); }
+    button.v-none { border-color: var(--red); color: var(--red); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row > * { flex: 1 1 130px; }
+    .hint { font-size: 13.5px; color: var(--dim); margin-top: 5px; }
+    .env { font-family: var(--mono); font-size: 12.5px; color: var(--dim); word-break: break-all; }
+    .env b { color: var(--text); font-weight: 600; }
+    .big { font-family: var(--mono); font-size: 56px; text-align: center; margin: 6px 0; }
+    .lockme { text-align: center; color: var(--gold); font-weight: 700; font-size: 19px; }
+    pre.log { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border);
+              border-radius: 6px; padding: 9px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid var(--border); padding: 5px 4px; text-align: center; }
+    th { color: var(--dim); font-weight: 500; font-size: 11.5px; }
+    td.l { text-align: left; font-size: 12.5px; }
+    .ok { color: var(--green); } .late { color: var(--gold); } .no { color: var(--red); }
+    ol.pri { padding-left: 20px; font-size: 14.5px; }
+    ol.pri li { margin-bottom: 6px; }
+    ol.pri li.done { color: var(--dim); text-decoration: line-through; }
+    ol.pri button { min-height: 32px; font-size: 13px; padding: 3px 9px; margin-left: 6px; }
+    textarea { width: 100%; height: 150px; font-family: var(--mono); font-size: 12px; background: var(--bg);
+               color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 9px; margin-top: 8px; }
+    .hidden { display: none; }
+    .warn { color: var(--gold); font-size: 14px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Lock-screen audio matrix</h1>
+    <p class="lead">Does a cue still sound after the phone has been locked for a couple of minutes?
+        Pick a combination, arm it, lock the phone, then report what you heard. Everything stays on this
+        phone unless you copy the log out yourself.</p>
+
+    <div class="card env" id="env"></div>
+
+    <div id="setup">
+        <h2>1 · Set up a run</h2>
+        <div class="card">
+            <label for="ios">IOS / ANDROID VERSION (type it exactly — the browser hides it)</label>
+            <input type="text" id="ios" placeholder="e.g. 27.0" autocomplete="off">
+            <label for="device">DEVICE (optional)</label>
+            <input type="text" id="device" placeholder="e.g. iPhone 15" autocomplete="off">
+            <label for="bg">WHAT ELSE IS PLAYING</label>
+            <select id="bg">
+                <option value="silence">Nothing — silence</option>
+                <option value="ext">Another app is playing (start Music / a podcast first)</option>
+                <option value="loop">This page plays its own quiet hum</option>
+            </select>
+            <label for="cue">CUE TYPE</label>
+            <select id="cue">
+                <option value="speech">Speech — robot voice, fired by a timer</option>
+                <option value="clip-el">Clip — audio element, fired by a timer</option>
+                <option value="clip-ctx">Clip — Web Audio, fired by a timer</option>
+                <option value="clip-sched">Clip — Web Audio, pre-scheduled on the audio clock</option>
+                <option value="baked">Baked — one long audio file with the clip inside it (the fallback)</option>
+            </select>
+            <label for="delay">LOCK FOR THIS LONG BEFORE THE CUE</label>
+            <select id="delay">
+                <option value="150" selected>2.5 min (recommended)</option>
+                <option value="120">2 min</option>
+                <option value="240">4 min</option>
+                <option value="8">8 sec (just checking the page works)</option>
+            </select>
+            <div class="hint">Open this page from the same place you'll really use Conductor — a Safari tab and a
+                Home Screen app are separate runs. Mute switch off, volume up.</div>
+            <button class="primary" id="arm" type="button">Arm — then lock the phone</button>
+        </div>
+
+        <h2>Worth running first</h2>
+        <div class="card"><ol class="pri" id="pri"></ol></div>
+    </div>
+
+    <div id="running" class="hidden">
+        <h2>2 · Armed</h2>
+        <div class="card">
+            <div class="lockme">Lock the phone now and leave it alone.</div>
+            <div class="big" id="count">0</div>
+            <div class="hint" style="text-align:center">seconds until the cue. Don't wake the screen early —
+                that changes the result. Unlock after you've heard (or not heard) it.</div>
+            <button type="button" id="abort" style="width:100%;margin-top:12px">Cancel this run</button>
+        </div>
+    </div>
+
+    <div id="verdict" class="hidden">
+        <h2>3 · What did you hear?</h2>
+        <div class="card">
+            <pre class="log" id="runsummary"></pre>
+            <div class="row" style="margin-top:10px">
+                <button type="button" class="v-good" data-v="on-time">Heard it, on time</button>
+                <button type="button" class="v-late" data-v="late">Heard it late (burst when I unlocked)</button>
+                <button type="button" class="v-none" data-v="none">Heard nothing</button>
+            </div>
+            <label for="note" style="margin-top:12px">NOTE (optional)</label>
+            <input type="text" id="note" placeholder="anything odd?" autocomplete="off">
+            <div class="hint">Tap a button to save the run.</div>
+        </div>
+    </div>
+
+    <h2>Coverage</h2>
+    <div class="card" id="coverage"></div>
+    <div class="hint" style="margin:-4px 0 10px">✓ on time · ~ late · ✗ nothing · blank = not run. Table shows
+        runs for the version typed above (all runs if blank).</div>
+
+    <h2>Log</h2>
+    <div class="card">
+        <div class="row">
+            <button type="button" id="copy">Copy log</button>
+            <button type="button" id="clear">Clear all runs</button>
+        </div>
+        <textarea id="out" class="hidden" readonly aria-label="Log text — select and copy"></textarea>
+        <div class="hint" id="runcount"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+const $ = id => document.getElementById(id);
+const STORE = 'conductor.lockmatrix.runs.v1';
+const CLIP_SECONDS = 1.3;
+
+// ── environment ────────────────────────────────────────────────────────
+const standalone = !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches));
+const mode = standalone ? 'home-screen-app' : 'browser-tab';
+$('env').innerHTML = '<b>' + mode + '</b> · ' + (window.AudioContext || window.webkitAudioContext ? 'WebAudio ok' : 'NO WebAudio') +
+    ' · ' + ('speechSynthesis' in window ? 'speech ok' : 'NO speech') + '<br>' + navigator.userAgent.replace(/</g, '&lt;');
+
+// ── audio synthesis (no assets) ────────────────────────────────────────
+function clipSamples(rate) {
+    const n = Math.round(CLIP_SECONDS * rate), out = new Float32Array(n);
+    const notes = [660, 880, 1100]; // three rising chirps
+    for (let i = 0; i < n; i++) {
+        const t = i / rate, seg = Math.min(2, Math.floor(t / 0.4)), lt = t - seg * 0.4;
+        if (lt > 0.3) continue;
+        const env = Math.min(1, lt / 0.01) * Math.min(1, (0.3 - lt) / 0.03);
+        out[i] = 0.8 * env * Math.sin(2 * Math.PI * notes[seg] * t);
+    }
+    return out;
+}
+function wavBlob(samples, rate) {
+    const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+    const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); str(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, 'data'); v.setUint32(40, samples.length * 2, true);
+    for (let i = 0; i < samples.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, samples[i])) * 32767, true);
+    return new Blob([buf], { type: 'audio/wav' });
+}
+function humSamples(rate) { // 4 s seamless quiet hum
+    const n = rate * 4, out = new Float32Array(n);
+    for (let i = 0; i < n; i++) out[i] = 0.035 * (Math.sin(2 * Math.PI * 110 * i / rate) + 0.5 * Math.sin(2 * Math.PI * 165 * i / rate));
+    return out;
+}
+
+// ── run state ──────────────────────────────────────────────────────────
+let run = null;      // the active run
+let hbTimer = null, cueTimer = null, countTimer = null;
+const urls = [];
+
+function ts() { return Date.now(); }
+function note(msg) { if (run) run.events.push({ t: ts() - run.armAt, m: msg }); renderLive(); }
+function renderLive() { /* summary only shown in the verdict step */ }
+
+function loadRuns() { try { return JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { return []; } }
+function saveRuns(r) { try { localStorage.setItem(STORE, JSON.stringify(r)); } catch (e) {} }
+
+function hiddenStats(r) { // continuous hidden time ending at/before the cue, and total
+    let longest = 0, total = 0, since = null;
+    const due = r.due;
+    for (const ev of r.vis) {
+        if (ev.hidden && since === null) since = ev.at;
+        if (!ev.hidden && since !== null) { const e = Math.min(ev.at, due); if (e > since) { longest = Math.max(longest, e - since); total += e - since; } since = null; }
+    }
+    if (since !== null && due > since) { longest = Math.max(longest, due - since); total += due - since; }
+    return { longestMs: longest, totalMs: total };
+}
+
+async function arm() {
+    const delay = parseInt($('delay').value, 10);
+    const cue = $('cue').value, bg = $('bg').value;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    run = { ios: $('ios').value.trim(), device: $('device').value.trim(), mode, bg, cue, delay,
+            armAt: ts(), due: 0, firedAt: null, events: [], vis: [], hbMax: 0, hbGaps: [], lastHb: ts(), els: {}, ctx: null };
+    run.due = run.armAt + delay * 1000;
+    $('arm').disabled = true;
+    try {
+        const clip = wavBlob(clipSamples(8000), 8000);
+        // everything that needs a user gesture is primed here, on the tap
+        if (AC && (cue === 'clip-ctx' || cue === 'clip-sched')) {
+            run.ctx = new AC();
+            try { await run.ctx.resume(); } catch (e) { note('ctx.resume failed: ' + e.name); }
+            const cs = clipSamples(run.ctx.sampleRate), b = run.ctx.createBuffer(1, cs.length, run.ctx.sampleRate);
+            b.getChannelData(0).set(cs); run.buf = b;
+            note('AudioContext ' + run.ctx.state + ' @' + run.ctx.sampleRate + 'Hz');
+        }
+        if (cue === 'clip-el') {
+            const el = new Audio(URL.createObjectURL(clip)); urls.push(el.src); el.preload = 'auto';
+            el.muted = true; try { await el.play(); el.pause(); } catch (e) { note('prime clip failed: ' + e.name); }
+            el.currentTime = 0; el.muted = false; run.els.clip = el;
+        }
+        if (cue === 'speech' && 'speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u);
+        }
+        if (bg === 'loop') {
+            const el = new Audio(URL.createObjectURL(wavBlob(humSamples(8000), 8000))); urls.push(el.src);
+            el.loop = true; watch(el, 'hum'); await el.play().catch(e => note('hum play failed: ' + e.name)); run.els.hum = el;
+        }
+        if (cue === 'baked') {
+            const rate = 8000, total = delay + 6, s = new Float32Array(rate * total), c = clipSamples(rate);
+            s.set(c, delay * rate);
+            const el = new Audio(URL.createObjectURL(wavBlob(s, rate))); urls.push(el.src);
+            watch(el, 'baked'); await el.play().catch(e => note('baked play failed: ' + e.name)); run.els.baked = el;
+            run.bakedStart = ts();
+        }
+        if (cue === 'clip-sched' && run.ctx) {
+            const src = run.ctx.createBufferSource(); src.buffer = run.buf; src.connect(run.ctx.destination);
+            src.onended = () => note('scheduled clip ENDED (ctx.t=' + run.ctx.currentTime.toFixed(1) + ')');
+            src.start(run.ctx.currentTime + delay); run.sched = src;
+            note('clip scheduled for ctx.t=' + (run.ctx.currentTime + delay).toFixed(1));
+        }
+    } catch (e) { note('setup error: ' + e.name + ': ' + e.message); }
+
+    run.vis.push({ at: ts(), hidden: document.hidden });
+    hbTimer = setInterval(heartbeat, 1000);
+    cueTimer = setTimeout(fireCue, delay * 1000);
+    countTimer = setInterval(tick, 500);
+    $('setup').classList.add('hidden'); $('running').classList.remove('hidden'); tick();
+    $('arm').disabled = false;
+    note('armed: ' + cue + ' / ' + bg + ' / ' + mode + ' / delay ' + delay + 's');
+}
+
+function watch(el, name) {
+    ['pause', 'play', 'ended', 'stalled', 'waiting', 'error'].forEach(ev =>
+        el.addEventListener(ev, () => note(name + ' <' + ev + '> t=' + el.currentTime.toFixed(1))));
+}
+
+function heartbeat() {
+    if (!run) return;
+    const now = ts(), gap = now - run.lastHb; run.lastHb = now;
+    if (gap > run.hbMax) run.hbMax = gap;
+    if (gap > 3000) { run.hbGaps.push(Math.round(gap / 1000)); note('timers were frozen ~' + Math.round(gap / 1000) + 's (heartbeat gap)'); }
+    if (!run.firedAt && now >= run.due) fireCue(); // belt and braces for throttled setTimeout
+    if (run.firedAt && !run.finished && !document.hidden && now >= run.due + 3000) finish();
+}
+
+function fireCue() {
+    if (!run || run.firedAt) return;
+    run.firedAt = ts();
+    const late = run.firedAt - run.due;
+    note('CUE fired ' + (late >= 0 ? '+' : '') + late + 'ms vs due · page ' + (document.hidden ? 'HIDDEN' : 'visible'));
+    const cue = run.cue;
+    try {
+        if (cue === 'speech') {
+            const u = new SpeechSynthesisUtterance('Conductor lock test. Speech cue.');
+            u.onstart = () => note('speech <start>'); u.onend = () => note('speech <end>');
+            u.onerror = e => note('speech <error> ' + (e.error || ''));
+            speechSynthesis.speak(u);
+        } else if (cue === 'clip-el') {
+            const el = run.els.clip; el.currentTime = 0;
+            watch(el, 'clip'); el.play().then(() => note('clip-el play() resolved')).catch(e => note('clip-el play() REJECTED: ' + e.name));
+        } else if (cue === 'clip-ctx' && run.ctx) {
+            note('ctx state at cue: ' + run.ctx.state);
+            const src = run.ctx.createBufferSource(); src.buffer = run.buf; src.connect(run.ctx.destination);
+            src.onended = () => note('clip-ctx ENDED'); src.start();
+        } else if (cue === 'clip-sched' && run.ctx) {
+            note('ctx state at due: ' + run.ctx.state + ' ctx.t=' + run.ctx.currentTime.toFixed(1));
+        } else if (cue === 'baked') {
+            const b = run.els.baked;
+            if (b) note('baked track at t=' + b.currentTime.toFixed(1) + 's (expected ~' + ((ts() - run.bakedStart) / 1000).toFixed(1) + 's), ' + (b.paused ? 'PAUSED' : 'playing'));
+        }
+    } catch (e) { note('cue error: ' + e.name + ': ' + e.message); }
+}
+
+function tick() {
+    if (!run) return;
+    $('count').textContent = Math.max(0, Math.ceil((run.due - ts()) / 1000));
+}
+
+function finish() {
+    if (!run || run.finished) return;
+    run.finished = true;
+    clearInterval(hbTimer); clearInterval(countTimer); clearTimeout(cueTimer);
+    const h = hiddenStats(run);
+    run.hiddenLongestS = Math.round(h.longestMs / 1000);
+    run.latenessMs = run.firedAt - run.due;
+    if (run.els.baked) run.bakedEndPos = +run.els.baked.currentTime.toFixed(1);
+    stopAudio();
+    $('running').classList.add('hidden'); $('verdict').classList.remove('hidden');
+    const lines = ['locked (screen hidden) before cue: ' + run.hiddenLongestS + 's of ' + run.delay + 's' +
+        (run.hiddenLongestS < 110 && run.delay >= 120 ? '   ⚠ UNDER-LOCKED — probably not a valid run' : ''),
+        'cue fire lateness: ' + run.latenessMs + 'ms · longest timer freeze: ' + Math.round(run.hbMax / 1000) + 's', ''];
+    run.events.forEach(e => lines.push((e.t / 1000).toFixed(1).padStart(6) + 's  ' + e.m));
+    $('runsummary').textContent = lines.join('\n');
+}
+
+function stopAudio() {
+    if (!run) return;
+    Object.values(run.els).forEach(el => { try { el.pause(); } catch (e) {} });
+    if (run.ctx) { try { run.ctx.close(); } catch (e) {} }
+    try { speechSynthesis.cancel(); } catch (e) {}
+    urls.splice(0).forEach(u => URL.revokeObjectURL(u));
+}
+
+function cancelRun() {
+    if (!run) return;
+    clearInterval(hbTimer); clearInterval(countTimer); clearTimeout(cueTimer);
+    stopAudio(); run = null;
+    $('running').classList.add('hidden'); $('verdict').classList.add('hidden'); $('setup').classList.remove('hidden');
+}
+
+function saveVerdict(v) {
+    if (!run) return;
+    const rec = { at: new Date().toISOString(), ios: run.ios, device: run.device, mode: run.mode, bg: run.bg, cue: run.cue,
+        delayS: run.delay, hiddenLongestS: run.hiddenLongestS, latenessMs: run.latenessMs,
+        freezeMaxS: Math.round(run.hbMax / 1000), verdict: v, note: $('note').value.trim(),
+        events: run.events.map(e => (e.t / 1000).toFixed(1) + 's ' + e.m) };
+    const all = loadRuns(); all.push(rec); saveRuns(all);
+    run = null; $('note').value = '';
+    $('verdict').classList.add('hidden'); $('setup').classList.remove('hidden');
+    renderAll();
+}
+
+// ── visibility lifecycle ───────────────────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+    if (!run) return;
+    run.vis.push({ at: ts(), hidden: document.hidden });
+    note('page ' + (document.hidden ? 'HIDDEN (screen locked / app left)' : 'visible again'));
+    if (!document.hidden) {
+        ['baked', 'hum'].forEach(k => { const el = run.els[k]; if (el) note(k + ' now at t=' + el.currentTime.toFixed(1) + 's, ' + (el.paused ? 'PAUSED' : 'playing')); });
+        if (run.ctx) note('ctx state: ' + run.ctx.state);
+        heartbeat();
+    }
+});
+['pagehide', 'pageshow'].forEach(n => window.addEventListener(n, () => note('event <' + n + '>')));
+document.addEventListener('freeze', () => note('document <freeze>'));
+document.addEventListener('resume', () => note('document <resume>'));
+
+// ── coverage + priorities ──────────────────────────────────────────────
+const CUES = [['speech', 'speech'], ['clip-el', 'clip (el)'], ['clip-ctx', 'clip (WA timer)'], ['clip-sched', 'clip (WA sched)'], ['baked', 'baked']];
+const COLS = [['browser-tab', 'silence'], ['browser-tab', 'ext'], ['browser-tab', 'loop'],
+              ['home-screen-app', 'silence'], ['home-screen-app', 'ext'], ['home-screen-app', 'loop']];
+const SYM = { 'on-time': '<span class="ok">✓</span>', late: '<span class="late">~</span>', none: '<span class="no">✗</span>' };
+
+function renderCoverage() {
+    const ver = $('ios').value.trim();
+    const runs = loadRuns().filter(r => !ver || r.ios === ver);
+    let h = '<table><tr><th rowspan="2"></th><th colspan="3">Safari tab</th><th colspan="3">Home Screen app</th></tr>' +
+            '<tr>' + COLS.map(c => '<th>' + ({ silence: 'quiet', ext: 'other app', loop: 'own hum' })[c[1]] + '</th>').join('') + '</tr>';
+    CUES.forEach(([k, label]) => {
+        h += '<tr><td class="l">' + label + '</td>' + COLS.map(([m, b]) =>
+            '<td>' + runs.filter(r => r.cue === k && r.mode === m && r.bg === b).map(r => SYM[r.verdict] || '?').join(' ') + '</td>').join('') + '</tr>';
+    });
+    $('coverage').innerHTML = h + '</table>';
+    $('runcount').textContent = loadRuns().length + ' run(s) saved on this device.';
+}
+
+const PRIORITY = [
+    ['Speech, Safari tab, quiet — does the locked-iPhone speech Todd saw reproduce?', 'browser-tab', 'silence', 'speech'],
+    ['Speech, Safari tab, another app already playing — the "other audio keeps the page alive" theory', 'browser-tab', 'ext', 'speech'],
+    ['Speech, Home Screen app, quiet — reportedly worse on iOS 26', 'home-screen-app', 'silence', 'speech'],
+    ['Speech, Home Screen app, another app playing', 'home-screen-app', 'ext', 'speech'],
+    ['Baked file, Home Screen app, quiet — the fallback must still work', 'home-screen-app', 'silence', 'baked'],
+    ['Baked file, Safari tab, quiet', 'browser-tab', 'silence', 'baked'],
+    ['Clip fired by a timer, Safari tab, own hum playing', 'browser-tab', 'loop', 'clip-el']
+];
+function renderPriority() {
+    const ver = $('ios').value.trim(), runs = loadRuns().filter(r => !ver || r.ios === ver);
+    $('pri').innerHTML = '';
+    PRIORITY.forEach(([text, m, b, c]) => {
+        const li = document.createElement('li');
+        const done = runs.some(r => r.mode === m && r.bg === b && r.cue === c);
+        if (done) li.className = 'done';
+        li.append(text + (m === mode ? '' : ' (needs the other launch mode)'));
+        const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Load';
+        btn.onclick = () => { $('bg').value = b; $('cue').value = c; window.scrollTo(0, 0); };
+        li.append(btn); $('pri').append(li);
+    });
+}
+function renderAll() { renderCoverage(); renderPriority(); }
+
+// ── export ─────────────────────────────────────────────────────────────
+function buildLog() {
+    const runs = loadRuns();
+    const L = ['### Lock-screen audio matrix', '', 'UA: ' + navigator.userAgent, '',
+        '| OS | device | launch | other audio | cue | locked s | late ms | freeze s | heard | note |', '|---|---|---|---|---|---|---|---|---|---|'];
+    runs.forEach(r => L.push('| ' + [r.ios, r.device, r.mode, r.bg, r.cue, r.hiddenLongestS + '/' + r.delayS, r.latenessMs, r.freezeMaxS, r.verdict, (r.note || '').replace(/\|/g, '/')].join(' | ') + ' |'));
+    L.push('', '<details><summary>Raw events</summary>', '');
+    runs.forEach((r, i) => { L.push('Run ' + (i + 1) + ' (' + r.cue + ' / ' + r.mode + ' / ' + r.bg + ')', '```', ...r.events, '```'); });
+    L.push('</details>');
+    return L.join('\n');
+}
+$('copy').onclick = async () => {
+    const text = buildLog(), btn = $('copy'); let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        const o = $('out'); o.value = text; o.classList.remove('hidden'); o.select();
+        try { ok = document.execCommand('copy'); } catch (e2) {}
+    }
+    btn.textContent = ok ? 'Copied ✓' : 'Select ↓'; setTimeout(() => { btn.textContent = 'Copy log'; }, 2200);
+};
+let clearArmed = false;
+$('clear').onclick = () => { // iOS suppresses confirm(), so tap twice
+    if (!clearArmed) { clearArmed = true; $('clear').textContent = 'Tap again to erase'; setTimeout(() => { clearArmed = false; $('clear').textContent = 'Clear all runs'; }, 3000); return; }
+    saveRuns([]); clearArmed = false; $('clear').textContent = 'Clear all runs'; renderAll();
+};
+
+$('arm').onclick = arm;
+$('abort').onclick = cancelRun;
+document.querySelectorAll('#verdict [data-v]').forEach(b => { b.onclick = () => saveVerdict(b.dataset.v); });
+$('ios').addEventListener('input', renderAll);
+try { $('ios').value = localStorage.getItem('conductor.lockmatrix.ios') || ''; } catch (e) {}
+$('ios').addEventListener('change', () => { try { localStorage.setItem('conductor.lockmatrix.ios', $('ios').value); } catch (e) {} });
+renderAll();
+
+window.__lockmatrix = { get run() { return run; }, loadRuns };
+})();
+</script>
+</body>
+</html>
