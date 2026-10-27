@@ -376,8 +376,8 @@ test('screen transitions: all screens are reachable', async ({ page }) => {
     await waitForScreen(page, 'screen-live');
 
     // Stop live → back to preview (confirm dialog)
-    page.once('dialog', dialog => dialog.accept());
     await page.click('#btn-live-stop');
+    await page.click('#app-confirm-yes');
     await waitForScreen(page, 'screen-preview');
 
     // Back to editor review
@@ -873,8 +873,8 @@ test('drafts: save draft from editor, appears on input screen', async ({ page })
     // Go back to input (confirm dialog since fields have data)
     await page.click('#btn-ed-back1');
     await waitForScreen(page, 'screen-editor-info');
-    page.once('dialog', dialog => dialog.accept());
     await page.click('#btn-ed-cancel');
+    await page.click('#app-confirm-yes');
     await waitForScreen(page, 'screen-input');
 
     // Draft should appear
@@ -2216,8 +2216,8 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     expect(r.src).not.toMatch(/^blob:/); // no bake ran
 
     // One-shot: leave live and re-enter — the banner must not reappear.
-    page.once('dialog', dialog => dialog.accept());
     await page.click('#btn-live-stop');
+    await page.click('#app-confirm-yes');
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-go-live');
     await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)

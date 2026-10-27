@@ -60,11 +60,9 @@ test('navigation: Go Live on preview rebases an entirely-past event', async ({ p
     // Go Live is right on the preview screen now.
     await expect(page.locator('#btn-go-live')).toBeVisible();
 
-    page.once('dialog', dialog => {
-        expect(dialog.message()).toContain('1 minute from now');
-        dialog.accept();
-    });
     await page.click('#btn-go-live');
+    await expect(page.locator('#app-confirm-msg')).toContainText('1 minute from now');
+    await page.click('#app-confirm-yes');
     await page.click('#btn-preflight-go'); // pass the Session-Ready preflight after the rebase confirm
     await waitForScreen(page, 'screen-live');
 
@@ -86,8 +84,8 @@ test('navigation: declining the rebase stays on preview', async ({ page }) => {
     await page.goto('/#' + code);
     await waitForScreen(page, 'screen-preview');
 
-    page.once('dialog', dialog => dialog.dismiss());
     await page.click('#btn-go-live');
+    await page.click('#app-confirm-no');
     // No transition — still on preview, event untouched.
     await waitForScreen(page, 'screen-preview');
     const startPast = await page.evaluate(() =>

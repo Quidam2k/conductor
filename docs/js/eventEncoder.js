@@ -568,8 +568,15 @@ function parseTextFormat(text) {
  * @throws {Error} If parsing fails
  */
 function parseEventInput(input) {
-    const trimmed = input.trim();
+    let trimmed = input.trim();
     if (!trimmed) throw new Error('Empty input');
+
+    // iOS treats copied text that starts "Title:" as a URL and percent-encodes
+    // it ("Title:%20Foo%0AStart:%20..."). Real event text has line breaks, so a
+    // single line full of %0A / %20 is that mangling — undo it.
+    if (!/[\r\n]/.test(trimmed) && !trimmed.startsWith('v1') && /%(0A|0D|20)/i.test(trimmed)) {
+        try { trimmed = decodeURIComponent(trimmed).trim(); } catch (e) { /* leave as is */ }
+    }
 
     // v1e_ encrypted format — throw sentinel so callers can prompt for password
     if (trimmed.startsWith('v1e_')) {

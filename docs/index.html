@@ -65,7 +65,7 @@
 
         html, body {
             height: 100vh;
-            height: 100dvh;
+            height: var(--app-h, 100dvh);
             background: var(--bg-deep);
             background: radial-gradient(ellipse at 50% 30%, var(--bg) 0%, var(--bg-deep) 70%);
             color: var(--text);
@@ -79,7 +79,7 @@
             display: none;
             flex-direction: column;
             height: 100vh;
-            height: 100dvh;
+            height: var(--app-h, 100dvh);
             padding: 0;
         }
         .screen.active { display: flex; }
@@ -890,6 +890,10 @@
 
         /* ─── Footer spacer for safe area ─── */
         .safe-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
+        /* iOS 26 Safari floats a toolbar over the page bottom and covers the last
+           buttons (Go Live / Go Back). Leave room for it in a Safari tab; a Home
+           Screen app has no toolbar. */
+        html.ios-tab .safe-bottom { height: calc(env(safe-area-inset-bottom, 0px) + 84px); }
 
         /* ─── Draft cards ─── */
         .draft-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius); padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
@@ -929,6 +933,11 @@
         .preflight-row.blocker { border-left:3px solid var(--accent-red); }
         .preflight-row.blocker .pf-icon { color:var(--accent-red); }
         .preflight-checking { color:var(--text-dim); font-size:15px; text-align:center; padding:24px 0; }
+        .app-confirm { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.72); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .app-confirm-card { background:var(--bg-surface, #171733); border:1px solid var(--border-subtle); border-radius:12px; padding:20px; max-width:420px; width:100%; }
+        .app-confirm-msg { font-size:17px; line-height:1.45; margin-bottom:18px; white-space:pre-line; }
+        .app-confirm-actions { display:flex; gap:10px; }
+        .app-confirm-actions button { flex:1; }
         .preflight-actions { display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--border-subtle); }
         .preflight-actions button { flex:1; }
         .preflight-footer { font-size:12px; color:var(--text-dim); text-align:center; padding:0 16px 12px; }
@@ -1094,6 +1103,10 @@
             var fs = localStorage.getItem('conductor-fontscale');
             if (fs) document.documentElement.dataset.fs = fs;
         } catch (e) {}
+        try {
+            var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (ios && !navigator.standalone) document.documentElement.classList.add('ios-tab');
+        } catch (e) {}
     </script>
 </head>
 <body>
@@ -1111,7 +1124,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v70</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v71</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1632,6 +1645,16 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- Preflight ("Session Ready?") gate — shown before entering Live           -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="app-confirm" class="app-confirm" style="display:none;" role="alertdialog" aria-modal="true" aria-labelledby="app-confirm-msg">
+    <div class="app-confirm-card">
+        <div id="app-confirm-msg" class="app-confirm-msg"></div>
+        <div class="app-confirm-actions">
+            <button id="app-confirm-no" class="btn-outline" type="button">Cancel</button>
+            <button id="app-confirm-yes" class="btn-primary" type="button">OK</button>
+        </div>
+    </div>
+</div>
+
 <div id="preflight-overlay" class="qr-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="preflight-title">
     <div class="qr-overlay-header">
         <h2 id="preflight-title">Session Ready?</h2>
@@ -1832,6 +1855,31 @@ let audioIntervalId = null;
 // ═══════════════════════════════════════════════════════════════════════════
 // Focus Trap (for modal overlays)
 // ═══════════════════════════════════════════════════════════════════════════
+
+// In-page replacement for window.confirm(). iOS Safari / Home Screen apps can
+// suppress native dialogs, which made confirm() return false and left buttons
+// (Go Live on a past event) looking dead.
+let _askResolve = null;
+function askConfirm(message, yesLabel = 'OK', noLabel = 'Cancel') {
+    if (_askResolve) _askResolve(false);
+    const box = $('app-confirm');
+    $('app-confirm-msg').textContent = message;
+    $('app-confirm-yes').textContent = yesLabel;
+    $('app-confirm-no').textContent = noLabel;
+    box.style.display = 'flex';
+    $('app-confirm-yes').focus();
+    return new Promise(resolve => {
+        _askResolve = resolve;
+        const done = (v) => {
+            box.style.display = 'none';
+            $('app-confirm-yes').onclick = $('app-confirm-no').onclick = null;
+            _askResolve = null;
+            resolve(v);
+        };
+        $('app-confirm-yes').onclick = () => done(true);
+        $('app-confirm-no').onclick = () => done(false);
+    });
+}
 
 let _focusTrapCleanup = null;
 
@@ -2140,7 +2188,7 @@ function createDemoEvent() {
 
     const embedded = {
         title: 'The Stillness',
-        description: 'Freeze mob — sudden stillness in a public space. Two freeze cycles with different countdowns.',
+        description: 'Freeze mob — sudden stillness in a public space. Two freeze cycles with different countdowns. Nothing plays by itself: tap Start Practice to rehearse it now, or Go Live to pocket the phone.',
         startTime: startTime,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timeline: timeline,
@@ -2557,7 +2605,7 @@ function renderPreview() {
 
     $('preview-title').textContent = evt.title;
     $('preview-desc').textContent = evt.description || '';
-    $('preview-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
+    $('preview-start').textContent = startDisplay(evt);
     $('preview-count').textContent = evt.timeline.length + ' actions';
 
     // Duration
@@ -2641,6 +2689,11 @@ async function updatePreviewCueBanner(evt) {
     if (line) showBanner('preview-banner', line, 'warning');
 }
 
+// Our own demo packs ship beside the app (docs/packs/), so they can be fetched one-tap.
+function isHostedDemoPack(packId) {
+    return /^demo-[a-z0-9-]+$/.test(packId) && /^https?:$/.test(location.protocol);
+}
+
 async function renderPackHint(evt) {
     const hintEl = $('preview-pack-hint');
     hintEl.style.display = 'none';
@@ -2653,11 +2706,19 @@ async function renderPackHint(evt) {
     if (packIds.size === 0) return;
 
     const missing = [];
+    const stale = []; // installed demo packs that lack cues this event uses
     for (const packId of packIds) {
         const has = await packManager.hasPack(packId);
-        if (!has) missing.push(packId);
+        if (!has) { missing.push(packId); continue; }
+        if (isHostedDemoPack(packId)) {
+            try {
+                const listed = new Set(await packManager.getCueList(packId));
+                const needs = evt.timeline.some(a => a.pack === packId && a.cue && !listed.has(a.cue));
+                if (needs) stale.push(packId);
+            } catch (e) { /* hint only */ }
+        }
     }
-    if (missing.length === 0) return;
+    if (missing.length === 0 && stale.length === 0) return;
 
     // Check if any installed pack has a URL matching a missing ID
     const allPacks = await packManager.listPacks();
@@ -2667,11 +2728,15 @@ async function renderPackHint(evt) {
     }
 
     let html = '';
+    for (const packId of stale) {
+        html += `The voices installed on this phone are out of date for this event. ` +
+            `<button type="button" class="btn-outline btn-small" data-install-pack="${escapeHtml(packId)}">Update voices</button><br>`;
+    }
     for (const packId of missing) {
         const urlForPack = urlMap.get(packId);
         // Our own demo packs ship beside the app — offer them in one tap, so a
         // first-timer's demo gets real recorded voices that work in a pocket.
-        if (/^demo-[a-z0-9-]+$/.test(packId) && /^https?:$/.test(location.protocol)) {
+        if (isHostedDemoPack(packId)) {
             html += `This event has recorded voices that keep playing with the screen locked. ` +
                 `<button type="button" class="btn-outline btn-small" data-install-pack="${escapeHtml(packId)}">Install voices</button><br>`;
             continue;
@@ -2721,6 +2786,15 @@ function showBanner(id, text, variant) {
     el.style.display = 'flex';
 }
 function hideBanner(id) { $(id).style.display = 'none'; }
+
+// Start time with its zone label ("7:00 PM EDT"); when the event's zone is not
+// this phone's, also show the phone-local moment so "7:00 PM" is never ambiguous.
+function startDisplay(evt) {
+    const shown = utcToLocalDisplay(evt.startTime, evt.timezone);
+    const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!evt.timezone || evt.timezone === here) return shown;
+    return shown + ' — your time: ' + utcToLocalDisplay(evt.startTime, here);
+}
 
 // One-shot pocket-readiness note on the live screen. Which message depends on
 // whether the bake took over (state.bakedActive); each variant shows once per
@@ -2864,7 +2938,8 @@ async function runPreflight(evt) {
             detail: 'Every step has its recorded audio.' });
     } else {
         rows.push({ status: 'warn', label: cov.missing + ' of ' + cov.total + ' recordings missing',
-            detail: 'Those steps will be spoken aloud instead, which needs the screen on. Install the voice pack first (Back, then Install voices or Import).' });
+            detail: 'Those steps will be spoken aloud instead, which needs the screen on. Install the voice pack first (Back, then Install voices or Import).'
+                + (navigator.standalone ? ' This Home Screen app keeps its own voices, separate from Safari — install them here too.' : '') });
     }
 
     // 4. Bake-size estimate.
@@ -5536,7 +5611,7 @@ function renderEditorReview() {
 
     $('review-title').textContent = evt.title;
     $('review-desc').textContent = evt.description || '';
-    $('review-start').textContent = utcToLocalDisplay(evt.startTime, evt.timezone);
+    $('review-start').textContent = startDisplay(evt);
     $('review-count').textContent = evt.timeline.length + ' actions';
 
     // Duration
@@ -5977,7 +6052,7 @@ async function importPackFromFile(file) {
 }
 
 async function deletePackUI(packId) {
-    if (!confirm('Delete this resource pack?')) return;
+    if (!(await askConfirm('Delete this resource pack?', 'Delete'))) return;
 
     try {
         await packManager.deletePack(packId);
@@ -6086,7 +6161,7 @@ function showDraftSavedIndicator(errorMsg) {
 }
 
 async function deleteDraftUI(id) {
-    if (!confirm('Delete this draft?')) return;
+    if (!(await askConfirm('Delete this draft?', 'Delete'))) return;
     await draftManager.deleteDraft(id);
     await renderDraftList();
 }
@@ -6129,9 +6204,23 @@ $('btn-demo-fallback').addEventListener('click', loadDemo);
             else document.documentElement.dataset.fs = step;
             try { localStorage.setItem('conductor-fontscale', step); } catch (e) {}
             reflect(step);
+            fitViewport();
         });
     });
 })();
+
+// Chromium/Firefox apply html{zoom} to 100dvh too, so at larger text sizes the
+// screen ended up taller than the phone and the bottom was unreachable (WebKit
+// doesn't). Measure the overshoot and hand the screens a zoom-corrected height.
+function fitViewport() {
+    const root = document.documentElement;
+    root.style.removeProperty('--app-h');
+    const h = window.innerHeight;
+    const measured = root.getBoundingClientRect().height;
+    if (h > 0 && measured > h + 2) root.style.setProperty('--app-h', (h * h / measured) + 'px');
+}
+window.addEventListener('resize', fitViewport);
+fitViewport();
 
 $('btn-import-event').addEventListener('click', () => {
     $('event-file-input').click();
@@ -6196,13 +6285,13 @@ $('btn-audio-toggle').addEventListener('click', toggleMute);
 // event is already in the past (an old draft), offer a quick restart instead
 // of landing the user on "event completed".
 const LIVE_OPENS_BEFORE_MS = 20 * 60 * 1000;
-$('btn-go-live').addEventListener('click', () => {
+$('btn-go-live').addEventListener('click', async () => {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
     const now = Date.now();
     const allPast = evt.timeline.every(a => (a.timeMs ?? new Date(a.time).getTime()) < now);
     if (allPast) {
-        if (!confirm('This event’s times are in the past. Start it 1 minute from now?')) {
+        if (!(await askConfirm('This event’s times are in the past. Start it 1 minute from now?', 'Start in 1 minute', 'Cancel'))) {
             return;
         }
         state.event = rebaseEventToNow(evt);
@@ -6219,8 +6308,9 @@ $('btn-go-live').addEventListener('click', () => {
         if (now < opensMs) {
             const opens = new Date(opensMs).toLocaleString([], {
                 weekday: 'short', hour: 'numeric', minute: '2-digit' });
-            showBanner('preview-banner', 'Live opens at ' + opens
+            showBanner('preview-banner', 'Live opens at ' + opens + ' your time'
                 + ' (20 minutes before the first cue). Try Start Practice in the meantime.', 'info');
+            $('preview-banner').scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
     }
@@ -6259,8 +6349,8 @@ $('js-error-banner').addEventListener('click', async () => {
 // Live screen
 $('btn-audio-toggle-live').addEventListener('click', toggleMute);
 
-$('btn-live-stop').addEventListener('click', () => {
-    if (!confirm('Stop the live event? This cannot be undone.')) return;
+$('btn-live-stop').addEventListener('click', async () => {
+    if (!(await askConfirm('Stop the live event? This cannot be undone.', 'Stop it', 'Keep going'))) return;
     transitionTo('preview');
 });
 
@@ -6297,15 +6387,15 @@ function syncRepeatModeInputs() {
     const el = $(id);
     if (el) el.addEventListener('change', updateRepeatNote);
 });
-$('btn-ed-cancel').addEventListener('click', () => {
+$('btn-ed-cancel').addEventListener('click', async () => {
     const hasData = $('ed-title').value.trim() || $('ed-description').value.trim();
-    if (hasData && !confirm('Leave the editor? Your work so far is saved in Drafts.')) return;
+    if (hasData && !(await askConfirm('Leave the editor? Your work so far is saved in Drafts.', 'Leave', 'Stay'))) return;
     transitionTo('input');
 });
 
 // Editor — Step 2
 $('btn-add-action').addEventListener('click', addNewAction);
-$('btn-ed-next2').addEventListener('click', () => {
+$('btn-ed-next2').addEventListener('click', async () => {
     // An abandoned empty edit form counts as nothing typed — prune and proceed
     state.editor.actions = state.editor.actions.filter(a => a.action && a.action.trim());
     state.editor.editingIndex = -1;
@@ -6319,7 +6409,7 @@ $('btn-ed-next2').addEventListener('click', () => {
     // Auto-sort (kills the out-of-order break) and soft-warn on stacked cues.
     const timing = validateEditorTiming();
     if (timing.reSorted) renderEditorTimeline();
-    if (timing.closePairs.length && !confirm(timingWarningMessage(timing.closePairs))) {
+    if (timing.closePairs.length && !(await askConfirm(timingWarningMessage(timing.closePairs), 'Continue anyway', 'Go back'))) {
         return;  // author chose to go back and space them out
     }
     transitionTo('editor-review');
@@ -6763,10 +6853,12 @@ window.addEventListener('popstate', (e) => {
     // Mid-performance guard: backing out of live is destructive — confirm,
     // and restore the live entry if declined.
     if (state.mode === 'live') {
-        if (!confirm('Stop the live event? This cannot be undone.')) {
-            try { history.pushState({ screen: 'live' }, ''); } catch (err) {}
-            return;
-        }
+        // Put the live entry back at once, then ask in-page (async) — only a
+        // yes actually leaves the performance.
+        try { history.pushState({ screen: 'live' }, ''); } catch (err) {}
+        askConfirm('Stop the live event? This cannot be undone.', 'Stop it', 'Keep going')
+            .then(yes => { if (yes && state.mode === 'live') transitionTo('preview'); });
+        return;
     }
 
     if (state.mode === 'input') {

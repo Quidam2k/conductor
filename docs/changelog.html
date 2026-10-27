@@ -74,14 +74,26 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v70</p>
+        <p class="eyebrow">Conductor &middot; build v71</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v71">
+        <h2>v71 <span class="date">2026-10-27</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>Larger text no longer hides the bottom of the screen</strong> on Android (buttons and the Install voices / Manage Packs rows were off the bottom).</li>
+            <li><strong>iPhone:</strong> confirmations (like "Start it 1 minute from now?") are now in-page, so Go Live no longer silently does nothing; Go Live and Go Back clear Safari's floating toolbar; a pasted event that iOS turned into <code>Title:%20...</code> is read correctly.</li>
+            <li>Start times now show their time zone (and your own time when it differs). The "Live opens at..." notice scrolls into view.</li>
+            <li>Out-of-date installed voices now offer "Update voices". The Home Screen app's separate storage is mentioned in the Session ready? card.</li>
+            <li>Trimmed the hiss at the end of some demo recordings (e.g. "Hold your position"). Re-install the demo voices to hear the fix.</li>
+            <li>New <a href="lock-matrix/">lock-screen audio test page</a> for checking what plays on a locked phone.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v70">
-        <h2>v70 <span class="date">2026-10-20</span> <span class="tag">latest</span></h2>
+        <h2>v70 <span class="date">2026-10-20</span></h2>
         <ul>
             <li><strong>"Session ready?" check before Live.</strong> One card shows your build, when the event starts on your phone's clock, whether the phone's clock is in sync, which recordings are installed, and whether you can lock the screen. Every check only warns; you can always continue.</li>
             <li>The practice and live screens show a simple "Sound check ✓" line instead of raw diagnostics. Tap it to copy the full details for us.</li>
