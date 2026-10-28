@@ -20,6 +20,17 @@ test.describe('lock-screen audio matrix page', () => {
         await expect(page.locator('#coverage table')).toBeVisible();
     });
 
+    test('"Use this test" fills the settings and confirms', async ({ page }) => {
+        const btns = page.locator('#pri button', { hasText: 'Use this test' });
+        expect(await btns.count()).toBeGreaterThan(0);
+        await expect(page.locator('#pri')).toContainText('Run this one from the Home Screen app');
+        await page.locator('#pri li', { hasText: 'another app already playing' }).locator('button').click();
+        await expect(page.locator('#bg')).toHaveValue('ext');
+        await expect(page.locator('#cue')).toHaveValue('speech');
+        await expect(page.locator('#picked')).toContainText('Settings filled in: Speech · another app playing');
+        await expect(page.locator('#picked')).toContainText('Start Music or a podcast first');
+    });
+
     for (const cue of ['speech', 'clip-el', 'clip-ctx', 'baked']) {
         test(`quick run with ${cue} saves a verdict and shows in the log`, async ({ page }) => {
             await page.fill('#ios', '27.0');

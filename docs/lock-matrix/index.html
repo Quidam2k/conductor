@@ -50,10 +50,19 @@
     th { color: var(--dim); font-weight: 500; font-size: 11.5px; }
     td.l { text-align: left; font-size: 12.5px; }
     .ok { color: var(--green); } .late { color: var(--gold); } .no { color: var(--red); }
-    ol.pri { padding-left: 20px; font-size: 14.5px; }
-    ol.pri li { margin-bottom: 6px; }
-    ol.pri li.done { color: var(--dim); text-decoration: line-through; }
-    ol.pri button { min-height: 32px; font-size: 13px; padding: 3px 9px; margin-left: 6px; }
+    ol.pri { padding-left: 22px; font-size: 14.5px; }
+    ol.pri li { margin-bottom: 14px; }
+    ol.pri li:last-child { margin-bottom: 0; }
+    ol.pri li.done .pt { color: var(--dim); }
+    ol.pri button { display: block; width: 100%; margin-top: 6px; border-color: var(--blue); color: var(--blue); }
+    ol.pri .tag { display: block; margin-top: 4px; font-size: 13.5px; }
+    ol.pri .tag.done { color: var(--green); font-weight: 600; }
+    ol.pri .tag.other { color: var(--gold); }
+    #picked { margin-top: 12px; color: var(--green); font-weight: 600; font-size: 15px; }
+    #picked:empty { display: none; }
+    .flash { animation: flash 1.6s ease-out; }
+    @keyframes flash { 0%, 40% { outline: 3px solid var(--green); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
+    @media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
     textarea { width: 100%; height: 150px; font-family: var(--mono); font-size: 12px; background: var(--bg);
                color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 9px; margin-top: 8px; }
     .hidden { display: none; }
@@ -70,8 +79,12 @@
     <div class="card env" id="env"></div>
 
     <div id="setup">
-        <h2>1 · Set up a run</h2>
-        <div class="card">
+        <h2>1 · Pick a test</h2>
+        <p class="lead" style="margin-bottom:8px">Tap a test to fill in the settings below, then scroll down and tap Arm.</p>
+        <div class="card"><ol class="pri" id="pri"></ol><div id="picked" role="status" aria-live="polite"></div></div>
+
+        <h2 id="settings-head">2 · Check the settings and arm</h2>
+        <div class="card" id="settings">
             <label for="ios">IOS / ANDROID VERSION (type it exactly — the browser hides it)</label>
             <input type="text" id="ios" placeholder="e.g. 27.0" autocomplete="off">
             <label for="device">DEVICE (optional)</label>
@@ -101,13 +114,10 @@
                 Home Screen app are separate runs. Mute switch off, volume up.</div>
             <button class="primary" id="arm" type="button">Arm — then lock the phone</button>
         </div>
-
-        <h2>Worth running first</h2>
-        <div class="card"><ol class="pri" id="pri"></ol></div>
     </div>
 
     <div id="running" class="hidden">
-        <h2>2 · Armed</h2>
+        <h2>3 · Armed</h2>
         <div class="card">
             <div class="lockme">Lock the phone now and leave it alone.</div>
             <div class="big" id="count">0</div>
@@ -118,7 +128,7 @@
     </div>
 
     <div id="verdict" class="hidden">
-        <h2>3 · What did you hear?</h2>
+        <h2>4 · What did you hear?</h2>
         <div class="card">
             <pre class="log" id="runsummary"></pre>
             <div class="row" style="margin-top:10px">
@@ -352,7 +362,7 @@ function saveVerdict(v) {
         freezeMaxS: Math.round(run.hbMax / 1000), verdict: v, note: $('note').value.trim(),
         events: run.events.map(e => (e.t / 1000).toFixed(1) + 's ' + e.m) };
     const all = loadRuns(); all.push(rec); saveRuns(all);
-    run = null; $('note').value = '';
+    run = null; $('note').value = ''; $('picked').textContent = '';
     $('verdict').classList.add('hidden'); $('setup').classList.remove('hidden');
     renderAll();
 }
@@ -407,11 +417,28 @@ function renderPriority() {
         const li = document.createElement('li');
         const done = runs.some(r => r.mode === m && r.bg === b && r.cue === c);
         if (done) li.className = 'done';
-        li.append(text + (m === mode ? '' : ' (needs the other launch mode)'));
-        const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Load';
-        btn.onclick = () => { $('bg').value = b; $('cue').value = c; window.scrollTo(0, 0); };
-        li.append(btn); $('pri').append(li);
+        const pt = document.createElement('span'); pt.className = 'pt'; pt.textContent = text; li.append(pt);
+        if (done) li.append(tag('done', '✓ Done'));
+        if (m !== mode) {
+            li.append(tag('other', 'Run this one from ' + (m === 'home-screen-app' ? 'the Home Screen app' : 'a Safari tab')));
+        } else {
+            const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Use this test';
+            btn.onclick = () => pick(b, c);
+            li.append(btn);
+        }
+        $('pri').append(li);
     });
+}
+function tag(cls, text) { const s = document.createElement('span'); s.className = 'tag ' + cls; s.textContent = text; return s; }
+const CUE_NAME = { speech: 'Speech', 'clip-el': 'Clip (audio element)', 'clip-ctx': 'Clip (Web Audio, timer)', 'clip-sched': 'Clip (Web Audio, scheduled)', baked: 'Baked file' };
+const BG_NAME = { silence: 'nothing playing', ext: 'another app playing', loop: 'own hum' };
+function pick(b, c) {
+    $('bg').value = b; $('cue').value = c;
+    $('picked').textContent = '✓ Settings filled in: ' + CUE_NAME[c] + ' · ' + BG_NAME[b] + '. ' +
+        (b === 'ext' ? 'Start Music or a podcast first. ' : '') + 'Now scroll down and tap Arm.';
+    ['bg', 'cue'].forEach(id => { const el = $(id); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); });
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('picked').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
 }
 function renderAll() { renderCoverage(); renderPriority(); }
 
