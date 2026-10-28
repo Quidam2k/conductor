@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lock test">
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../icon-192.png">
 <title>Conductor — Lock-screen audio matrix</title>
@@ -420,7 +423,9 @@ function renderPriority() {
         const pt = document.createElement('span'); pt.className = 'pt'; pt.textContent = text; li.append(pt);
         if (done) li.append(tag('done', '✓ Done'));
         if (m !== mode) {
-            li.append(tag('other', 'Run this one from ' + (m === 'home-screen-app' ? 'the Home Screen app' : 'a Safari tab')));
+            li.append(tag('other', m === 'home-screen-app'
+                ? 'Run this one from the Home Screen app: on this page in Safari, tap Share → Add to Home Screen, then open this page from the new icon.'
+                : 'Run this one from a Safari tab: open quidam2k.github.io/conductor/lock-matrix/ in Safari.'));
         } else {
             const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Use this test';
             btn.onclick = () => pick(b, c);
