@@ -8950,7 +8950,7 @@ function audioDebugSummary(mode) {
  * The plain-language face of the telemetry row. Strangers see "Sound check ✓";
  * the raw numbers ride along in the title/data-detail and the tap-to-copy
  * JSON. The "tap for details" hint is not decoration: this row is the ONLY
- * channel that gets real data off a tester's phone, and Todd couldn't find
+ * channel that gets real data off a tester's phone, and the maintainer couldn't find
  * it on a Pixel (2026-08-04). It has to announce itself as a control.
  */
 function audioDebugFriendly(mode) {
@@ -9776,7 +9776,7 @@ function recordingBlockHtml(index, kind, action) {
     const isLead = kind === 'prep-lead';
     const idleTitle = isLead ? '🎤 Record the Prep Lead' : '🎤 Record Your Voice';
     const doneTitle = isLead ? '🎤 Prep Lead Recorded ✓' : '🎤 Recorded ✓';
-    // Copy drafts pending Todd's review (v57).
+    // Copy drafts pending the maintainer's review (v57).
     const idleHint = isLead
         ? 'Say &ldquo;Get ready to&hellip;&rdquo; &mdash; just those words. This one clip opens every ' +
           'heads-up: the app follows it with the cue names in your voice. ' +
@@ -11843,7 +11843,7 @@ $('js-error-banner').addEventListener('click', async () => {
         mode: state.mode,
         errors: _jsErrors,
     }));
-    el.textContent = ok ? 'Copied ✓ — send that to Todd, then reload.' : 'Copy failed — screenshot this instead.';
+    el.textContent = ok ? 'Copied ✓ — send that to the developer, then reload.' : 'Copy failed — screenshot this instead.';
 });
 
 // Live screen

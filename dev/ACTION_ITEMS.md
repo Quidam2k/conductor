@@ -8,13 +8,13 @@ Last updated: 2026-03-01
 
 ## BLOCKING — Must Complete Before Public Testing
 
-### 1. ~~Generate Voice Clips (Todd)~~ — DONE
+### 1. ~~Generate Voice Clips (maintainer)~~ — DONE
 - 121 WAV files generated (1 system + 60 action + 60 notice)
 
 ### 2. ~~Assemble Demo Pack Zip~~ — DONE
 - `conductor-demo.zip` built: 31.5 MB, 121 cues, 7 event scripts, validated
 
-### 3. Real-Device Testing (Todd + Teafaerie)
+### 3. Real-Device Testing (maintainer + Teafaerie)
 - **Checklist:** `TESTING_CHECKLIST.md` (same folder, `dev/`)
 - Covers Android Chrome, iOS Safari, Desktop browsers, Cross-device sharing
 - Critical test: **TTS works with screen locked on iOS**
@@ -54,4 +54,4 @@ Low-priority code issues that don't affect normal use:
 | Service Worker | v24 |
 | Voice clips | Complete (121 cues) |
 | Demo pack assembly | Complete (31.5 MB) |
-| Real-device testing | **NEXT** — Todd + Teafaerie |
+| Real-device testing | **NEXT** — maintainer + Teafaerie |

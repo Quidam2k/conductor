@@ -2,7 +2,7 @@
 # Everyone shouts the SAME line at the SAME instant: a wall of human voices,
 # perfectly together. The app just counts you in. The line is yours to swap.
 #
-# DRAFT for Todd to refine (2026-08-18). The line below is a placeholder — the
+# DRAFT for the organizer to refine (2026-08-18). The line below is a placeholder — the
 # whole point is that it's the one thing an organizer changes.
 #
 # Why it works as a seed-crystal: it needs no resource pack (TTS + beeps only),
