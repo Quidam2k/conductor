@@ -6753,7 +6753,7 @@ $('pack-list').addEventListener('click', async (e) => {
     const renameBtn = e.target.closest('.pack-rename');
     if (renameBtn) {
         const current = renameBtn.dataset.packName || 'My Voice';
-        const next = prompt('Name this voice pack (e.g. "Todd’s Voice"):', current);
+        const next = prompt('Name this voice pack (e.g. "My Voice"):', current);
         if (next === null) return;
         const clean = next.trim();
         const statusEl = $('import-status');
