@@ -8,11 +8,11 @@ Conductor is a free, private tool that lets a group of people coordinate in real
 
 We record voice cues and write event scripts together in person every couple of weeks. But a lot of the most useful work doesn't need a meeting — you can do it on your own time, from anywhere, and send it in. This page is that work.
 
-*Generated October 27, 2026 · week of October 21, 2026. This page updates on a regular cadence — check back for the current ask.*
+*Generated November 4, 2026. This page updates on a regular cadence — check back for the current ask.*
 
 ---
 
-## What we could use this week
+## What we could use right now
 
 Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 

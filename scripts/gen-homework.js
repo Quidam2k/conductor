@@ -46,7 +46,7 @@ function fmtDate(iso) {
 
 // ── Build the dynamic markdown blocks from config ──────────────────────────
 function buildGeneratedLine(cfg, now) {
-  return '*Generated ' + fmtDate(now) + ' · week of ' + fmtDate(cfg.weekOf) +
+  return '*Generated ' + fmtDate(now) +
     '. This page updates on a regular cadence — check back for the current ask.*';
 }
 
@@ -350,7 +350,7 @@ function main() {
 
   const now = new Date().toISOString().slice(0, 10);
   const generatedLine = buildGeneratedLine(cfg, now);
-  const generatedPlain = 'Generated ' + fmtDate(now) + ' · week of ' + fmtDate(cfg.weekOf) +
+  const generatedPlain = 'Generated ' + fmtDate(now) +
     '. This page updates on a regular cadence — check back for the current ask.';
 
   const tokens = {

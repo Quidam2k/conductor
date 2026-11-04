@@ -10,7 +10,7 @@ We record voice cues and write event scripts together in person every couple of 
 
 ---
 
-## What we could use this week
+## What we could use right now
 
 Pick **one** of these. Any single one genuinely helps — you don't need to do both.
 
