@@ -99,8 +99,8 @@ each round picks again. A phone without the pack speaks the action text instead
 There are two ways to bound the loop, and they encode different intent:
 
 - **`RepeatUntil`** — loop until a wall-clock time. Everyone stops at the same
-  instant, so a **seed-crystal** at an event — a short chant or wave that keeps
-  re-firing — still lets people who arrive late catch a full cycle before it ends.
+  instant, so a short chant or wave at an event that keeps re-firing still
+  lets people who arrive late catch a full cycle before it ends.
 - **`Repeat`** — loop a fixed number of times (total, counting the first). The
   duration is implicit (N × one cycle). This is the rehearsed / closed-group tool
   (run the wave three times, a drill) and only stays in sync if everyone starts

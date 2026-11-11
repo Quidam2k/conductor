@@ -275,7 +275,7 @@
             <li><strong>They texted or messaged you a link</strong> — Just tap it. The app opens with the event already loaded. If you don't have the app cached yet, the link opens the online version; it works the same.</li>
             <li><strong>They're showing a QR code on their screen</strong> — Open Conductor, tap <strong>Scan QR Code</strong>, and point your camera at their screen. You'll drop straight into the event preview.</li>
             <li><strong>They're showing an <em>animated</em> QR code (a "beam")</strong> — Same thing: tap <strong>Scan QR Code</strong> and hold your camera on their screen. Keep it steady — the code cycles through frames and a progress bar fills as it receives. When it finishes you're in.</li>
-            <li><strong>They sent you a file</strong> (AirDrop / Quick Share / a <code>conductor.html</code>) — Open it. If it's a bundled file, it <em>is</em> the app with the event baked in.</li>
+            <li><strong>They sent you a file</strong> (AirDrop / Quick Share / a <code>conductor.html</code>) — Open it. If it's a bundled file, it <em>is</em> the app with the event baked in. (Not yet confirmed on iPhone. If a file doesn't open, ask for the link or QR code instead, and tell us.)</li>
             <li><strong>You have an event code</strong> (a <code>v1_…</code> string) — Open Conductor and paste it into the "Got an event code?" box on the home screen.</li>
         </ul>
         <p>Once you're in, tap <strong>Start Practice</strong> to rehearse, then tap <strong>Go Live</strong> when the real event is close — Live opens 20 minutes before the first cue (see <a href="#going-live">Going Live</a>). If the event is password-protected, you'll be asked for the password the organizer gave you.</p>
@@ -338,7 +338,7 @@
         <p>From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio. Anything without a matching file falls back to the phone's spoken voice (screen-on only).</p>
 
         <h3>The Demo Packs</h3>
-        <p>Each demo event has its own small voice pack — roughly 50&ndash;180&nbsp;KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead). Grab the one for the event you're running:</p>
+        <p>Each demo event has its own small voice pack — roughly 100&ndash;350&nbsp;KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead). Grab the one for the event you're running:</p>
         <ul>
             <li><a href="packs/demo-the-stillness.zip">The Stillness</a> — freeze mob: sudden collective stillness, no props</li>
             <li><a href="packs/demo-the-bloom.zip">The Bloom</a> — umbrella performance: raise, open, sway, light, close</li>
@@ -610,6 +610,7 @@ Countdown: true      # event-level: all actions get a countdown by default
     <section>
         <h2 id="phone-in-your-pocket">Phone in Your Pocket</h2>
         <p>The realistic live-event posture is phone locked, in a pocket — eyes on your surroundings, hands free. Conductor is built for that: when an event goes live, the app pre-renders every countdown beep, trigger beep, and resource-pack voice cue into one continuous audio track that keeps playing with the screen off.</p>
+        <p>Tested on iPhone (iOS 18) with the phone locked in a pocket; iOS 26 and longer events are being tested now &mdash; <a href="test/">help us test</a>.</p>
         <p>What keeps playing from a pocket:</p>
         <ul>
             <li><strong>Countdown beeps</strong> — the ascending beeps before each action.</li>
@@ -703,7 +704,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         &nbsp;&middot;&nbsp;
         <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
     </p>
-    <p class="build">build v71 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+    <p class="build">build v72 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
 </footer>
 
 </body>

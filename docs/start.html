@@ -351,9 +351,9 @@
         &nbsp;&middot;&nbsp;
         <a href="conductor.html" download="conductor.html">download to use offline</a>
         &nbsp;&middot;&nbsp;
-        <a href="packs/demo-the-stillness.zip">demo voice pack</a> <span style="font-size:0.85em">(optional, a small ~80 KB zip of voice recordings that keeps speaking when your phone is locked)</span>
+        <a href="packs/demo-the-stillness.zip">demo voice pack</a> <span style="font-size:0.85em">(optional, a small ~150 KB zip of voice recordings that keeps speaking when your phone is locked)</span>
     </p>
-    <p style="font-size:11px; color:var(--text-dim); margin-top:18px;">build <span id="app-version">v71</span></p>
+    <p style="font-size:11px; color:var(--text-dim); margin-top:18px;">build <span id="app-version">v72</span></p>
 </header>
 
 <!-- ═══ Work-in-progress note ═══ -->
@@ -381,7 +381,7 @@
             <div class="step-number" aria-label="Step 2"></div>
             <div class="step-content">
                 <h3>Try the Demo</h3>
-                <p>Open the app and tap <strong>Try the Demo</strong>. This loads "The Stillness" &mdash; a short freeze-mob event where everyone freezes at the same moment. It works immediately &mdash; no downloads needed. The beep countdowns keep sounding even with the phone locked in your pocket.</p>
+                <p>Open the app and tap <strong>Try the Demo</strong>. This loads "The Stillness" &mdash; a short freeze-mob event where everyone freezes at the same moment. It works immediately &mdash; no downloads needed. The beep countdowns keep sounding even with the phone locked in your pocket. Tested on iPhone (iOS 18) with the phone locked in a pocket; iOS 26 and longer events are being tested now &mdash; <a href="test/">help us test</a>.</p>
             </div>
         </div>
         <div class="step">
@@ -411,17 +411,17 @@
         <div class="feature-card">
             <div class="icon" aria-hidden="true">&#128274;</div>
             <h3>Private by Default</h3>
-            <p>No accounts, no tracking, no server. Event data stays in the URL fragment &mdash; never sent to anyone. Events can be password-protected with AES-256 encryption, and nothing ever touches a server.</p>
+            <p>Your event lives in the link itself. Conductor never sends it to a server, and there are no accounts or tracking. The link is only as private as the way you send it, so use a password for anything sensitive. Events can be password-protected with AES-256 encryption.</p>
         </div>
         <div class="feature-card">
             <div class="icon" aria-hidden="true">&#128247;</div>
             <h3>QR Sharing</h3>
-            <p>Show a QR code on your screen. Others scan it with their camera. Works phone-to-phone, no internet needed.</p>
+            <p>Show a QR code on your screen. Others scan it with their camera. If they already have Conductor open, scanning needs no internet.</p>
         </div>
         <div class="feature-card">
             <div class="icon" aria-hidden="true">&#128225;</div>
             <h3>Works Everywhere</h3>
-            <p>Android, iPhone, desktop &mdash; any modern browser. Works offline after first visit. Works from a USB stick. (Vibration works on Android; iPhones will not vibrate.)</p>
+            <p>Android, iPhone, desktop &mdash; any modern browser. Works offline after first visit. On a computer it also runs from a USB stick. (Vibration works on Android; iPhones will not vibrate.)</p>
         </div>
         <div class="feature-card">
             <div class="icon" aria-hidden="true">&#127911;</div>
@@ -453,13 +453,14 @@
             <p>
                 Here's the part that matters in a real crowd: <strong style="color:var(--text-secondary);">you don't need a
                 signal at the event.</strong> Load the app and your event at home, where you've got wifi or data.
-                Once it's on your phone, it hands off over the air &mdash; phone to phone &mdash; even if the network is
-                jammed or down.
+                To pass it on, <strong style="color:var(--text-secondary);">the QR code and the link are the sure route.</strong> If the other
+                person already has Conductor open, the animated-QR beam needs no network at all.
             </p>
 
             <div class="transfer-cards">
                 <div class="transfer-card">
                     <h4>On an iPhone &mdash; AirDrop</h4>
+                    <p class="step-note"><strong>Not yet confirmed on every phone.</strong> Tell us if it works for you.</p>
                     <ol>
                         <li>Open your event, tap <strong>Share QR Code</strong>, then <strong>Share File</strong>.</li>
                         <li>Tap <strong>AirDrop</strong>, then tap the other person's name.
@@ -470,6 +471,7 @@
                 </div>
                 <div class="transfer-card">
                     <h4>On an Android &mdash; Quick Share</h4>
+                    <p class="step-note"><strong>Not yet confirmed on every phone.</strong> Tell us if it works for you.</p>
                     <ol>
                         <li>Open your event, tap <strong>Share QR Code</strong>, then <strong>Share File</strong>.</li>
                         <li>Tap <strong>Quick Share</strong> (older phones say <strong>Nearby Share</strong>), then tap the other phone.</li>
@@ -592,7 +594,7 @@
             <ul>
                 <li><strong>Link</strong> &mdash; Copy a URL and send it via text, email, or social media. Best for reaching people online.</li>
                 <li><strong>QR Code</strong> &mdash; Show a scannable code on your screen. Best for sharing in person &mdash; no internet needed.</li>
-                <li><strong>File</strong> &mdash; Download a self-contained HTML file with the event baked in. Best for AirDrop, USB, or messaging apps.</li>
+                <li><strong>File</strong> &mdash; Download a self-contained HTML file with the event baked in. Best for AirDrop, Quick Share, or messaging apps (not yet confirmed on every phone).</li>
                 <li><strong>Web Share</strong> &mdash; Use your phone's built-in share menu (Android and iOS). Best for quick sharing to any app.</li>
                 <li><strong>Beam</strong> &mdash; Play an animated QR code the other phone scans with <strong>Scan QR Code</strong>. Best for moving a desktop-built or oversized event to a phone with no network. See <a href="#desktop-to-phone">Desktop &rarr; phone</a>.</li>
             </ul>

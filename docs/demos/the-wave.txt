@@ -3,8 +3,6 @@
 # back — phone lights up, a short whoop — like a stadium wave made of light.
 # Needs no resource pack, so anyone can join with just the link.
 #
-# DRAFT for the organizer to refine (2026-08-18).
-#
 # HOW IT WORKS (the trick is dead simple, which is the charm):
 #   - Everyone runs the SAME script. The briefing gives each person a ZONE
 #     NUMBER (count off 1-8 down the line, or by where you're standing).

@@ -1,5 +1,5 @@
 blank_issues_allowed: true
-# contact_links:
-#   - name: Discussions
-#     url: https://github.com/Quidam2k/conductor/discussions
-#     about: Ask questions or share ideas with the community
+contact_links:
+  - name: Help Us Test (iPhone especially)
+    url: https://quidam2k.github.io/conductor/test/
+    about: A five-minute check of whether Conductor's audio keeps playing on your phone with the screen locked.

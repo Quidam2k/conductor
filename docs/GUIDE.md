@@ -53,7 +53,7 @@ Someone shared an event with you? Here's how to get in — pick whichever matche
 - **They texted or messaged you a link** — Just tap it. The app opens with the event already loaded. If you don't have the app cached yet, the link opens the online version; it works the same.
 - **They're showing a QR code on their screen** — Open Conductor, tap **Scan QR Code**, and point your camera at their screen. You'll drop straight into the event preview.
 - **They're showing an *animated* QR code (a "beam")** — Same thing: tap **Scan QR Code** and hold your camera on their screen. Keep it steady — the code cycles through frames and a progress bar fills as it receives. When it finishes you're in. (This is how larger events and resource packs transfer with no network.)
-- **They sent you a file** (AirDrop / Quick Share / a `conductor.html`) — Open it. If it's a bundled file, it *is* the app with the event baked in.
+- **They sent you a file** (AirDrop / Quick Share / a `conductor.html`) — Open it. If it's a bundled file, it *is* the app with the event baked in. (Not yet confirmed on iPhone. If a file doesn't open, ask for the link or QR code instead, and tell us.)
 - **You have an event code** (a `v1_…` string) — Open Conductor and paste it into the "Got an event code?" box on the home screen.
 
 Once you're in, tap **Start Practice** to rehearse, then tap **Go Live** when the real event is close — Live opens 20 minutes before the first cue (see [Going Live](#going-live)). If the event is password-protected, you'll be asked for the password the organizer gave you.
@@ -112,7 +112,7 @@ From now on, whenever the app needs to speak a cue that matches one in your reso
 
 ### The Demo Packs
 
-Each demo event has its own small voice pack — roughly 50–180 KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead):
+Each demo event has its own small voice pack — roughly 100–350 KB, so it downloads in seconds even on weak signal and is small enough to beam phone-to-phone via QR. Each pack bundles one event script plus every voice cue that event uses (and the shared "Get ready to…" prep lead):
 
 - [The Stillness](packs/demo-the-stillness.zip) — freeze mob: sudden collective stillness, no props
 - [The Bloom](packs/demo-the-bloom.zip) — umbrella performance: raise, open, sway, light, close
@@ -395,6 +395,8 @@ If something's missing, you'll see a warning with details about what's not cover
 ## Phone in Your Pocket
 
 The realistic live-event posture is phone locked, in a pocket — eyes on your surroundings, hands free. Conductor is built for that: when an event goes live, the app pre-renders every countdown beep, trigger beep, and resource-pack voice cue into one continuous audio track that keeps playing with the screen off.
+
+Tested on iPhone (iOS 18) with the phone locked in a pocket. iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
 
 What keeps playing from a pocket:
 

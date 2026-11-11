@@ -2,8 +2,8 @@
   "weekOf": "2026-10-21",
   "focus": [
     {
-      "title": "iPhone on iOS 26? Does the robot voice keep talking with your screen locked?",
-      "detail": "This one could change how Conductor works. Older iPhones go silent on spoken cues once the screen locks, so today you need a downloaded voice pack to hear anything in your pocket. iOS 26 may have changed that. On an iPhone running iOS 26: open the app (<https://quidam2k.github.io/conductor/>), tap Share → Add to Home Screen, and open it from that icon (Safari's new bottom toolbar can cover the Go Live button). Don't install any voices. Tap Try the Demo → Go Live → Enter Live, then lock the phone and put it in your pocket for the 3½-minute demo. Tell us in a GitHub issue: your iOS version, whether every line played out loud, whether they were on time, and whether you heard beeps."
+      "title": "iPhone on iOS 26: do the beeps and voice-pack cues keep playing with the screen locked?",
+      "detail": "We've confirmed this on iOS 18 with the phone locked in a pocket, but not yet on iOS 26. On an iPhone running iOS 26, open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) and follow the steps. Tip: in Safari tap Share → Add to Home Screen and open Conductor from that icon (Safari's new bottom toolbar can cover the Go Live button). Tell us in a GitHub issue: your iOS version, whether the beeps and voice cues played with the screen locked, and whether they were on time."
     },
     {
       "title": "Two phones on hand? Time a voice-pack beam",

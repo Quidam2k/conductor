@@ -2,6 +2,8 @@
 
 **Coordinate groups in real time with shared timed cues. No accounts, no servers, no app required.**
 
+**Got an iPhone? We need testers → [Help Us Test](https://quidam2k.github.io/conductor/test/)**
+
 **[▶ Open Conductor](https://quidam2k.github.io/conductor/)** · [Try the demo](https://quidam2k.github.io/conductor/index.html?demo) · [Getting started](https://quidam2k.github.io/conductor/start.html) · [What's new](https://quidam2k.github.io/conductor/changelog.html)
 
 ![Three phone screens: the Conductor home screen, an event preview listing its timed steps, and practice mode with the circular countdown](docs/screens.png)
@@ -21,7 +23,7 @@ Designed for peaceful coordination. No telemetry, no tracking, no data collectio
 3. **Open** — Participants tap the link. No install, no signup, no app store
 4. **Coordinate** — Everyone's device counts down together with audio and haptic cues
 
-The event data lives in the URL fragment itself. No server ever sees your plans.
+Your event lives in the link itself. Conductor never sends it to a server, and there are no accounts or tracking. The link is only as private as the way you send it, so use a password for anything sensitive.
 
 ## Try It
 
@@ -55,9 +57,9 @@ You don't have to be in the room to help. Record a few voice cues in your own vo
 - **Repeat** — Loop the whole sequence a set number of times or until a clock time, with an optional pause between rounds
 - **Random Takes** — A step can list several recordings (JSON events, for now); each phone picks one, so a crowd plays a mix
 - **Live Window** — Go Live opens 20 minutes before the first cue (so a phone isn't left running for hours ahead of time); Practice works any time
-- **Pocket-Ready Audio** — When you go live, beeps, "Get ready to…" preps, and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket
+- **Pocket-Ready Audio** — When you go live, beeps, "Get ready to…" preps, and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket. Tested on iPhone (iOS 18) with the phone locked in a pocket. iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
 - **Audio & Haptics** — Countdown and trigger beeps, resource pack voice cues, vibration patterns; text-to-speech reads cue text while the screen is on
-- **Cross-Platform** — Works on Android, iPhone, desktop — anything with a browser
+- **Cross-Platform** — Works on Android, iPhone, desktop — anything with a browser (iPhones don't vibrate)
 
 ## Privacy & Security
 
@@ -83,7 +85,7 @@ Each demo event has its own small voice pack (roughly 100–350 KB — quick to 
 - **The Murmur** — Synchronized sound and movement, eerie and theatrical
 - **The Cascade** — Rapid-fire cue bursts in a one-minute run, a stress test for close-spaced timing
 
-Download packs from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab them from the `docs/packs/` folder (`demo-the-stillness.zip`, `demo-the-bloom.zip`, …). The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket.
+Download packs from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab them from the `docs/packs/` folder (`demo-the-stillness.zip`, `demo-the-bloom.zip`, …). The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket. Tested on iPhone (iOS 18) with the phone locked in a pocket. iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
 
 More example scripts live in [`docs/demos/`](docs/demos/) as plain text you can paste into the app — including `clip-mode-demo.txt`, a short tour of cue mode vs clip mode (screen on; it uses text-to-speech in place of recordings).
 
@@ -109,12 +111,12 @@ The best coordinated actions are **short** (under 5 minutes), **photogenic** (lo
 
 ## Self-Hosting
 
-Conductor is designed to be uncensorable. Host your own copy:
+Conductor is hard to take down: it's one file, and anyone can host a copy. Host your own:
 
 1. **GitHub Pages** — Fork this repo, enable Pages on `docs/`
 2. **Any Static Server** — Upload the `docs/` folder to Netlify, Vercel, or your own server
 3. **IPFS** — Pin the `docs/` folder for decentralized hosting
-4. **USB Stick** — Copy `conductor.html` to a thumb drive. One file, works offline
+4. **USB Stick (computers)** — Copy `conductor.html` to a thumb drive. One file, works offline. (Phones can't open an HTML file from a USB stick.)
 5. **Local File** — Just open `conductor.html` from your filesystem. It works from `file://`
 
 Events created on one host work on any other — the data is in the URL.
@@ -136,7 +138,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/Quidam2k/conduct
 ### Contributors
 
 - **[Quidam2k](https://github.com/Quidam2k)** — Creator, lead developer
-- **[Teafaerie](https://github.com/Teafaerie)** — Design collaborator, iOS testing, resource pack vision. Confirmed iOS audio feasibility (Feb 2026) and drove the resource pack architecture through hands-on testing.
+- **[Teafaerie](https://github.com/Teafaerie)** — Design collaborator, iOS testing, resource pack vision. Did the on-device iPhone testing that shaped the locked-screen audio design, and drove the resource pack architecture through hands-on testing.
 
 ## License
 

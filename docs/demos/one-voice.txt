@@ -2,10 +2,10 @@
 # Everyone shouts the SAME line at the SAME instant: a wall of human voices,
 # perfectly together. The app just counts you in. The line is yours to swap.
 #
-# DRAFT for the organizer to refine (2026-08-18). The line below is a placeholder — the
-# whole point is that it's the one thing an organizer changes.
+# The line below is a placeholder — the whole point is that it's the one thing
+# an organizer changes.
 #
-# Why it works as a seed-crystal: it needs no resource pack (TTS + beeps only),
+# Why it spreads easily: it needs no resource pack (TTS + beeps only),
 # so a stranger who just got the link at a protest can join instantly. And it
 # REPEATS (v60 bounded repeat), so people arriving late still catch a full round.
 #
@@ -14,7 +14,7 @@
 #     Do not play the line through the phone. The phone only counts you in.
 #   - Put in ONE EARBUD (or just watch the screen). Then the 3-2-1 is private,
 #     and the street hears only the shout — hundreds of people, one instant.
-#   - The triple buzz on "now" is your silent, pocket-proof beat.
+#   - The triple buzz (Android) and beeps carry the beat when locked.
 #
 # MEMORIAL VARIANT (a wall of names): hand out several copies of this script,
 # each with a different name as the line and a slightly different start time
