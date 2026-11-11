@@ -57,8 +57,8 @@ You don't have to be in the room to help. Record a few voice cues in your own vo
 - **Repeat** — Loop the whole sequence a set number of times or until a clock time, with an optional pause between rounds
 - **Random Takes** — A step can list several recordings (JSON events, for now); each phone picks one, so a crowd plays a mix
 - **Live Window** — Go Live opens 20 minutes before the first cue (so a phone isn't left running for hours ahead of time); Practice works any time
-- **Pocket-Ready Audio** — When you go live, beeps, "Get ready to…" preps, and pack voice cues are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket. Tested on iPhone (iOS 18) with the phone locked in a pocket. iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
-- **Audio & Haptics** — Countdown and trigger beeps, resource pack voice cues, vibration patterns; text-to-speech reads cue text while the screen is on
+- **Pocket-Ready Audio** — When you go live, beeps, "Get ready to…" preps, pack voice cues, and typed cue text (read by a built-in robot voice) are pre-rendered into one continuous track that keeps playing with the phone locked in a pocket. The track was tested on iPhone (iOS 18) with the phone locked in a pocket; the robot voice, iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
+- **Audio & Haptics** — Countdown and trigger beeps, resource pack voice cues, vibration patterns; a built-in robot voice reads typed cue text (recordings sound far better)
 - **Cross-Platform** — Works on Android, iPhone, desktop — anything with a browser (iPhones don't vibrate)
 
 ## Privacy & Security
@@ -87,7 +87,7 @@ Each demo event has its own small voice pack (roughly 100–350 KB — quick to 
 
 Download packs from the [Getting Started](https://quidam2k.github.io/conductor/start.html) page or grab them from the `docs/packs/` folder (`demo-the-stillness.zip`, `demo-the-bloom.zip`, …). The app also has a built-in demo ("The Stillness") that works immediately — beep countdowns keep sounding even with the phone locked in a pocket. Tested on iPhone (iOS 18) with the phone locked in a pocket. iOS 26 and longer events are being tested now. [Help us test](https://quidam2k.github.io/conductor/test/).
 
-More example scripts live in [`docs/demos/`](docs/demos/) as plain text you can paste into the app — including `clip-mode-demo.txt`, a short tour of cue mode vs clip mode (screen on; it uses text-to-speech in place of recordings).
+More example scripts live in [`docs/demos/`](docs/demos/) as plain text you can paste into the app — including `clip-mode-demo.txt`, a short tour of cue mode vs clip mode (it uses the built-in robot voice in place of recordings).
 
 ## Concepts & Techniques
 

@@ -459,6 +459,102 @@ function createAudioService() {
     // ear, not derived.
     const PREP_STITCH_GAP_SEC = 0.15;
 
+    // ─── Built-in robot voice (v73) ─────────────────────────────
+    // Typed lines with no recording are read by the bundled robot voice
+    // (robotVoice.js). Its lines are AudioBuffers in the pack cache under this
+    // reserved pack id, so they bake into the locked-screen track and play live
+    // through playPackCue exactly like recorded clips. Phone speech (speak())
+    // is only the fallback when no robot buffer exists (engine failed to load).
+
+    const ROBOT_PACK_ID = '__robot';
+
+    /** @type {function(string, string): string|null} (style, text) → robot cueId; null = robot voice not wired. */
+    let robotCueIdFn = null;
+
+    /**
+     * The words each spoken line says — one source of truth for the robot voice
+     * (prepare + schedule + live) and the phone-speech fallback.
+     */
+    function noticeLineText(action, groupTexts) {
+        if (groupTexts && groupTexts.length >= 2) {
+            const parts = groupTexts.map(t => String(t).toLowerCase());
+            return 'Get ready to ' + parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+        }
+        return 'Get ready to ' + String(action.fallbackText || action.action || '').toLowerCase();
+    }
+    function triggerLineText(action) {
+        return (action.action || 'Go') + '!';
+    }
+    function clipLineText(action) {
+        return action.fallbackText || action.action || '';
+    }
+
+    /** Robot cueId for a line, or null when the robot voice isn't wired / text is empty. */
+    function robotCue(style, text) {
+        if (!robotCueIdFn || !text) return null;
+        try { return robotCueIdFn(style, text); } catch (e) { return null; }
+    }
+
+    /**
+     * Play (or, under bake, confirm) the robot line for this text. False when
+     * there is no robot buffer — the caller then falls back to speak().
+     */
+    function playRobotLine(style, text, speed) {
+        const cueId = robotCue(style, text);
+        return !!cueId && playPackCue(cueId, ROBOT_PACK_ID, speed);
+    }
+
+    /**
+     * When a notice is long, start it early enough to finish 1 s before the
+     * trigger — but never within 0.5 s of the previous action's trigger. Shared
+     * by the stitched recorded prep and the robot notice.
+     * @returns {number} start offset in seconds (same clock as triggerSec)
+     */
+    function noticeStartSec(triggerSec, noticeSeconds, seqDurSec, gapFromPrevMs) {
+        let start = triggerSec - noticeSeconds;
+        if (seqDurSec > noticeSeconds - 1) {
+            start = triggerSec - (seqDurSec + 1);
+            if (gapFromPrevMs < Infinity) {
+                start = Math.max(start, triggerSec - gapFromPrevMs / 1000 + 0.5);
+            }
+        }
+        return start;
+    }
+
+    /**
+     * Every robot line an event could need: the trigger (or clip) line of each
+     * action without a recorded clip, and the "Get ready to…" notice of each
+     * group-leading action. Notices are listed even when a recorded stitched
+     * prep exists, so the unbaked fallback path can still use the robot.
+     * @param {TimelineAction[]} timeline
+     * @param {number} defaultNoticeSeconds
+     * @param {Map|null} actionMeta - from computeActionMeta()
+     * @param {Object} [eventDefaults={}]
+     * @param {function(string, string): boolean} [hasCue=null] - (packId, cueId) → decoded buffer present
+     * @returns {Array<{style: string, text: string}>}
+     */
+    function robotLinesForTimeline(timeline, defaultNoticeSeconds, actionMeta, eventDefaults = {}, hasCue = null) {
+        const lines = [];
+        for (const action of timeline) {
+            if (action.audioAnnounce === false) continue;
+            const meta = (actionMeta && actionMeta.get) ? actionMeta.get(action.id) : null;
+            const isClip = ((action.mode || eventDefaults.defaultMode || 'cue') === 'clip');
+            const cueId = effectiveCue(action, hasCue);
+            const hasClip = !!(cueId && action.pack && hasCue && hasCue(action.pack, cueId));
+            if (isClip) {
+                if (!hasClip && clipLineText(action)) lines.push({ style: 'clip', text: clipLineText(action) });
+                continue;
+            }
+            if (!hasClip) lines.push({ style: 'trigger', text: triggerLineText(action) });
+            const groupStartFlag = meta ? meta.groupStartFlag : true;
+            const noticeSeconds = action.noticeSeconds ?? defaultNoticeSeconds;
+            if (groupStartFlag && noticeSeconds > 0 && action.announceActionName) {
+                lines.push({ style: 'notice', text: noticeLineText(action, meta ? meta.groupTexts : null) });
+            }
+        }
+        return lines;
+    }
+
     /**
      * Compute the full static audio schedule for an entire timeline — every
      * sound that is BAKEABLE (routes through Web Audio): countdown beeps,
@@ -467,10 +563,11 @@ function createAudioService() {
      * (via resolveCountdownBeeps + the pack-cue rules below) and the offline
      * bake (audioBake.js renders this list through an OfflineAudioContext).
      *
-     * Deliberately omits anything that can't be baked — live TTS ("Get ready to
-     * X", the spoken trigger word) doesn't route through Web Audio and is left
-     * to the live path (screen-on only; silent under lock per diagnostic test
-     * 12). For no-pack actions that means the bake carries beeps only.
+     * Typed lines with no recording ("Get ready to X", the trigger word, a clip
+     * line) are baked from the built-in robot voice's buffers (pack id
+     * "__robot", v73) when robotVoice.prepare() made them. Phone speech can't
+     * be baked: if there is no robot buffer the line is left to the live path
+     * (screen-on only; silent under lock per diagnostic test 12).
      *
      * @param {TimelineAction[]} timeline - actions with absolute `timeMs`
      * @param {number} defaultNoticeSeconds - event-level notice default
@@ -494,6 +591,10 @@ function createAudioService() {
     function computeCueSchedule(timeline, defaultNoticeSeconds, actionMeta, startMs, eventDefaults = {}, hasCue = null, getDurationSec = null) {
         const events = [];
         const sorted = [...timeline].sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
+        // End of the last robot line emitted — a notice must not talk over a
+        // long robot clip line from the previous step (the bake just mixes).
+        let robotEndSec = -Infinity;
+        const robotDur = (id) => getDurationSec ? (getDurationSec(ROBOT_PACK_ID, id) || 0) : 0;
 
         for (const action of sorted) {
             if (action.audioAnnounce === false) continue;
@@ -532,6 +633,7 @@ function createAudioService() {
             // Trigger pack cue — the clip itself, played at the downbeat in BOTH
             // modes when the resolver has it (cue mode alongside the beep; clip mode
             // alone). This is the line that survives a locked screen.
+            // No recorded clip → the robot voice's line, if it was prepared.
             const cueId = effectiveCue(action, hasCue);
             if (cueId && action.pack && hasCue && hasCue(action.pack, cueId)) {
                 events.push({
@@ -539,6 +641,18 @@ function createAudioService() {
                     kind: 'packCue', packId: action.pack, cueId,
                     bufferKey: action.pack + ':' + cueId,
                 });
+            } else {
+                const robotId = isClip ? robotCue('clip', clipLineText(action))
+                    : robotCue('trigger', triggerLineText(action));
+                if (robotId && hasCue && hasCue(ROBOT_PACK_ID, robotId)) {
+                    const at = (triggerMs - startMs) / 1000;
+                    events.push({
+                        offsetSec: at,
+                        kind: 'packCue', packId: ROBOT_PACK_ID, cueId: robotId,
+                        bufferKey: ROBOT_PACK_ID + ':' + robotId,
+                    });
+                    robotEndSec = Math.max(robotEndSec, at + robotDur(robotId));
+                }
             }
 
             // Stitched prep (v57): the leader's reusable `prep-lead` clip ("Get
@@ -547,9 +661,13 @@ function createAudioService() {
             // preps finally bake — v55's leader-only notice-<cue> compromise
             // (and the notice-<cue> concept itself) is gone. Rules: emit only if
             // the leader's pack has `prep-lead` AND ≥1 member cue clip exists;
-            // members with missing clips are skipped. Otherwise emit nothing and
-            // the live path speaks the TTS enumeration (screen-on only).
+            // members with missing clips are skipped. Otherwise the robot
+            // voice's "Get ready to…" line is baked instead (same early-start
+            // rule); with no robot buffer either, nothing is baked and the live
+            // path speaks it (screen-on only).
             const wantNotice = !isClip && groupStartFlag && noticeSeconds > 0 && action.announceActionName;
+            const triggerSec = (triggerMs - startMs) / 1000;
+            let stitched = false;
             if (wantNotice && getDurationSec && action.pack &&
                 hasCue && hasCue(action.pack, 'prep-lead')) {
                 const members = (meta && meta.groupMembers) ? meta.groupMembers : [action];
@@ -561,24 +679,13 @@ function createAudioService() {
                     }
                 }
                 if (clips.length >= 2) {
+                    stitched = true;
                     const durs = clips.map(c => getDurationSec(c.packId, c.cueId) || 0);
                     const seqDur = durs.reduce((a, b) => a + b, 0)
                         + PREP_STITCH_GAP_SEC * (clips.length - 1);
-                    // Anchor at the prep moment; if the sequence won't finish by
-                    // 1s before the trigger, start it earlier — but never within
-                    // 0.5s of the previous action's trigger. Overlap with the
-                    // leader's own countdown beeps is accepted (the offline
-                    // context mixes; beeps are 150ms blips).
-                    const triggerSec = (triggerMs - startMs) / 1000;
-                    let seqStartSec = triggerSec - noticeSeconds;
-                    if (seqDur > noticeSeconds - 1) {
-                        seqStartSec = triggerSec - (seqDur + 1);
-                        if (gapFromPrev < Infinity) {
-                            const prevTriggerSec = triggerSec - gapFromPrev / 1000;
-                            seqStartSec = Math.max(seqStartSec, prevTriggerSec + 0.5);
-                        }
-                    }
-                    let cursor = seqStartSec;
+                    // Overlap with the leader's own countdown beeps is accepted
+                    // (the offline context mixes; beeps are 150ms blips).
+                    let cursor = noticeStartSec(triggerSec, noticeSeconds, seqDur, gapFromPrev);
                     clips.forEach((c, idx) => {
                         events.push({
                             offsetSec: cursor,
@@ -586,6 +693,27 @@ function createAudioService() {
                             bufferKey: c.packId + ':' + c.cueId,
                         });
                         cursor += durs[idx] + PREP_STITCH_GAP_SEC;
+                    });
+                }
+            }
+            if (wantNotice && !stitched && hasCue) {
+                const robotId = robotCue('notice', noticeLineText(action, meta ? meta.groupTexts : null));
+                if (robotId && hasCue(ROBOT_PACK_ID, robotId)) {
+                    const dur = robotDur(robotId);
+                    const latest = triggerSec - 0.2 - dur; // last start that still finishes before the trigger
+                    let at = noticeStartSec(triggerSec, noticeSeconds, dur, gapFromPrev);
+                    // Wait for a previous robot line to finish, if there's room.
+                    if (at < robotEndSec + PREP_STITCH_GAP_SEC && robotEndSec + PREP_STITCH_GAP_SEC <= latest) {
+                        at = robotEndSec + PREP_STITCH_GAP_SEC;
+                    }
+                    // Would start before the track does (late join, long group
+                    // list): start it at 0 if it still fits — dropping it would
+                    // be silent, since the live path defers to the bake.
+                    if (at < 0 && latest >= 0) at = 0;
+                    events.push({
+                        offsetSec: at,
+                        kind: 'packCue', packId: ROBOT_PACK_ID, cueId: robotId,
+                        bufferKey: ROBOT_PACK_ID + ':' + robotId,
                     });
                 }
             }
@@ -673,21 +801,20 @@ function createAudioService() {
                 if (bakedActive && action.pack &&
                     playPackCue('prep-lead', action.pack, speedMultiplier)) {
                     noticeResult = `notice-pack: "${action.cue || 'random'}"`;
-                } else if (groupTexts && groupTexts.length >= 2) {
-                    // No baked prep — enumerate the burst via TTS (unbakeable,
-                    // screen-on only). Uncapped: name every cue in the group.
-                    const parts = groupTexts.map(t => t.toLowerCase());
-                    const listText = parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
-                    const noticeText = 'Get ready to ' + listText;
-                    speak(noticeText, 1.2 * speedMultiplier, false);
-                    noticeResult = `notice: "${noticeText}"`;
                 } else {
-                    const text = action.fallbackText || action.action;
-                    const noticeText = 'Get ready to ' + text.toLowerCase();
-                    // preempt=false: a notice landing on the same tick as the
-                    // previous action's trigger queues behind it, not over it.
-                    speak(noticeText, 1.2 * speedMultiplier, false);
-                    noticeResult = `notice: "${noticeText}"`;
+                    // No recorded prep: the robot voice reads "Get ready to …"
+                    // (a 2+ cue group names every cue, uncapped). Under bake the
+                    // robot line is already in the track. Phone speech only if
+                    // there is no robot buffer.
+                    const noticeText = noticeLineText(action, groupTexts);
+                    if (playRobotLine('notice', noticeText, speedMultiplier)) {
+                        noticeResult = `notice-robot: "${noticeText}"`;
+                    } else {
+                        // preempt=false: a notice landing on the same tick as the
+                        // previous action's trigger queues behind it, not over it.
+                        speak(noticeText, 1.2 * speedMultiplier, false);
+                        noticeResult = `notice: "${noticeText}"`;
+                    }
                 }
             }
         }
@@ -738,7 +865,10 @@ function createAudioService() {
                     if (clipCue && action.pack && playPackCue(clipCue, action.pack, speedMultiplier)) {
                         return 'clip-pack: "' + clipCue + '"';
                     }
-                    const line = action.fallbackText || action.action || '';
+                    const line = clipLineText(action);
+                    if (line && playRobotLine('clip', line, speedMultiplier)) {
+                        return 'clip-robot: "' + line + '"';
+                    }
                     if (line) speak(line, 1.2 * speedMultiplier);
                     return 'clip-tts: "' + line + '"';
                 }
@@ -754,9 +884,12 @@ function createAudioService() {
                 if (triggerCue && action.pack && playPackCue(triggerCue, action.pack, speedMultiplier)) {
                     return 'trigger-pack: "' + triggerCue + '"';
                 }
-                const triggerText = action.action || 'Go';
-                speak(triggerText + '!', 1.5 * speedMultiplier);
-                return 'trigger: "' + triggerText + '!"';
+                const triggerText = triggerLineText(action);
+                if (playRobotLine('trigger', triggerText, speedMultiplier)) {
+                    return 'trigger-robot: "' + triggerText + '"';
+                }
+                speak(triggerText, 1.5 * speedMultiplier);
+                return 'trigger: "' + triggerText + '"';
             }
         }
 
@@ -889,6 +1022,16 @@ function createAudioService() {
         onBeep = cb;
     }
 
+    /**
+     * Wire the built-in robot voice: (style, text) → cueId, the same naming
+     * robotVoice.prepare() registered its buffers under (pack id "__robot").
+     * Unwired (null), every typed line goes to phone speech as before.
+     * @param {function(string, string): string|null} fn
+     */
+    function setRobotCueId(fn) {
+        robotCueIdFn = fn || null;
+    }
+
     // ─── Public API ─────────────────────────────────────────────
 
     return {
@@ -910,6 +1053,9 @@ function createAudioService() {
         setBakedActive,
         setAudioContextProvider,
         setOnBeep,
+        setRobotCueId,
+        robotLinesForTimeline,
+        ROBOT_PACK_ID,
 
         // Getters
         getMode: () => mode,

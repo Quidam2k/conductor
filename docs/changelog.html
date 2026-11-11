@@ -74,14 +74,23 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v72</p>
+        <p class="eyebrow">Conductor &middot; build v73</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v73">
+        <h2>v73 <span class="date">2026-11-10</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>Built-in robot voice for typed cues.</strong> Cue text with no recording (the cue word, "Get ready to…" heads-ups, clip lines) is now read by a robot voice that comes inside the app. It goes into the same pre-rendered track as the beeps and recordings, so typed cues should keep playing with the screen locked too. Practice, screen-on and locked all sound the same. The phone's own speech is only a fallback if the robot voice can't load. Recordings still sound much better. US English only for now; locked playback of the robot voice on iPhone is being tested now.</li>
+            <li><strong>Fixed:</strong> the downloadable <code>conductor.html</code> and the "share this app" file could fail to start because of a build error. Both open properly again.</li>
+            <li>The app file is now about 2.1 MB (it was 0.8 MB), because the voice is inside it. That's still small enough to send by AirDrop or a messaging app.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v72">
-        <h2>v72 <span class="date">2026-11-10</span> <span class="tag">latest</span></h2>
+        <h2>v72 <span class="date">2026-11-10</span></h2>
         <ul>
             <li><strong>Clearer, more careful wording about what's been tested.</strong> Locked-screen audio is marked as tested on iOS 18 (iOS 26 and longer events are being tested now); AirDrop / Quick Share hand-off is marked as not yet confirmed on every phone; privacy wording says plainly that a link is only as private as the way you send it.</li>
             <li><strong>Easier way to help test on iPhone:</strong> a "Help us test" link in the app's "What is this?" box, and new questions in the bug report form (system version, build, and how you opened the app).</li>

@@ -30,7 +30,7 @@ Tap **Start Practice** to run through the event at your own pace. Use the speed 
 
 ### Step 4: Import a Resource Pack (Optional)
 
-The app speaks cues using your phone's built-in text-to-speech by default. It works, but it sounds robotic.
+The app reads typed cues with a built-in robot voice by default. It's built to be understood, not to sound natural, so it sounds robotic.
 
 For better audio, import a **resource pack** — a zip file with pre-recorded voice cues. See the [Importing a Resource Pack](#importing-a-resource-pack) section below.
 
@@ -86,7 +86,7 @@ Your choice is remembered on that device and applies everywhere in the app until
 
 ## Importing a Resource Pack
 
-Resource packs replace the robotic text-to-speech with real voice recordings. They're optional — everything works without them — but they sound much better.
+Resource packs replace the built-in robot voice with real voice recordings. They're optional — everything works without them — but they sound much better.
 
 ### What You Need
 
@@ -108,7 +108,7 @@ After a successful import, you'll see:
 - If it includes any bundled events (demo scripts)
 - A validation report showing which cues are covered
 
-From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio instead of robot TTS. If a cue doesn't have a matching audio file, TTS kicks in as a fallback.
+From now on, whenever the app needs to speak a cue that matches one in your resource pack, it plays the recorded audio instead of the robot voice. If a cue doesn't have a matching audio file, the robot voice reads the cue text as a fallback.
 
 ### The Demo Packs
 
@@ -143,7 +143,7 @@ The easiest way. No coding, no special formats.
    - Type what should be announced (e.g., "Freeze in place")
    - Choose a style (normal, emphasis, or alert), and a per-step playback mode (Default, Cue, or Clip)
    - Toggle countdown, notice, and haptic options
-   - Pick **My Voice** as the pack and tap **🎤 Record** to record your own cues — or record them all in one pass. Recorded audio plays in a pocket; the robot voice doesn't
+   - Pick **My Voice** as the pack and tap **🎤 Record** to record your own cues — or record them all in one pass. Recordings sound much better than the robot voice, which also plays in a pocket
 4. **Step 3** — Review everything, then share via link, QR code, or file
 
 ### Option 2: Write a Text File
@@ -230,7 +230,7 @@ Every step in an event plays one of two ways:
 - **Cue** (the default) — countdown beeps, then a beep on the moment, and a *person* acts or speaks. The app gives a "Get ready to…" heads-up first.
 - **Clip** — the *phone itself* plays a recorded clip at that moment. No beeps, no heads-up — the clip is the moment. Clips can be any length and may overlap later steps: music beds, crowd murmur, a phone on a speaker playing its part.
 
-Set the default for the whole event (editor **Playback mode**, or `Mode: clip` in a text file), then override any single step (the step's Default/Cue/Clip toggle, or a `[clip]` / `[cue]` tag). One event can mix both. A clip step needs recorded audio to play in a pocket — without it, the phone reads the line aloud, screen-on only.
+Set the default for the whole event (editor **Playback mode**, or `Mode: clip` in a text file), then override any single step (the step's Default/Cue/Clip toggle, or a `[clip]` / `[cue]` tag). One event can mix both. A clip step needs recorded audio to play in a pocket — without it, the built-in robot voice reads the line, and that is baked into the pocket track too (recordings sound far better).
 
 ---
 
@@ -335,7 +335,7 @@ my-pack/
     └── go.wav
 ```
 
-Zip it up, import it, and any event action containing "go" will play your audio file instead of TTS.
+Zip it up, import it, and any event action containing "go" will play your audio file instead of the robot voice.
 
 ### Folder Conventions
 
@@ -388,7 +388,7 @@ When you import a pack, the app checks:
 - Do all cue `file` paths point to actual files in the zip?
 - For bundled events: are all action cues covered by audio files?
 
-If something's missing, you'll see a warning with details about what's not covered. The event will still work — uncovered cues just fall back to TTS.
+If something's missing, you'll see a warning with details about what's not covered. The event will still work — uncovered cues are just read by the robot voice.
 
 ---
 
@@ -405,12 +405,14 @@ What keeps playing from a pocket:
 - **Resource-pack voice cues** — spoken cues from an imported pack
 - **"Get ready to…" heads-ups** — stitched from the pack's `prep-lead` clip plus the named cue clips
 
-What does **not** play under lock: text-to-speech. Any cue text read aloud by the phone's own robot voice — including heads-ups when the pack has no `prep-lead` clip — only plays while the screen is on. The app shows a note about this when you go live.
+Typed cue text is covered too: the app has a built-in robot voice (US English only) that reads the trigger word, "Get ready to…" heads-ups (even when the pack has no `prep-lead` clip), and clip-mode lines with no recording. Those lines are pre-rendered into the same track, so they are meant to keep playing with the screen locked. The locked-screen playback of that track is what has been tested on iOS 18; nobody has yet tested the robot-voice lines on a locked phone. The robot voice is about being understood, not sounding natural; recordings sound much better.
+
+The one exception: if the robot voice fails to load, the app falls back to your phone's own speech, which only plays while the screen is on. The Sound check tells you if that happens.
 
 For organizers:
 
-- **Want spoken cues in pockets? Use a resource pack.** Pack voices are the only spoken audio that survives the pocket. Cover your event's cues with pack audio and the pocketed experience is fully voiced.
-- **No pack? Beeps carry the event.** Every action still gets its countdown and trigger beeps under lock — brief participants beforehand on what the sequence means.
+- **Want the best spoken cues in pockets? Use a resource pack.** Recordings (a pack or My Voice) sound much better than the robot voice. Cover your event's cues with recordings and the pocketed experience is fully voiced by real voices.
+- **No pack? The robot voice and beeps carry the event.** Every action still gets its countdown and trigger beeps, and the robot voice reads your cue text — brief participants beforehand on what the sequence means.
 - **Brief before pockets.** Briefing blocks are read on screen before phones are put away — put roles, sequence, and signals there.
 
 On the rare browser that can't pre-render audio, the app warns you when you go live — keep the screen on there.
@@ -441,7 +443,7 @@ In the editor's share step, turn on encryption and set a password. The event is 
 Yes. Use the **Text size** control (home screen and every event screen). See [Making the Text Bigger](#making-the-text-bigger).
 
 **Why did the spoken cues go quiet when I locked my phone?**
-Text-to-speech only plays with the screen on. Beeps and *resource-pack* voice cues are pre-rendered and keep playing in your pocket. For fully-voiced pocket use, cover your cues with a resource pack. See [Phone in Your Pocket](#phone-in-your-pocket).
+Beeps, recordings, and the built-in robot voice are all pre-rendered into one track that is meant to keep playing in your pocket. If the robot voice failed to load, your phone's own speech is used instead, and that only plays with the screen on (the Sound check says so). For the best-sounding pocket use, cover your cues with a resource pack. See [Phone in Your Pocket](#phone-in-your-pocket).
 
 **My iPhone won't vibrate.**
 iPhones don't support vibration from web apps — haptics work on Android only. Everything else (audio, timing, visuals) works on both.
@@ -464,7 +466,7 @@ Make sure your ringer/media volume is up, tap the audio toggle so it's on, and (
 ## Tips
 
 - **Practice first** — Always run through your event in practice mode before the real thing. Use the speed slider to go fast. Go Live opens 20 minutes before the first cue
-- **Pocket it** — Once you're live, lock the phone and pocket it. Beeps and pack voices keep playing; spoken text needs the screen on. Disable battery saver so the browser isn't killed mid-event
+- **Pocket it** — Once you're live, lock the phone and pocket it. Beeps, recordings, and the built-in robot voice are pre-rendered and meant to keep playing. Disable battery saver so the browser isn't killed mid-event
 - **Encryption** — For private events, enable password protection. Uses AES-256-GCM encryption. The password never leaves the device
 - **Offline works** — Once you've opened the app in your browser, it caches itself. Works without internet after that
 - **Phone-to-phone** — Show a QR code on your screen, others scan it with their camera. No internet needed for the transfer

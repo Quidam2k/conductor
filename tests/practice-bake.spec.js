@@ -181,5 +181,5 @@ test('practice bake fallback: no OfflineAudioContext → live path + honest note
     expect(r.baked).toBe(false);
     expect(r.mode).toBe('practice');
     expect(r.src).not.toMatch(/^blob:/);
-    await expect(page.locator('#practice-rehearsal-note')).toContainText(/locked screen will go quiet/i);
+    await expect(page.locator('#practice-rehearsal-note')).toContainText(/locked screen will go quiet/i, { timeout: 20000 });
 });

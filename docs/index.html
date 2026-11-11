@@ -1124,7 +1124,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v72</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v73</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1145,7 +1145,7 @@
                 <br><br>
                 Designed for peaceful coordination &mdash; performances, community events, demonstrations. No telemetry, no tracking. By design.
                 <br><br>
-                <strong>Tip:</strong> Once your event is live, lock your phone and pocket it &mdash; beeps and resource-pack voices keep playing (tested on iOS 18; iOS 26 testing now). Spoken text cues only play while the screen is on.
+                <strong>Tip:</strong> Once your event is live, lock your phone and pocket it &mdash; beeps and recordings keep playing (tested on iOS 18; iOS 26 testing now). Typed cues are read by a built-in robot voice that goes into the same track.
                 <br><br>
                 <a href="start.html" style="color:var(--accent-blue);">Getting Started Guide</a> &mdash; downloads, tutorial, and how to create your own events.
                 <br>
@@ -1491,7 +1491,7 @@
         <button id="btn-record-batch" class="btn-add-action" style="border-color:var(--border-medium); color:var(--text-secondary); display:none;">🎤 Optional: record everything at once</button>
         <button id="btn-record-missing" class="btn-add-action" style="border-color:rgba(52,211,153,0.3); color:var(--accent-green); display:none;">🎤 Record the missing ones</button>
         <button id="btn-play-all-cues" class="btn-add-action" style="border-color:rgba(91,163,255,0.3); color:var(--accent-blue); display:none;">&#x25b6; Play all cues</button>
-        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records the &ldquo;Get ready to&hellip;&rdquo; prep lead, then every cue. The app glues the lead to your cue names for each heads-up. Recorded audio plays in a pocket; the robot voice doesn&rsquo;t.</p>
+        <p id="record-batch-hint" style="font-size:16px; color:var(--text-secondary); margin:6px 2px 0; display:none;">One pass records the &ldquo;Get ready to&hellip;&rdquo; prep lead, then every cue. The app glues the lead to your cue names for each heads-up. Both your recordings and the built-in robot voice keep playing in a pocket; recordings just sound better.</p>
         <div id="play-all-status" style="font-size:16px; color:var(--text-dim); margin:6px 2px 0; display:none;"></div>
 
         <div id="ed-timeline-error" class="error-msg" style="margin-top:10px;"></div>
@@ -1716,6 +1716,7 @@
 <!-- Scripts                                                                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <script src="lib/pako.min.js"></script>
+<script src="lib/robot-voice.js"></script>
 <script src="lib/lame.min.js"></script>
 <script src="lib/qr-creator.min.js"></script>
 <script src="lib/qr-scanner.legacy.min.js"></script>
@@ -1725,6 +1726,7 @@
 <script src="js/audioService.js"></script>
 <script src="js/audioMp3.js"></script>
 <script src="js/resourcePackManager.js"></script>
+<script src="js/robotVoice.js"></script>
 <script src="js/audioBake.js"></script>
 <script src="js/voiceRecorder.js"></script>
 <script src="js/qrBeam.js"></script>
@@ -1816,6 +1818,15 @@ const state = {
 
 const audio = createAudioService();
 const packManager = createResourcePackManager();
+// Built-in robot voice: typed cues are synthesised into AudioBuffers under the
+// reserved pack id "__robot", so they play (and bake into the locked-screen
+// track) exactly like recorded clips. Phone speech is only the fallback.
+const robotVoice = createRobotVoice({
+    getAudioContext: () => packManager.getAudioContext(),
+    registerBuffer: (key, buf) => packManager.registerBuffer(key, buf),
+    hasBuffer: (key) => !!packManager.getBuffer(key),
+});
+audio.setRobotCueId((style, text) => robotVoice.cueId(style, text));
 const draftManager = createDraftManager();
 let timelinePractice = null;    // CircularTimeline for practice canvas
 let timelineLive = null;        // CircularTimeline for live canvas
@@ -2812,7 +2823,9 @@ function showPocketBanner() {
     if (seen) { hideBanner('live-pocket-banner'); return; }
     if (variant === 'baked') {
         showBanner('live-pocket-banner',
-            'Pocket-ready: beeps & pack voices keep playing with the screen off. Spoken text needs the screen on.',
+            (state.audioDebug && state.audioDebug.robot && state.audioDebug.robot.error)
+                ? 'Pocket-ready: beeps & recordings keep playing with the screen off. The robot voice didn’t load, so typed cues need the screen on.'
+                : 'Pocket-ready: beeps, recordings and the robot voice keep playing with the screen off.',
             'info');
     } else {
         showBanner('live-pocket-banner',
@@ -2932,15 +2945,19 @@ async function runPreflight(evt) {
 
     // 3. Pack cue coverage.
     const cov = await collectCueCoverage(evt);
+    const robotReady = robotVoice.isAvailable();
     if (cov.total === 0) {
         rows.push({ status: 'ok', label: 'No recorded cues',
-            detail: 'This event uses spoken audio only.' });
+            detail: robotReady ? 'The built-in robot voice reads every step.'
+                : 'Steps are read by the phone’s own voice, which needs the screen on.' });
     } else if (cov.missing === 0) {
         rows.push({ status: 'ok', label: 'All ' + cov.total + ' recordings installed',
             detail: 'Every step has its recorded audio.' });
     } else {
         rows.push({ status: 'warn', label: cov.missing + ' of ' + cov.total + ' recordings missing',
-            detail: 'Those steps will be spoken aloud instead, which needs the screen on. Install the voice pack first (Back, then Install voices or Import).'
+            detail: (robotReady ? 'The built-in robot voice will read those steps instead.'
+                : 'Those steps will be spoken aloud instead, which needs the screen on.')
+                + ' For the recorded voices, install the voice pack first (Back, then Install voices or Import).'
                 + (navigator.standalone ? ' This Home Screen app keeps its own voices, separate from Safari — install them here too.' : '') });
     }
 
@@ -2955,7 +2972,7 @@ async function runPreflight(evt) {
             detail: 'This event runs ' + humanizeMinutes(est.sec / 60) + ', so the phone prepares a big audio file. Older phones may take a moment; plug in if you can.' });
     } else {
         rows.push({ status: 'ok', label: 'Pocket audio: ~' + Math.max(1, Math.round(est.mb)) + ' MB to prepare',
-            detail: 'Beeps and recordings are built into one track that keeps playing with the screen locked.' });
+            detail: 'Beeps, recordings and the robot voice are built into one track that keeps playing with the screen locked.' });
     }
 
     // 5. Audio unlock — showPreflight already resumed the context in-gesture.
@@ -2968,12 +2985,12 @@ async function runPreflight(evt) {
     }
 
     // 6. Pocket readiness.
-    if (canBake() && !hasBlocker && cov.missing === 0) {
+    // Missing recordings no longer cost pocket audio: the robot voice reads
+    // those steps and is baked into the same track.
+    if (canBake() && !hasBlocker && (robotReady || cov.missing === 0)) {
         rows.push({ status: 'ok', label: 'Pocket-ready',
-            detail: 'You can lock the screen — audio keeps playing.' });
-    } else if (canBake() && !hasBlocker) {
-        rows.push({ status: 'warn', label: 'Partly pocket-ready',
-            detail: 'Beeps play locked, but missing recorded cues need the screen on.' });
+            detail: 'You can lock the screen — audio keeps playing.'
+                + (cov.missing ? ' Steps without a recording use the robot voice.' : '') });
     } else {
         rows.push({ status: 'warn', label: 'Keep screen on',
             detail: 'Locked-screen audio is not available for this run.' });
@@ -3111,7 +3128,7 @@ async function enterPractice() {
     // Banner: speech unavailable and/or unresolvable cues - never silent.
     const practiceLines = [];
     if (audio.getMode() === 'VISUAL_ONLY') practiceLines.push('Audio unavailable \u2014 visual cues only.');
-    const missingLine = missingCueBannerText(audioDbg.missingCues);
+    const missingLine = missingCueBannerText(audioDbg.missingCues, audioDbg.robot);
     if (missingLine) practiceLines.push(missingLine);
     if (practiceLines.length) {
         showBanner('practice-banner', practiceLines.join(' '), 'warning');
@@ -3287,7 +3304,7 @@ async function enterLive() {
     const lines = [];
     if (speechUnavailable) lines.push('Audio unavailable \u2014 visual cues only.');
     if (lateJoiner) lines.push('Event in progress \u2014 ' + pastCount + ' of ' + evt.timeline.length + ' cues already passed.');
-    const liveMissingLine = missingCueBannerText(liveAudioDbg.missingCues);
+    const liveMissingLine = missingCueBannerText(liveAudioDbg.missingCues, liveAudioDbg.robot);
     if (liveMissingLine) lines.push(liveMissingLine);
     if (lines.length) {
         showBanner('live-banner', lines.join(' '), (speechUnavailable || liveMissingLine) ? 'warning' : 'info');
@@ -3439,6 +3456,11 @@ function audioDebugSummary(mode) {
     parts.push('beeps ' + beeps);
     // Bake status matters on both screens now — practice rehearses through the
     // same baked track, so "did it bake?" is a practice question too.
+    const r = dbg.robot;
+    if (r && r.total) {
+        parts.push(r.ok ? 'robot ' + r.total + ' lines'
+            : 'robot FAILED (' + (r.error || (r.failed + ' lines')) + ') - phone speech');
+    }
     const b = dbg.bake;
     if (!b) parts.push('bake …');
     else if (b.ok) parts.push('bake ' + Math.round(b.durationSec) + 's OK');
@@ -3717,6 +3739,7 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
             durationSec: baked.durationSec || 0,
             bakeMs: Date.now() - startWallMs,
             scheduleCount: schedule.length,
+            robotCues: schedule.filter(e => e.packId === audio.ROBOT_PACK_ID).length,
         });
         return true;
     } catch (e) {
@@ -3892,23 +3915,45 @@ async function preloadEventPacks(evt, context) {
         }
     }
 
+    // Robot voice: synthesise every typed line this event needs (after packs,
+    // so lines a recording already covers are skipped). Never throws — on
+    // failure those lines fall back to phone speech, and the reason lands in
+    // the Sound check details.
+    let robot;
+    try {
+        const lines = audio.robotLinesForTimeline(
+            evt.timeline, evt.defaultNoticeSeconds,
+            computeActionMeta(evt.timeline, evt.defaultNoticeSeconds),
+            { defaultCountdown: evt.defaultCountdown,
+              defaultCountdownSeconds: evt.defaultCountdownSeconds,
+              defaultMode: evt.defaultMode },
+            (packId, cueId) => packManager.hasCue(packId, cueId));
+        robot = lines.length ? await robotVoice.prepare(lines) : { ok: true, total: 0 };
+        if (robotVoice.getLoadMs() !== null) robot.loadMs = robotVoice.getLoadMs();
+    } catch (e) {
+        robot = { ok: false, error: String((e && e.message) || e) };
+    }
+
     state.audioDebug = {
         context: context || state.mode,
         at: Date.now(),
         packReport,
         missingCues,
+        robot,
     };
     return state.audioDebug;
 }
 
 /** Shared banner line for unresolvable cues. Returns null when all resolve. */
-function missingCueBannerText(missingCues) {
+function missingCueBannerText(missingCues, robot = null) {
     if (!missingCues || missingCues.length === 0) return null;
     // Count distinct recordings, not steps — a cue used twice is one missing
     // file (preview and practice used to disagree, "6" vs "9", for one event).
     const n = new Set(missingCues.map(m => m.packId + ':' + m.cueId)).size;
     return n + (n === 1 ? ' recording isn’t' : ' recordings aren’t') +
-        ' on this phone yet, so those steps will be spoken aloud instead (screen on only).';
+        (robot && robot.error
+            ? ' on this phone yet, and the robot voice didn’t load, so those steps will be spoken aloud instead (screen on only).'
+            : ' on this phone yet, so the built-in robot voice will read those steps instead.');
 }
 
 function escapeHtml(str) {
@@ -5802,15 +5847,22 @@ async function buildBundledHTML(encoded) {
         const safeContent = content.replace(closeScriptRe, '<\\/script');
         html = html.replace(
             new RegExp('<script\\s+src=["\']' + src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']\\s*>' + closeTag, 'i'),
-            '<script>/* ' + src + ' */\n' + safeContent + '\n' + closeTag
+            // Function replacement: a string would expand "$&", "$'" etc.
+            // that minified libraries contain, corrupting the bundle.
+            () => '<script>/* ' + src + ' */\n' + safeContent + '\n' + closeTag
         );
     }
 
     // Remove manifest link (separate file, not bundled)
     html = html.replace(/<link[^>]*rel="manifest"[^>]*>\s*/i, '');
 
-    // Remove SW registration (doesn't work on file://)
-    html = html.replace(/\/\/ Register Service Worker[\s\S]*?navigator\.serviceWorker\.register\([^)]*\)[^}]*}\s*/g, '');
+    // Remove SW registration (doesn't work on file://). Marker strings are
+    // split so this code never matches itself.
+    const stripBegin = '// @standalone-strip-' + 'begin';
+    const stripEnd = '// @standalone-strip-' + 'end';
+    const b0 = html.indexOf(stripBegin);
+    const b1 = b0 < 0 ? -1 : html.indexOf(stripEnd, b0);
+    if (b1 > b0) html = html.slice(0, b0) + html.slice(b1 + stripEnd.length);
 
     // Inject event auto-load before closing body tag (only if encoded provided)
     if (encoded) {
@@ -6897,6 +6949,8 @@ if (loadFromHash()) {
     updateInputLayout();
 }
 
+// @standalone-strip-begin  (build-standalone.py and buildBundledHTML drop
+// everything up to the end marker: a standalone copy has no sw.js beside it)
 // Register Service Worker (only works on HTTPS/localhost, silently skips file://)
 // updateViaCache:'none' bypasses HTTP cache for sw.js so new versions are discovered
 // immediately. controllerchange listener auto-reloads the page when a new SW takes
@@ -6943,6 +6997,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         })
         .catch(() => {});
 }
+// @standalone-strip-end
 
 </script>
 </body>

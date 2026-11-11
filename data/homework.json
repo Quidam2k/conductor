@@ -2,8 +2,8 @@
   "weekOf": "2026-10-21",
   "focus": [
     {
-      "title": "iPhone on iOS 26: do the beeps and voice-pack cues keep playing with the screen locked?",
-      "detail": "We've confirmed this on iOS 18 with the phone locked in a pocket, but not yet on iOS 26. On an iPhone running iOS 26, open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) and follow the steps. Tip: in Safari tap Share → Add to Home Screen and open Conductor from that icon (Safari's new bottom toolbar can cover the Go Live button). Tell us in a GitHub issue: your iOS version, whether the beeps and voice cues played with the screen locked, and whether they were on time."
+      "title": "iPhone on iOS 26: do the beeps, voice cues and the new robot voice keep playing with the screen locked?",
+      "detail": "We've confirmed beeps and recorded voice cues on iOS 18 with the phone locked in a pocket, but not yet on iOS 26. New in build v73: typed cues are read by a built-in robot voice that goes into the same locked-screen track, and nobody has tried it on a locked iPhone yet. On an iPhone running iOS 26, open the Help Us Test page (<https://quidam2k.github.io/conductor/test/>) and follow the steps; then also open the app, paste a two-line typed event (for example `0:30 Freeze` and `1:00 Unfreeze`), tap Practice, lock the phone for 3 minutes and listen. Tip: in Safari tap Share → Add to Home Screen and open Conductor from that icon (Safari's new bottom toolbar can cover the Go Live button). Tell us in a GitHub issue: your iOS version, the build number at the bottom of the home screen, whether the beeps, voice cues and robot voice played with the screen locked, and whether they were on time."
     },
     {
       "title": "Two phones on hand? Time a voice-pack beam",

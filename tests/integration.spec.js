@@ -76,6 +76,9 @@ Start: ${futureDate}
 
     await page.click('#btn-start-practice');
     await waitForScreen(page, 'screen-practice');
+    // The anchor is set after audio prep (packs + robot voice) finishes.
+    await expect.poll(() => page.evaluate(() => state.practiceStartEventMs), { timeout: 15000 })
+        .toBeGreaterThan(0);
 
     const t = await page.evaluate(() => {
         const tsOf = (a) => a.timeMs ?? new Date(a.time).getTime();

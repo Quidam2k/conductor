@@ -42,16 +42,14 @@ def build():
     # 2. Remove <link rel="manifest" ...> line
     html = re.sub(r'[ \t]*<link\s+rel="manifest"\s+[^>]*>\n?', '', html)
 
-    # 3. Remove service worker registration block
-    html = re.sub(
-        r"[ \t]*// Register Service Worker.*?\n"
-        r"[ \t]*if \('serviceWorker'.*?\n"
-        r"[ \t]*navigator\.serviceWorker\.register.*?\n"
-        r"[ \t]*\}\n",
-        '',
-        html,
-        flags=re.DOTALL
-    )
+    # 3. Remove the service worker registration block (a standalone copy has
+    #    no sw.js beside it). index.html brackets it with explicit markers; a
+    #    regex guessing at its shape broke the standalone's main script once.
+    html, n = re.subn(
+        r'[ \t]*// @standalone-strip-begin.*?// @standalone-strip-end[^\n]*\n',
+        '', html, flags=re.DOTALL)
+    if n != 1:
+        sys.exit(f'ERROR: expected 1 @standalone-strip block in index.html, found {n}')
 
     with open(OUT, 'w', encoding='utf-8') as f:
         f.write(html)

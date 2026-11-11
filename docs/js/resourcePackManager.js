@@ -617,6 +617,20 @@ function createResourcePackManager() {
     }
 
     /**
+     * Put an AudioBuffer made in memory straight into the cache — used by the
+     * built-in robot voice (robotVoice.js), whose lines live under the reserved
+     * pack id "__robot". Nothing is stored in IndexedDB, so the robot "pack"
+     * never shows in Manage Packs, listPacks() or pack validation; it is just
+     * cache entries that pack playback and the offline bake already know how
+     * to play.
+     * @param {string} key - "packId:cueId"
+     * @param {AudioBuffer} audioBuffer
+     */
+    function registerBuffer(key, audioBuffer) {
+        bufferCache.set(key, audioBuffer);
+    }
+
+    /**
      * Read a cue's raw audio bytes straight from IndexedDB (no decode, no
      * cache). Used by the editor's "Play" button for saved recordings — it
      * doubles as the on-device diagnostic that the stored WAV is intact.
@@ -1280,6 +1294,7 @@ function createResourcePackManager() {
         getResolver,
         hasCue,
         getBuffer,
+        registerBuffer,
         getCueAudioData,
         getAudioContext,
         getPackInfo,
