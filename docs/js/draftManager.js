@@ -75,11 +75,31 @@ function createDraftManager() {
     /** @type {IDBDatabase|null} */
     let db = null;
 
-    async function ensureDB() {
-        if (!db) {
-            db = await openDraftDB();
+    /** @type {Promise<IDBDatabase>|null} */
+    let opening = null;
+
+    function ensureDB() {
+        if (db) return Promise.resolve(db);
+        if (!opening) {
+            opening = openDraftDB().then((d) => {
+                // A delete request from another tab (Clear This Phone) must not
+                // be blocked by this idle connection.
+                d.onversionchange = () => { d.close(); if (db === d) db = null; };
+                db = d;
+                opening = null;
+                return d;
+            }, (e) => { opening = null; throw e; });
         }
-        return db;
+        return opening;
+    }
+
+    /**
+     * Close the connection so the database can be deleted. Reopens on next use.
+     * @returns {Promise<void>}
+     */
+    async function close() {
+        if (opening) { try { await opening; } catch (e) { /* nothing to close */ } }
+        if (db) { db.close(); db = null; }
     }
 
     /**
@@ -162,5 +182,6 @@ function createDraftManager() {
         listDrafts,
         getDraft,
         deleteDraft,
+        close,
     };
 }

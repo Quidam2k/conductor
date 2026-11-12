@@ -70,6 +70,8 @@ Conductor is built to be private by default:
 - **No server** — Event data lives in the URL fragment (`#`), which browsers never send to servers
 - **Encryption** — Events can be encrypted with AES-256-GCM. The password never leaves the participant's device
 - **Offline** — Works from a local file with no internet connection
+- **Clear This Phone** — One button removes the drafts, packs and recordings stored on a device (not browser history or downloaded files)
+- **No remote stop** — Once a phone is live, only that phone can stop it. Agree a stop signal in advance
 - **Open source** — AGPL-3.0, inspect every line
 
 ## The Demo Packs

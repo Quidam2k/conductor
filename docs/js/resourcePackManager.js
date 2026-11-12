@@ -271,11 +271,31 @@ function createResourcePackManager() {
 
     // ─── DB lifecycle ────────────────────────────────────────────
 
-    async function ensureDB() {
-        if (!db) {
-            db = await openPackDB();
+    /** @type {Promise<IDBDatabase>|null} */
+    let opening = null;
+
+    function ensureDB() {
+        if (db) return Promise.resolve(db);
+        if (!opening) {
+            opening = openPackDB().then((d) => {
+                // A delete request from another tab (Clear This Phone) must not
+                // be blocked by this idle connection.
+                d.onversionchange = () => { d.close(); if (db === d) db = null; };
+                db = d;
+                opening = null;
+                return d;
+            }, (e) => { opening = null; throw e; });
         }
-        return db;
+        return opening;
+    }
+
+    /**
+     * Close the connection so the database can be deleted. Reopens on next use.
+     * @returns {Promise<void>}
+     */
+    async function close() {
+        if (opening) { try { await opening; } catch (e) { /* nothing to close */ } }
+        if (db) { db.close(); db = null; }
     }
 
     // ─── AudioContext ────────────────────────────────────────────
@@ -1311,6 +1331,8 @@ function createResourcePackManager() {
         deleteSyntheticCue,
         exportSyntheticPackZip,
         renameSyntheticPack,
+
+        close,
 
         // For testing/debugging
         getBufferCache: () => bufferCache,

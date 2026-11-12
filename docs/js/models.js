@@ -134,8 +134,6 @@ function createTimelineAction(overrides = {}) {
  * @property {number} defaultNoticeSeconds
  * @property {number} timeWindowSeconds
  * @property {string} visualMode - "circular" or "vertical"
- * @property {boolean} emergencyMode
- * @property {string|null} [emergencyMessage]
  * @property {string} createdAt - ISO 8601
  * @property {string} updatedAt - ISO 8601
  */
@@ -221,8 +219,6 @@ function embeddedEventToEvent(embedded) {
         defaultMode: embedded.defaultMode ?? 'cue',
         visualMode: embedded.visualMode ?? 'circular',
         briefing: embedded.briefing || null,
-        emergencyMode: false,
-        emergencyMessage: null,
         createdAt: now,
         updatedAt: now,
     };

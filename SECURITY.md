@@ -18,4 +18,5 @@ We'll acknowledge reports as quickly as we can, which is usually within a week. 
 ## Know the limits
 
 - Anyone holding an unencrypted event link can read the event. Use a password for anything sensitive, and share the password separately.
+- There is no remote stop. Once a phone is live, only that phone can stop it. Plan a stop signal in advance.
 - Everyone's phone runs on its own clock. Conductor doesn't sync time over the network, so phones set to automatic time stay closest together.

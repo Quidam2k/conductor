@@ -286,7 +286,9 @@ notes:        Wear blue shirt
 
 All keys are optional. If no `[BRIEFING]` section is present, the format works exactly as before.
 
-When coordinates are provided, the app shows a **Navigate** button that opens the device's map app with walking directions (Apple Maps on iOS, native map chooser on Android, Google Maps on desktop).
+Coordinates are decimal degrees written as `LAT, LNG` (for example `40.7829, -73.9654`). When they are valid, the app shows a **Navigate** button with the coordinates next to it. The button opens the device's map app with walking directions (Apple Maps on iOS, native map chooser on Android, Google Maps on desktop), and that map app receives the coordinates. If the coordinates are not valid, no button is shown.
+
+The app opens whatever coordinates the event carries. A link without a password can be changed by anyone who passes it on, so participants should check the coordinates shown against what the organizer told them.
 
 ## Backward Compatibility
 

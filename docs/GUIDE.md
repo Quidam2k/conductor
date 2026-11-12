@@ -419,6 +419,19 @@ On the rare browser that can't pre-render audio, the app warns you when you go l
 
 ---
 
+## If Something Changes During an Event
+
+There is no remote stop. Conductor has no server and phones don't talk to each other, so once a phone is live nothing the organizer does can reach it. Only that phone's own Stop button stops it.
+
+Plan for that before the event:
+
+- **Agree a stop signal in advance.** Pick something everyone can see or hear without looking at a phone, and write it in the briefing's `abort` line.
+- **Tell participants what the signal means.** For example: stop, and leave at walking pace.
+
+Nobody can clear someone else's phone either. Each person can remove their own drafts, packs and recordings with **Clear This Phone** at the bottom of the home screen. It doesn't clear browser history or files that were downloaded, and a browser tab, a Home Screen icon and a downloaded copy each keep their own data, so clear each one that was used.
+
+---
+
 ## FAQ
 
 **How do I join an event someone sent me?**

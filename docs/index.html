@@ -217,7 +217,8 @@
         #hosted-link-section { display: none; margin-top: 16px; text-align: center; }
         #hosted-link-section a { color: var(--accent-blue); font-size: 16px; text-decoration: none; }
         #hosted-link-section a:hover { text-decoration: underline; }
-        #hosted-link-section .hosted-link-hint { font-size: 14px; color: var(--text-dim); margin-top: 4px; display: block; }
+        #hosted-link-section .hosted-link-hint, #clear-phone-section .hosted-link-hint { font-size: 14px; color: var(--text-dim); margin-top: 4px; display: block; }
+        #clear-phone-section { margin-top: 20px; text-align: center; }
 
         /* ─── Input screen ─── */
         .app-logo {
@@ -407,6 +408,7 @@
             min-height: 44px;
         }
         .briefing-nav-btn:active { opacity: 0.8; }
+        .briefing-coords { font-size: 14px; color: var(--text-dim); white-space: nowrap; }
         .briefing-strip summary {
             cursor: pointer;
             padding: 8px 12px;
@@ -1124,7 +1126,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v73</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v74</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1212,6 +1214,12 @@
         <div id="hosted-link-section">
             <a id="hosted-link" href="https://quidam2k.github.io/conductor/" target="_blank" rel="noopener">View the showcase version online &rarr;</a>
             <span class="hosted-link-hint">A clean copy without your packs or saved events &mdash; safe to show off.</span>
+        </div>
+
+        <div id="clear-phone-section">
+            <button id="btn-clear-phone" class="btn-outline btn-small">Clear This Phone</button>
+            <span class="hosted-link-hint">Deletes your drafts, packs and recordings from this phone.</span>
+            <div id="clear-phone-status" class="error-msg" role="status"></div>
         </div>
 
         <div style="flex:1"></div>
@@ -2509,20 +2517,12 @@ function renderBriefing(briefing, containerId, collapsible) {
         html += '<dt>Event</dt><dd>' + escapeHtml(briefing.event) + '</dd>';
     }
     if (briefing.exit) {
-        html += '<dt>Exit</dt><dd>' + escapeHtml(briefing.exit);
-        if (briefing.exitCoords) {
-            html += ' <button class="briefing-nav-btn" data-coords="' + escapeHtml(briefing.exitCoords) +
-                '" data-label="' + escapeHtml(briefing.exit) + '">Navigate</button>';
-        }
-        html += '</dd>';
+        html += '<dt>Exit</dt><dd>' + escapeHtml(briefing.exit) +
+            briefingNavHtml(briefing.exitCoords, briefing.exit) + '</dd>';
     }
     if (briefing.rally) {
-        html += '<dt>Rally</dt><dd>' + escapeHtml(briefing.rally);
-        if (briefing.rallyCoords) {
-            html += ' <button class="briefing-nav-btn" data-coords="' + escapeHtml(briefing.rallyCoords) +
-                '" data-label="' + escapeHtml(briefing.rally) + '">Navigate</button>';
-        }
-        html += '</dd>';
+        html += '<dt>Rally</dt><dd>' + escapeHtml(briefing.rally) +
+            briefingNavHtml(briefing.rallyCoords, briefing.rally) + '</dd>';
     }
     if (briefing.abort) {
         html += '<dt>Abort</dt><dd>' + escapeHtml(briefing.abort) + '</dd>';
@@ -2553,14 +2553,48 @@ function renderBriefing(briefing, containerId, collapsible) {
 }
 
 /**
+ * Parse "LAT, LNG" in plain decimal degrees. Event data is untrusted, so
+ * anything else (missing part, exponent or hex notation, out of range) is
+ * rejected and the Navigate button is not offered.
+ * @param {*} str
+ * @returns {{lat: number, lng: number}|null}
+ */
+function parseCoordPair(str) {
+    if (typeof str !== 'string') return null;
+    const parts = str.split(',').map(s => s.trim());
+    if (parts.length !== 2) return null;
+    const decimal = /^[+-]?\d{1,3}(\.\d+)?$/;
+    if (!decimal.test(parts[0]) || !decimal.test(parts[1])) return null;
+    const lat = Number(parts[0]), lng = Number(parts[1]);
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return { lat, lng };
+}
+
+/**
+ * Navigate button plus the coordinates it will open, shown as text so the
+ * destination is never hidden. Invalid coordinates get a note and no button.
+ * @param {*} coordsStr
+ * @param {string} label
+ * @returns {string} HTML
+ */
+function briefingNavHtml(coordsStr, label) {
+    if (!coordsStr) return '';
+    const c = parseCoordPair(coordsStr);
+    if (!c) return ' <span class="briefing-coords">Map link unavailable: coordinates are not valid.</span>';
+    return ' <button class="briefing-nav-btn" data-coords="' + c.lat + ',' + c.lng +
+        '" data-label="' + escapeHtml(label) + '">Navigate</button>' +
+        ' <span class="briefing-coords">' + c.lat + ', ' + c.lng + '</span>';
+}
+
+/**
  * Open navigation to coordinates using platform-appropriate URL.
  * @param {string} coordsStr - "LAT, LNG" string
  * @param {string} label - Destination label
  */
 function openNavigation(coordsStr, label) {
-    const parts = coordsStr.split(',').map(s => s.trim());
-    if (parts.length !== 2) return;
-    const lat = parts[0], lng = parts[1];
+    const c = parseCoordPair(coordsStr);
+    if (!c) return;
+    const lat = String(c.lat), lng = String(c.lng);
     const encodedLabel = encodeURIComponent(label);
 
     const ua = navigator.userAgent;
@@ -6788,6 +6822,63 @@ $('btn-manage-packs').addEventListener('click', () => {
 $('btn-share-app').addEventListener('click', function() {
     shareBundleFile(false, this);
 });
+$('btn-clear-phone').addEventListener('click', clearThisPhone);
+
+// ─── Clear This Phone ────────────────────────────────────────────────────────
+// Removes everything the app stored here: both IndexedDB databases (drafts,
+// packs, My Voice recordings) and every localStorage key the app or its test
+// pages wrote. Databases go first and settings last, so a wipe that is waiting
+// on another tab never leaves settings pointing at missing data.
+
+function deleteAppDatabase(name, onBlocked) {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.deleteDatabase(name);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error || new Error('delete failed'));
+        // Blocked is not failure: the delete stays queued and completes as
+        // soon as the other tab closes its connection.
+        req.onblocked = onBlocked;
+    });
+}
+
+async function clearThisPhone() {
+    const ok = await askConfirm(
+        'This deletes everything Conductor has saved here: drafts, imported packs, ' +
+        'My Voice recordings, settings and saved test results. It cannot be undone.\n\n' +
+        'Not cleared: browser history, files you downloaded, and Conductor opened another way. ' +
+        'A browser tab, a Home Screen icon and a downloaded copy each keep their own data, ' +
+        'so clear each one you have used.',
+        'Delete everything', 'Cancel');
+    if (!ok) return;
+
+    const status = $('clear-phone-status');
+    const btn = $('btn-clear-phone');
+    btn.disabled = true;
+    status.textContent = 'Clearing…';
+    try {
+        await Promise.all([draftManager.close(), packManager.close()]);
+        const blocked = () => {
+            status.textContent = 'Not finished yet. Close every other Conductor tab or window; ' +
+                'clearing completes as soon as they close.';
+        };
+        await Promise.all([
+            deleteAppDatabase(DRAFT_DB_NAME, blocked),
+            deleteAppDatabase(RPM_DB_NAME, blocked),
+        ]);
+    } catch (e) {
+        status.textContent = 'Could not clear this phone. Clear this site’s data in your browser settings instead.';
+        btn.disabled = false;
+        return;
+    }
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('conductor')) localStorage.removeItem(key);
+        }
+    } catch (e) { /* storage unavailable (private mode): nothing was saved there */ }
+    // Reload without the event link so nothing from this session stays in memory.
+    location.replace(location.pathname + location.search);
+}
 $('btn-import-pack').addEventListener('click', () => {
     $('pack-file-input').click();
 });
