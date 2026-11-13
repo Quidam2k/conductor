@@ -74,14 +74,24 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v74</p>
+        <p class="eyebrow">Conductor &middot; build v75</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v75">
+        <h2>v75 <span class="date">2026-11-13</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>Fixed: a shared file could reveal a password-protected event.</strong> "Share File", "Download HTML" and "Share This App" used to copy what was on the screen into the file. A protected event's title, description and cue text, and the names of saved drafts, could be read by opening that file in a text editor. The file is now built from a clean copy of the app. If you sent a file of a protected event from an earlier build, treat what was in it as not protected.</li>
+            <li><strong>Fixed: passing on a protected event removed its password.</strong> After you unlocked a protected event, the share buttons sent an unprotected copy. They now send the same locked code you received, so the next person needs the password too.</li>
+            <li>A protected event is shared under a plain name ("Conductor event", <code>conductor-event.html</code>) instead of its title, because the name shows in message previews and file lists.</li>
+            <li>A shared app file no longer carries the sender's text size.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v74">
-        <h2>v74 <span class="date">2026-11-12</span> <span class="tag">latest</span></h2>
+        <h2>v74 <span class="date">2026-11-12</span></h2>
         <ul>
             <li><strong>Clear This Phone.</strong> A new button at the bottom of the home screen deletes everything Conductor has saved on the phone: drafts, imported packs, My Voice recordings and settings. It does not clear browser history or files you downloaded.</li>
             <li><strong>Navigate buttons show where they go.</strong> The coordinates are now shown next to each Navigate button, and no button is offered when an event's coordinates are not valid.</li>

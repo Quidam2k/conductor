@@ -1125,7 +1125,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v74</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v75</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -7708,6 +7708,16 @@ function createCircularTimeline(canvas) {
 </script>
 
 <script>
+// The page exactly as it was delivered, taken before anything below renders
+// into it. "Share as File", "Download HTML" and "Share This App" build their
+// copy from this string, never from the live page: the live page holds
+// whatever this phone has shown (event titles, cue text, draft names), and a
+// password-protected event must not leave in clear text inside a shared file.
+// KEEP THIS THE FIRST STATEMENT of this script, above every render call.
+// (Anything after this script in the file, such as a bundle's event auto-load
+// line, is not parsed yet and so is not in the snapshot either.)
+const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Global Error Handlers
 // ═══════════════════════════════════════════════════════════════════════════
@@ -7774,6 +7784,7 @@ const state = {
     qrScanner: null,            // QrScanner instance when scanning
     beamDecoder: null,          // QR Beam decoder while receiving a pack transfer
     sharePassword: null,        // Set when password-protect checkbox is checked
+    protectedSource: null,      // { event, code }: the v1e_ code state.event was unlocked from, so re-shares stay locked
     swUpdateWaiting: false,      // True once a newer Service Worker has installed and is waiting (preflight "refresh" warning)
     editor: {
         title: '',
@@ -8069,8 +8080,8 @@ function loadFromString(input, navigateOnSuccess) {
         return true;
     } catch (e) {
         if (e.message === 'ENCRYPTED_EVENT') {
-            showPasswordPrompt(e.data, (embedded) => {
-                state.event = embeddedEventToEvent(embedded);
+            showPasswordPrompt(e.data, (embedded, code) => {
+                setProtectedEvent(embedded, code);
                 if (navigateOnSuccess !== false) {
                     state.previewReturnTo = 'input';
                     transitionTo('preview');
@@ -8091,8 +8102,8 @@ function loadFromHash() {
 
     // Encrypted hash — show password prompt, handle async
     if (hash.startsWith('v1e_')) {
-        showPasswordPrompt(hash, (embedded) => {
-            state.event = embeddedEventToEvent(embedded);
+        showPasswordPrompt(hash, (embedded, code) => {
+            setProtectedEvent(embedded, code);
             state.previewReturnTo = 'input';
             transitionTo('preview');
         }, () => {
@@ -8261,6 +8272,17 @@ function closeQRScanner() {
 // Password Prompt (encrypted events)
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Make an unlocked protected event the current event and remember the locked
+ * code it came from. Sharing it on then sends that same code (see
+ * getShareEncoded) instead of a plain one. The password itself is not kept.
+ */
+function setProtectedEvent(embedded, code) {
+    state.event = embeddedEventToEvent(embedded);
+    state.protectedSource = { event: state.event, code };
+}
+
+/** onSuccess(embedded, encryptedData) gets the locked code back with the event. */
 function showPasswordPrompt(encryptedData, onSuccess, onCancel) {
     const overlay = $('password-overlay');
     const input = $('pwd-input');
@@ -8287,7 +8309,7 @@ function showPasswordPrompt(encryptedData, onSuccess, onCancel) {
             overlay.style.display = 'none';
             releaseFocus();
             cleanup();
-            onSuccess(embedded);
+            onSuccess(embedded, encryptedData);
         } catch (e) {
             error.textContent = e.message === 'Wrong password' ? 'Wrong password — try again.' : e.message;
             input.value = '';
@@ -8425,8 +8447,8 @@ function handleQRResult(data) {
     // Encrypted event — close scanner, show password prompt
     if (code.startsWith('v1e_')) {
         closeQRScanner();
-        showPasswordPrompt(code, (embedded) => {
-            state.event = embeddedEventToEvent(embedded);
+        showPasswordPrompt(code, (embedded, lockedCode) => {
+            setProtectedEvent(embedded, lockedCode);
             state.previewReturnTo = 'input';
             transitionTo('preview');
         }, () => {
@@ -11785,10 +11807,49 @@ function validateSharePassword() {
  * @returns {Promise<string>} Encoded event string (v1_ or v1e_ prefix)
  */
 async function getShareEncoded() {
+    // An event this phone unlocked travels on as the identical locked code.
+    // Checked first: it wins over a password box left ticked from an earlier
+    // editor session, which belongs to a different event.
+    if (isUnlockedProtectedEvent()) return state.protectedSource.code;
     if (state.sharePassword) {
         return await encodeEventEncrypted(state.event, state.sharePassword);
     }
     return encodeEvent(state.event);
+}
+
+/**
+ * True while the current event is the very object setProtectedEvent() made
+ * (or its restarted copy). An event built in the editor is always a new
+ * object, so it never matches: it is protected only if its author ticks the
+ * password box on the review step.
+ */
+function isUnlockedProtectedEvent() {
+    return !!(state.event && state.protectedSource && state.protectedSource.event === state.event);
+}
+
+/** True when what the share buttons send right now is password-protected. */
+function isProtectedShare() {
+    return !!state.sharePassword || isUnlockedProtectedEvent();
+}
+
+/**
+ * Title, text and file name handed to the share sheet. They travel outside
+ * the locked code (message previews, file lists, AirDrop banners), so a
+ * protected event gets neutral ones.
+ */
+function shareMeta() {
+    if (isProtectedShare()) {
+        return {
+            title: 'Conductor event',
+            text: 'Open this link in Conductor to join. Password needed.',
+            filename: 'conductor-event.html',
+        };
+    }
+    return {
+        title: state.event.title,
+        text: state.event.description || 'Join this Conductor event!',
+        filename: sanitizeFilename(state.event.title) + '.html',
+    };
 }
 
 async function copyEventCode() {
@@ -11811,11 +11872,8 @@ async function webShareEvent() {
     try {
         const encoded = await getShareEncoded();
         const url = shareBaseUrl() + '#' + encoded;
-        await navigator.share({
-            title: state.event.title,
-            text: state.event.description || 'Join this Conductor event!',
-            url: url,
-        });
+        const meta = shareMeta();
+        await navigator.share({ title: meta.title, text: meta.text, url: url });
     } catch (e) {
         // User cancelled or share failed — no feedback needed
     }
@@ -11832,12 +11890,10 @@ async function buildBundledHTML(encoded) {
         scriptContents.set(tag.getAttribute('src'), await resp.text());
     }
 
-    // Get current page HTML
-    let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-
-    // Reset active screen to input (serialized DOM may have a different screen active)
-    html = html.replace(/ class="screen active"/g, ' class="screen"');
-    html = html.replace('id="screen-input" class="screen"', 'id="screen-input" class="screen active"');
+    // Start from the page as delivered (see PRISTINE_HTML), not the live DOM.
+    // The head script has already put this phone's text size and iPhone tab
+    // spacing on <html>; the recipient's copy sets its own.
+    let html = PRISTINE_HTML.replace(/<html[^>]*>/, '<html lang="en">');
 
     // Replace script src tags with inline content
     const closeTag = '<' + '/script>';
@@ -11914,9 +11970,7 @@ async function shareBundleFile(includeEvent, triggerBtn) {
     try {
         const encoded = includeEvent ? await getShareEncoded() : null;
         const html = await buildBundledHTML(encoded);
-        const filename = includeEvent && state.event
-            ? sanitizeFilename(state.event.title) + '.html'
-            : 'conductor.html';
+        const filename = includeEvent && state.event ? shareMeta().filename : 'conductor.html';
         const file = new File([html], filename, { type: 'text/html' });
 
         // Try native file sharing
@@ -12349,6 +12403,9 @@ $('btn-go-live').addEventListener('click', async () => {
             return;
         }
         state.event = rebaseEventToNow(evt);
+        // Same event with its clock moved: it stays tied to its locked code,
+        // so sharing from here sends the original, never a plain copy.
+        if (state.protectedSource && state.protectedSource.event === evt) state.protectedSource.event = state.event;
         state.actionMeta = null; // recompute from the rebased timeline
         renderPreview();
     } else {
@@ -12742,11 +12799,8 @@ $('btn-qr-display-web-share').addEventListener('click', async () => {
     try {
         const encoded = await getShareEncoded();
         const url = shareBaseUrl() + '#' + encoded;
-        await navigator.share({
-            title: state.event.title,
-            text: state.event.description || 'Join this Conductor event!',
-            url: url,
-        });
+        const meta = shareMeta();
+        await navigator.share({ title: meta.title, text: meta.text, url: url });
     } catch (e) {
         // User cancelled or share failed
     }
