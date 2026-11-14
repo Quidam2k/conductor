@@ -1125,7 +1125,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v75</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v76</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1552,6 +1552,7 @@
                 <input type="password" id="ed-pwd" placeholder="Password" autocomplete="new-password">
                 <input type="password" id="ed-pwd-confirm" placeholder="Confirm password" autocomplete="new-password">
                 <div id="ed-pwd-error" style="color:var(--accent-red); font-size:16px; min-height:16px;"></div>
+                <p style="font-size:16px; color:var(--text-secondary); margin-top:6px;">Participants need the latest Conductor to open a password link.</p>
             </div>
             <div id="share-feedback" class="share-feedback"></div>
             <button id="btn-show-qr" class="btn-outline">Share QR Code</button>
@@ -2226,9 +2227,12 @@ function generateId() {
  * Requires: pako (loaded globally via <script> before this file)
  * Requires: models.js (eventToEmbeddedEvent, embeddedEventToEvent)
  *
- * Encrypted pipeline (v1e_ prefix):
- *   Encode: Event → JSON → gzip → AES-GCM encrypt → salt(16)+iv(12)+ciphertext → base64url → "v1e_"
- *   Decode: strip "v1e_" → base64url decode → split salt/iv/ct → PBKDF2 derive → AES-GCM decrypt → gunzip → JSON
+ * Encrypted pipeline (v1f_ prefix; v1e_ still decodes):
+ *   Encode: Event → JSON → gzip → AES-GCM encrypt → salt(16)+iv(12)+ciphertext → base64url → "v1f_"
+ *   Decode: strip prefix → base64url decode → split salt/iv/ct → PBKDF2 derive → AES-GCM decrypt → gunzip → JSON
+ *   The prefix names the PBKDF2 round count: v1e_ = 100,000 (links made by
+ *   v75 and earlier), v1f_ = 600,000 (v76 on). The byte layout is the same.
+ *   Builds before v76 cannot open v1f_.
  */
 
 // ─── Encode ─────────────────────────────────────────────────────────────────
@@ -2335,13 +2339,27 @@ function safeUngzip(bytes) {
 
 // ─── Encryption (AES-256-GCM) ────────────────────────────────────────────────
 
+/** PBKDF2-SHA256 rounds behind each encrypted prefix. */
+const KDF_ROUNDS_V1E = 100000;   // decode only: links made by v75 and earlier
+const KDF_ROUNDS_V1F = 600000;   // every new link
+
+/**
+ * True for a password-protected event code of either generation.
+ * @param {*} str
+ * @returns {boolean}
+ */
+function isEncryptedCode(str) {
+    return typeof str === 'string' && (str.startsWith('v1e_') || str.startsWith('v1f_'));
+}
+
 /**
  * Derive an AES-256-GCM key from a password and salt using PBKDF2.
  * @param {string} password - User-provided password
  * @param {Uint8Array} salt - 16-byte random salt
+ * @param {number} iterations - PBKDF2 rounds (KDF_ROUNDS_V1E or KDF_ROUNDS_V1F)
  * @returns {Promise<CryptoKey>}
  */
-async function deriveKey(password, salt) {
+async function deriveKey(password, salt, iterations) {
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
         new TextEncoder().encode(password),
@@ -2350,7 +2368,7 @@ async function deriveKey(password, salt) {
         ['deriveKey']
     );
     return crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
         false,
@@ -2362,7 +2380,7 @@ async function deriveKey(password, salt) {
  * Encode an Event into an encrypted URL-safe string.
  * @param {Event} event - Full event object
  * @param {string} password - Encryption password
- * @returns {Promise<string>} Encoded string with "v1e_" prefix
+ * @returns {Promise<string>} Encoded string with "v1f_" prefix
  */
 async function encodeEventEncrypted(event, password) {
     // Reuse existing encode pipeline up to compressed bytes
@@ -2382,7 +2400,7 @@ async function encodeEventEncrypted(event, password) {
     // Encrypt
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(password, salt);
+    const key = await deriveKey(password, salt, KDF_ROUNDS_V1F);
     const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
@@ -2396,19 +2414,23 @@ async function encodeEventEncrypted(event, password) {
     combined.set(ciphertext, 28);
 
     const base64 = bytesToBase64(combined);
-    return 'v1e_' + toUrlSafeBase64(base64);
+    return 'v1f_' + toUrlSafeBase64(base64);
 }
 
 /**
  * Decode an encrypted event string back into an EmbeddedEvent.
- * @param {string} encoded - Encrypted string (with or without "v1e_" prefix)
+ * @param {string} encoded - Encrypted string: "v1f_", "v1e_", or bare (read as v1e_)
  * @param {string} password - Decryption password
  * @returns {Promise<EmbeddedEvent>} Decoded and validated event
  * @throws {Error} 'Wrong password' on auth tag failure
  */
 async function decodeEventEncrypted(encoded, password) {
     let data = encoded;
-    if (data.startsWith('v1e_')) {
+    let rounds = KDF_ROUNDS_V1E;
+    if (data.startsWith('v1f_')) {
+        rounds = KDF_ROUNDS_V1F;
+        data = data.substring(4);
+    } else if (data.startsWith('v1e_')) {
         data = data.substring(4);
     }
 
@@ -2419,7 +2441,7 @@ async function decodeEventEncrypted(encoded, password) {
     const iv = combined.slice(16, 28);
     const ciphertext = combined.slice(28);
 
-    const key = await deriveKey(password, salt);
+    const key = await deriveKey(password, salt, rounds);
 
     let decrypted;
     try {
@@ -2794,8 +2816,8 @@ function parseEventInput(input) {
         try { trimmed = decodeURIComponent(trimmed).trim(); } catch (e) { /* leave as is */ }
     }
 
-    // v1e_ encrypted format — throw sentinel so callers can prompt for password
-    if (trimmed.startsWith('v1e_')) {
+    // Encrypted format (v1e_/v1f_) — throw sentinel so callers can prompt for password
+    if (isEncryptedCode(trimmed)) {
         const err = new Error('ENCRYPTED_EVENT');
         err.data = trimmed;
         throw err;
@@ -7784,7 +7806,9 @@ const state = {
     qrScanner: null,            // QrScanner instance when scanning
     beamDecoder: null,          // QR Beam decoder while receiving a pack transfer
     sharePassword: null,        // Set when password-protect checkbox is checked
-    protectedSource: null,      // { event, code }: the v1e_ code state.event was unlocked from, so re-shares stay locked
+    weakPasswordAck: null,      // The short password the author pressed past the warning for
+    shareCache: null,           // { plain, password, promise }: the locked code last made (getShareEncoded)
+    protectedSource: null,      // { event, code }: the v1e_/v1f_ code state.event was unlocked from, so re-shares stay locked
     swUpdateWaiting: false,      // True once a newer Service Worker has installed and is waiting (preflight "refresh" warning)
     editor: {
         title: '',
@@ -8101,7 +8125,7 @@ function loadFromHash() {
     if (!hash) return false;
 
     // Encrypted hash — show password prompt, handle async
-    if (hash.startsWith('v1e_')) {
+    if (isEncryptedCode(hash)) {
         showPasswordPrompt(hash, (embedded, code) => {
             setProtectedEvent(embedded, code);
             state.previewReturnTo = 'input';
@@ -8399,7 +8423,7 @@ async function finishBeamReceive() {
     if (!payload) return;
 
     if (payload.type === 'event') {
-        // Beamed event: the payload IS the shareable code string (v1_/v1e_).
+        // Beamed event: the payload IS the shareable code string (v1_/v1e_/v1f_).
         // Reuse the normal QR event-load path so encrypted events prompt for a
         // password and everything lands on Preview.
         state.beamDecoder = null;
@@ -8445,7 +8469,7 @@ function handleQRResult(data) {
     }
 
     // Encrypted event — close scanner, show password prompt
-    if (code.startsWith('v1e_')) {
+    if (isEncryptedCode(code)) {
         closeQRScanner();
         showPasswordPrompt(code, (embedded, lockedCode) => {
             setProtectedEvent(embedded, lockedCode);
@@ -11676,7 +11700,7 @@ function renderEditorReview() {
     $('ed-pwd').value = '';
     $('ed-pwd-confirm').value = '';
     $('ed-pwd-error').textContent = '';
-    state.sharePassword = null;
+    clearSharePassword();
 
     $('review-title').textContent = evt.title;
     $('review-desc').textContent = evt.description || '';
@@ -11773,48 +11797,88 @@ function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '-').substring(0, 50) || 'conductor-event';
 }
 
+/** Shorter than this, a password gets the easy-to-guess warning. */
+const MIN_PASSWORD_LENGTH = 8;
+
+/** Forget the share password and everything made from it. */
+function clearSharePassword() {
+    state.sharePassword = null;
+    state.weakPasswordAck = null;
+    state.shareCache = null;
+}
+
+/**
+ * Show a problem with the password box. The box lives on the editor's share
+ * step; a share pressed from Preview or Practice cannot see it, so there the
+ * message also goes in a dialog (otherwise the button just looks dead).
+ */
+function sharePasswordProblem(msg, focusEl) {
+    $('ed-pwd-error').textContent = msg;
+    if (state.mode === 'editor-review') {
+        if (focusEl) focusEl.focus();
+        return;
+    }
+    const no = $('app-confirm-no');
+    no.style.display = 'none';
+    askConfirm('Password protect is on for this event. ' + msg).then(() => { no.style.display = ''; });
+}
+
 /**
  * Validate password fields if encryption checkbox is checked.
- * Sets state.sharePassword on success.
+ * Sets state.sharePassword on success. A short password is refused once
+ * with a warning; pressing again with the same text uses it.
  * @returns {boolean} true if valid (or unchecked), false if validation error shown
  */
 function validateSharePassword() {
+    // An unlocked protected event goes out as its own locked code; the
+    // password box (left over from an editor session) plays no part.
+    if (isUnlockedProtectedEvent()) return true;
     const chk = $('chk-encrypt');
-    const err = $('ed-pwd-error');
     if (!chk || !chk.checked) {
-        state.sharePassword = null;
+        clearSharePassword();
         return true;
     }
     const pwd = $('ed-pwd').value;
     const confirm = $('ed-pwd-confirm').value;
     if (!pwd) {
-        err.textContent = 'Password required.';
-        $('ed-pwd').focus();
+        sharePasswordProblem('Password required.', $('ed-pwd'));
         return false;
     }
     if (pwd !== confirm) {
-        err.textContent = 'Passwords don\'t match.';
-        $('ed-pwd-confirm').focus();
+        sharePasswordProblem('Passwords don\'t match.', $('ed-pwd-confirm'));
         return false;
     }
-    err.textContent = '';
+    if (Array.from(pwd).length < MIN_PASSWORD_LENGTH && state.weakPasswordAck !== pwd) {
+        state.weakPasswordAck = pwd;
+        sharePasswordProblem('Under ' + MIN_PASSWORD_LENGTH + ' characters is easy to guess. Press again to use it anyway.');
+        return false;
+    }
+    $('ed-pwd-error').textContent = '';
     state.sharePassword = pwd;
     return true;
 }
 
 /**
  * Get the encoded event string, encrypted if password is set.
- * @returns {Promise<string>} Encoded event string (v1_ or v1e_ prefix)
+ * @returns {Promise<string>} Encoded event string (v1_, or v1f_/v1e_ when locked)
  */
 async function getShareEncoded() {
     // An event this phone unlocked travels on as the identical locked code.
     // Checked first: it wins over a password box left ticked from an earlier
     // editor session, which belongs to a different event.
     if (isUnlockedProtectedEvent()) return state.protectedSource.code;
-    if (state.sharePassword) {
-        return await encodeEventEncrypted(state.event, state.sharePassword);
-    }
-    return encodeEvent(state.event);
+    const plain = encodeEvent(state.event);
+    if (!state.sharePassword) return plain;
+    // Locking takes a noticeable moment and gives a different code each time,
+    // so one event + password is locked once: the QR, the link and the file
+    // then all carry the same code, and presses made at once share the work.
+    const password = state.sharePassword;
+    const cached = state.shareCache;
+    if (cached && cached.plain === plain && cached.password === password) return cached.promise;
+    const entry = { plain, password, promise: encodeEventEncrypted(state.event, password) };
+    state.shareCache = entry;
+    entry.promise.catch(() => { if (state.shareCache === entry) state.shareCache = null; });
+    return entry.promise;
 }
 
 /**
@@ -12669,9 +12733,9 @@ async function startBeam(packId, packName) {
 }
 
 /**
- * Beam the current event's shareable code (v1_/v1e_) via animated QR.
+ * Beam the current event's shareable code (v1_/v1e_/v1f_) via animated QR.
  * Beams the code STRING bytes so the receiver reuses the entire event-load
- * pipeline (including encrypted v1e_ password handling) with no new decode path.
+ * pipeline (including encrypted v1e_/v1f_ password handling) with no new decode path.
  */
 async function startBeamEvent() {
     if (!state.event) return;
@@ -12813,7 +12877,7 @@ $('chk-encrypt').addEventListener('change', () => {
     const show = $('chk-encrypt').checked;
     $('pwd-fields').style.display = show ? '' : 'none';
     if (!show) {
-        state.sharePassword = null;
+        clearSharePassword();
         $('ed-pwd').value = '';
         $('ed-pwd-confirm').value = '';
         $('ed-pwd-error').textContent = '';

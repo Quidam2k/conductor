@@ -916,13 +916,13 @@
                 assert('11.2 Wrong password', false, e.message);
             }
 
-            // 11.3 v1e_ prefix
+            // 11.3 v1f_ prefix (new links; v1e_ decode is covered by tests/kdf.spec.js)
             try {
                 const encr = await encodeEventEncrypted(sampleEvent, 'pw');
-                assert('11.3 v1e_ prefix', encr.startsWith('v1e_'),
+                assert('11.3 v1f_ prefix', encr.startsWith('v1f_'),
                     `Got prefix: "${encr.substring(0, 10)}..."`);
             } catch (e) {
-                assert('11.3 v1e_ prefix', false, e.message);
+                assert('11.3 v1f_ prefix', false, e.message);
             }
 
             // 11.4 Field preservation (cue, pack, briefing, etc.)

@@ -664,7 +664,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         <p>Live opens 20 minutes before the first cue. Earlier than that, the app shows when it opens — use <strong>Practice</strong> until then. See <a href="#going-live">Going Live</a>.</p>
 
         <h3>How do I password-protect an event?</h3>
-        <p>In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a <code>v1e_</code> prefix. Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password.</p>
+        <p>In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a <code>v1f_</code> prefix (links made before build v76 start with <code>v1e_</code> and still open). Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password. Participants need build v76 or later to open a new password link. Use 8 characters or more: anyone who has the link can try guesses against it, and a short password is easy to guess.</p>
 
         <h3>The text is too small — can I make it bigger?</h3>
         <p>Yes. Use the <strong>Text size</strong> control (home screen and every event screen). See <a href="#text-size">Making the Text Bigger</a>.</p>
@@ -718,7 +718,7 @@ Countdown: true      # event-level: all actions get a countdown by default
         &nbsp;&middot;&nbsp;
         <a href="https://github.com/Quidam2k/conductor/issues" style="color:var(--accent-gold);">Feedback</a>
     </p>
-    <p class="build">build v75 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
+    <p class="build">build v76 &middot; No telemetry &middot; No tracking &middot; Open source (AGPL-3.0)</p>
 </footer>
 
 </body>

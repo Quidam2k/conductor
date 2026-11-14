@@ -10,9 +10,12 @@
  * Requires: pako (loaded globally via <script> before this file)
  * Requires: models.js (eventToEmbeddedEvent, embeddedEventToEvent)
  *
- * Encrypted pipeline (v1e_ prefix):
- *   Encode: Event → JSON → gzip → AES-GCM encrypt → salt(16)+iv(12)+ciphertext → base64url → "v1e_"
- *   Decode: strip "v1e_" → base64url decode → split salt/iv/ct → PBKDF2 derive → AES-GCM decrypt → gunzip → JSON
+ * Encrypted pipeline (v1f_ prefix; v1e_ still decodes):
+ *   Encode: Event → JSON → gzip → AES-GCM encrypt → salt(16)+iv(12)+ciphertext → base64url → "v1f_"
+ *   Decode: strip prefix → base64url decode → split salt/iv/ct → PBKDF2 derive → AES-GCM decrypt → gunzip → JSON
+ *   The prefix names the PBKDF2 round count: v1e_ = 100,000 (links made by
+ *   v75 and earlier), v1f_ = 600,000 (v76 on). The byte layout is the same.
+ *   Builds before v76 cannot open v1f_.
  */
 
 // ─── Encode ─────────────────────────────────────────────────────────────────
@@ -119,13 +122,27 @@ function safeUngzip(bytes) {
 
 // ─── Encryption (AES-256-GCM) ────────────────────────────────────────────────
 
+/** PBKDF2-SHA256 rounds behind each encrypted prefix. */
+const KDF_ROUNDS_V1E = 100000;   // decode only: links made by v75 and earlier
+const KDF_ROUNDS_V1F = 600000;   // every new link
+
+/**
+ * True for a password-protected event code of either generation.
+ * @param {*} str
+ * @returns {boolean}
+ */
+function isEncryptedCode(str) {
+    return typeof str === 'string' && (str.startsWith('v1e_') || str.startsWith('v1f_'));
+}
+
 /**
  * Derive an AES-256-GCM key from a password and salt using PBKDF2.
  * @param {string} password - User-provided password
  * @param {Uint8Array} salt - 16-byte random salt
+ * @param {number} iterations - PBKDF2 rounds (KDF_ROUNDS_V1E or KDF_ROUNDS_V1F)
  * @returns {Promise<CryptoKey>}
  */
-async function deriveKey(password, salt) {
+async function deriveKey(password, salt, iterations) {
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
         new TextEncoder().encode(password),
@@ -134,7 +151,7 @@ async function deriveKey(password, salt) {
         ['deriveKey']
     );
     return crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
         false,
@@ -146,7 +163,7 @@ async function deriveKey(password, salt) {
  * Encode an Event into an encrypted URL-safe string.
  * @param {Event} event - Full event object
  * @param {string} password - Encryption password
- * @returns {Promise<string>} Encoded string with "v1e_" prefix
+ * @returns {Promise<string>} Encoded string with "v1f_" prefix
  */
 async function encodeEventEncrypted(event, password) {
     // Reuse existing encode pipeline up to compressed bytes
@@ -166,7 +183,7 @@ async function encodeEventEncrypted(event, password) {
     // Encrypt
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(password, salt);
+    const key = await deriveKey(password, salt, KDF_ROUNDS_V1F);
     const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
@@ -180,19 +197,23 @@ async function encodeEventEncrypted(event, password) {
     combined.set(ciphertext, 28);
 
     const base64 = bytesToBase64(combined);
-    return 'v1e_' + toUrlSafeBase64(base64);
+    return 'v1f_' + toUrlSafeBase64(base64);
 }
 
 /**
  * Decode an encrypted event string back into an EmbeddedEvent.
- * @param {string} encoded - Encrypted string (with or without "v1e_" prefix)
+ * @param {string} encoded - Encrypted string: "v1f_", "v1e_", or bare (read as v1e_)
  * @param {string} password - Decryption password
  * @returns {Promise<EmbeddedEvent>} Decoded and validated event
  * @throws {Error} 'Wrong password' on auth tag failure
  */
 async function decodeEventEncrypted(encoded, password) {
     let data = encoded;
-    if (data.startsWith('v1e_')) {
+    let rounds = KDF_ROUNDS_V1E;
+    if (data.startsWith('v1f_')) {
+        rounds = KDF_ROUNDS_V1F;
+        data = data.substring(4);
+    } else if (data.startsWith('v1e_')) {
         data = data.substring(4);
     }
 
@@ -203,7 +224,7 @@ async function decodeEventEncrypted(encoded, password) {
     const iv = combined.slice(16, 28);
     const ciphertext = combined.slice(28);
 
-    const key = await deriveKey(password, salt);
+    const key = await deriveKey(password, salt, rounds);
 
     let decrypted;
     try {
@@ -578,8 +599,8 @@ function parseEventInput(input) {
         try { trimmed = decodeURIComponent(trimmed).trim(); } catch (e) { /* leave as is */ }
     }
 
-    // v1e_ encrypted format — throw sentinel so callers can prompt for password
-    if (trimmed.startsWith('v1e_')) {
+    // Encrypted format (v1e_/v1f_) — throw sentinel so callers can prompt for password
+    if (isEncryptedCode(trimmed)) {
         const err = new Error('ENCRYPTED_EVENT');
         err.data = trimmed;
         throw err;

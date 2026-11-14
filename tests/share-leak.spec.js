@@ -90,7 +90,7 @@ test('bundle of an unlocked protected event holds only the locked code', async (
         return { html: await buildBundledHTML(encoded), encoded };
     });
     expect(html).not.toContain(SENTINEL);
-    expect(encoded.startsWith('v1e_')).toBe(true);
+    expect(encoded.startsWith('v1f_')).toBe(true);
     expect(html).toContain("if(!location.hash)location.hash='" + encoded + "';");
     expect(html).toContain('/* js/models.js */');
 });

@@ -74,14 +74,26 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v75</p>
+        <p class="eyebrow">Conductor &middot; build v76</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v76">
+        <h2>v76 <span class="date">2026-11-13</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>Password links are harder to guess.</strong> Someone who has a password link can try passwords against it on their own computer. Each try now costs them six times the work it did (600,000 key rounds, up from 100,000). New password links start with <code>v1f_</code>.</li>
+            <li><strong>Everyone needs build v76 or later to open a new password link.</strong> An older build shows an error where the password box should be. Ask participants to refresh Conductor, or send them the app file along with the link.</li>
+            <li><strong>Older password links still open.</strong> Links made before v76 start with <code>v1e_</code>. They open as before and are passed on unchanged, which means they keep the weaker lock. To get the stronger one, make a new link in the editor.</li>
+            <li><strong>Short passwords get a warning.</strong> Under 8 characters, the app says the password is easy to guess and asks you to press again to use it. The lock is only as strong as the password, so a longer one matters more than anything else here.</li>
+            <li>The QR code, the link and the shared file for one event and password now all carry the same code. Before, every button press made a different one.</li>
+            <li>Opening and making a password link takes a little longer than before. We have not yet timed it on an older phone.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v75">
-        <h2>v75 <span class="date">2026-11-13</span> <span class="tag">latest</span></h2>
+        <h2>v75 <span class="date">2026-11-13</span></h2>
         <ul>
             <li><strong>Fixed: a shared file could reveal a password-protected event.</strong> "Share File", "Download HTML" and "Share This App" used to copy what was on the screen into the file. A protected event's title, description and cue text, and the names of saved drafts, could be read by opening that file in a text editor. The file is now built from a clean copy of the app. If you sent a file of a protected event from an earlier build, treat what was in it as not protected.</li>
             <li><strong>Fixed: passing on a protected event removed its password.</strong> After you unlocked a protected event, the share buttons sent an unprotected copy. They now send the same locked code you received, so the next person needs the password too.</li>

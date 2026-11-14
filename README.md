@@ -42,7 +42,7 @@ You don't have to be in the room to help. Record a few voice cues in your own vo
 - **No Server** — Events live in URLs. Works on any static host or completely offline
 - **No Install** — Progressive Web App runs in any modern browser
 - **No Accounts** — No signup, no tracking, no data collection
-- **Encryption** — Events can be password-protected with AES-256-GCM encryption (`v1e_` prefix)
+- **Encryption** — Events can be password-protected with AES-256-GCM encryption (`v1f_` prefix; older `v1e_` links still open)
 - **Event Editor** — Built-in 3-step wizard with timeline builder, live preview, and practice mode
 - **Resource Packs** — Optional zip files with real voice cues (spoken cues that work even from a pocket). Record cues in your own voice right in the editor and share them as a pack
 - **Briefing Blocks** — Pre-event briefings displayed before coordination begins

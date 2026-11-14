@@ -450,7 +450,7 @@ Open it (from a link, code, or a saved draft), then start a new event from it in
 Live opens 20 minutes before the first cue. Earlier than that, the app shows when it opens — use **Practice** until then. See [Going Live](#going-live).
 
 **How do I password-protect an event?**
-In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a `v1e_` prefix. Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password.
+In the editor's share step, turn on encryption and set a password. The event is encrypted with AES-256-GCM and its code gets a `v1f_` prefix (links made before build v76 start with `v1e_` and still open). Share the code as usual and give the password to participants separately — it never leaves anyone's device. When they open it, they're prompted for the password. Participants need build v76 or later to open a new password link. Use 8 characters or more: anyone who has the link can try guesses against it, and a short password is easy to guess.
 
 **The text is too small — can I make it bigger?**
 Yes. Use the **Text size** control (home screen and every event screen). See [Making the Text Bigger](#making-the-text-bigger).

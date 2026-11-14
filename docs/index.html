@@ -1126,7 +1126,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v75</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v76</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -1553,6 +1553,7 @@
                 <input type="password" id="ed-pwd" placeholder="Password" autocomplete="new-password">
                 <input type="password" id="ed-pwd-confirm" placeholder="Confirm password" autocomplete="new-password">
                 <div id="ed-pwd-error" style="color:var(--accent-red); font-size:16px; min-height:16px;"></div>
+                <p style="font-size:16px; color:var(--text-secondary); margin-top:6px;">Participants need the latest Conductor to open a password link.</p>
             </div>
             <div id="share-feedback" class="share-feedback"></div>
             <button id="btn-show-qr" class="btn-outline">Share QR Code</button>
@@ -1818,7 +1819,9 @@ const state = {
     qrScanner: null,            // QrScanner instance when scanning
     beamDecoder: null,          // QR Beam decoder while receiving a pack transfer
     sharePassword: null,        // Set when password-protect checkbox is checked
-    protectedSource: null,      // { event, code }: the v1e_ code state.event was unlocked from, so re-shares stay locked
+    weakPasswordAck: null,      // The short password the author pressed past the warning for
+    shareCache: null,           // { plain, password, promise }: the locked code last made (getShareEncoded)
+    protectedSource: null,      // { event, code }: the v1e_/v1f_ code state.event was unlocked from, so re-shares stay locked
     swUpdateWaiting: false,      // True once a newer Service Worker has installed and is waiting (preflight "refresh" warning)
     editor: {
         title: '',
@@ -2135,7 +2138,7 @@ function loadFromHash() {
     if (!hash) return false;
 
     // Encrypted hash — show password prompt, handle async
-    if (hash.startsWith('v1e_')) {
+    if (isEncryptedCode(hash)) {
         showPasswordPrompt(hash, (embedded, code) => {
             setProtectedEvent(embedded, code);
             state.previewReturnTo = 'input';
@@ -2433,7 +2436,7 @@ async function finishBeamReceive() {
     if (!payload) return;
 
     if (payload.type === 'event') {
-        // Beamed event: the payload IS the shareable code string (v1_/v1e_).
+        // Beamed event: the payload IS the shareable code string (v1_/v1e_/v1f_).
         // Reuse the normal QR event-load path so encrypted events prompt for a
         // password and everything lands on Preview.
         state.beamDecoder = null;
@@ -2479,7 +2482,7 @@ function handleQRResult(data) {
     }
 
     // Encrypted event — close scanner, show password prompt
-    if (code.startsWith('v1e_')) {
+    if (isEncryptedCode(code)) {
         closeQRScanner();
         showPasswordPrompt(code, (embedded, lockedCode) => {
             setProtectedEvent(embedded, lockedCode);
@@ -5710,7 +5713,7 @@ function renderEditorReview() {
     $('ed-pwd').value = '';
     $('ed-pwd-confirm').value = '';
     $('ed-pwd-error').textContent = '';
-    state.sharePassword = null;
+    clearSharePassword();
 
     $('review-title').textContent = evt.title;
     $('review-desc').textContent = evt.description || '';
@@ -5807,48 +5810,88 @@ function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '-').substring(0, 50) || 'conductor-event';
 }
 
+/** Shorter than this, a password gets the easy-to-guess warning. */
+const MIN_PASSWORD_LENGTH = 8;
+
+/** Forget the share password and everything made from it. */
+function clearSharePassword() {
+    state.sharePassword = null;
+    state.weakPasswordAck = null;
+    state.shareCache = null;
+}
+
+/**
+ * Show a problem with the password box. The box lives on the editor's share
+ * step; a share pressed from Preview or Practice cannot see it, so there the
+ * message also goes in a dialog (otherwise the button just looks dead).
+ */
+function sharePasswordProblem(msg, focusEl) {
+    $('ed-pwd-error').textContent = msg;
+    if (state.mode === 'editor-review') {
+        if (focusEl) focusEl.focus();
+        return;
+    }
+    const no = $('app-confirm-no');
+    no.style.display = 'none';
+    askConfirm('Password protect is on for this event. ' + msg).then(() => { no.style.display = ''; });
+}
+
 /**
  * Validate password fields if encryption checkbox is checked.
- * Sets state.sharePassword on success.
+ * Sets state.sharePassword on success. A short password is refused once
+ * with a warning; pressing again with the same text uses it.
  * @returns {boolean} true if valid (or unchecked), false if validation error shown
  */
 function validateSharePassword() {
+    // An unlocked protected event goes out as its own locked code; the
+    // password box (left over from an editor session) plays no part.
+    if (isUnlockedProtectedEvent()) return true;
     const chk = $('chk-encrypt');
-    const err = $('ed-pwd-error');
     if (!chk || !chk.checked) {
-        state.sharePassword = null;
+        clearSharePassword();
         return true;
     }
     const pwd = $('ed-pwd').value;
     const confirm = $('ed-pwd-confirm').value;
     if (!pwd) {
-        err.textContent = 'Password required.';
-        $('ed-pwd').focus();
+        sharePasswordProblem('Password required.', $('ed-pwd'));
         return false;
     }
     if (pwd !== confirm) {
-        err.textContent = 'Passwords don\'t match.';
-        $('ed-pwd-confirm').focus();
+        sharePasswordProblem('Passwords don\'t match.', $('ed-pwd-confirm'));
         return false;
     }
-    err.textContent = '';
+    if (Array.from(pwd).length < MIN_PASSWORD_LENGTH && state.weakPasswordAck !== pwd) {
+        state.weakPasswordAck = pwd;
+        sharePasswordProblem('Under ' + MIN_PASSWORD_LENGTH + ' characters is easy to guess. Press again to use it anyway.');
+        return false;
+    }
+    $('ed-pwd-error').textContent = '';
     state.sharePassword = pwd;
     return true;
 }
 
 /**
  * Get the encoded event string, encrypted if password is set.
- * @returns {Promise<string>} Encoded event string (v1_ or v1e_ prefix)
+ * @returns {Promise<string>} Encoded event string (v1_, or v1f_/v1e_ when locked)
  */
 async function getShareEncoded() {
     // An event this phone unlocked travels on as the identical locked code.
     // Checked first: it wins over a password box left ticked from an earlier
     // editor session, which belongs to a different event.
     if (isUnlockedProtectedEvent()) return state.protectedSource.code;
-    if (state.sharePassword) {
-        return await encodeEventEncrypted(state.event, state.sharePassword);
-    }
-    return encodeEvent(state.event);
+    const plain = encodeEvent(state.event);
+    if (!state.sharePassword) return plain;
+    // Locking takes a noticeable moment and gives a different code each time,
+    // so one event + password is locked once: the QR, the link and the file
+    // then all carry the same code, and presses made at once share the work.
+    const password = state.sharePassword;
+    const cached = state.shareCache;
+    if (cached && cached.plain === plain && cached.password === password) return cached.promise;
+    const entry = { plain, password, promise: encodeEventEncrypted(state.event, password) };
+    state.shareCache = entry;
+    entry.promise.catch(() => { if (state.shareCache === entry) state.shareCache = null; });
+    return entry.promise;
 }
 
 /**
@@ -6703,9 +6746,9 @@ async function startBeam(packId, packName) {
 }
 
 /**
- * Beam the current event's shareable code (v1_/v1e_) via animated QR.
+ * Beam the current event's shareable code (v1_/v1e_/v1f_) via animated QR.
  * Beams the code STRING bytes so the receiver reuses the entire event-load
- * pipeline (including encrypted v1e_ password handling) with no new decode path.
+ * pipeline (including encrypted v1e_/v1f_ password handling) with no new decode path.
  */
 async function startBeamEvent() {
     if (!state.event) return;
@@ -6847,7 +6890,7 @@ $('chk-encrypt').addEventListener('change', () => {
     const show = $('chk-encrypt').checked;
     $('pwd-fields').style.display = show ? '' : 'none';
     if (!show) {
-        state.sharePassword = null;
+        clearSharePassword();
         $('ed-pwd').value = '';
         $('ed-pwd-confirm').value = '';
         $('ed-pwd-error').textContent = '';

@@ -1364,7 +1364,7 @@ test('encrypted event: editor share → paste → password prompt → load', asy
     });
 
     // Verify it's encrypted
-    expect(encryptedCode.startsWith('v1e_')).toBeTruthy();
+    expect(encryptedCode.startsWith('v1f_')).toBeTruthy();
 
     // Navigate back to input screen
     await page.click('#btn-ed-back2');
