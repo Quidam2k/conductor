@@ -1898,8 +1898,13 @@ let audioIntervalId = null;
 // suppress native dialogs, which made confirm() return false and left buttons
 // (Go Live on a past event) looking dead.
 let _askResolve = null;
-function askConfirm(message, yesLabel = 'OK', noLabel = 'Cancel') {
+// Answer a pending askConfirm with "no" and hide it. A screen change calls
+// this, so a question never outlives the screen that asked it.
+function dismissConfirm() {
     if (_askResolve) _askResolve(false);
+}
+function askConfirm(message, yesLabel = 'OK', noLabel = 'Cancel') {
+    dismissConfirm();
     const box = $('app-confirm');
     $('app-confirm-msg').textContent = message;
     $('app-confirm-yes').textContent = yesLabel;
@@ -1907,13 +1912,13 @@ function askConfirm(message, yesLabel = 'OK', noLabel = 'Cancel') {
     box.style.display = 'flex';
     $('app-confirm-yes').focus();
     return new Promise(resolve => {
-        _askResolve = resolve;
         const done = (v) => {
             box.style.display = 'none';
             $('app-confirm-yes').onclick = $('app-confirm-no').onclick = null;
             _askResolve = null;
             resolve(v);
         };
+        _askResolve = done;
         $('app-confirm-yes').onclick = () => done(true);
         $('app-confirm-no').onclick = () => done(false);
     });
@@ -2007,6 +2012,7 @@ function transitionTo(newMode) {
     if (!historyNavigating && newMode !== state.mode) {
         try { history.pushState({ screen: newMode }, ''); } catch (e) { /* file:// edge cases */ }
     }
+    if (newMode !== state.mode) dismissConfirm();
 
     // 1. Stop any running loops
     stopLoops();
@@ -2197,9 +2203,10 @@ function loadFromHash() {
         clearLoadedCode(); // the URL carries this one
         return true;
     } catch (e) {
-        // A broken event link says so; ordinary #anchors stay quiet.
+        // A broken event link says so; ordinary #anchors stay quiet. (In live
+        // or practice the hashchange handler has already asked to stop.)
         if (hash.startsWith('v1_')) {
-            if (state.mode !== 'input' && state.mode !== 'live') transitionTo('input');
+            if (state.mode !== 'input') transitionTo('input');
             $('input-error').textContent = friendlyError(e.message);
         }
         return false;
@@ -2952,19 +2959,18 @@ function startDisplay(evt) {
     }
 }
 
-// One-shot pocket-readiness note on the live screen. Which message depends on
-// whether the bake took over (state.bakedActive); each variant shows once per
-// device (localStorage), since it's orientation, not a per-run status.
+// Pocket-readiness note on the live screen. The baked note is orientation, so
+// it shows once per device (localStorage). The fallback warning is a per-run
+// status — this run's screen must stay on — so it shows every time.
 function showPocketBanner() {
-    const variant = state.bakedActive ? 'baked' : 'fallback';
-    const key = 'conductor-pocket-banner-' + variant;
-    let seen = false;
-    try {
-        seen = !!localStorage.getItem(key);
-        if (!seen) localStorage.setItem(key, '1');
-    } catch (e) { /* private mode etc. — just show it */ }
-    if (seen) { hideBanner('live-pocket-banner'); return; }
-    if (variant === 'baked') {
+    if (state.bakedActive) {
+        const key = 'conductor-pocket-banner-baked';
+        let seen = false;
+        try {
+            seen = !!localStorage.getItem(key);
+            if (!seen) localStorage.setItem(key, '1');
+        } catch (e) { /* private mode etc. — just show it */ }
+        if (seen) { hideBanner('live-pocket-banner'); return; }
         showBanner('live-pocket-banner',
             (state.audioDebug && state.audioDebug.robot && state.audioDebug.robot.error)
                 ? 'Pocket-ready: beeps & recordings keep playing with the screen off. The robot voice didn’t load, so typed cues need the screen on.'
@@ -7311,18 +7317,49 @@ $('pack-file-input-quick').addEventListener('change', async (e) => {
 // Init: check URL hash on load
 // ═══════════════════════════════════════════════════════════════════════════
 
+// The hash the page last settled on: put back when a new link is declined
+// mid-performance. replaceState fires no hashchange, and the reload key
+// (LOADED_KEY) still matches the restored URL.
+let lastHash = location.hash;
 window.addEventListener('hashchange', () => {
-    if (loadFromHash()) {
-        state.previewReturnTo = 'input';
-        transitionTo('preview');
-    }
+    const oldHash = lastHash;
+    lastHash = location.hash;
+    const open = () => {
+        if (loadFromHash()) {
+            state.previewReturnTo = 'input';
+            transitionTo('preview');
+        }
+    };
+    const mode = state.mode;
+    if (mode !== 'live' && mode !== 'practice') { open(); return; }
+    // A new link mid-performance must not swap the event out from under it.
+    askConfirm(mode === 'live' ? 'Stop the live event? This cannot be undone.'
+        : 'Stop practice and open the new event?', 'Stop it', 'Keep going')
+        .then(yes => {
+            if (yes && state.mode === mode) {
+                open();
+                // A broken link still stops the run, and the input screen shows
+                // why. A locked link waits on its password prompt instead.
+                if (state.mode === mode && $('password-overlay').style.display !== 'flex') transitionTo('input');
+                return;
+            }
+            if (yes) return;
+            try { history.replaceState(history.state, '', oldHash || (location.pathname + location.search)); } catch (e) {}
+            lastHash = oldHash;
+        });
 });
 
 // Back gesture / browser back: walk back one screen instead of leaving the
 // app (transitions push history entries — see transitionTo). From the input
 // screen, keep unwinding so back exits the app normally.
 window.addEventListener('popstate', (e) => {
+    // A new #fragment fires popstate before hashchange: leave it to the
+    // hashchange handler, which asks first when live or practice is running.
+    if (location.hash !== lastHash) return;
     const target = e.state && e.state.screen;
+    // Already here (e.g. the duplicate entry a declined link leaves behind):
+    // re-entering would restart practice.
+    if (target && target === state.mode) return;
 
     // Mid-performance guard: backing out of live is destructive — confirm,
     // and restore the live entry if declined.
@@ -7388,6 +7425,7 @@ if (!readLoadedCode() && loadFromHash()) {
     transitionTo('preview');
     // Clean URL without reload
     history.replaceState(null, '', location.pathname);
+    lastHash = location.hash;
 } else if (!restoreLoadedEvent()) {
     // On input screen by default — render draft list + pack hint
     renderDraftList();

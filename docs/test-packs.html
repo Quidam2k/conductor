@@ -331,7 +331,8 @@
 
         const audio = createAudioService();
         audio.initialize(() => {});
-        audio.setMuted(true); // Mute TTS
+        // Not muted: a muted service answers pack cues itself and never
+        // reaches the resolver. resolveAudioCue only returns text here.
 
         // Wire up the resolver
         audio.setResourcePackResolver(resolver);
@@ -359,6 +360,7 @@
         assert('resolveAudioCue returns fallbackText without resolver',
             fallbackResult === 'Five',
             `Got: "${fallbackResult}"`);
+        audio.setMuted(true); // the announceAction checks below would speak
 
         // Notice (v57): preps no longer resolve per-cue notice clips — they're
         // either the stitched prep-lead sequence in the baked track, or TTS.

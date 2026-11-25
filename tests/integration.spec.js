@@ -2190,7 +2190,7 @@ test('live bake (v46): baked track active on chromium; live beeps suppressed; po
 //      keep the screen on. Banner is one-shot per device (localStorage).
 // ═════════════════════════════════════════════════════════════════════
 
-test('live bake fallback: no OfflineAudioContext → live path + screen-on banner, one-shot', async ({ page }) => {
+test('live bake fallback: no OfflineAudioContext → live path + screen-on banner', async ({ page }) => {
     await page.addInitScript(() => {
         delete window.OfflineAudioContext;
         delete window.webkitOfflineAudioContext;
@@ -2215,15 +2215,7 @@ test('live bake fallback: no OfflineAudioContext → live path + screen-on banne
     expect(r.baked).toBe(false);
     expect(r.mode).toBe('live');
     expect(r.src).not.toMatch(/^blob:/); // no bake ran
-
-    // One-shot: leave live and re-enter — the banner must not reappear.
-    await page.click('#btn-live-stop');
-    await page.click('#app-confirm-yes');
-    await waitForScreen(page, 'screen-preview');
-    await page.click('#btn-go-live');
-    await page.click('#btn-preflight-go'); // pass the Session-Ready preflight (auto-waits for enabled)
-    await waitForScreen(page, 'screen-live');
-    await expect(page.locator('#live-pocket-banner')).toBeHidden();
+    // It shows on every run, not once per phone: tests/live-guards.spec.js.
 });
 
 // ═════════════════════════════════════════════════════════════════════

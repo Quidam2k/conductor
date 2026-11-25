@@ -244,9 +244,10 @@
         // ═════════════════════════════════════════════════════════════
         log('<h2>7. Resource Pack Fallback Chain</h2>');
 
+        // Not muted: a muted service answers every pack cue itself (section 24).
+        // resolveAudioCue only returns text, so nothing is spoken here.
         const rpSvc = createAudioService();
         rpSvc.initialize(() => {});
-        rpSvc.setMuted(true);
 
         // Action with cue + fallbackText + pack
         const rpAction = actionAt(0, 'Flash mob start', {
@@ -830,9 +831,9 @@
 
         // 23a. Clip mode via per-action mode, with a pack clip present → plays the
         // clip at trigger, returns 'clip-pack', and fires NO notice/countdown.
+        // Not muted (section 24): the resolver must be reached.
         const clipSvc = createAudioService();
         clipSvc.initialize(() => {});
-        clipSvc.setMuted(true);
         let clipPlayed = null;
         clipSvc.setResourcePackResolver((cue, pack) => { clipPlayed = pack + ':' + cue; return true; });
         const clipAction = actionAt(0, 'Play the anthem', {
@@ -877,6 +878,29 @@
         cr = overrideSvc.announceAction(cueRow, 0, 5, 1, { defaultMode: 'clip' });
         assert('Cue override in clip event: spoken trigger returns',
             cr === 'trigger: "Freeze!"', `Got: ${cr}`);
+
+        // ═════════════════════════════════════════════════════════════
+        // 24. Mute silences pack cues (live, not baked)
+        // ═════════════════════════════════════════════════════════════
+        log('<h2>24. Mute Silences Pack Cues</h2>');
+        const packMuteSvc = createAudioService();
+        packMuteSvc.initialize(() => {});
+        packMuteSvc.setMuted(true);
+        let muteCueCalls = 0;
+        packMuteSvc.setResourcePackResolver(() => { muteCueCalls++; return true; });
+        const muteCueAction = actionAt(0, 'Wave', { cue: 'wave', pack: 'demo', fallbackText: 'Wave!' });
+        const muteCueText = packMuteSvc.resolveAudioCue(muteCueAction, 'trigger');
+        assert('Muted: pack cue never reaches the resolver', muteCueCalls === 0,
+            `Resolver called ${muteCueCalls}x`);
+        assert('Muted: no spoken fallback either', muteCueText === null, `Got: "${muteCueText}"`);
+        const muteCueLog = packMuteSvc.getCueLog();
+        assert('Muted: cue log records "muted"',
+            muteCueLog.length === 1 && muteCueLog[0].outcome === 'muted',
+            `Got: ${JSON.stringify(muteCueLog)}`);
+        packMuteSvc.setMuted(false);
+        packMuteSvc.resolveAudioCue(muteCueAction, 'trigger');
+        assert('Unmuted: the resolver plays it again', muteCueCalls === 1,
+            `Resolver called ${muteCueCalls}x`);
 
         // ═════════════════════════════════════════════════════════════
         // SUMMARY

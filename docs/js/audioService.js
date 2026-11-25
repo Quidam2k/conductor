@@ -109,6 +109,12 @@ function createAudioService() {
             recordCueAttempt(entry);
             return has;
         }
+        // Muted: report it handled, so callers don't fall back to speech.
+        if (muted) {
+            entry.outcome = 'muted';
+            recordCueAttempt(entry);
+            return true;
+        }
         const played = !!(resourcePackResolver && resourcePackResolver(cueId, packId, speed));
         entry.outcome = played ? 'played'
             : (resourcePackResolver ? 'missing-buffer' : 'no-resolver');
