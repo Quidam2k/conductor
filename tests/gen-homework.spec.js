@@ -10,24 +10,38 @@ const path = require('path');
 // must find: WHAT to hand in (the deliverable) and WHERE to send it.
 // Pure Node/fs — no browser needed.
 
+const os = require('os');
+
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'gen-homework.js');
-const OUT_MD = path.join(ROOT, 'docs', 'HELP.md');
-const OUT_HTML = path.join(ROOT, 'docs', 'help.html');
+const COMMITTED = ['HELP.md', 'help.html', 'rate.html'];
 
-test('gen-homework.js runs and regenerates both outputs', () => {
+// Generate into a temp dir: a test run must never rewrite tracked files.
+function generateToTemp() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-help-'));
+    const stdout = execFileSync('node', [SCRIPT, '--out-dir', dir], { cwd: ROOT }).toString();
+    return { dir, stdout };
+}
+// CRLF and the daily "Generated <date>" line are the only allowed differences.
+const normalize = (t) => t.replace(/\r\n/g, '\n').replace(/Generated [A-Z][a-z]+ \d{1,2}, \d{4}/g, 'Generated <date>');
+
+test('gen-homework.js runs, writes all three pages, and the committed copies are current', () => {
     // Runs without throwing (execFileSync throws on non-zero exit).
-    const stdout = execFileSync('node', [SCRIPT], { cwd: ROOT }).toString();
+    const { dir, stdout } = generateToTemp();
     expect(stdout).toContain('wrote');
-
-    expect(fs.existsSync(OUT_MD), 'docs/HELP.md should exist').toBeTruthy();
-    expect(fs.existsSync(OUT_HTML), 'docs/help.html should exist').toBeTruthy();
+    for (const name of COMMITTED) {
+        const fresh = path.join(dir, name);
+        expect(fs.existsSync(fresh), `${name} should be generated`).toBeTruthy();
+        const committed = fs.readFileSync(path.join(ROOT, 'docs', name), 'utf8');
+        expect(normalize(committed) === normalize(fs.readFileSync(fresh, 'utf8')),
+            `docs/${name} is stale: run \`node scripts/gen-homework.js\` and commit the result`).toBe(true);
+    }
 });
 
 test('both outputs name the deliverable and the send-to target', () => {
-    execFileSync('node', [SCRIPT], { cwd: ROOT });
-    const md = fs.readFileSync(OUT_MD, 'utf8');
-    const html = fs.readFileSync(OUT_HTML, 'utf8');
+    const { dir } = generateToTemp();
+    const md = fs.readFileSync(path.join(dir, 'HELP.md'), 'utf8');
+    const html = fs.readFileSync(path.join(dir, 'help.html'), 'utf8');
 
     for (const [name, text] of [['HELP.md', md], ['help.html', html]]) {
         // The deliverable: a resource pack .zip.

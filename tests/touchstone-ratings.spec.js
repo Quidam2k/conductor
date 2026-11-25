@@ -50,11 +50,16 @@ test('baked ENTRIES matches the current library count and shape', () => {
     expect(baked[0]).toHaveProperty('line');
 });
 
-test('gen-rate-page.js CLI runs and writes the committed docs/rate.html', () => {
-    // One serialized exec (not per-project) to prove the writer path works.
-    const stdout = execFileSync('node', [RATE_SCRIPT], { cwd: ROOT }).toString();
+test('gen-rate-page.js writes the page, and the committed docs/rate.html is current', () => {
+    // Write to a temp path: a test run must never rewrite tracked files. Run it
+    // as its own process: the page embeds function source text, which differs
+    // when the module is loaded through the test runner's transform.
+    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-rate-')), 'rate.html');
+    const stdout = execFileSync('node', [RATE_SCRIPT, '--out', out], { cwd: ROOT }).toString();
     expect(stdout).toContain('wrote');
-    expect(fs.existsSync(RATE_HTML), 'docs/rate.html should exist').toBeTruthy();
+    const norm = (t) => t.replace(/\r\n/g, '\n');
+    expect(norm(fs.readFileSync(RATE_HTML, 'utf8')) === norm(fs.readFileSync(out, 'utf8')),
+        'docs/rate.html is stale: run `node scripts/gen-rate-page.js` and commit the result').toBe(true);
 });
 
 test('parseIssueBody pulls the rater and 1-5 star lines from a fenced block', () => {

@@ -13,7 +13,7 @@
  * send-to targets, the next session, or per-helper packets: edit the config.
  * NEVER hand-edit HELP.md or help.html — they are overwritten on every run.
  *
- * Usage:  node scripts/gen-homework.js
+ * Usage:  node scripts/gen-homework.js [--out-dir <dir>]
  * Exit 0 on success, non-zero (with a message) on any failure.
  */
 'use strict';
@@ -24,8 +24,12 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const CONFIG_PATH = path.join(ROOT, 'data', 'homework.json');
 const TEMPLATE_PATH = path.join(ROOT, 'docs', 'help', 'async-helper.template.md');
-const OUT_MD = path.join(ROOT, 'docs', 'HELP.md');
-const OUT_HTML = path.join(ROOT, 'docs', 'help.html');
+// --out-dir <dir> writes all three pages (HELP.md, help.html, rate.html) there
+// instead of docs/ (the tests use it so a run never rewrites tracked files).
+const outDirIdx = process.argv.indexOf('--out-dir');
+const OUT_DIR = outDirIdx > -1 ? path.resolve(process.argv[outDirIdx + 1] || '') : path.join(ROOT, 'docs');
+const OUT_MD = path.join(OUT_DIR, 'HELP.md');
+const OUT_HTML = path.join(OUT_DIR, 'help.html');
 
 const DO_NOT_EDIT_MD =
   '<!-- GENERATED FILE — do not hand-edit. Source: docs/help/async-helper.template.md + data/homework.json. Regenerate with: node scripts/gen-homework.js -->';
@@ -386,7 +390,7 @@ function main() {
   // Keep the touchstone rating page in lockstep: one command refreshes both,
   // so the baked rate.html snapshot never drifts behind a homework regen.
   try {
-    require('./gen-rate-page').generate();
+    require('./gen-rate-page').generate(path.join(OUT_DIR, 'rate.html'));
   } catch (e) {
     fail('rate-page generation failed: ' + (e && e.message ? e.message : e));
   }

@@ -11,12 +11,15 @@ const path = require('path');
 // ═════════════════════════════════════════════════════════════════════
 
 const repo = path.join(__dirname, '..');
-const FORBIDDEN = /\b(jarvis|pantheon|athena|solace)\b|plan-back|PROCEED #\d|[A-Z]:[\\/](?:Users|Development|Pantheon|project-reports)/i;
+const FORBIDDEN = /\b(jarvis|pantheon|athena|solace|karen)\b|plan-back|PROCEED #\d|[A-Z]:[\\/](?:Users|Development|Pantheon|project-reports)/i;
 const BINARY = /\.(png|jpe?g|gif|ico|zip|mp3|wav|webm|ogg|woff2?|pdf)$/i;
 
 // Private names (people who asked to appear only by handle) live in a
 // gitignored file, one word per line, so this public test never names them.
 const PRIVATE_LIST = path.join(__dirname, '.private-names.txt');
+// A missing list fails, so the personal-name check can't switch itself off.
+// CI has no list (it is never tracked) and sets HYGIENE_ALLOW_MISSING_PRIVATE_LIST=1.
+const PRIVATE_LIST_MISSING = !fs.existsSync(PRIVATE_LIST) && process.env.HYGIENE_ALLOW_MISSING_PRIVATE_LIST !== '1';
 const PRIVATE = fs.existsSync(PRIVATE_LIST)
     ? fs.readFileSync(PRIVATE_LIST, 'utf8').split(/\r?\n/).map(s => s.trim()).filter(Boolean)
     : [];
@@ -24,8 +27,10 @@ const PRIVATE_RE = PRIVATE.length
     ? new RegExp('\\b(' + PRIVATE.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'i')
     : null;
 
-test('no internal names or local paths in tracked files', () => {
-    const files = execSync('git ls-files', { cwd: repo, encoding: 'utf8' })
+test('no internal names or local paths in tracked or untracked (not ignored) files', () => {
+    expect(PRIVATE_LIST_MISSING, 'tests/.private-names.txt is missing (set HYGIENE_ALLOW_MISSING_PRIVATE_LIST=1 only where no list can exist)').toBe(false);
+    // Untracked files count too: they are one `git add` from the public repo.
+    const files = execSync('git ls-files --cached --others --exclude-standard', { cwd: repo, encoding: 'utf8' })
         .split('\n')
         .filter(f => f && !BINARY.test(f) && f !== 'tests/public-hygiene.spec.js'); // this file names the patterns
     const hits = [];

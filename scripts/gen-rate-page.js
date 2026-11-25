@@ -641,9 +641,10 @@ updateCount();
 `;
 }
 
-// Read the library, render the page, write docs/rate.html. Returns the count.
-// Callable from scripts/gen-homework.js so one command refreshes both pages.
-function generate() {
+// Read the library, render the page, write it to outPath (default docs/rate.html).
+// Returns the count. Callable from scripts/gen-homework.js so one command
+// refreshes both pages.
+function generate(outPath = OUT_HTML) {
   let data;
   try {
     data = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
@@ -654,12 +655,16 @@ function generate() {
     fail('touchstones.json has no non-empty "entries" array');
   }
   const html = buildPage(data.entries, data.tag_vocabulary);
-  fs.writeFileSync(OUT_HTML, html);
-  console.log('gen-rate-page: wrote ' + path.relative(ROOT, OUT_HTML) +
+  fs.writeFileSync(outPath, html);
+  console.log('gen-rate-page: wrote ' + path.relative(ROOT, outPath) +
     ' (' + data.entries.length + ' touchstones)');
   return data.entries.length;
 }
 
-if (require.main === module) generate();
+if (require.main === module) {
+  // --out <path> writes elsewhere (the tests use a temp path, never docs/).
+  const i = process.argv.indexOf('--out');
+  generate(i > -1 ? path.resolve(process.argv[i + 1] || '') : OUT_HTML);
+}
 
 module.exports = { buildPage, flatTags, toScriptLiteral, generate, OUT_HTML };
