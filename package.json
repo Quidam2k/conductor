@@ -7,7 +7,8 @@
   },
   "scripts": {
     "test": "playwright test",
-    "build": "python scripts/build-standalone.py"
+    "build": "python scripts/build-standalone.py",
+    "ship:check": "node scripts/ship-check.js"
   },
   "keywords": [
     "pwa",

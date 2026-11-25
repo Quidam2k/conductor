@@ -3,7 +3,8 @@
 
 Reads docs/index.html, inlines all <script src="..."> tags,
 removes the PWA manifest link and service worker registration,
-and writes docs/conductor.html.
+and writes docs/conductor.html (or the path given with --out, which
+scripts/ship-check.js uses to compare a fresh build with the committed one).
 """
 
 import re
@@ -61,4 +62,9 @@ def build():
 
 
 if __name__ == '__main__':
+    if '--out' in sys.argv:
+        i = sys.argv.index('--out')
+        if i + 1 >= len(sys.argv):
+            sys.exit('usage: build-standalone.py [--out <path>]')
+        OUT = os.path.abspath(sys.argv[i + 1])
     build()

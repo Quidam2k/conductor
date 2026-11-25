@@ -6,4 +6,4 @@
 
 - [ ] `npm test` (Playwright: Chromium, WebKit, Firefox)
 - [ ] On a real phone (which one?), screen locked if it touches audio
-- [ ] Ran `npm run build` if anything inlined into `docs/conductor.html` changed
+- [ ] `npm run ship:check` passes (required when `docs/` changed)

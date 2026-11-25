@@ -1,50 +1,67 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { runShipChecks, appVersion } = require('../scripts/ship-check');
 
 // ═════════════════════════════════════════════════════════════════════
 // Release consistency — the ship checklist, enforced. A build ships with
-// four visible build labels, a service-worker cache name, a changelog
-// entry, and a regenerated standalone conductor.html. Forgetting any one
-// leaves testers on a page that disagrees with itself ("footer says v65?").
+// matching build labels, a service-worker cache name (conductor-build-vN),
+// a changelog entry, and a regenerated standalone conductor.html. Forgetting
+// any one leaves testers on a page that disagrees with itself. The checks
+// live in scripts/ship-check.js so `npm run ship:check` and this spec can
+// never disagree.
 // ═════════════════════════════════════════════════════════════════════
 
-const docs = path.join(__dirname, '..', 'docs');
-const read = (p) => fs.readFileSync(path.join(docs, p), 'utf8');
+const repo = path.join(__dirname, '..');
+const docs = path.join(repo, 'docs');
 
-function appVersion() {
-    const m = read('index.html').match(/<span id="app-version">(v\d+)<\/span>/);
-    expect(m, 'index.html #app-version').toBeTruthy();
-    return m[1];
-}
+// No browser is used: run once, not once per project.
+test.skip(({ browserName }) => browserName !== 'chromium', 'runs once (browser-independent)');
 
-test('all build labels and the changelog agree with index.html', () => {
-    const v = appVersion();
-    expect(read('start.html')).toContain(`<span id="app-version">${v}</span>`);
-    expect(read('GUIDE.html')).toMatch(new RegExp(`class="build">build ${v} `));
-    expect(read('test/index.html')).toContain(`<span id="build-label">${v}</span>`);
-    expect(read('changelog.html'), 'changelog needs an entry for this build')
-        .toContain(`id="${v}"`);
+test('ship:check passes on the working tree', () => {
+    expect(runShipChecks({ root: repo })).toEqual([]);
 });
 
-test('service worker cache name is the build number', () => {
-    // A new CACHE_NAME is what makes installed phones fetch the new files,
-    // so it must move with every build: conductor-build-v<N> for build vN.
-    const m = read('sw.js').match(/^const CACHE_NAME = 'conductor-build-(v\d+)';/m);
-    expect(m, 'sw.js CACHE_NAME').toBeTruthy();
-    expect(m[1], 'sw.js CACHE_NAME must equal the build label').toBe(appVersion());
-});
+// The checks must be able to fail: break a temp copy of the tree, never docs/.
+test.describe('ship:check catches a forgotten step', () => {
+    let root;
+    test.beforeEach(() => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-check-tree-'));
+        fs.cpSync(docs, path.join(root, 'docs'), {
+            recursive: true,
+            filter: (src) => !src.endsWith('.zip'), // packs are not part of any check
+        });
+        fs.mkdirSync(path.join(root, 'scripts'));
+        fs.copyFileSync(path.join(repo, 'scripts', 'build-standalone.py'),
+            path.join(root, 'scripts', 'build-standalone.py'));
+    });
+    test.afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
-test('standalone conductor.html is regenerated from the current sources', () => {
-    const standalone = read('conductor.html').replace(/\r\n?/g, '\n'); // written in text mode on Windows
-    expect(standalone).toContain(`<span id="app-version">${appVersion()}</span>`);
-    const srcs = [...read('index.html').matchAll(/<script\s+src="([^"]+)">\s*<\/script>/g)].map(m => m[1]);
-    expect(srcs.length).toBeGreaterThan(5);
-    for (const src of srcs) {
-        const body = fs.readFileSync(path.join(docs, src), 'utf8')
-            .replace(/\r\n?/g, '\n') // the build reads in text mode (universal newlines)
-            .replace(/<\/script/g, '<\\/script');
-        expect(standalone.includes(`/* ${src} */\n${body}\n`),
-            `conductor.html has a stale copy of ${src} — run python scripts/build-standalone.py`).toBe(true);
-    }
+    const edit = (file, from, to) => {
+        const p = path.join(root, 'docs', file);
+        const s = fs.readFileSync(p, 'utf8');
+        expect(s.split(from).length - 1, `${from} occurs once in ${file}`).toBe(1);
+        fs.writeFileSync(p, s.replace(from, to));
+    };
+
+    test('the untouched copy passes', () => {
+        expect(runShipChecks({ root })).toEqual([]);
+    });
+
+    test('one character changed in the main inline script, no rebuild', () => {
+        edit('index.html', '// KEEP THIS THE FIRST STATEMENT of this script',
+            '// KEEP THIS THE FIRST STATEMENt of this script');
+        expect(runShipChecks({ root })).toEqual([
+            'docs/conductor.html is stale: run python scripts/build-standalone.py and commit the result',
+        ]);
+    });
+
+    test('one label left behind', () => {
+        const v = appVersion(repo);
+        edit('GUIDE.html', `class="build">build ${v} `, 'class="build">build v1 ');
+        expect(runShipChecks({ root })).toEqual([
+            `docs/GUIDE.html: .build footer says v1 (expected ${v})`,
+        ]);
+    });
 });

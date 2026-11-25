@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Android Audio Diagnostics — v66 (locked-screen check)</title>
+<title>Android Audio Diagnostics — v79 (locked-screen check)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -132,7 +132,7 @@
 <div class="wrap">
 
 <h1>Android Audio Diagnostics</h1>
-<p class="sub">Build v66 — do the tests in order. When you're done, tap <strong>Copy results</strong> at the bottom and send it to the developer.</p>
+<p class="sub">Build v79 — do the tests in order. When you're done, tap <strong>Copy results</strong> at the bottom and send it to the developer.</p>
 
 <div class="note">
   Before you start: <strong>turn media volume all the way up</strong>, and <strong>turn Battery Saver off</strong>.
@@ -226,7 +226,7 @@ function copyLog() {
     .map(l => l.textContent).join('\n');
   const env = Array.from(envEl.querySelectorAll('.env-row'))
     .map(r => r.textContent.replace(/\s+/g, ' ').trim()).join('\n');
-  const full = '=== Conductor Android Audio Diagnostics v66 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
+  const full = '=== Conductor Android Audio Diagnostics v79 (locked-screen check) ===\n\nEnvironment:\n' + env + '\n\nLog:\n' + text;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(full).then(
       () => log('Results copied to clipboard.', 'ok'),
