@@ -1,5 +1,6 @@
-const CACHE_NAME = 'conductor-v82';
+const CACHE_NAME = 'conductor-v79'; // = the build number (tests/release-consistency.spec.js)
 const ASSETS = [
+    './', // the Home Screen start_url: must open with no signal
     './index.html',
     './conductor.html',
     './start.html',
@@ -38,7 +39,9 @@ const ASSETS = [
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(ASSETS))
+            // Read from the origin, not the HTTP cache: Pages sends max-age=600,
+            // so a cached read could store pre-deploy files under the new name.
+            .then(cache => cache.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
             .then(() => self.skipWaiting())
     );
 });
@@ -73,8 +76,11 @@ self.addEventListener('fetch', (e) => {
     if (isHTML) {
         e.respondWith(
             caches.open(CACHE_NAME).then(cache =>
-                cache.match(e.request).then(cached => {
-                    const networkFetch = fetch(e.request)
+                // ignoreSearch: index.html?demo is the same shell (it reads location.search).
+                cache.match(e.request, { ignoreSearch: true }).then(cached => {
+                    // no-cache: revalidate with the origin, so a deploy shows on the
+                    // next load instead of after the 10-minute HTTP cache window.
+                    const networkFetch = fetch(e.request, { cache: 'no-cache' })
                         .then(resp => {
                             if (resp && resp.ok) cache.put(e.request, resp.clone());
                             return resp;
@@ -90,9 +96,11 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
         caches.match(e.request)
             .then(cached => cached || fetch(e.request).then(resp => {
-                // Cache new same-origin GET responses
-                const clone = resp.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+                // Never store an error: it would be served until the next build.
+                if (resp.ok) {
+                    const clone = resp.clone(); // clone now, before the page reads the body
+                    caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+                }
                 return resp;
             }))
     );

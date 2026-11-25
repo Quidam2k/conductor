@@ -23,3 +23,15 @@ test('sw.js ASSETS precaches every script index.html loads', async () => {
         expect(assets, `sw.js ASSETS is missing '${src}'`).toContain(src);
     }
 });
+
+// The offline/update rules in sw.js (behaviour is proven in sw-offline.spec.js;
+// these catch an edit that drops one). '' is './', the Home Screen start_url.
+test('sw.js precaches the root and keeps its fresh-fetch options', () => {
+    const swJs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'sw.js'), 'utf8');
+    const assets = [...swJs.match(/const ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)]
+        .map(m => m[1].replace(/^\.\/?/, ''));
+    expect(assets).toContain('');
+    for (const opt of ["cache: 'reload'", "cache: 'no-cache'", 'ignoreSearch: true']) {
+        expect(swJs, `sw.js lost ${opt}`).toContain(opt);
+    }
+});
