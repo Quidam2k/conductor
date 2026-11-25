@@ -501,6 +501,49 @@ test.describe('v66 review fixes', () => {
     expect(errors).toEqual([]);
   });
 
+  // Audit 04 P2: a corrupted #v1_ link says so instead of a blank input screen.
+  test('corrupted #v1_ link on load shows a message', async ({ page }) => {
+    await page.goto('/#v1_NOTVALIDBASE64!!');
+    await expect(page.locator('#screen-input')).toHaveClass(/active/);
+    await expect(page.locator('#input-error')).toContainText('Could not read this event code');
+  });
+
+  test('corrupted #v1_ link via hashchange lands on input with the message', async ({ page }) => {
+    await page.fill('#input-paste', zoneText('America/New_York'));
+    await page.click('#btn-load');
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    await page.evaluate(() => { location.hash = 'v1_NOTVALIDBASE64!!'; });
+    await expect(page.locator('#screen-input')).toHaveClass(/active/);
+    await expect(page.locator('#input-error')).toContainText('Could not read this event code');
+  });
+
+  test('plain #anchor stays quiet', async ({ page }) => {
+    await page.goto('/#top');
+    await expect(page.locator('#screen-input')).toHaveClass(/active/);
+    await expect(page.locator('#input-error')).toHaveText('');
+  });
+
+  test('editor: Coda 0 reaches the shared link', async ({ page }) => {
+    await page.click('#btn-create');
+    await expect(page.locator('#screen-editor-info')).toHaveClass(/active/);
+    await page.fill('#ed-title', 'Coda Zero');
+    await page.fill('#ed-datetime', new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+    await page.check('#ed-repeat-toggle');
+    await page.check('#ed-repeat-mode-count');
+    await page.fill('#ed-repeat-count', '5');
+    await page.fill('#ed-coda', '0');
+    await page.click('#btn-ed-next1');
+    await expect(page.locator('#screen-editor-timeline')).toHaveClass(/active/);
+    await page.click('#btn-add-action');
+    await page.fill('.ed-action-text', 'Wave hello');
+    await page.click('.ed-btn-save');
+    await page.click('#btn-ed-next2');
+    await expect(page.locator('#screen-editor-review')).toHaveClass(/active/);
+    const shared = await page.evaluate(() => decodeEvent(encodeEvent(state.event)));
+    expect(shared.repeatCount).toBe(5);
+    expect(shared.codaGapSeconds).toBe(0);
+  });
+
   test('demo offers its voice pack in one tap', async ({ page, browserName }) => {
     test.skip(browserName === 'webkit', 'pack import (IndexedDB blobs) is not exercised on headless webkit');
     await page.click('#btn-demo');

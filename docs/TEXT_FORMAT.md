@@ -60,8 +60,8 @@ These optional headers set event-level defaults:
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
 | `RepeatUntil` | Loop the whole sequence until this wall-clock time (same date formats as `Start`) | `RepeatUntil: 2026-03-15 2:20 PM` |
-| `Repeat` | Loop the whole sequence a fixed number of times, total (min 2) | `Repeat: 3` |
-| `Coda` | Rest in seconds between repeats (default: 4). Used with `RepeatUntil` or `Repeat` | `Coda: 10` |
+| `Repeat` | Loop the whole sequence a fixed number of times, total (2 to 1000) | `Repeat: 3` |
+| `Coda` | Rest in whole seconds between repeats (default: 4; `0` = no rest). Used with `RepeatUntil` or `Repeat` | `Coda: 10` |
 | `Mode` | Playback mode for the whole event: `cue` (default) or `clip` | `Mode: clip` |
 
 Per-action tags (below) override these event-level defaults.

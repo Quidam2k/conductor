@@ -180,11 +180,11 @@ function embeddedEventToEvent(embedded) {
             const times = timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
             const firstMs = Math.min(...times);
             const lastMs = Math.max(...times);
-            const codaMs = (embedded.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
-            const periodMs = (lastMs - firstMs) + codaMs;
+            const periodMs = (lastMs - firstMs) + codaGapMs(embedded.codaGapSeconds);
             endMs = Math.min(endMs, lastMs + (repeatCount - 1) * periodMs);
         }
-        if (endMs !== Infinity && endMs > startMs) endTime = new Date(endMs).toISOString();
+        // A NaN end (bad data in an old link) keeps the one-cycle endTime.
+        if (Number.isFinite(endMs) && endMs > startMs) endTime = new Date(endMs).toISOString();
     }
 
     const now = new Date().toISOString();
@@ -245,7 +245,7 @@ function eventToEmbeddedEvent(event) {
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
         repeatUntil: event.repeatUntil || null,
         repeatCount: (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : null,
-        codaGapSeconds: event.codaGapSeconds || null,
+        codaGapSeconds: event.codaGapSeconds ?? null, // 0 = no rest, kept
         defaultMode: (event.defaultMode && event.defaultMode !== 'cue') ? event.defaultMode : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
@@ -256,6 +256,13 @@ function eventToEmbeddedEvent(event) {
 
 /** Default rest between repeated cycles, in seconds (a musical breath). */
 const DEFAULT_CODA_GAP_SEC = 4;
+
+/** Rest between cycles in ms; anything not a finite number ≥ 0 gets the default. */
+function codaGapMs(codaGapSeconds) {
+    const sec = (Number.isFinite(codaGapSeconds) && codaGapSeconds >= 0)
+        ? codaGapSeconds : DEFAULT_CODA_GAP_SEC;
+    return sec * 1000;
+}
 
 /**
  * Expand a repeating event into a flat, one-shot runtime timeline: the authored
@@ -287,8 +294,7 @@ function expandRepeats(event) {
         (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
     const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
     const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
-    const codaMs = (event.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
-    const periodMs = (lastMs - firstMs) + codaMs;
+    const periodMs = (lastMs - firstMs) + codaGapMs(event.codaGapSeconds);
 
     // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
     if (periodMs < 1000) return event;

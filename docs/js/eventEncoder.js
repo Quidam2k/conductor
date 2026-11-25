@@ -308,6 +308,9 @@ function base64ToBytes(base64) {
 
 // ─── Validation ─────────────────────────────────────────────────────────────
 
+/** Most cycles a repeating event may run (text format rejects more; links clamp). */
+const MAX_REPEAT_COUNT = 1000;
+
 /**
  * Validate required fields and fill defaults.
  * @param {Object} eventData - Raw parsed JSON
@@ -325,6 +328,25 @@ function validateAndComplete(eventData) {
         throw new Error('Invalid event data: missing required fields: ' + missing.join(', '));
     }
 
+    // Shared links never pass through parseTextFormat, and links already sent
+    // must keep opening: out-of-range repeat values are dropped or clamped
+    // with a warning here, never thrown.
+    const warnings = [];
+    let codaGapSeconds = eventData.codaGapSeconds ?? null;
+    if (codaGapSeconds !== null && !(typeof codaGapSeconds === 'number' && codaGapSeconds >= 0 && isFinite(codaGapSeconds))) {
+        warnings.push('Ignored a rest between repeats that is not a number of seconds: ' + codaGapSeconds);
+        codaGapSeconds = null;
+    }
+    let repeatCount = eventData.repeatCount ?? null;
+    if (repeatCount !== null && !(typeof repeatCount === 'number' && repeatCount >= 0)) {
+        warnings.push('Ignored a repeat count that is not a number: ' + repeatCount);
+        repeatCount = null;
+    } else if (repeatCount > MAX_REPEAT_COUNT) {
+        warnings.push('Repeat count ' + repeatCount + ' cut to ' + MAX_REPEAT_COUNT + ' cycles.');
+        repeatCount = MAX_REPEAT_COUNT;
+    }
+    if (warnings.length > 0) console.warn('Event data warnings:', warnings);
+
     // Fill defaults
     return {
         title: eventData.title,
@@ -338,8 +360,8 @@ function validateAndComplete(eventData) {
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
         repeatUntil: eventData.repeatUntil ?? null,
-        repeatCount: eventData.repeatCount ?? null,
-        codaGapSeconds: eventData.codaGapSeconds ?? null,
+        repeatCount,
+        codaGapSeconds,
         defaultMode: eventData.defaultMode ?? 'cue',
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
@@ -585,11 +607,33 @@ function parseTextFormat(text) {
     }
     let repeatCount = null;
     if (headers.repeat) {
-        const n = parseInt(headers.repeat, 10);
+        const rv = headers.repeat.trim();
+        if (!/^\d+$/.test(rv)) {
+            throw new Error('Text format: Repeat must be a whole number of cycles. Got "' + headers.repeat + '".');
+        }
+        const n = Number(rv);
+        if (n > MAX_REPEAT_COUNT) {
+            throw new Error('Text format: Repeat can be at most ' + MAX_REPEAT_COUNT + ' cycles. Got "' + headers.repeat + '".');
+        }
         if (n > 1) repeatCount = n; // total cycles including the first
+        else warnings.push('Repeat: ' + rv + ' means the sequence plays once (no repeat).');
     }
-    const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
-        ? parseInt(headers.coda, 10) : undefined;
+    let codaGapSeconds;
+    if ((repeatUntil || repeatCount) && headers.coda) {
+        const cv = headers.coda.trim();
+        if (!/^\d+$/.test(cv)) {
+            throw new Error('Text format: Coda must be a whole number of seconds, 0 or more. Got "' + headers.coda + '".');
+        }
+        codaGapSeconds = Number(cv);
+    }
+    let defaultNoticeSeconds;
+    if (headers.notifywindow) {
+        const nv = headers.notifywindow.trim();
+        if (!/^\d+$/.test(nv)) {
+            throw new Error('Text format: NotifyWindow must be a whole number of seconds. Got "' + headers.notifywindow + '".');
+        }
+        defaultNoticeSeconds = Number(nv);
+    }
 
     // Event-level default playback mode: "Mode: clip" makes every step clip-mode
     // (speaker plays the audio) unless a row overrides with [cue]. Default cue.
@@ -625,7 +669,7 @@ function parseTextFormat(text) {
         timezone,
         timeline,
         // Config headers (undefined so validateAndComplete applies defaults via ??)
-        defaultNoticeSeconds: headers.notifywindow ? parseInt(headers.notifywindow, 10) : undefined,
+        defaultNoticeSeconds,
         defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,

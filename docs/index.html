@@ -1460,7 +1460,7 @@
             </div>
             <label class="field-label" style="margin-top:8px;">Rest between repeats</label>
             <div class="ed-offset-row">
-                <input id="ed-coda" class="field-input" type="number" min="1" max="600" value="4" style="max-width:90px;">
+                <input id="ed-coda" class="field-input" type="number" min="0" max="600" value="4" style="max-width:90px;">
                 <span>sec</span>
             </div>
             <p id="ed-repeat-note" style="font-size:14px; color:var(--text-dim); margin-top:8px;"></p>
@@ -2096,8 +2096,8 @@ function friendlyError(msg) {
         return 'Could not read this event code. It may be corrupted or incomplete.';
     if (/Invalid JSON/i.test(msg))
         return 'This doesn\'t look like a valid event. Check the format and try again.';
-    if (/Text format: (missing required|unknown time zone)/i.test(msg))
-        return msg; // Already clear
+    if (/^Text format:/i.test(msg))
+        return msg; // The parser's own messages name the line to fix
     if (/Invalid event data: missing/i.test(msg))
         return msg; // Already clear
     if (/Empty input/i.test(msg))
@@ -2154,6 +2154,11 @@ function loadFromHash() {
         state.event = embeddedEventToEvent(embedded);
         return true;
     } catch (e) {
+        // A broken event link says so; ordinary #anchors stay quiet.
+        if (hash.startsWith('v1_')) {
+            if (state.mode !== 'input' && state.mode !== 'live') transitionTo('input');
+            $('input-error').textContent = friendlyError(e.message);
+        }
         return false;
     }
 }
@@ -4131,7 +4136,7 @@ function initEditorInfo() {
     $('ed-repeat-mode-count').checked = countMode;
     $('ed-repeat-until').value = ed.repeatUntil || '';
     $('ed-repeat-count').value = ed.repeatCount || 3;
-    $('ed-coda').value = ed.codaGapSeconds || 4;
+    $('ed-coda').value = ed.codaGapSeconds ?? 4; // 0 = no rest
     $('ed-repeat-until-field').style.display = countMode ? 'none' : '';
     $('ed-repeat-count-field').style.display = countMode ? '' : 'none';
     updateRepeatNote();
@@ -4166,7 +4171,8 @@ function updateRepeatNote() {
             // Estimate span = N cycles × (last-action offset + coda). We only know
             // the offset from the actions list; use it if present, else just show N.
             const acts = state.editor.actions || [];
-            const coda = (parseInt($('ed-coda').value, 10) || 4);
+            const codaIn = parseInt($('ed-coda').value, 10);
+            const coda = codaIn >= 0 ? codaIn : 4;
             if (acts.length > 0) {
                 const offs = acts.map(a => a.offsetSeconds ?? 0);
                 const spanSec = Math.max(...offs) - Math.min(...offs);
@@ -4241,12 +4247,12 @@ function saveEditorInfo() {
         state.editor.repeatCount = parseInt($('ed-repeat-count').value, 10);
         state.editor.repeatUntil = '';
         const coda = parseInt($('ed-coda').value, 10);
-        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+        state.editor.codaGapSeconds = (coda >= 0) ? coda : null;
     } else if (repeatOn && !countMode && $('ed-repeat-until').value) {
         state.editor.repeatUntil = $('ed-repeat-until').value;
         state.editor.repeatCount = null;
         const coda = parseInt($('ed-coda').value, 10);
-        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+        state.editor.codaGapSeconds = (coda >= 0) ? coda : null;
     } else {
         state.editor.repeatUntil = '';
         state.editor.repeatCount = null;
@@ -5703,11 +5709,11 @@ function finalizeEditorEvent() {
         const ru = localDateTimeToUTC(ed.repeatUntil, ed.timezone);
         if (new Date(ru).getTime() > startMs) {
             embedded.repeatUntil = ru;
-            embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
+            embedded.codaGapSeconds = ed.codaGapSeconds ?? undefined;
         }
     } else if (ed.repeatCount && ed.repeatCount > 1) {
         embedded.repeatCount = ed.repeatCount;
-        embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
+        embedded.codaGapSeconds = ed.codaGapSeconds ?? undefined;
     }
 
     state.event = embeddedEventToEvent(embedded);
@@ -6312,7 +6318,7 @@ async function loadDraft(id) {
         .map(a => Object.assign({}, a));
     state.editor.repeatUntil = draft.repeatUntil || '';
     state.editor.repeatCount = draft.repeatCount || null;
-    state.editor.codaGapSeconds = draft.codaGapSeconds || null;
+    state.editor.codaGapSeconds = draft.codaGapSeconds ?? null;
     state.editor.defaultMode = (draft.defaultMode === 'clip') ? 'clip' : 'cue';
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
@@ -6331,7 +6337,7 @@ function collectDraftFromEditor() {
             .map(a => Object.assign({}, a)),
         repeatUntil: state.editor.repeatUntil || '',
         repeatCount: state.editor.repeatCount || null,
-        codaGapSeconds: state.editor.codaGapSeconds || null,
+        codaGapSeconds: state.editor.codaGapSeconds ?? null,
         defaultMode: $('ed-default-mode')
             ? (($('ed-default-mode').value === 'clip') ? 'clip' : 'cue')
             : (state.editor.defaultMode || 'cue'),

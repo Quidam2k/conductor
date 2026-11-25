@@ -960,6 +960,124 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 13: Numeric headers, Coda 0, shared-link caps
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>13. Numeric headers</h2>');
+
+        const numText = (extra) => [
+            'Title: Numbers',
+            'Start: 2026-07-15T14:00:00Z',
+            'Timezone: UTC',
+            ...extra,
+            '',
+            '0:00  Stand',
+            '0:02  Wave',
+        ].join('\n');
+        const numThrows = (label, extra, pattern) => {
+            try {
+                parseTextFormat(numText(extra));
+                assert(label, false, 'Should have thrown');
+            } catch (e) {
+                assert(label, pattern.test(e.message), e.message);
+            }
+        };
+        const cueTimes = (evt) => expandRepeats(evt).timeline
+            .map(a => a.timeMs).sort((a, b) => a - b);
+
+        numThrows('13.1 Coda: abc throws', ['Repeat: 3', 'Coda: abc'], /Coda must be a whole number/);
+        numThrows('13.2 Coda: -5 throws', ['Repeat: 3', 'Coda: -5'], /Coda must be a whole number/);
+        numThrows('13.3 Coda: 1.5 throws', ['Repeat: 3', 'Coda: 1.5'], /Coda must be a whole number/);
+        numThrows('13.4 NotifyWindow: 0.5 throws', ['NotifyWindow: 0.5'], /NotifyWindow must be a whole number/);
+        numThrows('13.5 NotifyWindow: ten throws', ['NotifyWindow: ten'], /NotifyWindow must be a whole number/);
+        numThrows('13.6 Repeat: 10000000000000 hits the cap', ['Repeat: 10000000000000'], /1000/);
+        numThrows('13.7 Repeat: 1e13 is not a whole number', ['Repeat: 1e13'], /Repeat must be a whole number/);
+        numThrows('13.8 Repeat: three throws', ['Repeat: three'], /Repeat must be a whole number/);
+
+        try {
+            const p = parseTextFormat(numText(['NotifyWindow: 0']));
+            assert('13.9 NotifyWindow: 0 = no heads-up', p.defaultNoticeSeconds === 0, String(p.defaultNoticeSeconds));
+        } catch (e) {
+            assert('13.9 NotifyWindow: 0', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(numText(['Repeat: 1000']));
+            assert('13.10 Repeat: 1000 is allowed', p.repeatCount === 1000, String(p.repeatCount));
+        } catch (e) {
+            assert('13.10 Repeat: 1000', false, e.message);
+        }
+        {
+            const seen = [];
+            const orig = console.warn;
+            console.warn = (...args) => { seen.push(JSON.stringify(args)); };
+            try {
+                const p = parseTextFormat(numText(['Repeat: 1']));
+                assert('13.11 Repeat: 1 = no repeat, with a warning',
+                    !p.repeatCount && seen.some(s => /Repeat: 1/.test(s)), seen.join(' | '));
+            } catch (e) {
+                assert('13.11 Repeat: 1', false, e.message);
+            } finally {
+                console.warn = orig;
+            }
+        }
+
+        // Coda 0: organizer copy and shared copy run the same schedule.
+        try {
+            const organizer = embeddedEventToEvent(validateAndComplete(
+                parseTextFormat(numText(['Repeat: 5', 'Coda: 0']))));
+            const shared = embeddedEventToEvent(decodeEvent(encodeEvent(organizer)));
+            assert('13.12 Coda 0 survives the link', shared.codaGapSeconds === 0, String(shared.codaGapSeconds));
+            const a = cueTimes(organizer), b = cueTimes(shared);
+            assert('13.13 Coda 0: same cue times both copies', a.length === 10 && deepEqual(a, b),
+                a.length + ' vs ' + b.length + ' cues');
+            assert('13.14 Coda 0: period = span (2 s)', a[2] - a[0] === 2000, String(a[2] - a[0]));
+            assert('13.15 Coda 0: same end time both copies', organizer.endTime === shared.endTime,
+                organizer.endTime + ' vs ' + shared.endTime);
+        } catch (e) {
+            assert('13.12 Coda 0 round-trip', false, e.message);
+        }
+
+        // Shared links already in the wild: warn and clamp, never throw.
+        const linkEvent = (extra) => Object.assign({
+            title: 'Old Link', startTime: '2026-07-15T14:00:00.000Z', timezone: 'UTC',
+            timeline: [
+                { time: '2026-07-15T14:00:00.000Z', action: 'Stand' },
+                { time: '2026-07-15T14:00:02.000Z', action: 'Wave' },
+            ],
+        }, extra);
+        try {
+            const v = validateAndComplete(linkEvent({ repeatCount: 5, codaGapSeconds: -3 }));
+            assert('13.16 Link: negative coda dropped', v.codaGapSeconds == null, String(v.codaGapSeconds));
+            const v2 = validateAndComplete(linkEvent({ repeatCount: 5, codaGapSeconds: 'abc' }));
+            assert('13.17 Link: non-numeric coda dropped', v2.codaGapSeconds == null, String(v2.codaGapSeconds));
+            const v3 = validateAndComplete(linkEvent({ repeatCount: 1e13 }));
+            assert('13.18 Link: huge repeat clamped to 1000', v3.repeatCount === 1000, String(v3.repeatCount));
+            const v4 = validateAndComplete(linkEvent({ repeatCount: 5, codaGapSeconds: 0 }));
+            assert('13.19 Link: coda 0 kept', v4.codaGapSeconds === 0, String(v4.codaGapSeconds));
+        } catch (e) {
+            assert('13.16 Link caps', false, 'threw: ' + e.message);
+        }
+        try {
+            // A NaN coda that reaches the runtime falls back to the default rest.
+            const evt = embeddedEventToEvent(linkEvent({ repeatCount: 3 }));
+            evt.codaGapSeconds = NaN;
+            const t = cueTimes(evt);
+            assert('13.20 expandRepeats: NaN coda uses the default rest',
+                t.length === 6 && t[2] - t[0] === 2000 + DEFAULT_CODA_GAP_SEC * 1000, t.length + ' cues');
+        } catch (e) {
+            assert('13.20 expandRepeats NaN coda', false, e.message);
+        }
+        try {
+            const raw = linkEvent({ repeatCount: 3 });
+            raw.codaGapSeconds = 'abc'; // bypass validateAndComplete
+            const evt = embeddedEventToEvent(raw);
+            assert('13.21 embeddedEventToEvent: bad coda does not throw', true);
+            assert('13.22 embeddedEventToEvent: endTime valid or absent',
+                evt.endTime == null || !isNaN(Date.parse(evt.endTime)), String(evt.endTime));
+        } catch (e) {
+            assert('13.21 embeddedEventToEvent: bad coda does not throw', false, e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // TEST SUITE 11: Encryption (AES-GCM)
         // ═══════════════════════════════════════════════════════════════
         log('<h2>11. Encryption (AES-GCM)</h2>');

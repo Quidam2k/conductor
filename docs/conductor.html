@@ -1459,7 +1459,7 @@
             </div>
             <label class="field-label" style="margin-top:8px;">Rest between repeats</label>
             <div class="ed-offset-row">
-                <input id="ed-coda" class="field-input" type="number" min="1" max="600" value="4" style="max-width:90px;">
+                <input id="ed-coda" class="field-input" type="number" min="0" max="600" value="4" style="max-width:90px;">
                 <span>sec</span>
             </div>
             <p id="ed-repeat-note" style="font-size:14px; color:var(--text-dim); margin-top:8px;"></p>
@@ -2035,11 +2035,11 @@ function embeddedEventToEvent(embedded) {
             const times = timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
             const firstMs = Math.min(...times);
             const lastMs = Math.max(...times);
-            const codaMs = (embedded.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
-            const periodMs = (lastMs - firstMs) + codaMs;
+            const periodMs = (lastMs - firstMs) + codaGapMs(embedded.codaGapSeconds);
             endMs = Math.min(endMs, lastMs + (repeatCount - 1) * periodMs);
         }
-        if (endMs !== Infinity && endMs > startMs) endTime = new Date(endMs).toISOString();
+        // A NaN end (bad data in an old link) keeps the one-cycle endTime.
+        if (Number.isFinite(endMs) && endMs > startMs) endTime = new Date(endMs).toISOString();
     }
 
     const now = new Date().toISOString();
@@ -2100,7 +2100,7 @@ function eventToEmbeddedEvent(event) {
         timeWindowSeconds: event.timeWindowSeconds !== 60 ? event.timeWindowSeconds : null,
         repeatUntil: event.repeatUntil || null,
         repeatCount: (event.repeatCount && event.repeatCount > 1) ? event.repeatCount : null,
-        codaGapSeconds: event.codaGapSeconds || null,
+        codaGapSeconds: event.codaGapSeconds ?? null, // 0 = no rest, kept
         defaultMode: (event.defaultMode && event.defaultMode !== 'cue') ? event.defaultMode : null,
         visualMode: event.visualMode !== 'circular' ? event.visualMode : null,
         briefing: event.briefing || null,
@@ -2111,6 +2111,13 @@ function eventToEmbeddedEvent(event) {
 
 /** Default rest between repeated cycles, in seconds (a musical breath). */
 const DEFAULT_CODA_GAP_SEC = 4;
+
+/** Rest between cycles in ms; anything not a finite number ≥ 0 gets the default. */
+function codaGapMs(codaGapSeconds) {
+    const sec = (Number.isFinite(codaGapSeconds) && codaGapSeconds >= 0)
+        ? codaGapSeconds : DEFAULT_CODA_GAP_SEC;
+    return sec * 1000;
+}
 
 /**
  * Expand a repeating event into a flat, one-shot runtime timeline: the authored
@@ -2142,8 +2149,7 @@ function expandRepeats(event) {
         (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
     const firstMs = sorted[0].timeMs ?? new Date(sorted[0].time).getTime();
     const lastMs = sorted[sorted.length - 1].timeMs ?? new Date(sorted[sorted.length - 1].time).getTime();
-    const codaMs = (event.codaGapSeconds ?? DEFAULT_CODA_GAP_SEC) * 1000;
-    const periodMs = (lastMs - firstMs) + codaMs;
+    const periodMs = (lastMs - firstMs) + codaGapMs(event.codaGapSeconds);
 
     // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
     if (periodMs < 1000) return event;
@@ -2525,6 +2531,9 @@ function base64ToBytes(base64) {
 
 // ─── Validation ─────────────────────────────────────────────────────────────
 
+/** Most cycles a repeating event may run (text format rejects more; links clamp). */
+const MAX_REPEAT_COUNT = 1000;
+
 /**
  * Validate required fields and fill defaults.
  * @param {Object} eventData - Raw parsed JSON
@@ -2542,6 +2551,25 @@ function validateAndComplete(eventData) {
         throw new Error('Invalid event data: missing required fields: ' + missing.join(', '));
     }
 
+    // Shared links never pass through parseTextFormat, and links already sent
+    // must keep opening: out-of-range repeat values are dropped or clamped
+    // with a warning here, never thrown.
+    const warnings = [];
+    let codaGapSeconds = eventData.codaGapSeconds ?? null;
+    if (codaGapSeconds !== null && !(typeof codaGapSeconds === 'number' && codaGapSeconds >= 0 && isFinite(codaGapSeconds))) {
+        warnings.push('Ignored a rest between repeats that is not a number of seconds: ' + codaGapSeconds);
+        codaGapSeconds = null;
+    }
+    let repeatCount = eventData.repeatCount ?? null;
+    if (repeatCount !== null && !(typeof repeatCount === 'number' && repeatCount >= 0)) {
+        warnings.push('Ignored a repeat count that is not a number: ' + repeatCount);
+        repeatCount = null;
+    } else if (repeatCount > MAX_REPEAT_COUNT) {
+        warnings.push('Repeat count ' + repeatCount + ' cut to ' + MAX_REPEAT_COUNT + ' cycles.');
+        repeatCount = MAX_REPEAT_COUNT;
+    }
+    if (warnings.length > 0) console.warn('Event data warnings:', warnings);
+
     // Fill defaults
     return {
         title: eventData.title,
@@ -2555,8 +2583,8 @@ function validateAndComplete(eventData) {
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
         repeatUntil: eventData.repeatUntil ?? null,
-        repeatCount: eventData.repeatCount ?? null,
-        codaGapSeconds: eventData.codaGapSeconds ?? null,
+        repeatCount,
+        codaGapSeconds,
         defaultMode: eventData.defaultMode ?? 'cue',
         visualMode: eventData.visualMode ?? 'circular',
         briefing: eventData.briefing ?? null,
@@ -2564,6 +2592,54 @@ function validateAndComplete(eventData) {
 }
 
 // ─── Multi-format input parsing ──────────────────────────────────────────────
+
+// US labels organizers actually type, read as the zone where people live
+// (daylight-saving aware). The browser knows "EST" and "MST" only as fixed
+// offsets, which are an hour off in summer; "EDT", "PT" etc. it rejects.
+const TIMEZONE_ALIASES = {
+    'EST': 'America/New_York', 'EDT': 'America/New_York', 'ET': 'America/New_York',
+    'EASTERN': 'America/New_York', 'EASTERN TIME': 'America/New_York',
+    'CST': 'America/Chicago', 'CDT': 'America/Chicago', 'CT': 'America/Chicago',
+    'MST': 'America/Denver', 'MDT': 'America/Denver',
+    'PST': 'America/Los_Angeles', 'PDT': 'America/Los_Angeles', 'PT': 'America/Los_Angeles',
+};
+
+/**
+ * Turn a Timezone: header into a zone name the browser accepts.
+ * @param {string} raw
+ * @returns {string} IANA zone name
+ * @throws {Error} when the label is neither an alias nor a known zone
+ */
+function resolveTimezoneHeader(raw) {
+    const label = String(raw).trim();
+    const alias = TIMEZONE_ALIASES[label.toUpperCase().replace(/\s+/g, ' ')];
+    if (alias) return alias;
+    try {
+        new Intl.DateTimeFormat('en-US', { timeZone: label });
+        return label;
+    } catch (e) {
+        throw new Error('Text format: unknown time zone "' + label +
+            '". Use an IANA name such as America/New_York.');
+    }
+}
+
+/**
+ * True for a legacy fixed-offset label ("HST", "Etc/GMT+5"): one UTC offset all
+ * year. City zones ("Asia/Tokyo", "America/Phoenix") are a deliberate choice
+ * and UTC is meant literally, so neither counts.
+ */
+function isFixedOffsetZone(zone) {
+    if (zone.includes('/') && !/^Etc\//i.test(zone)) return false;
+    const offsetAt = (iso) => new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, timeZoneName: 'shortOffset',
+    }).formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName').value;
+    try {
+        const winter = offsetAt('2026-01-15T12:00:00Z');
+        return winter === offsetAt('2026-07-15T12:00:00Z') && winter !== 'GMT'; // GMT = UTC itself
+    } catch (e) {
+        return false; // no shortOffset support: say nothing rather than guess
+    }
+}
 
 /**
  * Parse a human-readable text format into an EmbeddedEvent-shaped object.
@@ -2722,10 +2798,19 @@ function parseTextFormat(text) {
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
     if (!headers.start) throw new Error('Text format: missing required "Start:" header');
 
+    // An unreadable Timezone: stops the paste; EST-style labels become the
+    // daylight-saving-aware city zone (TIMEZONE_ALIASES).
+    const zone = headers.timezone ? resolveTimezoneHeader(headers.timezone) : undefined;
+    if (zone && isFixedOffsetZone(zone)) {
+        warnings.push('Timezone "' + headers.timezone + '" has no daylight saving time. ' +
+            'Summer events will be an hour off for regions that use it. Arizona is the one ' +
+            'common case; use America/Phoenix there if that is what you mean.');
+    }
+
     // Parse start time flexibly. Without an explicit offset the browser reads
     // the string as ITS local time; when a Timezone: header is given, re-read
     // the same wall clock in that zone instead.
-    const startDate = parseWallClock(headers.start, headers.timezone);
+    const startDate = parseWallClock(headers.start, zone);
     if (isNaN(startDate.getTime())) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
     }
@@ -2737,7 +2822,7 @@ function parseTextFormat(text) {
     //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
-        const ru = parseWallClock(headers.repeatuntil, headers.timezone);
+        const ru = parseWallClock(headers.repeatuntil, zone);
         if (isNaN(ru.getTime())) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
@@ -2745,11 +2830,33 @@ function parseTextFormat(text) {
     }
     let repeatCount = null;
     if (headers.repeat) {
-        const n = parseInt(headers.repeat, 10);
+        const rv = headers.repeat.trim();
+        if (!/^\d+$/.test(rv)) {
+            throw new Error('Text format: Repeat must be a whole number of cycles. Got "' + headers.repeat + '".');
+        }
+        const n = Number(rv);
+        if (n > MAX_REPEAT_COUNT) {
+            throw new Error('Text format: Repeat can be at most ' + MAX_REPEAT_COUNT + ' cycles. Got "' + headers.repeat + '".');
+        }
         if (n > 1) repeatCount = n; // total cycles including the first
+        else warnings.push('Repeat: ' + rv + ' means the sequence plays once (no repeat).');
     }
-    const codaGapSeconds = ((repeatUntil || repeatCount) && headers.coda)
-        ? parseInt(headers.coda, 10) : undefined;
+    let codaGapSeconds;
+    if ((repeatUntil || repeatCount) && headers.coda) {
+        const cv = headers.coda.trim();
+        if (!/^\d+$/.test(cv)) {
+            throw new Error('Text format: Coda must be a whole number of seconds, 0 or more. Got "' + headers.coda + '".');
+        }
+        codaGapSeconds = Number(cv);
+    }
+    let defaultNoticeSeconds;
+    if (headers.notifywindow) {
+        const nv = headers.notifywindow.trim();
+        if (!/^\d+$/.test(nv)) {
+            throw new Error('Text format: NotifyWindow must be a whole number of seconds. Got "' + headers.notifywindow + '".');
+        }
+        defaultNoticeSeconds = Number(nv);
+    }
 
     // Event-level default playback mode: "Mode: clip" makes every step clip-mode
     // (speaker plays the audio) unless a row overrides with [cue]. Default cue.
@@ -2761,7 +2868,7 @@ function parseTextFormat(text) {
     }
 
     // Default timezone to browser's local timezone
-    const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const timezone = zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     // Convert action offsets to absolute ISO times
     const timeline = actions.map(a => {
@@ -2785,7 +2892,7 @@ function parseTextFormat(text) {
         timezone,
         timeline,
         // Config headers (undefined so validateAndComplete applies defaults via ??)
-        defaultNoticeSeconds: headers.notifywindow ? parseInt(headers.notifywindow, 10) : undefined,
+        defaultNoticeSeconds,
         defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
         defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
         defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
@@ -2935,12 +3042,10 @@ function parseWallClock(str, timezone) {
     }
     const browserLocal = () => new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.sec);
     if (!timezone) return browserLocal();
-    try {
-        const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
-        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
-    } catch (e) {
-        return browserLocal(); // unknown zone name → keep the browser-local reading
-    }
+    // The zone was checked by resolveTimezoneHeader; a bad one throws here
+    // rather than quietly reading the time in this phone's zone.
+    const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
+    return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
 }
 
 /**
@@ -8083,8 +8188,8 @@ function friendlyError(msg) {
         return 'Could not read this event code. It may be corrupted or incomplete.';
     if (/Invalid JSON/i.test(msg))
         return 'This doesn\'t look like a valid event. Check the format and try again.';
-    if (/Text format: missing required/i.test(msg))
-        return msg; // Already clear
+    if (/^Text format:/i.test(msg))
+        return msg; // The parser's own messages name the line to fix
     if (/Invalid event data: missing/i.test(msg))
         return msg; // Already clear
     if (/Empty input/i.test(msg))
@@ -8141,6 +8246,11 @@ function loadFromHash() {
         state.event = embeddedEventToEvent(embedded);
         return true;
     } catch (e) {
+        // A broken event link says so; ordinary #anchors stay quiet.
+        if (hash.startsWith('v1_')) {
+            if (state.mode !== 'input' && state.mode !== 'live') transitionTo('input');
+            $('input-error').textContent = friendlyError(e.message);
+        }
         return false;
     }
 }
@@ -8848,11 +8958,21 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 
 // Start time with its zone label ("7:00 PM EDT"); when the event's zone is not
 // this phone's, also show the phone-local moment so "7:00 PM" is never ambiguous.
+// A zone this browser cannot read (an old shared link) degrades to a UTC time
+// with the label shown, so the rest of the preview still draws.
 function startDisplay(evt) {
-    const shown = utcToLocalDisplay(evt.startTime, evt.timezone);
-    const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!evt.timezone || evt.timezone === here) return shown;
-    return shown + ' — your time: ' + utcToLocalDisplay(evt.startTime, here);
+    try {
+        const shown = utcToLocalDisplay(evt.startTime, evt.timezone);
+        const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!evt.timezone || evt.timezone === here) return shown;
+        return shown + ' — your time: ' + utcToLocalDisplay(evt.startTime, here);
+    } catch (e) {
+        try {
+            return new Date(evt.startTime).toISOString() + ' (' + evt.timezone + ')';
+        } catch (e2) {
+            return String(evt.startTime) + ' (' + evt.timezone + ')';
+        }
+    }
 }
 
 // One-shot pocket-readiness note on the live screen. Which message depends on
@@ -10108,7 +10228,7 @@ function initEditorInfo() {
     $('ed-repeat-mode-count').checked = countMode;
     $('ed-repeat-until').value = ed.repeatUntil || '';
     $('ed-repeat-count').value = ed.repeatCount || 3;
-    $('ed-coda').value = ed.codaGapSeconds || 4;
+    $('ed-coda').value = ed.codaGapSeconds ?? 4; // 0 = no rest
     $('ed-repeat-until-field').style.display = countMode ? 'none' : '';
     $('ed-repeat-count-field').style.display = countMode ? '' : 'none';
     updateRepeatNote();
@@ -10143,7 +10263,8 @@ function updateRepeatNote() {
             // Estimate span = N cycles × (last-action offset + coda). We only know
             // the offset from the actions list; use it if present, else just show N.
             const acts = state.editor.actions || [];
-            const coda = (parseInt($('ed-coda').value, 10) || 4);
+            const codaIn = parseInt($('ed-coda').value, 10);
+            const coda = codaIn >= 0 ? codaIn : 4;
             if (acts.length > 0) {
                 const offs = acts.map(a => a.offsetSeconds ?? 0);
                 const spanSec = Math.max(...offs) - Math.min(...offs);
@@ -10218,12 +10339,12 @@ function saveEditorInfo() {
         state.editor.repeatCount = parseInt($('ed-repeat-count').value, 10);
         state.editor.repeatUntil = '';
         const coda = parseInt($('ed-coda').value, 10);
-        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+        state.editor.codaGapSeconds = (coda >= 0) ? coda : null;
     } else if (repeatOn && !countMode && $('ed-repeat-until').value) {
         state.editor.repeatUntil = $('ed-repeat-until').value;
         state.editor.repeatCount = null;
         const coda = parseInt($('ed-coda').value, 10);
-        state.editor.codaGapSeconds = (coda > 0) ? coda : null;
+        state.editor.codaGapSeconds = (coda >= 0) ? coda : null;
     } else {
         state.editor.repeatUntil = '';
         state.editor.repeatCount = null;
@@ -11680,11 +11801,11 @@ function finalizeEditorEvent() {
         const ru = localDateTimeToUTC(ed.repeatUntil, ed.timezone);
         if (new Date(ru).getTime() > startMs) {
             embedded.repeatUntil = ru;
-            embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
+            embedded.codaGapSeconds = ed.codaGapSeconds ?? undefined;
         }
     } else if (ed.repeatCount && ed.repeatCount > 1) {
         embedded.repeatCount = ed.repeatCount;
-        embedded.codaGapSeconds = ed.codaGapSeconds || undefined;
+        embedded.codaGapSeconds = ed.codaGapSeconds ?? undefined;
     }
 
     state.event = embeddedEventToEvent(embedded);
@@ -12289,7 +12410,7 @@ async function loadDraft(id) {
         .map(a => Object.assign({}, a));
     state.editor.repeatUntil = draft.repeatUntil || '';
     state.editor.repeatCount = draft.repeatCount || null;
-    state.editor.codaGapSeconds = draft.codaGapSeconds || null;
+    state.editor.codaGapSeconds = draft.codaGapSeconds ?? null;
     state.editor.defaultMode = (draft.defaultMode === 'clip') ? 'clip' : 'cue';
     state.editor.editingIndex = -1;
     state.editor.expandedIndex = -1;
@@ -12308,7 +12429,7 @@ function collectDraftFromEditor() {
             .map(a => Object.assign({}, a)),
         repeatUntil: state.editor.repeatUntil || '',
         repeatCount: state.editor.repeatCount || null,
-        codaGapSeconds: state.editor.codaGapSeconds || null,
+        codaGapSeconds: state.editor.codaGapSeconds ?? null,
         defaultMode: $('ed-default-mode')
             ? (($('ed-default-mode').value === 'clip') ? 'clip' : 'cue')
             : (state.editor.defaultMode || 'cue'),
