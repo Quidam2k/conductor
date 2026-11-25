@@ -20,13 +20,6 @@ const ActionStatus = Object.freeze({
     TRIGGERING: 'TRIGGERING',
 });
 
-/** @enum {string} */
-const TimingAccuracy = Object.freeze({
-    PERFECT: 'PERFECT',
-    EARLY: 'EARLY',
-    LATE: 'LATE',
-});
-
 // ─── Core timing functions ──────────────────────────────────────────────────
 
 /**
@@ -63,21 +56,6 @@ function getUpcomingActions(timeline, nowMs, windowSeconds = 60) {
             return actionMs >= nowMs && actionMs <= (nowMs + windowMs);
         })
         .sort((a, b) => (a.timeMs ?? new Date(a.time).getTime()) - (b.timeMs ?? new Date(b.time).getTime()));
-}
-
-/**
- * Determine if an action should be announced now.
- *
- * @param {TimelineAction} action
- * @param {number} nowMs
- * @param {number} [noticeSeconds=5]
- * @returns {boolean}
- */
-function shouldAnnounce(action, nowMs, noticeSeconds = 5) {
-    const actionMs = action.timeMs ?? new Date(action.time).getTime();
-    const noticeMs = noticeSeconds * 1000;
-    const timeBefore = actionMs - nowMs;
-    return timeBefore >= 0 && timeBefore <= noticeMs;
 }
 
 /**
@@ -140,74 +118,7 @@ function getActionStatus(action, nowMs) {
     return ActionStatus.PAST;
 }
 
-/**
- * Calculate countdown announcements.
- * Returns a map of announcement keys to whether they should fire now.
- *
- * @param {number[]} countdownSeconds - e.g. [5, 4, 3, 2, 1]
- * @param {number} nowMs
- * @param {TimelineAction} action
- * @returns {Object.<string, boolean>} e.g. {"countdown-5": false, "countdown-3": true, "now": false}
- */
-function getCountdownAnnouncements(countdownSeconds, nowMs, action) {
-    const result = {};
-    const secondsUntil = calculateTimeUntilPrecise(action, nowMs);
-
-    for (const cs of countdownSeconds) {
-        const key = `countdown-${cs}`;
-        result[key] = Math.abs(secondsUntil - cs) < 0.5;
-    }
-
-    // "Now!" at trigger time
-    result['now'] = Math.abs(secondsUntil) < 0.5;
-
-    return result;
-}
-
-/**
- * Detect timing accuracy of a user tap relative to action time.
- *
- * @param {TimelineAction} action
- * @param {number} tapMs
- * @param {number} [toleranceSeconds=1]
- * @returns {string} One of TimingAccuracy values
- */
-function getTimingAccuracy(action, tapMs, toleranceSeconds = 1) {
-    const actionMs = action.timeMs ?? new Date(action.time).getTime();
-    const diffMs = tapMs - actionMs;
-
-    if (Math.abs(diffMs) <= toleranceSeconds * 1000) return TimingAccuracy.PERFECT;
-    if (diffMs < 0) return TimingAccuracy.EARLY;
-    return TimingAccuracy.LATE;
-}
-
 // ─── Event-level helpers ────────────────────────────────────────────────────
-
-/**
- * Check if an event is currently active (now is between start and end).
- *
- * @param {string} startTime - ISO 8601
- * @param {string} endTime - ISO 8601
- * @param {number} nowMs
- * @returns {boolean}
- */
-function isEventActive(startTime, endTime, nowMs) {
-    const startMs = new Date(startTime).getTime();
-    const endMs = new Date(endTime).getTime();
-    return nowMs >= startMs && nowMs <= endMs;
-}
-
-/**
- * Get seconds until event starts.
- *
- * @param {string} startTime - ISO 8601
- * @param {number} nowMs
- * @returns {number} Seconds (negative if already started)
- */
-function getSecondsUntilStart(startTime, nowMs) {
-    const startMs = new Date(startTime).getTime();
-    return Math.floor((startMs - nowMs) / 1000);
-}
 
 /**
  * Convert UTC time to local display string.

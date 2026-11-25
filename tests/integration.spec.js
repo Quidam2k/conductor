@@ -1317,11 +1317,12 @@ test('preview: shows pack hint when event references missing pack', async ({ pag
         renderPreview();
     });
 
-    // Wait for the async pack hint to render
-    await expect(page.locator('#preview-pack-hint')).toBeVisible({ timeout: 3000 });
-    const hintText = await page.locator('#preview-pack-hint').textContent();
-    expect(hintText).toContain('fancy-pack');
-    expect(hintText).toContain('works fine without it');
+    // Wait for the async pack hint to render. The demo's own hint can be
+    // visible first, so wait for the text rather than reading it once shown.
+    const hint = page.locator('#preview-pack-hint');
+    await expect(hint).toBeVisible({ timeout: 3000 });
+    await expect(hint).toContainText('fancy-pack', { timeout: 5000 });
+    await expect(hint).toContainText('works fine without it');
 });
 
 // ═════════════════════════════════════════════════════════════════════

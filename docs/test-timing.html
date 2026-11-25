@@ -131,29 +131,6 @@
             upcoming_all[0].action === 'Start gathering' && upcoming_all[4].action === 'Disperse');
 
         // ═════════════════════════════════════════════════════════════
-        // 3. shouldAnnounce
-        // ═════════════════════════════════════════════════════════════
-        log('<h2>3. shouldAnnounce</h2>');
-
-        const action0 = timeline[0]; // at t=0, noticeSeconds=10
-        assert('Should announce at notice boundary (10s before)',
-            shouldAnnounce(action0, BASE - 10000, 10));
-        assert('Should announce at 5s before with notice=10',
-            shouldAnnounce(action0, BASE - 5000, 10));
-        assert('Should announce at exact action time',
-            shouldAnnounce(action0, BASE, 10));
-        assert('Should NOT announce 11s before (outside notice)',
-            !shouldAnnounce(action0, BASE - 11000, 10));
-        assert('Should NOT announce after action (t+1s)',
-            !shouldAnnounce(action0, BASE + 1000, 10));
-
-        // Default 5s notice
-        assert('Default 5s notice: announce at -3s',
-            shouldAnnounce(action0, BASE - 3000));
-        assert('Default 5s notice: no announce at -6s',
-            !shouldAnnounce(action0, BASE - 6000));
-
-        // ═════════════════════════════════════════════════════════════
         // 4. calculateTimeUntil / calculateTimeUntilPrecise
         // ═════════════════════════════════════════════════════════════
         log('<h2>4. calculateTimeUntil / Precise</h2>');
@@ -247,86 +224,6 @@
 
         assert('t=32s, action at 30s → PAST (-2s)',
             getActionStatus(timeline[1], BASE + 32000) === ActionStatus.PAST);
-
-        // ═════════════════════════════════════════════════════════════
-        // 7. getCountdownAnnouncements
-        // ═════════════════════════════════════════════════════════════
-        log('<h2>7. getCountdownAnnouncements</h2>');
-
-        const cd = [5, 4, 3, 2, 1];
-        const action120 = timeline[0]; // at t=0
-
-        // At exactly 5s before → countdown-5 fires
-        const ann5 = getCountdownAnnouncements(cd, BASE - 5000, action120);
-        assert('At -5s: countdown-5 fires', ann5['countdown-5'] === true);
-        assert('At -5s: countdown-3 does NOT fire', ann5['countdown-3'] === false);
-        assert('At -5s: "now" does NOT fire', ann5['now'] === false);
-
-        // At exactly 3s before
-        const ann3 = getCountdownAnnouncements(cd, BASE - 3000, action120);
-        assert('At -3s: countdown-3 fires', ann3['countdown-3'] === true);
-        assert('At -3s: countdown-5 does NOT fire', ann3['countdown-5'] === false);
-
-        // At trigger (t=0)
-        const ann0 = getCountdownAnnouncements(cd, BASE, action120);
-        assert('At t=0: "now" fires', ann0['now'] === true);
-        assert('At t=0: countdown-1 does NOT fire (too close to 0, not 1)', ann0['countdown-1'] === false);
-
-        // At -4.7s → countdown-5 fires (within 0.5s tolerance)
-        const ann4_7 = getCountdownAnnouncements(cd, BASE - 4700, action120);
-        assert('At -4.7s: countdown-5 fires (within 0.5s)', ann4_7['countdown-5'] === true);
-
-        // At -5.6s → countdown-5 does NOT fire (outside 0.5s tolerance)
-        const ann5_6 = getCountdownAnnouncements(cd, BASE - 5600, action120);
-        assert('At -5.6s: countdown-5 does NOT fire', ann5_6['countdown-5'] === false);
-
-        // ═════════════════════════════════════════════════════════════
-        // 8. getTimingAccuracy
-        // ═════════════════════════════════════════════════════════════
-        log('<h2>8. getTimingAccuracy</h2>');
-
-        assert('Tap at exact time → PERFECT',
-            getTimingAccuracy(timeline[0], BASE) === TimingAccuracy.PERFECT);
-        assert('Tap 500ms late → PERFECT',
-            getTimingAccuracy(timeline[0], BASE + 500) === TimingAccuracy.PERFECT);
-        assert('Tap 1000ms late → PERFECT (boundary)',
-            getTimingAccuracy(timeline[0], BASE + 1000) === TimingAccuracy.PERFECT);
-        assert('Tap 1500ms late → LATE',
-            getTimingAccuracy(timeline[0], BASE + 1500) === TimingAccuracy.LATE);
-        assert('Tap 2000ms early → EARLY',
-            getTimingAccuracy(timeline[0], BASE - 2000) === TimingAccuracy.EARLY);
-        assert('Tap 500ms early → PERFECT',
-            getTimingAccuracy(timeline[0], BASE - 500) === TimingAccuracy.PERFECT);
-
-        // Custom tolerance
-        assert('Custom tolerance 2s: tap 1.5s late → PERFECT',
-            getTimingAccuracy(timeline[0], BASE + 1500, 2) === TimingAccuracy.PERFECT);
-
-        // ═════════════════════════════════════════════════════════════
-        // 9. isEventActive / getSecondsUntilStart
-        // ═════════════════════════════════════════════════════════════
-        log('<h2>9. isEventActive / getSecondsUntilStart</h2>');
-
-        const eventStart = new Date(BASE).toISOString();
-        const eventEnd = new Date(BASE + 130 * 1000).toISOString(); // 2m10s
-
-        assert('Before start → not active',
-            !isEventActive(eventStart, eventEnd, BASE - 1000));
-        assert('At start → active',
-            isEventActive(eventStart, eventEnd, BASE));
-        assert('During → active',
-            isEventActive(eventStart, eventEnd, BASE + 60000));
-        assert('At end → active',
-            isEventActive(eventStart, eventEnd, BASE + 130000));
-        assert('After end → not active',
-            !isEventActive(eventStart, eventEnd, BASE + 131000));
-
-        assert('10s before start → 10',
-            getSecondsUntilStart(eventStart, BASE - 10000) === 10);
-        assert('At start → 0',
-            getSecondsUntilStart(eventStart, BASE) === 0);
-        assert('5s after start → -5',
-            getSecondsUntilStart(eventStart, BASE + 5000) === -5);
 
         // ═════════════════════════════════════════════════════════════
         // 10. utcToLocalDisplay
