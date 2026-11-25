@@ -311,6 +311,27 @@ function base64ToBytes(base64) {
 /** Most cycles a repeating event may run (text format rejects more; links clamp). */
 const MAX_REPEAT_COUNT = 1000;
 
+/** Longest countdown, in seconds (text format warns and caps; links truncate). */
+const MAX_COUNTDOWN_SEC = 10;
+
+/** Vibration patterns audioService.haptic() knows; anything else plays "double". */
+const HAPTIC_PATTERNS = ['single', 'double', 'triple'];
+
+/** Values the Haptic: header (defaultHapticMode) takes. */
+const HAPTIC_MODES = ['off', 'action', 'countdown'];
+
+const KNOWN_TAGS = ['emphasis', 'alert', 'normal', 'clip', 'cue', 'countdown', 'no-countdown', 'no-notify'];
+
+/** True for a row tag the text format understands. */
+function isKnownTag(t) {
+    return KNOWN_TAGS.includes(t) || /^(notify|countdown|haptic):/.test(t);
+}
+
+/** Keep a countdown to the MAX_COUNTDOWN_SEC beats closest to the action. */
+function capCountdown(seconds) {
+    return [...seconds].sort((a, b) => b - a).slice(-MAX_COUNTDOWN_SEC);
+}
+
 /**
  * Validate required fields and fill defaults.
  * @param {Object} eventData - Raw parsed JSON
@@ -345,6 +366,32 @@ function validateAndComplete(eventData) {
         warnings.push('Repeat count ' + repeatCount + ' cut to ' + MAX_REPEAT_COUNT + ' cycles.');
         repeatCount = MAX_REPEAT_COUNT;
     }
+    let defaultCountdownSeconds = eventData.defaultCountdownSeconds ?? null;
+    if (defaultCountdownSeconds !== null && !(typeof defaultCountdownSeconds === 'number' && defaultCountdownSeconds >= 0)) {
+        warnings.push('Ignored a countdown length that is not a number: ' + defaultCountdownSeconds);
+        defaultCountdownSeconds = null;
+    } else if (defaultCountdownSeconds > MAX_COUNTDOWN_SEC) {
+        warnings.push('Countdown length ' + defaultCountdownSeconds + ' cut to ' + MAX_COUNTDOWN_SEC + ' seconds.');
+        defaultCountdownSeconds = MAX_COUNTDOWN_SEC;
+    }
+
+    // The start and every step time are needed to play: those throw.
+    if (isNaN(Date.parse(eventData.startTime))) {
+        throw new Error('startTime is not a valid date.');
+    }
+    const timeline = eventData.timeline.map((action, i) => {
+        if (!action || isNaN(Date.parse(action.time))) {
+            throw new Error('Action ' + (i + 1) + ' has no valid time.');
+        }
+        // timeMs is always worked out from time, never trusted from the input.
+        const { timeMs, ...rest } = action;
+        if (Array.isArray(rest.countdownSeconds) && rest.countdownSeconds.length > MAX_COUNTDOWN_SEC) {
+            warnings.push('Action ' + (i + 1) + ': countdown cut to ' + MAX_COUNTDOWN_SEC + ' seconds.');
+            rest.countdownSeconds = capCountdown(rest.countdownSeconds);
+        }
+        return createTimelineAction(rest);
+    });
+
     if (warnings.length > 0) console.warn('Event data warnings:', warnings);
 
     // Fill defaults
@@ -353,9 +400,9 @@ function validateAndComplete(eventData) {
         description: eventData.description ?? null,
         startTime: eventData.startTime,
         timezone: eventData.timezone,
-        timeline: eventData.timeline.map(action => createTimelineAction(action)),
+        timeline,
         defaultNoticeSeconds: eventData.defaultNoticeSeconds ?? 10,
-        defaultCountdownSeconds: eventData.defaultCountdownSeconds ?? null,
+        defaultCountdownSeconds,
         defaultCountdown: eventData.defaultCountdown ?? null,
         defaultHapticMode: eventData.defaultHapticMode ?? null,
         timeWindowSeconds: eventData.timeWindowSeconds ?? 60,
@@ -439,6 +486,7 @@ function parseTextFormat(text) {
     const headers = {};
     const actions = [];
     const warnings = [];
+    const skipped = []; // lines not understood, shown on the preview
     const briefingData = {};
     let section = 'header'; // 'header', 'briefing', or 'timeline'
 
@@ -472,7 +520,7 @@ function parseTextFormat(text) {
                     warnings.push('Unknown briefing key: ' + key);
                 }
             } else {
-                warnings.push('Skipped unrecognized briefing line: ' + line.substring(0, 60));
+                skipped.push(line.substring(0, 60));
             }
             continue;
         }
@@ -486,9 +534,15 @@ function parseTextFormat(text) {
 
         // Try timeline action: M:SS or H:MM:SS, whitespace, then text. One
         // space is enough (v68) — it's how people type; two still works.
-        const actionMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)$/);
+        // "0:5" and "100:00" are fine; seconds (and minutes in H:MM:SS) must
+        // be under 60, or the line is reported as not understood.
+        const actionMatch = line.match(/^(\d{1,3}:\d{1,2}(?::\d{1,2})?)\s+(.+)$/);
         if (actionMatch) {
             const timeParts = actionMatch[1].split(':').map(Number);
+            if (timeParts[timeParts.length - 1] > 59 || (timeParts.length === 3 && timeParts[1] > 59)) {
+                skipped.push(line.substring(0, 60));
+                continue;
+            }
             let offsetSeconds;
             if (timeParts.length === 3) {
                 offsetSeconds = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
@@ -499,18 +553,40 @@ function parseTextFormat(text) {
             let actionText = actionMatch[2].trim();
             let tags = null;
 
-            // Parse optional [tags] — try start first, fallback to end (backward compat)
+            // Parse optional [tags] — try start first, fallback to end (backward
+            // compat). A bracket counts as tags only when every item is a known
+            // tag, so "[Sit down] Everyone sits" keeps its words.
+            const asTags = (inner) => {
+                const items = inner.split(',').map(t => t.trim().toLowerCase());
+                return items.some(t => t) && items.every(t => !t || isKnownTag(t)) ? items : null;
+            };
+            const keptAsText = new Set();
+            const keepAsText = (inner) => {
+                if (keptAsText.has(inner)) return;
+                keptAsText.add(inner);
+                warnings.push('Kept "[' + inner + ']" as step text: it is not a known tag.');
+            };
             let tagMatch = actionText.match(/^\[([^\]]+)\]\s*/);
             if (tagMatch) {
-                tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
-                actionText = actionText.substring(tagMatch[0].length).trim();
-            } else {
+                tags = asTags(tagMatch[1]);
+                if (tags) actionText = actionText.substring(tagMatch[0].length).trim();
+                else keepAsText(tagMatch[1]);
+            }
+            if (!tags) {
                 tagMatch = actionText.match(/\[([^\]]+)\]\s*$/);
                 if (tagMatch) {
-                    console.warn('Deprecated: [tags] after action text — move tags before the action text');
-                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
-                    actionText = actionText.substring(0, tagMatch.index).trim();
+                    tags = asTags(tagMatch[1]);
+                    if (tags) {
+                        console.warn('Deprecated: [tags] after action text — move tags before the action text');
+                        actionText = actionText.substring(0, tagMatch.index).trim();
+                    } else {
+                        keepAsText(tagMatch[1]);
+                    }
                 }
+            }
+            if (!actionText) {
+                skipped.push(line.substring(0, 60)); // "0:20 [clip]": tags but nothing to do
+                continue;
             }
 
             let style = 'normal';
@@ -537,10 +613,17 @@ function parseTextFormat(text) {
                     else if (tag.startsWith('countdown:')) {
                         const v = parseInt(tag.split(':')[1], 10);
                         if (isNaN(v)) warnings.push('Invalid countdown value: ' + tag);
+                        else if (v > MAX_COUNTDOWN_SEC) {
+                            warnings.push('Countdown ' + v + ' cut to ' + MAX_COUNTDOWN_SEC + ' seconds: ' + actionText.substring(0, 40));
+                            countdownDuration = MAX_COUNTDOWN_SEC;
+                        }
                         else countdownDuration = v;
                     }
-                    else if (tag.startsWith('haptic:')) hapticPattern = tag.split(':')[1];
-                    else if (tag !== '') warnings.push('Unknown tag: ' + tag);
+                    else if (tag.startsWith('haptic:')) {
+                        const hp = tag.split(':')[1];
+                        if (HAPTIC_PATTERNS.includes(hp)) hapticPattern = hp;
+                        else warnings.push('Unknown haptic pattern "' + hp + '" (use single, double or triple); using double.');
+                    }
                 }
             }
 
@@ -568,8 +651,8 @@ function parseTextFormat(text) {
             continue;
         }
 
-        // Line didn't match anything — skip with warning
-        warnings.push('Skipped unrecognized line: ' + line.substring(0, 60));
+        // Line didn't match anything — skip, and say so on the preview
+        skipped.push(line.substring(0, 60));
     }
 
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
@@ -676,8 +759,38 @@ function parseTextFormat(text) {
         throw new Error('Text format: no timeline actions found');
     }
 
+    // Header values the player cannot use are dropped with a warning (the
+    // player then uses its default), not passed through to misbehave.
+    let defaultHapticMode;
+    if (headers.haptic) {
+        const hv = headers.haptic.toLowerCase();
+        if (HAPTIC_MODES.includes(hv)) defaultHapticMode = hv;
+        else warnings.push('Unknown Haptic value: ' + headers.haptic + ' (expected off, action or countdown)');
+    }
+    let defaultCountdown;
+    if (headers.countdown) {
+        const cv = headers.countdown.toLowerCase();
+        if (cv === 'true' || cv === 'false') defaultCountdown = cv === 'true';
+        else warnings.push('Unknown Countdown value: ' + headers.countdown + ' (expected true or false)');
+    }
+    let defaultCountdownSeconds;
+    if (headers.countdownwindow) {
+        const wv = headers.countdownwindow.trim();
+        if (!/^\d+$/.test(wv)) {
+            warnings.push('Ignored CountdownWindow: ' + headers.countdownwindow + ' (expected whole seconds)');
+        } else if (Number(wv) > MAX_COUNTDOWN_SEC) {
+            warnings.push('CountdownWindow ' + wv + ' cut to ' + MAX_COUNTDOWN_SEC + ' seconds.');
+            defaultCountdownSeconds = MAX_COUNTDOWN_SEC;
+        } else {
+            defaultCountdownSeconds = Number(wv);
+        }
+    }
+
     if (warnings.length > 0) {
         console.warn('Text format parse warnings:', warnings);
+    }
+    if (skipped.length > 0) {
+        console.warn('Text format lines not understood:', skipped);
     }
 
     return {
@@ -688,14 +801,17 @@ function parseTextFormat(text) {
         timeline,
         // Config headers (undefined so validateAndComplete applies defaults via ??)
         defaultNoticeSeconds,
-        defaultCountdownSeconds: headers.countdownwindow ? parseInt(headers.countdownwindow, 10) : undefined,
-        defaultCountdown: headers.countdown ? headers.countdown.toLowerCase() === 'true' : undefined,
-        defaultHapticMode: headers.haptic ? headers.haptic.toLowerCase() : undefined,
+        defaultCountdownSeconds,
+        defaultCountdown,
+        defaultHapticMode,
         repeatUntil: repeatUntil || undefined,
         repeatCount: repeatCount || undefined,
         codaGapSeconds,
         defaultMode,
         briefing: Object.keys(briefingData).length > 0 ? briefingData : null,
+        // For the preview only: parseEventInput carries this past
+        // validateAndComplete, so it never reaches drafts or shared codes.
+        parseWarnings: { skipped, notes: warnings },
     };
 }
 
@@ -732,17 +848,22 @@ function parseEventInput(input) {
 
     // JSON format
     if (trimmed.startsWith('{')) {
+        let eventData;
         try {
-            const eventData = JSON.parse(trimmed);
-            return validateAndComplete(eventData);
+            eventData = JSON.parse(trimmed);
         } catch (e) {
             throw new Error('Invalid JSON: ' + e.message);
         }
+        // Outside the try: its own messages ("Action 2 has no valid time.")
+        // name the problem and must not be relabelled as bad JSON.
+        return validateAndComplete(eventData);
     }
 
-    // Text format
+    // Text format. The warnings ride on the result for the preview only.
     const parsed = parseTextFormat(trimmed);
-    return validateAndComplete(parsed);
+    const out = validateAndComplete(parsed);
+    out.parseWarnings = parsed.parseWarnings;
+    return out;
 }
 
 // ─── Compression stats ──────────────────────────────────────────────────────

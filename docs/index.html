@@ -1264,6 +1264,7 @@
     <div class="content" role="main">
         <div id="preview-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
         <div id="preview-clock-banner" class="info-banner warning" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
+        <div id="preview-parse-banner" class="info-banner warning" style="display:none"><span style="white-space:pre-line"></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
         <div class="event-info">
             <h2 id="preview-title"></h2>
             <div id="preview-desc" class="desc"></div>
@@ -2104,6 +2105,8 @@ function friendlyError(msg) {
         return msg; // Already clear
     if (/clocks jump forward/i.test(msg))
         return msg; // A daylight-saving gap: the message names the zone
+    if (/^(Action \d+ has no valid time|startTime is not a valid date)/.test(msg))
+        return 'This event is missing a time it needs to play: ' + msg;
     return 'Something went wrong. Check that the event data is complete.';
 }
 
@@ -2116,6 +2119,8 @@ function loadFromString(input, navigateOnSuccess) {
     try {
         const embedded = parseEventInput(trimmed);
         state.event = embeddedEventToEvent(embedded);
+        // Text-format warnings, for the preview notice (never shared or saved)
+        if (embedded.parseWarnings) state.event.parseWarnings = embedded.parseWarnings;
         return true;
     } catch (e) {
         if (e.message === 'ENCRYPTED_EVENT') {
@@ -2729,6 +2734,8 @@ function renderPreview() {
     // Briefing panel
     renderBriefing(evt.briefing, 'preview-briefing', false);
 
+    renderParseWarnings(evt.parseWarnings);
+
     // Pack hint: check for missing packs
     renderPackHint(evt);
 
@@ -2857,6 +2864,28 @@ async function installHostedPack(btn, packId) {
 // ═══════════════════════════════════════════════════════════════════════════
 // Info banners (dismissible warnings on practice/live screens)
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Gold notice on the preview for a pasted text event: lines the parser did
+ * not understand, then its other warnings (a fixed-offset zone, Repeat: 1,
+ * a bracket kept as text). Nothing to say hides it.
+ */
+function renderParseWarnings(pw) {
+    const skipped = (pw && pw.skipped) || [];
+    const notes = (pw && pw.notes) || [];
+    if (skipped.length === 0 && notes.length === 0) {
+        hideBanner('preview-parse-banner');
+        return;
+    }
+    const lines = [];
+    if (skipped.length > 0) {
+        lines.push(skipped.length + (skipped.length === 1 ? ' line' : ' lines') +
+            ' not understood: "' + skipped[0] + '"' + (skipped.length > 1 ? ' …' : ''));
+    }
+    lines.push(...notes.slice(0, 3));
+    if (notes.length > 3) lines.push('…and ' + (notes.length - 3) + ' more.');
+    showBanner('preview-parse-banner', lines.join('\n'), 'warning');
+}
 
 function showBanner(id, text, variant) {
     const el = $(id);

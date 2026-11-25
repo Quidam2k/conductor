@@ -466,6 +466,41 @@ test.describe('v66 review fixes', () => {
     '1:30 Wave',
   ].join('\n');
 
+  // Audit 04 P4: what the parser skipped or changed is shown on the preview.
+  test('text format: a line not understood shows a notice on the preview', async ({ page }) => {
+    await page.fill('#input-paste', [
+      'Title: Skips',
+      'Start: 2030-11-15 7:00 PM',
+      '',
+      '0:00 Stand',
+      '1:75 Bad seconds',
+      '0:20 [clip]',
+      '0:30 Wave',
+    ].join('\n'));
+    await page.click('#btn-load');
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    await expect(page.locator('#preview-parse-banner')).toBeVisible();
+    await expect(page.locator('#preview-parse-banner')).toContainText('2 lines not understood: "1:75 Bad seconds"');
+    await expect(page.locator('#preview-count')).toHaveText('2 actions');
+  });
+
+  test('text format: a clean paste shows no parse notice', async ({ page }) => {
+    await page.fill('#input-paste', zoneText('America/New_York'));
+    await page.click('#btn-load');
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    await expect(page.locator('#preview-parse-banner')).toBeHidden();
+  });
+
+  test('pasted JSON with a step missing its time says so', async ({ page }) => {
+    await page.fill('#input-paste', JSON.stringify({
+      title: 'No Time', startTime: '2030-11-15T19:00:00Z', timezone: 'UTC',
+      timeline: [{ action: 'Wave' }],
+    }));
+    await page.click('#btn-load');
+    await expect(page.locator('#input-error')).toContainText('Action 1 has no valid time');
+    await expect(page.locator('#screen-input')).toHaveClass(/active/);
+  });
+
   test('text format: unknown time zone shows an error and stays on input', async ({ page }) => {
     await page.fill('#input-paste', zoneText('UTC+5'));
     await page.click('#btn-load');

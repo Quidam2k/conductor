@@ -636,7 +636,9 @@
             const utParsed = parseTextFormat(unknownTags);
             console.warn = origWarn2;
             assert('9.7 Unknown tag: no crash', utParsed.timeline.length === 1);
-            assert('9.7 Unknown tag: emphasis still applied', utParsed.timeline[0].style === 'emphasis');
+            // Audit 04 P4: a bracket with any unknown item is step text, not tags
+            assert('9.7 Unknown tag: bracket kept as text', utParsed.timeline[0].action === '[emphasis, bogus] Action here' &&
+                utParsed.timeline[0].style === 'normal', utParsed.timeline[0].action);
             // Warnings should include the unknown tag
             const warningText = JSON.stringify(warnMessages);
             assert('9.7 Unknown tag: warning generated', warningText.includes('bogus'),
@@ -1138,6 +1140,98 @@
             assert('14.14 localDateTimeToUTC: gap throws', false, 'Should have thrown');
         } catch (e) {
             assert('14.14 localDateTimeToUTC: gap throws', /clocks jump forward/.test(e.message), e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 15: Cue lines, tags, JSON fields, caps, warnings
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>15. Cue lines, tags and JSON fields</h2>');
+
+        const cueText = (steps, extra = []) => [
+            'Title: Cues', 'Start: 2026-07-15T14:00:00Z', 'Timezone: UTC', ...extra, '', ...steps,
+        ].join('\n');
+        const offsetsOf = (p) => p.timeline.map(a => (Date.parse(a.time) - Date.parse(p.startTime)) / 1000);
+        try {
+            const p = parseTextFormat(cueText(['0:5 Go now', '100:00 late', '1:75 bad', '1:00:75 bad too', '1:60:00 bad three']));
+            assert('15.1 0:5 = 5 s, 100:00 = 6000 s', deepEqual(offsetsOf(p), [5, 6000]), JSON.stringify(offsetsOf(p)));
+            assert('15.2 1:75, 1:00:75 and 1:60:00 are skipped', p.parseWarnings.skipped.length === 3 &&
+                p.parseWarnings.skipped[0] === '1:75 bad', JSON.stringify(p.parseWarnings.skipped));
+        } catch (e) {
+            assert('15.1 cue line forms', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(cueText(['0:10 [Sit down] Everyone sits', '0:15 [emphasis] Wave', '0:20 [clip]']));
+            assert('15.3 [Sit down] stays in the text', p.timeline[0].action === '[Sit down] Everyone sits', p.timeline[0].action);
+            assert('15.4 ...with a warning', p.parseWarnings.notes.some(n => /Sit down/.test(n)), JSON.stringify(p.parseWarnings.notes));
+            assert('15.5 [emphasis] is still a tag', p.timeline[1].action === 'Wave' && p.timeline[1].style === 'emphasis',
+                p.timeline[1].action + '/' + p.timeline[1].style);
+            assert('15.6 0:20 [clip] is skipped', p.timeline.length === 2 &&
+                p.parseWarnings.skipped.includes('0:20 [clip]'), JSON.stringify(p.parseWarnings.skipped));
+        } catch (e) {
+            assert('15.3 brackets', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(cueText(['0:10 [countdown:1000000] Jump', '0:20 [haptic:buzz] Clap', '0:30 [haptic:triple] Stomp']));
+            assert('15.7 [countdown:1000000] capped at 10', deepEqual(p.timeline[0].countdownSeconds, [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]),
+                JSON.stringify(p.timeline[0].countdownSeconds));
+            assert('15.8 haptic:buzz falls back to double, with a warning', p.timeline[1].hapticPattern === 'double' &&
+                p.parseWarnings.notes.some(n => /buzz/.test(n)), JSON.stringify(p.parseWarnings.notes));
+            assert('15.9 haptic:triple kept', p.timeline[2].hapticPattern === 'triple', p.timeline[2].hapticPattern);
+        } catch (e) {
+            assert('15.7 tag values', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(cueText(['0:00 Stand'], ['Haptic: loud', 'Countdown: yes', 'CountdownWindow: 30']));
+            assert('15.10 Haptic: loud dropped', p.defaultHapticMode === undefined, String(p.defaultHapticMode));
+            assert('15.11 Countdown: yes dropped', p.defaultCountdown === undefined, String(p.defaultCountdown));
+            assert('15.12 CountdownWindow: 30 capped at 10', p.defaultCountdownSeconds === 10, String(p.defaultCountdownSeconds));
+            assert('15.13 each one warned', p.parseWarnings.notes.length === 3, JSON.stringify(p.parseWarnings.notes));
+            const ok = parseTextFormat(cueText(['0:00 Stand'], ['Haptic: Countdown', 'Countdown: TRUE']));
+            assert('15.14 valid Haptic/Countdown kept', ok.defaultHapticMode === 'countdown' && ok.defaultCountdown === true,
+                ok.defaultHapticMode + '/' + ok.defaultCountdown);
+        } catch (e) {
+            assert('15.10 header values', false, e.message);
+        }
+        try {
+            const out = parseEventInput(cueText(['0:00 Stand', 'what is this']));
+            assert('15.15 parseEventInput keeps parseWarnings for the preview', out.parseWarnings &&
+                out.parseWarnings.skipped[0] === 'what is this', JSON.stringify(out.parseWarnings));
+            const v = validateAndComplete(parseTextFormat(cueText(['0:00 Stand', 'what is this'])));
+            assert('15.16 validateAndComplete drops parseWarnings', !('parseWarnings' in v));
+            const shared = decodeEvent(encodeEvent(embeddedEventToEvent(out)));
+            assert('15.17 parseWarnings never reach a link', !('parseWarnings' in shared));
+        } catch (e) {
+            assert('15.15 parseWarnings plumbing', false, e.message);
+        }
+
+        const jsonEvent = (timeline, extra) => JSON.stringify(Object.assign({
+            title: 'JSON', startTime: '2026-07-15T14:00:00.000Z', timezone: 'UTC', timeline,
+        }, extra));
+        const jsonThrows = (label, json, pattern) => {
+            try {
+                parseEventInput(json);
+                assert(label, false, 'Should have thrown');
+            } catch (e) {
+                assert(label, pattern.test(e.message), e.message);
+            }
+        };
+        jsonThrows('15.18 JSON action without time throws', jsonEvent([{ action: 'Wave' }]), /^Action 1 has no valid time/);
+        jsonThrows('15.19 JSON action 2 with a bad time throws', jsonEvent([
+            { time: '2026-07-15T14:00:00Z', action: 'A' }, { time: 'soon', action: 'B' }]), /^Action 2 has no valid time/);
+        jsonThrows('15.20 JSON bad startTime throws', jsonEvent([{ time: '2026-07-15T14:00:00Z', action: 'A' }],
+            { startTime: 'tomorrow' }), /^startTime is not a valid date/);
+        try {
+            const v = parseEventInput(jsonEvent([{ time: '2026-07-15T14:00:05.000Z', timeMs: 1, action: 'A' }]));
+            assert('15.21 stale timeMs is recomputed', v.timeline[0].timeMs === Date.parse('2026-07-15T14:00:05.000Z'),
+                String(v.timeline[0].timeMs));
+            const long = Array.from({ length: 15 }, (_, i) => 15 - i);
+            const c = validateAndComplete(JSON.parse(jsonEvent([{ time: '2026-07-15T14:00:05.000Z', action: 'A', countdownSeconds: long }],
+                { defaultCountdownSeconds: 60 })));
+            assert('15.22 link countdown of 15 truncated to the last 10', deepEqual(c.timeline[0].countdownSeconds,
+                [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]), JSON.stringify(c.timeline[0].countdownSeconds));
+            assert('15.23 link countdown length 60 cut to 10', c.defaultCountdownSeconds === 10, String(c.defaultCountdownSeconds));
+        } catch (e) {
+            assert('15.21 JSON fields', false, e.message);
         }
 
         // ═══════════════════════════════════════════════════════════════

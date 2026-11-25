@@ -58,7 +58,7 @@ These optional headers set event-level defaults:
 | Header | What it does | Example |
 |--------|-------------|---------|
 | `NotifyWindow` | Default seconds before action to give notice (default: 10). A whole number; `0` means no heads-up | `NotifyWindow: 15` |
-| `CountdownWindow` | Default countdown duration in seconds | `CountdownWindow: 5` |
+| `CountdownWindow` | Default countdown duration in whole seconds, at most 10 | `CountdownWindow: 5` |
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |
 | `RepeatUntil` | Loop the whole sequence until this wall-clock time (same date formats as `Start`) | `RepeatUntil: 2026-03-15 2:20 PM` |
@@ -171,6 +171,8 @@ For events longer than an hour, use `H:MM:SS`:
 1:15:00 Final gathering
 ```
 
+Seconds can be one digit (`0:5` is 5 seconds) and minutes can run past 59 (`100:00` is 100 minutes in). Seconds, and the minutes in `H:MM:SS`, must be under 60: a line like `1:75` is not understood and is listed on the preview.
+
 The timestamp is the offset from the event start time — `0:00` means "right when the event starts", `1:30` means "one minute and thirty seconds in."
 
 ## Tags (Optional)
@@ -237,6 +239,8 @@ can mix human-cued steps and speaker-clip steps. See "Playback mode: cue vs clip
 above.
 
 Combine multiple tags with commas: `[alert, countdown:3, haptic:triple]` or `[clip, haptic:triple]`
+
+A bracket counts as tags only when every item in it is a tag from the lists above. Otherwise it stays part of the step text, with a note on the preview, so `0:10  [Sit down] Everyone sits` says "[Sit down] Everyone sits". A step with tags but no text (`0:20  [clip]`) is skipped and listed on the preview. Countdowns are capped at 10 seconds, and an unknown `haptic:` pattern uses `double`.
 
 ## Designing for Pockets
 
@@ -320,7 +324,7 @@ Tags placed **after** the action text still work but are deprecated:
 
 - Lines starting with `#` are ignored (comments)
 - Blank lines are ignored
-- Lines that don't match any format are skipped. The app will still load — check the preview to see which actions were recognized. (Warnings appear in your browser's developer console — press F12.)
+- Lines that don't match any format are skipped. The app will still load, and the preview shows a gold notice with how many lines it did not understand and the first of them, plus any other notes (a tag it did not know, a header value it ignored).
 
 ## Loading Your Event
 
