@@ -74,14 +74,29 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v76</p>
+        <p class="eyebrow">Conductor &middot; build v77</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v77">
+        <h2>v77 <span class="date">2026-11-24</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>A typed event can no longer start at a time you did not mean.</strong> This build checks events written in the text format much more carefully. When something is wrong, the paste box or the editor says what, instead of quietly guessing.</li>
+            <li><strong>Time zones.</strong> <code>EST</code>, <code>EDT</code>, <code>ET</code>, <code>Eastern</code>, and the Central, Mountain and Pacific labels now mean the city zone with daylight saving time (New York, Chicago, Denver, Los Angeles). Before, <code>EST</code> and <code>MST</code> were an hour off in summer, and <code>EDT</code> or <code>PT</code> quietly used the phone&rsquo;s own zone. A label the app does not know, such as <code>UTC+5</code>, is refused with an example of one it does. In Arizona, write <code>America/Phoenix</code>.</li>
+            <li><strong>Start times.</strong> A Start needs a clock time: a date on its own is refused (it used to land on the evening before). Impossible dates and times like February 30 or 25:00 are refused rather than moved to another day. A time that is skipped when the clocks go forward (2:30 AM on that night) is refused with a message; a time that happens twice when the clocks go back means the first one.</li>
+            <li><strong>Numbers.</strong> <code>Repeat:</code>, <code>Coda:</code> and <code>NotifyWindow:</code> must be whole numbers, and Repeat is limited to 1,000 rounds. <code>Coda: 0</code> (no rest between rounds) now works the same for you and for everyone you share with. Countdowns are capped at 10 seconds.</li>
+            <li><strong>The preview tells you what it skipped.</strong> Lines the app did not understand are counted in a gold notice on the preview, with the first one shown, along with other notes such as an unknown tag. Times like <code>0:5</code> and <code>100:00</code> now work. A bracket at the start of a step is read as tags only when every word in it is a tag, so <code>[Sit down] Everyone sits</code> keeps its words.</li>
+            <li><strong>The editor checks repeats.</strong> A repeat that ends before the event starts, or a repeat count under 2, now shows a message instead of turning repeat off without telling you.</li>
+            <li><strong>Broken links say so.</strong> A damaged event link now shows &ldquo;Could not read this event code&rdquo; instead of an empty home screen.</li>
+            <li>Links you already shared keep opening as before. If you made a link from text that used <code>EST</code> or <code>MST</code> for a summer event, paste the text again and re-share it: the old link still has the old time.</li>
+            <li>The example events in the <code>demos</code> folder now start when their scripts say.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v76">
-        <h2>v76 <span class="date">2026-11-13</span> <span class="tag">latest</span></h2>
+        <h2>v76 <span class="date">2026-11-13</span></h2>
         <ul>
             <li><strong>Password links are harder to guess.</strong> Someone who has a password link can try passwords against it on their own computer. Each try now costs them six times the work it did (600,000 key rounds, up from 100,000). New password links start with <code>v1f_</code>.</li>
             <li><strong>Everyone needs build v76 or later to open a new password link.</strong> An older build shows an error where the password box should be. Ask participants to refresh Conductor, or send them the app file along with the link.</li>
