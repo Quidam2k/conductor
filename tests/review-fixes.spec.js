@@ -534,14 +534,84 @@ test.describe('v66 review fixes', () => {
     await page.fill('#ed-coda', '0');
     await page.click('#btn-ed-next1');
     await expect(page.locator('#screen-editor-timeline')).toHaveClass(/active/);
-    await page.click('#btn-add-action');
-    await page.fill('.ed-action-text', 'Wave hello');
-    await page.click('.ed-btn-save');
+    await addEditorStep(page, 'Wave hello');
+    await addEditorStep(page, 'Wave goodbye'); // Coda 0 needs two steps at different times
     await page.click('#btn-ed-next2');
     await expect(page.locator('#screen-editor-review')).toHaveClass(/active/);
     const shared = await page.evaluate(() => decodeEvent(encodeEvent(state.event)));
     expect(shared.repeatCount).toBe(5);
     expect(shared.codaGapSeconds).toBe(0);
+  });
+
+  async function startEditor(page, { datetime, tz } = {}) {
+    await page.click('#btn-create');
+    await expect(page.locator('#screen-editor-info')).toHaveClass(/active/);
+    await page.fill('#ed-title', 'Checks');
+    await page.fill('#ed-datetime', datetime || '2030-06-01T19:00');
+    if (tz) await page.selectOption('#ed-timezone', tz);
+  }
+  async function addEditorStep(page, text) {
+    await page.click('#btn-add-action');
+    await page.fill('.ed-action-edit .ed-action-text', text);
+    await page.click('.ed-action-edit .ed-btn-save');
+  }
+
+  test('editor: repeat-until before the start stays on Step 1 with a message', async ({ page }) => {
+    await startEditor(page);
+    await page.check('#ed-repeat-toggle');
+    await page.check('#ed-repeat-mode-until');
+    await page.fill('#ed-repeat-until', '2030-06-01T18:00');
+    await page.click('#btn-ed-next1');
+    await expect(page.locator('#ed-info-error')).toHaveText('Repeat until must be after the start time.');
+    await expect(page.locator('#screen-editor-info')).toHaveClass(/active/);
+  });
+
+  test('editor: repeat count 1 stays on Step 1 with a message', async ({ page }) => {
+    await startEditor(page);
+    await page.check('#ed-repeat-toggle');
+    await page.check('#ed-repeat-mode-count');
+    await page.fill('#ed-repeat-count', '1');
+    await page.click('#btn-ed-next1');
+    await expect(page.locator('#ed-info-error')).toHaveText('Repeat count must be 2 or more.');
+    await expect(page.locator('#screen-editor-info')).toHaveClass(/active/);
+  });
+
+  test('editor: a start in the spring-forward gap is refused', async ({ page }) => {
+    await startEditor(page, { datetime: '2026-03-08T02:30', tz: 'America/New_York' });
+    await page.click('#btn-ed-next1');
+    await expect(page.locator('#ed-info-error')).toContainText('does not exist in America/New_York');
+    await expect(page.locator('#screen-editor-info')).toHaveClass(/active/);
+  });
+
+  test('editor: Coda 0 with one step stays on Step 2 with a message', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await startEditor(page);
+    await page.check('#ed-repeat-toggle');
+    await page.check('#ed-repeat-mode-count');
+    await page.fill('#ed-repeat-count', '3');
+    await page.fill('#ed-coda', '0');
+    await page.click('#btn-ed-next1');
+    await expect(page.locator('#screen-editor-timeline')).toHaveClass(/active/);
+    await addEditorStep(page, 'Clap');
+    await page.click('#btn-ed-next2');
+    await expect(page.locator('#ed-timeline-error')).toContainText('add a second step');
+    await expect(page.locator('#screen-editor-timeline')).toHaveClass(/active/);
+    expect(errors).toEqual([]);
+  });
+
+  test('editor: a free-text start (old browsers) is refused, not swallowed', async ({ page }) => {
+    // Chromium's datetime-local cannot hold free text; old browsers show a
+    // plain text box, so turn the field into one to reach that path.
+    await startEditor(page);
+    const ok = await page.evaluate(() => {
+      const el = document.getElementById('ed-datetime');
+      el.type = 'text';
+      el.value = 'next tuesday 7pm';
+      return saveEditorInfo();
+    });
+    expect(ok).toBe(false);
+    await expect(page.locator('#ed-info-error')).toContainText('should look like');
   });
 
   test('demo offers its voice pack in one tap', async ({ page, browserName }) => {

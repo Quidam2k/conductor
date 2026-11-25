@@ -587,6 +587,15 @@ function parseTextFormat(text) {
     // Parse start time flexibly. Without an explicit offset the browser reads
     // the string as ITS local time; when a Timezone: header is given, re-read
     // the same wall clock in that zone instead.
+    // A date with no clock time would be read as midnight UTC: the evening
+    // before in the Americas. Ask for the time instead.
+    const needsClock = (name, v) => {
+        if (!/\d{1,2}:\d{2}/.test(v)) {
+            throw new Error('Text format: ' + name + ' needs a clock time, for example 2026-11-15 7:00 PM.');
+        }
+    };
+    needsClock('Start', headers.start);
+    if (headers.repeatuntil) needsClock('RepeatUntil', headers.repeatuntil);
     const startDate = parseWallClock(headers.start, zone);
     if (isNaN(startDate.getTime())) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
@@ -604,6 +613,7 @@ function parseTextFormat(text) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
         if (ru.getTime() > startMs) repeatUntil = ru.toISOString();
+        else warnings.push('RepeatUntil is not after Start, so the sequence plays once.');
     }
     let repeatCount = null;
     if (headers.repeat) {
@@ -625,6 +635,14 @@ function parseTextFormat(text) {
             throw new Error('Text format: Coda must be a whole number of seconds, 0 or more. Got "' + headers.coda + '".');
         }
         codaGapSeconds = Number(cv);
+    }
+    // With no rest and every step at one moment, a cycle takes no time and
+    // the player would quietly play it once.
+    if ((repeatUntil || repeatCount) && codaGapSeconds === 0) {
+        const offs = actions.map(a => a._offsetSeconds);
+        if (offs.length > 0 && Math.max(...offs) === Math.min(...offs)) {
+            throw new Error('Text format: to repeat with Coda: 0, the sequence needs at least two steps at different times. Or set a Coda above 0.');
+        }
     }
     let defaultNoticeSeconds;
     if (headers.notifywindow) {
@@ -765,7 +783,7 @@ function localDateTimeToUTC(localStr, timezone) {
     let guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
 
     // Use Intl to find what the local time would be at our guess
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
         const fmt = new Intl.DateTimeFormat('en-US', {
             timeZone: timezone,
             year: 'numeric', month: '2-digit', day: '2-digit',
@@ -783,6 +801,22 @@ function localDateTimeToUTC(localStr, timezone) {
             - Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
         if (diffMs === 0) break;
         guess = new Date(guess.getTime() + diffMs);
+    }
+
+    // A spring-forward night skips an hour: 2:30 AM never happens, and the
+    // loop above settles on some other wall-clock time. Say so. (A fall-back
+    // time happens twice; the loop keeps the first, which is what we want.)
+    const back = {};
+    for (const p of new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(guess)) back[p.type] = parseInt(p.value);
+    if (back.hour === 24) back.hour = 0;
+    if (Date.UTC(back.year, back.month - 1, back.day, back.hour, back.minute) !==
+        Date.UTC(year, month - 1, day, hour, minute)) {
+        throw new Error('That local time does not exist in ' + timezone +
+            '; clocks jump forward that night. Pick another time.');
     }
 
     return guess.toISOString();
@@ -808,9 +842,15 @@ function parseWallClock(str, timezone) {
     if (m) {
         let hour = Number(m[4]);
         const ampm = (m[7] || '').toUpperCase();
+        // Feb 30 or 25:00 must not roll over into some other day or hour.
+        const bad = () => new Error('Text format: invalid date or time "' + s + '".');
+        if (ampm && (hour < 1 || hour > 12)) throw bad();
         if (ampm === 'PM' && hour < 12) hour += 12;
         if (ampm === 'AM' && hour === 12) hour = 0;
         p = { y: +m[1], mo: +m[2], d: +m[3], h: hour, mi: +m[5], sec: Number(m[6] || 0) };
+        if (p.mo < 1 || p.mo > 12 || p.d < 1 ||
+            new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDate() !== p.d ||
+            p.h > 23 || p.mi > 59 || p.sec > 59) throw bad();
     } else {
         const d = new Date(s);
         if (isNaN(d.getTime()) || !timezone || /(Z|[+-]\d{2}:?\d{2})$/i.test(s)) return d;

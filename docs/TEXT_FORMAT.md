@@ -49,6 +49,8 @@ Arizona has no daylight saving time, so use `America/Phoenix` there. Any other l
 - `March 15, 2026 14:00`
 - `2026-03-15T14:00`
 
+It must include a clock time: a date on its own (`2026-03-15`) is rejected. Impossible dates and times (`2026-02-30`, `25:00`, `13:00 PM`) are rejected too, rather than rolled over to another day. A time that is skipped when the clocks go forward (2:30 AM on the night daylight saving starts) is rejected with a message; a time that happens twice when the clocks go back means the first one.
+
 ### Config Headers
 
 These optional headers set event-level defaults:
@@ -142,7 +144,8 @@ Coda: 5
 0:08  Right section, stand
 ```
 
-The repeat period is the span of your actions plus the coda. Going live pre-renders
+The repeat period is the span of your actions plus the coda. With `Coda: 0`, the
+sequence needs at least two steps at different times (otherwise a cycle takes no time). Going live pre-renders
 the whole run into the pocket-proof audio track and stops **exactly** on its bound —
 even with the screen locked. Keep it tight on older phones: a long run is a large
 audio file held in memory (roughly 3 MB per minute).

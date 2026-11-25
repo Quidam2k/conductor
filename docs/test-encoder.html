@@ -1078,6 +1078,69 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 14: Start dates, daylight-saving gaps, Coda 0 + one step
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>14. Start dates and DST</h2>');
+
+        const startText = (start, tz, extra = [], steps = ['0:00  Stand', '0:02  Wave']) => [
+            'Title: Dates', 'Start: ' + start, 'Timezone: ' + tz, ...extra, '', ...steps,
+        ].join('\n');
+        const startThrows = (label, start, tz, pattern, extra, steps) => {
+            try {
+                parseTextFormat(startText(start, tz, extra, steps));
+                assert(label, false, 'Should have thrown');
+            } catch (e) {
+                assert(label, pattern.test(e.message), e.message);
+            }
+        };
+        startThrows('14.1 Feb 30 throws', '2026-02-30 2:00 PM', 'America/New_York', /invalid date or time/);
+        startThrows('14.2 Month 13 throws', '2026-13-01 2:00 PM', 'America/New_York', /invalid date or time/);
+        startThrows('14.3 25:00 throws', '2026-03-15 25:00', 'America/New_York', /invalid date or time/);
+        startThrows('14.4 13:00 PM throws', '2026-03-15 13:00 PM', 'America/New_York', /invalid date or time/);
+        startThrows('14.5 Date-only Start throws', '2026-03-15', 'America/New_York', /Start needs a clock time/);
+        startThrows('14.6 Date-only RepeatUntil throws', '2026-03-15 2:00 PM', 'America/New_York',
+            /RepeatUntil needs a clock time/, ['RepeatUntil: 2026-03-16']);
+        startThrows('14.7 NY 2:30 AM on Mar 8 (gap) throws', '2026-03-08 2:30 AM', 'America/New_York',
+            /does not exist in America\/New_York/);
+        try {
+            const p = parseTextFormat(startText('2026-11-01 1:30 AM', 'America/New_York'));
+            assert('14.8 NY 1:30 AM on Nov 1 = first occurrence (05:30Z)',
+                p.startTime === '2026-11-01T05:30:00.000Z', p.startTime);
+        } catch (e) {
+            assert('14.8 NY 1:30 AM on Nov 1', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(startText('2026-03-08 3:30 AM', 'America/New_York'));
+            assert('14.9 NY 3:30 AM on Mar 8 (just after the gap) = 07:30Z',
+                p.startTime === '2026-03-08T07:30:00.000Z', p.startTime);
+        } catch (e) {
+            assert('14.9 NY 3:30 AM on Mar 8', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(startText('2028-02-29 12:00 AM', 'UTC'));
+            assert('14.10 Leap day, 12:00 AM = midnight', p.startTime === '2028-02-29T00:00:00.000Z', p.startTime);
+        } catch (e) {
+            assert('14.10 Leap day', false, e.message);
+        }
+        startThrows('14.11 Coda 0 with one step throws', '2026-03-15 2:00 PM', 'UTC',
+            /at least two steps/, ['Repeat: 3', 'Coda: 0'], ['0:00  Clap']);
+        startThrows('14.12 Coda 0 with two steps at one time throws', '2026-03-15 2:00 PM', 'UTC',
+            /at least two steps/, ['Repeat: 3', 'Coda: 0'], ['0:05  Clap', '0:05  Stomp']);
+        try {
+            const p = parseTextFormat(startText('2026-03-15 2:00 PM', 'UTC', ['Repeat: 3', 'Coda: 2'], ['0:00  Clap']));
+            assert('14.13 One step with Coda 2 repeats', p.repeatCount === 3 && p.codaGapSeconds === 2,
+                p.repeatCount + '/' + p.codaGapSeconds);
+        } catch (e) {
+            assert('14.13 One step with Coda 2', false, e.message);
+        }
+        try {
+            localDateTimeToUTC('2026-03-08T02:30', 'America/New_York');
+            assert('14.14 localDateTimeToUTC: gap throws', false, 'Should have thrown');
+        } catch (e) {
+            assert('14.14 localDateTimeToUTC: gap throws', /clocks jump forward/.test(e.message), e.message);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // TEST SUITE 11: Encryption (AES-GCM)
         // ═══════════════════════════════════════════════════════════════
         log('<h2>11. Encryption (AES-GCM)</h2>');
