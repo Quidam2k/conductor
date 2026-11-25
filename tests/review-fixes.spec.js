@@ -328,6 +328,108 @@ test.describe('v66 review fixes', () => {
     await expect(page.locator('#screen-live')).toHaveClass(/active/);
   });
 
+  // ── Go Live gate reads the expanded (repeated) timeline; late joiners to a
+  //    live event are not steered into a solo restart (audit 05 phase 2) ──
+  const noInvalidDate = async (page) =>
+    expect(page.locator('body')).not.toContainText('Invalid Date');
+
+  test('Go Live: joining a repeat mid-run goes straight to Live, unshifted', async ({ page }) => {
+    const startMs = Date.now() - 30000; // both raw cues past; cycle 2+ still due
+    await loadEmbeddedEvent(page, {
+      title: 'Mid Repeat',
+      startTime: new Date(startMs).toISOString(),
+      timezone: 'UTC',
+      repeatUntil: new Date(startMs + 30 * 60000).toISOString(),
+      timeline: [
+        { time: new Date(startMs).toISOString(), action: 'Wave', noticeSeconds: 0 },
+        { time: new Date(startMs + 5000).toISOString(), action: 'Stop', noticeSeconds: 0 },
+      ],
+    });
+    const before = await page.evaluate(() => ({
+      start: state.event.startTime, until: state.event.repeatUntil }));
+    await page.locator('#btn-go-live').click();
+    await expect(page.locator('#app-confirm')).toBeHidden();
+    await page.locator('#btn-preflight-go').click();
+    await expect(page.locator('#screen-live')).toHaveClass(/active/);
+    expect(await page.evaluate(() => ({
+      start: state.event.startTime, until: state.event.repeatUntil }))).toEqual(before);
+    await noInvalidDate(page);
+  });
+
+  test('Go Live: a repeat whose next cycle is >20 min out says when Live opens', async ({ page }) => {
+    const startMs = Date.now() - 40 * 60000;
+    await loadEmbeddedEvent(page, {
+      title: 'Far Cycle',
+      startTime: new Date(startMs).toISOString(),
+      timezone: 'UTC',
+      codaGapSeconds: 3900, // next cycle starts ~25 min from now
+      repeatUntil: new Date(startMs + 4 * 3600000).toISOString(),
+      timeline: [
+        { time: new Date(startMs).toISOString(), action: 'Wave', noticeSeconds: 0 },
+        { time: new Date(startMs + 5000).toISOString(), action: 'Stop', noticeSeconds: 0 },
+      ],
+    });
+    await page.locator('#btn-go-live').click();
+    await expect(page.locator('#app-confirm')).toBeHidden();
+    await expect(page.locator('#preview-banner')).toContainText('Live opens at');
+    await noInvalidDate(page);
+  });
+
+  test('Go Live: a cue that fired 10 s ago shows "already ran", no restart', async ({ page }) => {
+    const cueMs = Date.now() - 10000;
+    await loadEmbeddedEvent(page, {
+      title: 'Just Missed',
+      startTime: new Date(cueMs).toISOString(),
+      timezone: 'UTC',
+      timeline: [{ time: new Date(cueMs).toISOString(), action: 'Wave', noticeSeconds: 0 }],
+    });
+    const before = await page.evaluate(() => state.event.startTime);
+    await page.locator('#btn-go-live').click();
+    await expect(page.locator('#preview-banner')).toContainText('This event already ran');
+    await expect(page.locator('#app-confirm')).toBeHidden();
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    expect(await page.evaluate(() => state.event.startTime)).toBe(before);
+    await noInvalidDate(page);
+  });
+
+  test('Go Live: an event past its end offers a this-phone restart with the original date', async ({ page }) => {
+    const cueMs = Date.now() - 10 * 60000; // end = last cue + 5 min, so ended 5 min ago
+    await loadEmbeddedEvent(page, {
+      title: 'Old Draft',
+      startTime: new Date(cueMs).toISOString(),
+      timezone: 'UTC',
+      timeline: [{ time: new Date(cueMs).toISOString(), action: 'Wave', noticeSeconds: 0 }],
+    });
+    const shown = (await page.locator('#preview-start').textContent()).trim();
+    await page.locator('#btn-go-live').click();
+    const msg = page.locator('#app-confirm-msg');
+    await expect(msg).toContainText('Restart it on this phone, 1 minute from now? Other phones are not affected.');
+    await expect(msg).toContainText(shown);
+    await noInvalidDate(page);
+  });
+
+  test('Go Live: a repeat with every cycle finished takes the restart path', async ({ page }) => {
+    const startMs = Date.now() - 2 * 3600000;
+    await loadEmbeddedEvent(page, {
+      title: 'Finished Repeat',
+      startTime: new Date(startMs).toISOString(),
+      timezone: 'UTC',
+      repeatCount: 3,
+      timeline: [
+        { time: new Date(startMs).toISOString(), action: 'Wave', noticeSeconds: 0 },
+        { time: new Date(startMs + 5000).toISOString(), action: 'Stop', noticeSeconds: 0 },
+      ],
+    });
+    await page.locator('#btn-go-live').click();
+    await expect(page.locator('#app-confirm-msg')).toContainText('Restart it on this phone');
+    await page.locator('#app-confirm-yes').click();
+    await page.locator('#btn-preflight-go').click();
+    await expect(page.locator('#screen-live')).toHaveClass(/active/);
+    expect(await page.evaluate(() =>
+      new Date(state.event.startTime).getTime() > Date.now())).toBe(true);
+    await noInvalidDate(page);
+  });
+
   test('file:// share base url', async ({ page }) => {
     const httpBase = await page.evaluate(() => shareBaseUrl());
     expect(httpBase).toMatch(/^http:\/\/localhost/);

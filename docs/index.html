@@ -6559,17 +6559,32 @@ $('speed-slider').addEventListener('input', (e) => {
 
 $('btn-audio-toggle').addEventListener('click', toggleMute);
 
-// Go Live — from the preview screen, a peer of Start Practice. If the whole
-// event is already in the past (an old draft), offer a quick restart instead
-// of landing the user on "event completed".
+// Go Live — from the preview screen, a peer of Start Practice. Cue times come
+// from the expanded timeline (repeats tiled out), the one Live plays, so a
+// late joiner to a repeat still running goes straight in. If every cue has
+// passed but the event has not ended, it already ran: a late arrival is not
+// steered into a solo rerun. Past its end (an old draft), offer a restart on
+// this phone only.
 const LIVE_OPENS_BEFORE_MS = 20 * 60 * 1000;
 $('btn-go-live').addEventListener('click', async () => {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
     const now = Date.now();
-    const allPast = evt.timeline.every(a => (a.timeMs ?? new Date(a.time).getTime()) < now);
+    const cueTimes = expandRepeats(evt).timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
+    const allPast = cueTimes.every(t => t < now);
     if (allPast) {
-        if (!(await askConfirm('This event’s times are in the past. Start it 1 minute from now?', 'Start in 1 minute', 'Cancel'))) {
+        // endTime is set by embeddedEventToEvent (last cue + 5 min, or the
+        // repeat's end); fall back to that rule if an event arrives without it.
+        let endMs = new Date(evt.endTime).getTime();
+        if (!Number.isFinite(endMs)) endMs = Math.max(...cueTimes) + 5 * 60 * 1000;
+        if (now <= endMs) {
+            showBanner('preview-banner', 'This event already ran. Start Practice still plays it through.', 'info');
+            $('preview-banner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        if (!(await askConfirm('This event was set for ' + startDisplay(evt) + '. '
+            + 'Restart it on this phone, 1 minute from now? Other phones are not affected.',
+            'Restart in 1 minute', 'Cancel'))) {
             return;
         }
         state.event = rebaseEventToNow(evt);
@@ -6582,9 +6597,7 @@ $('btn-go-live').addEventListener('click', async () => {
         // Going live bakes the whole wait into the audio track (an hour early
         // ≈ 170 MB) and drains the battery, so Live opens 20 min before the
         // first upcoming cue. Practice is always available.
-        const nextMs = Math.min(...evt.timeline
-            .map(a => a.timeMs ?? new Date(a.time).getTime())
-            .filter(t => t >= now));
+        const nextMs = Math.min(...cueTimes.filter(t => t >= now));
         const opensMs = nextMs - LIVE_OPENS_BEFORE_MS;
         if (now < opensMs) {
             const opens = new Date(opensMs).toLocaleString([], {
