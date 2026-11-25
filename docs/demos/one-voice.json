@@ -1,9 +1,9 @@
 {
   "title": "One Voice",
   "description": "Everyone shouts the same short line at the same instant — a wall of human voices, together. Swap the line for your message. No app extras needed; it repeats so latecomers still catch a round.",
-  "startTime": "2026-09-02T01:00:00.000Z",
+  "startTime": "2026-09-01T23:00:00.000Z",
   "timezone": "America/Chicago",
-  "repeatUntil": "2026-09-02T01:20:00.000Z",
+  "repeatUntil": "2026-09-01T23:20:00.000Z",
   "codaGapSeconds": 12,
   "defaultNoticeSeconds": 4,
   "briefing": {
@@ -16,7 +16,7 @@
   "timeline": [
     {
       "id": "onevoice-01",
-      "time": "2026-09-02T01:00:10.000Z",
+      "time": "2026-09-01T23:00:10.000Z",
       "action": "ICE out of Minneapolis",
       "style": "alert",
       "countdownSeconds": [
@@ -25,7 +25,8 @@
         1
       ],
       "noticeSeconds": 0,
-      "hapticPattern": "triple"
+      "hapticPattern": "triple",
+      "audioAnnounce": false
     }
   ]
 }

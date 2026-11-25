@@ -1,9 +1,9 @@
 {
   "title": "The Wave",
   "description": "A wave of phone light and sound rolls down the crowd and back, by numbered zones — a stadium wave made of light. No pack needed; it repeats so the wave keeps rolling.",
-  "startTime": "2026-09-02T01:00:00.000Z",
+  "startTime": "2026-09-01T23:00:00.000Z",
   "timezone": "America/Chicago",
-  "repeatUntil": "2026-09-02T01:15:00.000Z",
+  "repeatUntil": "2026-09-01T23:15:00.000Z",
   "codaGapSeconds": 3,
   "briefing": {
     "role": "The Wave — lights up when your zone is called",
@@ -15,108 +15,138 @@
   "timeline": [
     {
       "id": "thewave-01",
-      "time": "2026-09-02T01:00:10.000Z",
+      "time": "2026-09-01T23:00:10.000Z",
       "action": "Zone 1 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-02",
-      "time": "2026-09-02T01:00:11.000Z",
+      "time": "2026-09-01T23:00:11.000Z",
       "action": "Zone 2 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-03",
-      "time": "2026-09-02T01:00:12.000Z",
+      "time": "2026-09-01T23:00:12.000Z",
       "action": "Zone 3 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-04",
-      "time": "2026-09-02T01:00:13.000Z",
+      "time": "2026-09-01T23:00:13.000Z",
       "action": "Zone 4 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-05",
-      "time": "2026-09-02T01:00:14.000Z",
+      "time": "2026-09-01T23:00:14.000Z",
       "action": "Zone 5 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-06",
-      "time": "2026-09-02T01:00:15.000Z",
+      "time": "2026-09-01T23:00:15.000Z",
       "action": "Zone 6 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-07",
-      "time": "2026-09-02T01:00:16.000Z",
+      "time": "2026-09-01T23:00:16.000Z",
       "action": "Zone 7 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-08",
-      "time": "2026-09-02T01:00:17.000Z",
+      "time": "2026-09-01T23:00:17.000Z",
       "action": "Zone 8 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-09",
-      "time": "2026-09-02T01:00:18.000Z",
+      "time": "2026-09-01T23:00:18.000Z",
       "action": "Zone 7 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-10",
-      "time": "2026-09-02T01:00:19.000Z",
+      "time": "2026-09-01T23:00:19.000Z",
       "action": "Zone 6 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-11",
-      "time": "2026-09-02T01:00:20.000Z",
+      "time": "2026-09-01T23:00:20.000Z",
       "action": "Zone 5 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-12",
-      "time": "2026-09-02T01:00:21.000Z",
+      "time": "2026-09-01T23:00:21.000Z",
       "action": "Zone 4 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-13",
-      "time": "2026-09-02T01:00:22.000Z",
+      "time": "2026-09-01T23:00:22.000Z",
       "action": "Zone 3 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-14",
-      "time": "2026-09-02T01:00:23.000Z",
+      "time": "2026-09-01T23:00:23.000Z",
       "action": "Zone 2 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     },
     {
       "id": "thewave-15",
-      "time": "2026-09-02T01:00:24.000Z",
+      "time": "2026-09-01T23:00:24.000Z",
       "action": "Zone 1 — lights up",
       "noticeSeconds": 0,
-      "hapticPattern": "single"
+      "hapticPattern": "single",
+      "audioAnnounce": false,
+      "countdownSeconds": []
     }
   ]
 }
