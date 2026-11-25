@@ -32,8 +32,8 @@ function serve(req, res) {
     if (!body) {
         const file = path.normalize(path.join(DOCS, p));
         if (!file.startsWith(DOCS) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
-            res.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': 'max-age=600' });
-            res.end('not found');
+            res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'max-age=600' });
+            res.end(fs.readFileSync(path.join(DOCS, '404.html'))); // as Pages does
             return;
         }
         body = fs.readFileSync(file);
@@ -154,3 +154,10 @@ for (const [label, bytes, message] of [
         await context.close();
     });
 }
+
+test('the 404 page links back to the site root from any depth', async ({ page }) => {
+    const resp = await page.goto(base + '/conductor/no/such/page');
+    expect(resp.status()).toBe(404);
+    await expect(page.locator('#go-app')).toHaveAttribute('href', '/conductor/index.html');
+    await expect(page.locator('#go-start')).toHaveAttribute('href', '/conductor/start.html');
+});
