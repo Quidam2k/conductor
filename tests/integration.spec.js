@@ -461,10 +461,9 @@ test('bundled HTML: download creates file with inlined scripts', async ({ page }
 test('service worker: registers on localhost', async ({ page }) => {
     await page.goto('/');
 
-    // Give SW time to register and activate
-    await page.waitForTimeout(2000);
-
-    const swState = await page.evaluate(async () => {
+    // Poll: precaching can take longer than a fixed wait under a loaded run
+    // (Firefox especially), and a slow install is not a failed one.
+    await expect.poll(() => page.evaluate(async () => {
         const regs = await navigator.serviceWorker.getRegistrations();
         if (regs.length === 0) return 'none';
         const reg = regs[0];
@@ -472,9 +471,7 @@ test('service worker: registers on localhost', async ({ page }) => {
         if (reg.installing) return 'installing';
         if (reg.waiting) return 'waiting';
         return 'registered';
-    });
-
-    expect(swState).toBe('activated');
+    }), { timeout: 15000 }).toBe('activated');
 });
 
 // ═════════════════════════════════════════════════════════════════════

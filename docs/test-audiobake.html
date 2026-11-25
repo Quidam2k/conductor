@@ -354,6 +354,7 @@
         } finally {
             const summaryEl = document.getElementById('summary');
             const total = passed + failed;
+            summaryEl.dataset.skipped = String(skipped); // the Playwright wrapper reads this
             if (failed === 0) {
                 summaryEl.className = 'summary pass';
                 summaryEl.innerHTML = `<span class="icon"></span>ALL ${total} TESTS PASSED` +

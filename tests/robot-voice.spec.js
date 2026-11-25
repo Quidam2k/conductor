@@ -174,8 +174,7 @@ test('robot voice: standalone conductor.html stays AirDrop-sized and loads the v
     expect(ok).toBe(true);
 });
 
-test('standalone + bundled copies: every script block parses (service-worker block stripped cleanly)', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'checked once');
+test('standalone + bundled copies: every script block parses (service-worker block stripped cleanly)', async ({ page }) => {
     await page.goto('/');
     const r = await page.evaluate(async () => {
         const check = (html) => {

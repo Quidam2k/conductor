@@ -31,6 +31,12 @@ const harnesses = [
     { name: 'qrbeam', url: '/test-qrbeam.html' },
 ];
 
+// A harness that skips a section must not read as a pass. The only allowed
+// skips: Playwright's WebKit build has no OfflineAudioContext and no AudioBuffer
+// constructor, so audiobake's offline-render and WAV-encoder sections skip there.
+// (Real Safari has both; the locked-screen bake is covered by the device checklist.)
+const ALLOWED_SKIPS = { 'audiobake:webkit': 2 };
+
 for (const harness of harnesses) {
     test(`unit harness: ${harness.name}`, async ({ page, browserName }) => {
         // WebKit headless doesn't support AudioContext.decodeAudioData — packs & voicerecorder test hangs
@@ -51,9 +57,12 @@ for (const harness of harnesses) {
             return {
                 text: el.textContent.trim(),
                 passed: el.classList.contains('pass'),
+                skipped: Number(el.dataset.skipped || 0),
             };
         });
 
         expect(result.passed, `${harness.name} tests: ${result.text}`).toBe(true);
+        const allowed = ALLOWED_SKIPS[`${harness.name}:${browserName}`] || 0;
+        expect(result.skipped, `${harness.name} skipped sections: ${result.text}`).toBeLessThanOrEqual(allowed);
     });
 }

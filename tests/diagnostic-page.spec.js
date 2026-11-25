@@ -8,8 +8,12 @@ test.describe('iOS audio diagnostic page', () => {
         page.on('pageerror', e => console.error('pageerror:', e.message));
         // Silence real TTS (audible on the dev machine) while still firing the
         // onstart/onend events the page's speak() helper waits on.
+        // Unconditional: Playwright's WebKit has no speechSynthesis at all, and
+        // the page's test 1 needs the speak() events, so stub both pieces.
         await page.addInitScript(() => {
-            if (!window.speechSynthesis) return;
+            if (!window.SpeechSynthesisUtterance) {
+                window.SpeechSynthesisUtterance = function (text) { this.text = text; };
+            }
             Object.defineProperty(window, 'speechSynthesis', {
                 configurable: true,
                 value: {
