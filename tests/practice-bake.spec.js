@@ -114,6 +114,56 @@ test('practice bake: schedule is anchored at the practice start, not the wall cl
     expect(r.durationSec).toBeGreaterThan(0);
 });
 
+test('practice bake: practice and live bake the same schedule for the same join time', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.setTimeout(60000);
+
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    await page.click('#btn-demo');
+    await waitForScreen(page, 'screen-preview');
+    // Record every schedule the app bakes, with the inputs it was built from.
+    await page.evaluate(() => {
+        const orig = audio.computeCueSchedule;
+        window.__orig = orig;
+        window.__sched = [];
+        audio.computeCueSchedule = (...args) => {
+            const out = orig(...args);
+            window.__sched.push({ args, out });
+            return out;
+        };
+    });
+    await page.click('#btn-start-practice');
+    await waitForScreen(page, 'screen-practice');
+    await waitForBake(page);
+    await page.click('#btn-practice-stop');
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go');
+    await waitForScreen(page, 'screen-live');
+    await waitForBake(page);
+
+    // Swap anchors: live's inputs at practice's join time must give practice's
+    // track exactly, and the other way round. Any difference means practice
+    // rehearses a different script from the one live plays.
+    const r = await page.evaluate(() => {
+        const P = window.__sched[0], L = window.__sched[window.__sched.length - 1];
+        const at = (args, anchor) => window.__orig(...args.slice(0, 3), anchor, ...args.slice(4));
+        return {
+            calls: window.__sched.length,
+            anchorsDiffer: P.args[3] !== L.args[3],
+            liveAtPractice: JSON.stringify(at(L.args, P.args[3])) === JSON.stringify(P.out),
+            practiceAtLive: JSON.stringify(at(P.args, L.args[3])) === JSON.stringify(L.out),
+            notEmpty: P.out.length > 0,
+        };
+    });
+    expect(r.calls).toBeGreaterThanOrEqual(2);
+    expect(r.anchorsDiffer).toBe(true);
+    expect(r.notEmpty).toBe(true);
+    expect(r.liveAtPractice).toBe(true);
+    expect(r.practiceAtLive).toBe(true);
+});
+
 test('practice bake: moving the speed slider drops the baked track and says so', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
 

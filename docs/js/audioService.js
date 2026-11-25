@@ -482,6 +482,8 @@ function createAudioService() {
         }
         return 'Get ready to ' + String(action.fallbackText || action.action || '').toLowerCase();
     }
+    /** Late-join stand-in when the full "Get ready to…" can't fit before the trigger. */
+    const SHORT_NOTICE_TEXT = 'Get ready';
     function triggerLineText(action) {
         return (action.action || 'Go') + '!';
     }
@@ -552,6 +554,8 @@ function createAudioService() {
                 lines.push({ style: 'notice', text: noticeLineText(action, meta ? meta.groupTexts : null) });
             }
         }
+        // A late joiner may only have room for the short line (computeCueSchedule).
+        if (lines.some(l => l.style === 'notice')) lines.push({ style: 'notice', text: SHORT_NOTICE_TEXT });
         return lines;
     }
 
@@ -679,14 +683,21 @@ function createAudioService() {
                     }
                 }
                 if (clips.length >= 2) {
-                    stitched = true;
                     const durs = clips.map(c => getDurationSec(c.packId, c.cueId) || 0);
                     const seqDur = durs.reduce((a, b) => a + b, 0)
                         + PREP_STITCH_GAP_SEC * (clips.length - 1);
                     // Overlap with the leader's own countdown beeps is accepted
                     // (the offline context mixes; beeps are 150ms blips).
                     let cursor = noticeStartSec(triggerSec, noticeSeconds, seqDur, gapFromPrev);
-                    clips.forEach((c, idx) => {
+                    // Would start before the track does (late join, practice's
+                    // 15 s lead-in): all or nothing. Start the whole sequence at
+                    // 0 if it still ends before the trigger; otherwise bake no
+                    // stitched clip and let the robot notice below stand in —
+                    // the time filter would otherwise keep a member clip with
+                    // no "Get ready to" in front of it.
+                    if (cursor < 0) cursor = (seqDur <= triggerSec - 0.2) ? 0 : null;
+                    if (cursor !== null) stitched = true;
+                    if (stitched) clips.forEach((c, idx) => {
                         events.push({
                             offsetSec: cursor,
                             kind: 'packCue', packId: c.packId, cueId: c.cueId,
@@ -710,10 +721,25 @@ function createAudioService() {
                     // list): start it at 0 if it still fits — dropping it would
                     // be silent, since the live path defers to the bake.
                     if (at < 0 && latest >= 0) at = 0;
-                    events.push({
+                    let lineId = robotId;
+                    if (at < 0 && triggerSec >= 0) {
+                        // Too late for the full line: a bare "Get ready" if it
+                        // fits, else log the drop so it is not silent.
+                        const shortId = robotCue('notice', SHORT_NOTICE_TEXT);
+                        const shortLatest = triggerSec - 0.2 - robotDur(shortId);
+                        if (shortId && hasCue(ROBOT_PACK_ID, shortId) && shortLatest >= 0) {
+                            lineId = shortId;
+                            at = (robotEndSec + PREP_STITCH_GAP_SEC <= shortLatest)
+                                ? Math.max(0, robotEndSec + PREP_STITCH_GAP_SEC) : 0;
+                        } else {
+                            recordCueAttempt({ at: Date.now(), cueId: robotId,
+                                packId: ROBOT_PACK_ID, outcome: 'dropped-late' });
+                        }
+                    }
+                    if (at >= 0) events.push({
                         offsetSec: at,
-                        kind: 'packCue', packId: ROBOT_PACK_ID, cueId: robotId,
-                        bufferKey: ROBOT_PACK_ID + ':' + robotId,
+                        kind: 'packCue', packId: ROBOT_PACK_ID, cueId: lineId,
+                        bufferKey: ROBOT_PACK_ID + ':' + lineId,
                     });
                 }
             }

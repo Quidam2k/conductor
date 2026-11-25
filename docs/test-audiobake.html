@@ -194,6 +194,92 @@
             assert('overflow: sequence start shifted to trigger − (seqDur + 1)',
                 shiftedLead && near(shiftedLead.offsetSec, 16.7), JSON.stringify(offsets(s)));
 
+            // ── Join cases: the prep would start before the track does ──
+            // A stitched prep is all or nothing: either the whole sequence
+            // starts at 0 (it fits before the trigger) or no stitched clip is
+            // baked and the robot notice stands in. Never a member clip with
+            // no prep-lead in front of it.
+            const rsvc = createAudioService();
+            rsvc.setRobotCueId((style, text) => style + ':' + String(text).toLowerCase());
+            const ROBOT = '__robot';
+
+            // AUDIO-01: practice anchors 15s before the first cue; prep-lead 2s
+            // + four 4s member clips = 18.6s, which cannot fit before 15s.
+            const g = [1, 2, 3, 4].map(i => actionAt(15 + (i - 1) * 0.5, 'Move' + i,
+                { cue: 'move' + i, pack: 'demo', noticeSeconds: 10 }));
+            const gMeta = new Map();
+            g.forEach((m, i) => gMeta.set(m.id, i === 0
+                ? { gapFromPrev: Infinity, groupStartFlag: true,
+                    groupTexts: g.map(x => x.action), groupMembers: g }
+                : { gapFromPrev: 500, groupStartFlag: false, groupTexts: null, groupMembers: null }));
+            const gNotice = 'notice:get ready to move1, move2, move3 and move4';
+            const gHas = (pack, cue) => (pack === 'demo' && (cue === 'prep-lead' || /^move\d$/.test(cue)))
+                || (pack === ROBOT && cue === gNotice);
+            const gDur = (pack, cue) => pack === ROBOT ? 3 : (cue === 'prep-lead' ? 2 : 4);
+            s = rsvc.computeCueSchedule(g, 10, gMeta, BASE, {}, gHas, gDur);
+            const preTrigger = s.filter(e => e.kind === 'packCue' && e.offsetSec < 15);
+            assert('join: prep too long for the lead time → no stitched clip before the trigger',
+                !preTrigger.some(e => e.packId === 'demo'), JSON.stringify(preTrigger));
+            assert('join: prep too long → robot notice baked instead (at 5s)',
+                preTrigger.some(e => e.packId === ROBOT && e.cueId === gNotice && near(e.offsetSec, 5)),
+                JSON.stringify(preTrigger));
+            assert('join: member trigger clips still baked at their downbeats',
+                g.every(m => s.some(e => e.bufferKey === 'demo:' + m.cue && near(e.offsetSec, (m.timeMs - BASE) / 1000))),
+                JSON.stringify(offsets(s)));
+
+            // GAP1-05: 30s trigger, 10s notice, prep-lead 2s + own 4s clip =
+            // 6.15s. Joining 20.5s / 21.5s in puts the trigger 9.5s / 8.5s into
+            // the track; the prep would start at -0.5 / -1.5 → clamp to 0.
+            const j = actionAt(30, 'Jump', { cue: 'jump', pack: 'demo', noticeSeconds: 10 });
+            const jHas = (pack, cue) => pack === 'demo' && (cue === 'prep-lead' || cue === 'jump');
+            const jDur = (pack, cue) => cue === 'prep-lead' ? 2 : 4;
+            for (const joinSec of [20.5, 21.5]) {
+                s = svc.computeCueSchedule([j], 10, null, BASE + joinSec * 1000, {}, jHas, jDur);
+                const trigAt = 30 - joinSec;
+                const jl = s.find(e => e.bufferKey === 'demo:prep-lead');
+                assert(`join @${joinSec}s: prep-lead clamped to offset 0`,
+                    jl && near(jl.offsetSec, 0), JSON.stringify(s));
+                assert(`join @${joinSec}s: own cue clip follows the lead at 2.15s`,
+                    s.some(e => e.bufferKey === 'demo:jump' && near(e.offsetSec, 2.15)), JSON.stringify(offsets(s)));
+                assert(`join @${joinSec}s: trigger clip still at ${trigAt}s`,
+                    s.some(e => e.bufferKey === 'demo:jump' && near(e.offsetSec, trigAt)), JSON.stringify(offsets(s)));
+            }
+            // Same join, sequence too long to fit (prep-lead 2s + 8s clip > 8.3s):
+            // no stitched clip at all, not a lead-less member clip.
+            s = svc.computeCueSchedule([j], 10, null, BASE + 21500, {}, jHas,
+                (pack, cue) => cue === 'prep-lead' ? 2 : 8);
+            assert('join @21.5s, 10.15s prep: no stitched clip before the trigger',
+                !s.some(e => e.kind === 'packCue' && e.offsetSec < 8.5 - 1e-6), JSON.stringify(offsets(s)));
+
+            // Robot notice that cannot start after the track does: a short
+            // "Get ready" line stands in if it fits, else the drop is logged.
+            const r1 = actionAt(3, 'Turn', { noticeSeconds: 10 });
+            const rHas = (pack, cue) => pack === ROBOT;
+            const rDur = (pack, cue) => cue === 'notice:get ready' ? 1 : 3.5;
+            s = rsvc.computeCueSchedule([r1], 10, null, BASE, {}, rHas, rDur);
+            assert('late robot notice: full line dropped (does not fit before 3s)',
+                !s.some(e => e.cueId === 'notice:get ready to turn'), JSON.stringify(s));
+            assert('late robot notice: short "Get ready" line baked at 0',
+                s.some(e => e.cueId === 'notice:get ready' && near(e.offsetSec, 0)), JSON.stringify(s));
+            const logBefore = rsvc.getCueLog().length;
+            const r2 = actionAt(0.8, 'Turn', { noticeSeconds: 10 });
+            s = rsvc.computeCueSchedule([r2], 10, null, BASE, {}, rHas, rDur);
+            assert('too late for even the short line: no notice baked',
+                !s.some(e => e.cueId && e.cueId.startsWith('notice:')), JSON.stringify(s));
+            const dropped = rsvc.getCueLog().slice(logBefore);
+            assert('too late for even the short line: drop recorded in the cue log',
+                dropped.some(e => e.outcome === 'dropped-late' && e.cueId === 'notice:get ready to turn'),
+                JSON.stringify(dropped));
+            s = rsvc.computeCueSchedule([actionAt(-5, 'Past', { noticeSeconds: 10 })], 10, null, BASE, {}, rHas, rDur);
+            assert('a cue already past logs no drop',
+                !rsvc.getCueLog().slice(logBefore).some(e => e.cueId === 'notice:get ready to past'));
+            const rl = rsvc.robotLinesForTimeline([r1], 10, null, {}, null);
+            assert('robot lines include the short "Get ready" notice',
+                rl.some(l => l.style === 'notice' && l.text === 'Get ready'), JSON.stringify(rl));
+            assert('robot lines: no short line for an event without notices',
+                !rsvc.robotLinesForTimeline([actionAt(3, 'Turn', { noticeSeconds: 0 })], 0, null, {}, null)
+                    .some(l => l.text === 'Get ready'));
+
             // ═══════════════════════════════════════════════════════════
             // 5. computeCueSchedule — audioAnnounce=false skipped
             // ═══════════════════════════════════════════════════════════

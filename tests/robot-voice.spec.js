@@ -90,9 +90,10 @@ test('robot voice: prepare registers lines once and the bake schedule uses them'
         { style: 'trigger', text: 'Unfreeze!' },
         { style: 'notice', text: 'Get ready to unfreeze' },
         { style: 'clip', text: 'Read the poem aloud' },
+        { style: 'notice', text: 'Get ready' }, // late-join stand-in
     ]);
-    expect(r.first).toMatchObject({ ok: true, total: 5, synthesized: 5, failed: 0 });
-    expect(r.second).toMatchObject({ ok: true, total: 5, synthesized: 0, cached: 5 });
+    expect(r.first).toMatchObject({ ok: true, total: 6, synthesized: 6, failed: 0 });
+    expect(r.second).toMatchObject({ ok: true, total: 6, synthesized: 0, cached: 6 });
     expect(r.listed).not.toContain('__robot');
     // Triggers land on the downbeat (t0 is 20 s into the track); notices 10 s early.
     expect(r.robot).toEqual(expect.arrayContaining([
@@ -157,7 +158,7 @@ test('robot voice: a typed event practises with robot lines in the baked track',
     await expect.poll(() => page.evaluate(() => state.bakedActive), { timeout: 20000 }).toBe(true);
     const r = await page.evaluate(() => ({ robot: state.audioDebug.robot, bake: state.audioDebug.bake }));
     expect(r.robot).toMatchObject({ ok: true, failed: 0 });
-    expect(r.robot.total).toBe(4); // two triggers + two notices
+    expect(r.robot.total).toBe(5); // two triggers + two notices + the short late-join "Get ready"
     expect(r.bake.robotCues).toBe(4);
 });
 
