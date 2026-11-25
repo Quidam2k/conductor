@@ -2028,6 +2028,10 @@ function transitionTo(newMode) {
     content.style.animation = isBack ? 'screen-slide-in-back 0.25s ease-out' : 'screen-slide-in 0.25s ease-out';
     state.mode = newMode;
 
+    // Back on the input screen: the loaded event is put down, so a reload
+    // shouldn't bring it back. (Before the deferred reload just below.)
+    if (newMode === 'input') clearLoadedCode();
+
     // Deferred SW-update reload: safe now that we're on a shallow screen
     // (input/preview/packs/editor-info) — nothing time-critical is running.
     if (pendingSwReload && (screenDepth[newMode] || 0) <= 1) {
@@ -2110,6 +2114,19 @@ function friendlyError(msg) {
     return 'Something went wrong. Check that the event data is complete.';
 }
 
+// An event loaded by paste / file / QR / beam / demo lives only in memory, so a
+// reload (a discarded iOS tab, the service-worker update reload) would drop the
+// person back on the input screen with it gone. Keep the code for this tab.
+// Never the password: a locked event is kept as its locked code and asks again.
+// Hash links need none of this (the URL carries them); 'demo' means rebuild it.
+const LOADED_KEY = 'conductor-loaded-code';
+function persistLoadedCode(raw) {
+    try { sessionStorage.setItem(LOADED_KEY, raw); } catch (e) { /* file://, private mode */ }
+}
+function clearLoadedCode() {
+    try { sessionStorage.removeItem(LOADED_KEY); } catch (e) {}
+}
+
 function loadFromString(input, navigateOnSuccess) {
     const trimmed = input.trim();
     if (!trimmed) {
@@ -2121,17 +2138,20 @@ function loadFromString(input, navigateOnSuccess) {
         state.event = embeddedEventToEvent(embedded);
         // Text-format warnings, for the preview notice (never shared or saved)
         if (embedded.parseWarnings) state.event.parseWarnings = embedded.parseWarnings;
+        persistLoadedCode(trimmed);
         return true;
     } catch (e) {
         if (e.message === 'ENCRYPTED_EVENT') {
             showPasswordPrompt(e.data, (embedded, code) => {
                 setProtectedEvent(embedded, code);
+                persistLoadedCode(trimmed);
                 if (navigateOnSuccess !== false) {
                     state.previewReturnTo = 'input';
                     transitionTo('preview');
                 }
             }, () => {
                 $('input-error').textContent = '';
+                clearLoadedCode(); // also ends a reload-restore the person backed out of
             });
             return false; // Navigation handled in callback
         }
@@ -2148,6 +2168,7 @@ function loadFromHash() {
     if (isEncryptedCode(hash)) {
         showPasswordPrompt(hash, (embedded, code) => {
             setProtectedEvent(embedded, code);
+            clearLoadedCode(); // the URL carries this one
             state.previewReturnTo = 'input';
             transitionTo('preview');
         }, () => {
@@ -2159,6 +2180,7 @@ function loadFromHash() {
     try {
         const embedded = parseEventInput(hash);
         state.event = embeddedEventToEvent(embedded);
+        clearLoadedCode(); // the URL carries this one
         return true;
     } catch (e) {
         // A broken event link says so; ordinary #anchors stay quiet.
@@ -2498,6 +2520,7 @@ function handleQRResult(data) {
         closeQRScanner();
         showPasswordPrompt(code, (embedded, lockedCode) => {
             setProtectedEvent(embedded, lockedCode);
+            persistLoadedCode(code);
             state.previewReturnTo = 'input';
             transitionTo('preview');
         }, () => {
@@ -2509,6 +2532,7 @@ function handleQRResult(data) {
     try {
         const embedded = parseEventInput(code);
         state.event = embeddedEventToEvent(embedded);
+        persistLoadedCode(code);
         closeQRScanner();
         state.previewReturnTo = 'input';
         transitionTo('preview');
@@ -6458,6 +6482,7 @@ $('btn-load').addEventListener('click', () => {
 
 function loadDemo() {
     createDemoEvent();
+    persistLoadedCode('demo');
     state.previewReturnTo = 'input';
     transitionTo('preview');
 }
@@ -7019,6 +7044,7 @@ $('btn-beam-voice-pack').addEventListener('click', () => {
     startBeam(packManager.getSyntheticPackId(), 'My Voice');
 });
 $('btn-preview-from-editor').addEventListener('click', () => {
+    clearLoadedCode(); // an earlier paste must not resurface over this one
     state.previewReturnTo = 'editor-review';
     transitionTo('preview');
 });
@@ -7148,6 +7174,7 @@ $('pack-list').addEventListener('click', async (e) => {
         if (!eventData) return;
         const rebased = rebaseEventToNow(eventData);
         state.event = embeddedEventToEvent(rebased);
+        clearLoadedCode(); // an earlier paste must not resurface over this one
         state.previewReturnTo = 'packs';
         transitionTo('preview');
     }
@@ -7234,6 +7261,30 @@ window.addEventListener('popstate', (e) => {
     }
 });
 
+/**
+ * After a reload, put back the event this tab had loaded (see LOADED_KEY) on
+ * Preview — never straight into Live. A locked code asks for its password
+ * again. A code that no longer parses is dropped with the normal error.
+ * Returns true if it navigated to Preview.
+ */
+function restoreLoadedEvent() {
+    if (location.hash.length > 1) return false; // a hash link (or #anchor) decides
+    let stored = null;
+    try { stored = sessionStorage.getItem(LOADED_KEY); } catch (e) {}
+    if (!stored) return false;
+    if (stored === 'demo') {
+        createDemoEvent();
+    } else if (!loadFromString(stored)) {
+        // A locked code has its password prompt up over the input screen
+        // (unlock navigates, cancel drops the key); anything else is dead.
+        if ($('password-overlay').style.display !== 'flex') clearLoadedCode();
+        return false;
+    }
+    state.previewReturnTo = 'input';
+    transitionTo('preview');
+    return true;
+}
+
 // On page load
 if (loadFromHash()) {
     state.previewReturnTo = 'input';
@@ -7241,11 +7292,12 @@ if (loadFromHash()) {
 } else if (new URLSearchParams(location.search).has('demo')) {
     // Arriving from start.html "Use It Now" — go straight to demo
     createDemoEvent();
+    persistLoadedCode('demo');
     state.previewReturnTo = 'input';
     transitionTo('preview');
     // Clean URL without reload
     history.replaceState(null, '', location.pathname);
-} else {
+} else if (!restoreLoadedEvent()) {
     // On input screen by default — render draft list + pack hint
     renderDraftList();
     updateInputLayout();
