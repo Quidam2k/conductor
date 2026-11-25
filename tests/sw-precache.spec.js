@@ -31,7 +31,7 @@ test('sw.js precaches the root and keeps its fresh-fetch options', () => {
     const assets = [...swJs.match(/const ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)]
         .map(m => m[1].replace(/^\.\/?/, ''));
     expect(assets).toContain('');
-    for (const opt of ["cache: 'reload'", "cache: 'no-cache'", 'ignoreSearch: true']) {
+    for (const opt of ["cache: 'reload'", "cache: 'no-cache'"]) {
         expect(swJs, `sw.js lost ${opt}`).toContain(opt);
     }
 });

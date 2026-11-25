@@ -704,7 +704,7 @@ test('meta tags: theme-color, description, icons present', async ({ page }) => {
     expect(desc).toContain('No server');
 
     const touchIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
-    expect(touchIcon).toBe('icon-192.png');
+    expect(touchIcon).toBe('apple-touch-icon.png');
 
     const favicon = await page.locator('link[rel="icon"]').getAttribute('href');
     expect(favicon).toBe('icon.svg');

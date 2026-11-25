@@ -1,5 +1,4 @@
 {
-  "id": "./",
   "name": "Conductor",
   "short_name": "Conductor",
   "description": "Synchronized coordination for real-world actions. No server, no app store, no accounts.",

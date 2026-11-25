@@ -22,16 +22,18 @@ const TYPES = {
 
 let server, base;
 const overrides = new Map(); // url path -> Buffer
+const gone = new Set(); // url paths that answer 404
 let offline = false;
 
 function serve(req, res) {
     if (offline) { req.socket.destroy(); return; }
-    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    // The site lives at / and also at /conductor/, the GitHub Pages path.
+    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/conductor(?=\/)/, '');
     if (p.endsWith('/')) p += 'index.html';
     let body = overrides.get(p);
     if (!body) {
         const file = path.normalize(path.join(DOCS, p));
-        if (!file.startsWith(DOCS) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        if (gone.has(p) || !file.startsWith(DOCS) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
             res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'max-age=600' });
             res.end(fs.readFileSync(path.join(DOCS, '404.html'))); // as Pages does
             return;
@@ -59,6 +61,7 @@ test.afterAll(async () => {
 test.beforeEach(({ browserName }) => {
     test.skip(browserName !== 'chromium', 'SW cache semantics are checked on Chromium only');
     overrides.clear();
+    gone.clear();
     offline = false;
 });
 
@@ -76,6 +79,13 @@ async function installed(browser) {
     return { context, page };
 }
 
+/** Empty the browser's HTTP cache, so only the SW's own copies can answer. */
+async function clearHttpCache(context, page) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Network.clearBrowserCache');
+    await cdp.detach();
+}
+
 const cachedText = (page, url) => page.evaluate(async (u) => {
     const r = await caches.match(u);
     return r ? r.text() : null;
@@ -83,9 +93,11 @@ const cachedText = (page, url) => page.evaluate(async (u) => {
 
 test('offline relaunch at the root URL (Home Screen start_url) opens the app', async ({ browser }) => {
     const { context, page } = await installed(browser);
+    await clearHttpCache(context, page);
     offline = true; // a dead signal: every request's socket is dropped
     await page.goto(base + '/'); // throws net::ERR_FAILED if the SW has no copy
-    await expect(page.locator('#app-version')).toHaveText(/^v\d+$/);
+    await page.click('#btn-demo'); // the app's scripts ran, from the SW's copies
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
     await context.close();
 });
 
@@ -97,16 +109,20 @@ test('offline index.html?demo opens the demo', async ({ browser }) => {
     await context.close();
 });
 
-test('a 404 for a script is passed through, never stored', async ({ browser }) => {
+test('an app script that fails to download is passed through, never stored', async ({ browser }) => {
     const { context, page } = await installed(browser);
-    const status = await page.evaluate(() => fetch('/js/does-not-exist.js').then(r => r.status));
+    // Lose the stored copy, then have the server fail it, as a bad deploy would.
+    await page.evaluate(async () => { for (const k of await caches.keys()) await (await caches.open(k)).delete('/js/models.js'); });
+    await clearHttpCache(context, page);
+    gone.add('/js/models.js');
+    const status = await page.evaluate(() => fetch('/js/models.js').then(r => r.status));
     expect(status).toBe(404);
     await page.waitForTimeout(1000);
-    expect(await cachedText(page, base + '/js/does-not-exist.js')).toBeNull();
+    expect(await cachedText(page, base + '/js/models.js')).toBeNull();
     await context.close();
 });
 
-test('a deployed index.html shows on the second load, inside the HTTP cache window', async ({ browser }) => {
+for (const at of ['/index.html', '/index.html?demo']) test(`a deployed index.html shows on the second load of ${at}, inside the HTTP cache window`, async ({ browser }) => {
     const html = fs.readFileSync(path.join(DOCS, 'index.html'), 'utf8');
     const marked = (m) => Buffer.from(html.replace('<head>', `<head><meta name="sw-test-marker" content="${m}">`));
     overrides.set('/index.html', marked('old'));
@@ -116,23 +132,27 @@ test('a deployed index.html shows on the second load, inside the HTTP cache wind
 
     // A same-URL goto can count as a reload (which revalidates); step away first.
     await page.goto('about:blank');
-    await page.goto(base + '/index.html'); // first load: the cached copy, refreshed behind it
+    await page.goto(base + at); // first load: the cached copy, refreshed behind it
     await expect.poll(async () => (await cachedText(page, base + '/index.html') || '').includes('content="new"'),
         { timeout: 5000 }).toBe(true);
     await page.goto('about:blank');
-    await page.goto(base + '/index.html'); // second load
+    await page.goto(base + at); // second load
     expect(await marker()).toBe('new');
     await context.close();
 });
 
 test('pack zips go to the network and are never stored', async ({ browser }) => {
     const { context, page } = await installed(browser);
-    const statuses = await page.evaluate(() => Promise.all(
-        ['/packs/no-such.zip', '/packs/demo-the-walk.zip'].map(u => fetch(u).then(r => r.status))));
-    expect(statuses).toEqual([404, 200]);
+    // A download link asks for HTML, like a page; the app's own install does not.
+    const statuses = await page.evaluate(() => Promise.all([
+        fetch('/packs/no-such.zip'), fetch('/packs/demo-the-walk.zip'),
+        fetch('/packs/demo-the-bloom.zip', { headers: { Accept: 'text/html' } }),
+    ].map(f => f.then(r => r.status))));
+    expect(statuses).toEqual([404, 200, 200]);
     await page.waitForTimeout(1000);
     expect(await cachedText(page, base + '/packs/no-such.zip')).toBeNull();
     expect(await cachedText(page, base + '/packs/demo-the-walk.zip')).toBeNull();
+    expect(await cachedText(page, base + '/packs/demo-the-bloom.zip')).toBeNull();
     await context.close();
 });
 
@@ -160,4 +180,9 @@ test('the 404 page links back to the site root from any depth', async ({ page })
     expect(resp.status()).toBe(404);
     await expect(page.locator('#go-app')).toHaveAttribute('href', '/conductor/index.html');
     await expect(page.locator('#go-start')).toHaveAttribute('href', '/conductor/start.html');
+    await page.click('#go-app');
+    await expect(page.locator('#app-version')).toHaveText(/^v\d+$/);
+    await page.goto(base + '/conductor/also/missing');
+    await page.click('#go-start');
+    await expect(page.locator('#app-version')).toHaveText(/^v\d+$/); // start.html shows the build too
 });

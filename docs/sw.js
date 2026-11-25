@@ -1,4 +1,6 @@
-const CACHE_NAME = 'conductor-v79'; // = the build number (tests/release-consistency.spec.js)
+// conductor-build-v<N> for build vN (tests/release-consistency.spec.js). The
+// older conductor-v<N> names ran ahead of the build and are all taken.
+const CACHE_NAME = 'conductor-build-v79';
 const ASSETS = [
     './', // the Home Screen start_url: must open with no signal
     './index.html',
@@ -70,6 +72,8 @@ self.addEventListener('activate', (e) => {
 // - Everything else (pack zips above all) goes to the network and is never
 //   stored: the app keeps installed packs in IndexedDB, and an SW copy is only
 //   ever a stale or failed download pinned until the next build.
+const fromCache = (req) => caches.open(CACHE_NAME).then(cache => cache.match(req));
+
 self.addEventListener('fetch', (e) => {
     if (e.request.method !== 'GET') return;
     const url = new URL(e.request.url);
@@ -81,35 +85,28 @@ self.addEventListener('fetch', (e) => {
         (e.request.headers.get('accept') || '').includes('text/html');
 
     if (isHTML) {
-        e.respondWith(
-            caches.open(CACHE_NAME).then(cache =>
-                // ignoreSearch: index.html?demo is the same shell (it reads location.search).
-                cache.match(e.request, { ignoreSearch: true }).then(cached => {
-                    // no-cache: revalidate with the origin, so a deploy shows on the
-                    // next load instead of after the 10-minute HTTP cache window.
-                    const networkFetch = fetch(e.request, { cache: 'no-cache' })
-                        .then(resp => {
-                            if (resp && resp.ok) cache.put(e.request, resp.clone());
-                            return resp;
-                        })
-                        .catch(() => cached); // offline → fall back to cache
-                    return cached || networkFetch;
-                })
-            )
-        );
+        // One copy per page: index.html?demo is the same shell (the page reads
+        // location.search), so it reads and refreshes the index.html copy.
+        const key = url.origin + url.pathname;
+        // no-cache: revalidate with the origin, so a deploy shows on the next
+        // load instead of after the 10-minute HTTP cache window.
+        const network = fetch(e.request, { cache: 'no-cache' });
+        // waitUntil keeps the worker alive until the fresh copy is stored.
+        e.waitUntil(network.then(resp => {
+            if (!resp.ok) return;
+            const copy = resp.clone(); // before the page reads the body
+            return caches.open(CACHE_NAME).then(cache => cache.put(key, copy));
+        }).catch(() => {}));
+        // The stored copy first (offline-fast); the network only on a miss.
+        e.respondWith(fromCache(key).then(cached => cached || network));
         return;
     }
 
     if (!PRECACHED.has(url.href)) return;
-    e.respondWith(
-        caches.match(e.request)
-            .then(cached => cached || fetch(e.request).then(resp => {
-                // Never store an error: it would be served until the next build.
-                if (resp.ok) {
-                    const clone = resp.clone(); // clone now, before the page reads the body
-                    caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-                }
-                return resp;
-            }))
-    );
+    e.respondWith(fromCache(e.request).then(cached => cached || fetch(e.request).then(resp => {
+        if (!resp.ok) return resp; // never store an error: it would be served until the next build
+        const copy = resp.clone();
+        return caches.open(CACHE_NAME).then(cache => cache.put(e.request, copy))
+            .then(() => resp, () => resp);
+    })));
 });

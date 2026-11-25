@@ -29,8 +29,8 @@ test('all build labels and the changelog agree with index.html', () => {
 
 test('service worker cache name is the build number', () => {
     // A new CACHE_NAME is what makes installed phones fetch the new files,
-    // so it must move with every build: conductor-v<N> for build vN.
-    const m = read('sw.js').match(/^const CACHE_NAME = 'conductor-(v\d+)';/);
+    // so it must move with every build: conductor-build-v<N> for build vN.
+    const m = read('sw.js').match(/^const CACHE_NAME = 'conductor-build-(v\d+)';/m);
     expect(m, 'sw.js CACHE_NAME').toBeTruthy();
     expect(m[1], 'sw.js CACHE_NAME must equal the build label').toBe(appVersion());
 });
