@@ -8309,12 +8309,24 @@ function friendlyError(msg) {
 // person back on the input screen with it gone. Keep the code for this tab.
 // Never the password: a locked event is kept as its locked code and asks again.
 // Hash links need none of this (the URL carries them); 'demo' means rebuild it.
+// The URL's hash is stored with the code: in-app navigation leaves an old
+// link's hash in the URL, so a stored code saved under that same hash is newer
+// than it and wins on reload, while a different hash means a new link opened.
 const LOADED_KEY = 'conductor-loaded-code';
 function persistLoadedCode(raw) {
-    try { sessionStorage.setItem(LOADED_KEY, raw); } catch (e) { /* file://, private mode */ }
+    try {
+        sessionStorage.setItem(LOADED_KEY, JSON.stringify({ code: raw, hash: location.hash }));
+    } catch (e) { /* file://, private mode, quota */ }
 }
 function clearLoadedCode() {
     try { sessionStorage.removeItem(LOADED_KEY); } catch (e) {}
+}
+/** {code, hash} saved for this tab, or null. Only a restore under the same hash. */
+function readLoadedCode() {
+    try {
+        const v = JSON.parse(sessionStorage.getItem(LOADED_KEY));
+        return v && typeof v.code === 'string' && v.hash === location.hash ? v : null;
+    } catch (e) { return null; }
 }
 
 function loadFromString(input, navigateOnSuccess) {
@@ -13458,10 +13470,9 @@ window.addEventListener('popstate', (e) => {
  * Returns true if it navigated to Preview.
  */
 function restoreLoadedEvent() {
-    if (location.hash.length > 1) return false; // a hash link (or #anchor) decides
-    let stored = null;
-    try { stored = sessionStorage.getItem(LOADED_KEY); } catch (e) {}
-    if (!stored) return false;
+    const saved = readLoadedCode();
+    if (!saved) return false;
+    const stored = saved.code;
     if (stored === 'demo') {
         createDemoEvent();
     } else if (!loadFromString(stored)) {
@@ -13475,8 +13486,9 @@ function restoreLoadedEvent() {
     return true;
 }
 
-// On page load
-if (loadFromHash()) {
+// On page load. A code this tab loaded under the current hash is newer than
+// the hash itself (see LOADED_KEY), so it skips the hash load.
+if (!readLoadedCode() && loadFromHash()) {
     state.previewReturnTo = 'input';
     transitionTo('preview');
 } else if (new URLSearchParams(location.search).has('demo')) {

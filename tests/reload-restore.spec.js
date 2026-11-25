@@ -15,6 +15,10 @@ const { test, expect } = require('@playwright/test');
 test.use({ serviceWorkers: 'block' }); // reload the page itself, not a cached shell
 
 const KEY = 'conductor-loaded-code';
+const storedCode = (page) => page.evaluate(k => {
+    const v = sessionStorage.getItem(k);
+    return v === null ? null : JSON.parse(v).code;
+}, KEY);
 
 async function waitForScreen(page, screenId) {
     await expect(page.locator(`#${screenId}`)).toHaveClass(/active/, { timeout: 5000 });
@@ -106,7 +110,7 @@ test('going back to the input screen puts the event down', async ({ page }) => {
     await waitForScreen(page, 'screen-preview');
     await page.click('#btn-preview-back');
     await waitForScreen(page, 'screen-input');
-    expect(await page.evaluate(k => sessionStorage.getItem(k), KEY)).toBeNull();
+    expect(await storedCode(page)).toBeNull();
 
     await page.reload();
     await waitForScreen(page, 'screen-input');
@@ -128,17 +132,57 @@ test('a hash link replaces a stored paste', async ({ page }) => {
     await page.goto('/#' + code);
     await waitForScreen(page, 'screen-preview');
     await expect(page.locator('#preview-title')).toHaveText('Hash Wins');
-    expect(await page.evaluate(k => sessionStorage.getItem(k), KEY)).toBeNull();
+    expect(await storedCode(page)).toBeNull();
+});
+
+test('a paste after a hash link wins on reload, though the old hash is still in the URL', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const code = await page.evaluate(() => {
+        const embedded = {
+            title: 'Old Link',
+            startTime: new Date(Date.now() + 3600000).toISOString(),
+            timezone: 'UTC',
+            timeline: [createTimelineAction({
+                time: new Date(Date.now() + 3600000).toISOString(), action: 'Begin' })],
+        };
+        return encodeEvent(embeddedEventToEvent(embedded));
+    });
+    await page.goto('/#' + code);
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-preview-back');
+    await waitForScreen(page, 'screen-input');
+    expect(await page.evaluate(() => location.hash.length)).toBeGreaterThan(1); // still there
+    await page.fill('#input-paste', textEvent('Newer Paste'));
+    await page.click('#btn-load');
+    await waitForScreen(page, 'screen-preview');
+
+    await page.reload();
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Newer Paste');
+
+    // A different link opened in this tab beats the stored paste
+    const fresh = await page.evaluate(() => encodeEvent(embeddedEventToEvent({
+        title: 'Fresh Link',
+        startTime: new Date(Date.now() + 3600000).toISOString(),
+        timezone: 'UTC',
+        timeline: [createTimelineAction({
+            time: new Date(Date.now() + 3600000).toISOString(), action: 'Begin' })],
+    })));
+    await page.goto('/#' + fresh);
+    await waitForScreen(page, 'screen-preview');
+    await expect(page.locator('#preview-title')).toHaveText('Fresh Link');
 });
 
 test('a stored code that no longer parses lands on input and is dropped', async ({ page }) => {
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
-    await page.evaluate(k => sessionStorage.setItem(k, 'v1_not-a-real-event'), KEY);
+    await page.evaluate(k => sessionStorage.setItem(k,
+        JSON.stringify({ code: 'v1_not-a-real-event', hash: '' })), KEY);
     await page.reload();
     await waitForScreen(page, 'screen-input');
     await expect(page.locator('#input-error')).not.toHaveText('');
-    expect(await page.evaluate(k => sessionStorage.getItem(k), KEY)).toBeNull();
+    expect(await storedCode(page)).toBeNull();
 });
 
 test('a locked event reloads to its password prompt and never stores the password', async ({ page }) => {
@@ -163,7 +207,7 @@ test('a locked event reloads to its password prompt and never stores the passwor
 
     const stored = await page.evaluate(() => JSON.stringify(Object.entries(sessionStorage)));
     expect(stored).not.toContain('sekrit-pass');
-    expect(await page.evaluate(k => sessionStorage.getItem(k), KEY)).toBe(locked);
+    expect(await storedCode(page)).toBe(locked);
 
     await page.reload();
     await expect(page.locator('#password-overlay')).toBeVisible({ timeout: 3000 });
@@ -177,7 +221,7 @@ test('a locked event reloads to its password prompt and never stores the passwor
     await page.reload();
     await expect(page.locator('#password-overlay')).toBeVisible({ timeout: 3000 });
     await page.click('#btn-pwd-cancel');
-    expect(await page.evaluate(k => sessionStorage.getItem(k), KEY)).toBeNull();
+    expect(await storedCode(page)).toBeNull();
     await page.reload();
     await waitForScreen(page, 'screen-input');
     await expect(page.locator('#password-overlay')).toBeHidden();
