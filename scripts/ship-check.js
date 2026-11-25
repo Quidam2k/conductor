@@ -14,6 +14,7 @@ const appVersionLabel = /<span id="app-version">(v\d+)<\/span>/;
 const labels = [
   { file: 'start.html', regex: appVersionLabel, description: '#app-version' },
   { file: 'GUIDE.html', regex: /class="build">build (v\d+) /, description: '.build footer' },
+  { file: 'changelog.html', regex: /<p class="eyebrow">Conductor &middot; build (v\d+)<\/p>/, description: 'header build label' },
   { file: 'test/index.html', regex: /<span id="build-label">(v\d+)<\/span>/, description: '#build-label' },
   { file: 'ios-audio-test/index.html', regex: /<title>iOS Audio Diagnostics — (v\d+) /, description: '<title>' },
   { file: 'ios-audio-test/index.html', regex: /<p class="sub">Build (v\d+) /, description: '.sub Build label' },

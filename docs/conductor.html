@@ -1126,7 +1126,7 @@
         <div class="app-logo">
             <h2>CONDUCTOR</h2>
             <p>Coordinate groups in real time with shared timed cues.<br>No accounts, no servers, no app required.</p>
-            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v79</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
+            <p style="font-size:14px; color:var(--text-dim); margin-top:4px;">build <span id="app-version">v80</span> &middot; <a href="test/" style="color:var(--text-secondary);">Sound not working? Check your phone &rarr;</a></p>
             <div id="fs-control" class="fs-control" role="group" aria-label="Text size">
                 <span class="fs-control-label">Text size</span>
                 <button type="button" class="fs-btn" data-fs-step="m"   aria-label="Normal text size"  aria-pressed="true"  style="font-size:14px;">A</button>
@@ -8096,12 +8096,15 @@ audio.setOnBeep((entry) => {
     dot.classList.add('flash');
 });
 
-// Dev hook for console testing: window.importPack(arrayBuffer)
-window.importPack = async (arrayBuffer) => {
-    const manifest = await packManager.importPack(arrayBuffer);
-    await packManager.ensurePackLoaded(manifest.id);
-    return manifest;
-};
+// Dev hook for console testing: window.importPack(arrayBuffer). Only on a
+// local copy or a dev server, never on a hosted mirror.
+if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    window.importPack = async (arrayBuffer) => {
+        const manifest = await packManager.importPack(arrayBuffer);
+        await packManager.ensurePackLoaded(manifest.id);
+        return manifest;
+    };
+}
 
 // Loop handles
 let rafId = null;

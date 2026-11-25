@@ -29,8 +29,8 @@ def build():
         src = m.group(1)
         path = os.path.join(DOCS, src.replace('/', os.sep))
         if not os.path.isfile(path):
-            print(f'  WARNING: {src} not found, skipping')
-            return m.group(0)
+            # A standalone that still points at an external script is broken.
+            sys.exit(f'ERROR: {src} not found')
         with open(path, 'r', encoding='utf-8') as f:
             content = f.read()
         # Escape </script> in inlined content to prevent HTML parser breakage
@@ -62,9 +62,11 @@ def build():
 
 
 if __name__ == '__main__':
-    if '--out' in sys.argv:
-        i = sys.argv.index('--out')
-        if i + 1 >= len(sys.argv):
+    args = sys.argv[1:]
+    if args and args[0].startswith('--out='):
+        args = ['--out', args[0][len('--out='):]] + args[1:]
+    if args:
+        if len(args) != 2 or args[0] != '--out' or not args[1]:
             sys.exit('usage: build-standalone.py [--out <path>]')
-        OUT = os.path.abspath(sys.argv[i + 1])
+        OUT = os.path.abspath(args[1])
     build()

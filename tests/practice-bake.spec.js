@@ -113,7 +113,9 @@ test('practice bake: schedule is anchored at the practice start, not the wall cl
                 const b = packManager.getBuffer(packId + ':' + cueId);
                 return b ? b.duration : 0;
             });
+        const firstActionMs = Math.min(...evt.timeline.map(a => a.timeMs));
         return {
+            leadSec: (firstActionMs - state.practiceStartEventMs) / 1000,
             count: schedule.length,
             firstOffset: schedule.length ? schedule[0].offsetSec : -1,
             triggers: schedule.filter(e => e.kind === 'beep' && e.freqHz === 1320).map(e => e.offsetSec),
@@ -125,6 +127,7 @@ test('practice bake: schedule is anchored at the practice start, not the wall cl
     // steps has its trigger beep at 15 s + the step's time (0, 30, 35, 90,
     // 120, 125, 150, 160, 180). 38 = 9 triggers + 9 robot step lines + 5 robot
     // notices + 5 countdowns of 3 beeps.
+    expect(r.leadSec).toBe(15);
     expect(r.firstOffset).toBe(5);
     expect(r.triggers).toEqual([15, 45, 50, 105, 135, 140, 165, 175, 195]);
     expect(r.count).toBe(38);

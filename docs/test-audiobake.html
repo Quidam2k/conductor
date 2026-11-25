@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="robots" content="noindex">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conductor - Audio Bake Tests</title>
     <style>
@@ -500,9 +501,10 @@
                     return out;
                 };
                 const decodeBake = async (sched) => {
-                    const b = await bakeScheduleToWavBlob(sched, null, { keepWav: true }); // in-app 24 kHz default
+                    const b = await bakeScheduleToWavBlob(sched); // in-app 24 kHz default
                     const Ctor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-                    const decoded = await new Ctor(1, 1, b.sampleRate).decodeAudioData(b.wavBytes.slice(0)); // decode detaches its input
+                    // Decode the Blob itself: it is what the app hands to <audio>.
+                    const decoded = await new Ctor(1, 1, b.sampleRate).decodeAudioData(await b.blob.arrayBuffer());
                     return findOnsets(decoded.getChannelData(0), decoded.sampleRate);
                 };
                 const within50ms = (found, sched) => found.length === sched.length &&

@@ -2297,3 +2297,33 @@ test('bake schedule: stitched prep = prep-lead + member cue clips, or nothing wi
     // starts at trigger − (seqDur + 1) = 16.7s instead of 20s.
     expect(r.longClips).toContainEqual({ cueId: 'prep-lead', offsetSec: 16.7 });
 });
+
+// ═════════════════════════════════════════════════════════════════════
+// Late joiner: going live after the first cue has passed says so in the
+// live banner, with the count. Runs on every engine (no audio asserted).
+// ═════════════════════════════════════════════════════════════════════
+
+test('late joiner: live banner says how many cues already passed', async ({ page }) => {
+    await page.goto('/');
+    await waitForScreen(page, 'screen-input');
+    const code = await page.evaluate(() => {
+        const at = (sec) => new Date(Date.now() + sec * 1000).toISOString();
+        return encodeEvent(embeddedEventToEvent({
+            title: 'Late Join',
+            startTime: at(-60),
+            timezone: 'UTC',
+            timeline: [
+                createTimelineAction({ time: at(-30), action: 'Begin' }),
+                createTimelineAction({ time: at(90), action: 'Freeze' }),
+                createTimelineAction({ time: at(150), action: 'Done' }),
+            ],
+        }));
+    });
+    await page.goto('/#' + code);
+    await waitForScreen(page, 'screen-preview');
+    await page.click('#btn-go-live');
+    await page.click('#btn-preflight-go');
+    await waitForScreen(page, 'screen-live');
+    await expect(page.locator('#live-banner'))
+        .toContainText('Event in progress \u2014 1 of 3 cues already passed.', { timeout: 15000 });
+});

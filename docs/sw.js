@@ -1,6 +1,6 @@
 // conductor-build-v<N> for build vN (tests/release-consistency.spec.js). The
 // older conductor-v<N> names ran ahead of the build and are all taken.
-const CACHE_NAME = 'conductor-build-v79';
+const CACHE_NAME = 'conductor-build-v80';
 const ASSETS = [
     './', // the Home Screen start_url: must open with no signal
     './index.html',
