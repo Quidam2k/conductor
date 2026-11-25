@@ -2149,8 +2149,9 @@ test('beep dot: practice-screen dot flashes when a beep is scheduled', async ({ 
 //     baked <audio> track and suppress the live Web Audio beep path.
 // ═════════════════════════════════════════════════════════════════════
 
-test('live bake (v46): baked track active on chromium; live beeps suppressed; pocket banner shown', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+test('live bake (v46): baked track active; live beeps suppressed; pocket banner shown', async ({ page, browserName }) => {
+    // State checks only (no <audio> playback): runs wherever an offline render can.
+    test.skip(browserName === 'webkit', 'Playwright WebKit has no OfflineAudioContext (real Safari does)');
 
     await page.goto('/');
     await waitForScreen(page, 'screen-input');

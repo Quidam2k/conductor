@@ -348,12 +348,52 @@
             }
 
             // ═══════════════════════════════════════════════════════════
+            // 6b. encodeAudioBufferToWav — a plain AudioBuffer-like object.
+            //     Needs no Web Audio, so the WAV header and sample encoding
+            //     are checked on every engine (Playwright WebKit included).
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>6b. encodeAudioBufferToWav — plain object (every engine)</h2>');
+            {
+                const fake = new Float32Array(50);
+                fake[5] = 0.5; fake[6] = -2; // -2 is out of range: must clamp
+                const fv = new DataView(encodeAudioBufferToWav({ sampleRate: 24000, getChannelData: () => fake }));
+                assert('fake buffer: byte length = 44 + 50*2', fv.byteLength === 144, String(fv.byteLength));
+                assert('fake buffer: RIFF size = 36 + data', fv.getUint32(4, true) === 136, String(fv.getUint32(4, true)));
+                assert('fake buffer: PCM mono 24000 Hz 16-bit, byte rate 48000',
+                    fv.getUint16(20, true) === 1 && fv.getUint16(22, true) === 1 &&
+                    fv.getUint32(24, true) === 24000 && fv.getUint32(28, true) === 48000 &&
+                    fv.getUint16(34, true) === 16);
+                assert('fake buffer: data chunk size = 100', fv.getUint32(40, true) === 100);
+                assert('fake buffer: 0.5 → 16384', fv.getInt16(44 + 5 * 2, true) === 16384, String(fv.getInt16(54, true)));
+                assert('fake buffer: −2 clamps to −32767', fv.getInt16(44 + 6 * 2, true) === -32767, String(fv.getInt16(56, true)));
+                assert('fake buffer: untouched sample is 0', fv.getInt16(44, true) === 0);
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // 6c. expandRepeats cap — a repeat that would mint more than
+            //     MAX_ACTIONS cues stops at exactly the cap. No decode needed.
+            // ═══════════════════════════════════════════════════════════
+            log('<h2>6c. Repeat cap — exactly MAX_ACTIONS (5000)</h2>');
+            {
+                const capEvt = {
+                    timeline: [actionAt(0, 'Clap', { countdownSeconds: [] }), actionAt(1, 'Stamp', { countdownSeconds: [] })],
+                    repeatUntil: new Date(BASE + 30 * 86400000).toISOString(), // 30 days of 2-cue cycles
+                    codaGapSeconds: 1,
+                };
+                const capped = expandRepeats(capEvt);
+                assert('capped repeat has exactly 5000 actions', capped.timeline.length === 5000, String(capped.timeline.length));
+                assert('capped repeat is marked repeatTruncated', capped.repeatTruncated === true);
+                const capSched = svc.computeCueSchedule(capped.timeline, 10, null, BASE);
+                assert('capped schedule: one trigger beep per action (5000)', capSched.length === 5000, String(capSched.length));
+            }
+
+            // ═══════════════════════════════════════════════════════════
             // 7. renderScheduleToAudioBuffer — beeps land at the right times
             // ═══════════════════════════════════════════════════════════
             log('<h2>7. Offline render — beep timing</h2>');
 
             if (!canBake()) {
-                skip('Offline render tests', 'OfflineAudioContext unavailable in this browser');
+                skip('Offline render + decoded-bake tests (7–14)', 'OfflineAudioContext unavailable in this browser');
             } else {
                 const sr = 44100;
                 const sched = [
@@ -437,6 +477,67 @@
                 assert('energy during stereo cue (0.31–0.49s)', rms(chSt, 0.31, 0.49, sr) > 0.2, String(rms(chSt, 0.31, 0.49, sr)));
                 const bakedSt = await bakeScheduleToWavBlob(stSched, (k) => (k === 'st' ? stereo : null), { sampleRate: sr, keepWav: true });
                 assert('stereo bake WAV is mono', new DataView(bakedSt.wavBytes).getUint16(22, true) === 1);
+
+                // ═══════════════════════════════════════════════════════
+                // 13–14. Decode the baked WAV and find where the sound starts.
+                //     Each onset must sit within 50 ms of its scheduled
+                //     offsetSec. decodeAudioData resamples to the context
+                //     rate, so compare seconds, never sample indexes.
+                // ═══════════════════════════════════════════════════════
+                // Onset = first 5 ms window above the threshold after at least
+                // 50 ms of silence (the beep's exponential tail never re-triggers).
+                const findOnsets = (data, rate) => {
+                    const win = 0.005, out = [];
+                    let quiet = Infinity;
+                    for (let t = 0; t + win <= data.length / rate; t += win) {
+                        if (rms(data, t, t + win, rate) > 0.01) {
+                            if (quiet >= 0.05) out.push(t);
+                            quiet = 0;
+                        } else {
+                            quiet += win;
+                        }
+                    }
+                    return out;
+                };
+                const decodeBake = async (sched) => {
+                    const b = await bakeScheduleToWavBlob(sched, null, { keepWav: true }); // in-app 24 kHz default
+                    const Ctor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+                    const decoded = await new Ctor(1, 1, b.sampleRate).decodeAudioData(b.wavBytes.slice(0)); // decode detaches its input
+                    return findOnsets(decoded.getChannelData(0), decoded.sampleRate);
+                };
+                const within50ms = (found, sched) => found.length === sched.length &&
+                    sched.every((e, i) => Math.abs(found[i] - e.offsetSec) <= 0.05);
+                const fmt = (found, sched) => `found ${JSON.stringify(found.map(t => +t.toFixed(3)))} ` +
+                    `want ${JSON.stringify(offsets(sched))}`;
+
+                log('<h2>13. Decoded bake — onsets at the scheduled offsets</h2>');
+                const cues3 = [
+                    actionAt(2, 'Freeze', { countdownSeconds: [] }),
+                    actionAt(4.5, 'Wave', { countdownSeconds: [2, 1] }),
+                    actionAt(7, 'Sit', { countdownSeconds: [] }),
+                ];
+                const s13 = svc.computeCueSchedule(cues3, 10, null, BASE);
+                assert('fixture schedule: 5 beeps [2, 2.5, 3.5, 4.5, 7]',
+                    JSON.stringify(offsets(s13)) === JSON.stringify([2, 2.5, 3.5, 4.5, 7]), JSON.stringify(offsets(s13)));
+                const on13 = await decodeBake(s13);
+                assert('decoded onsets fall within 50 ms of each offsetSec', within50ms(on13, s13), fmt(on13, s13));
+
+                log('<h2>14. Decoded bake — a repeat (3 cues × repeatCount 3)</h2>');
+                const rep = expandRepeats({
+                    timeline: [
+                        actionAt(1, 'Clap', { countdownSeconds: [] }),
+                        actionAt(2, 'Stamp', { countdownSeconds: [] }),
+                        actionAt(3, 'Turn', { countdownSeconds: [] }),
+                    ],
+                    repeatCount: 3,
+                    codaGapSeconds: 1,
+                });
+                assert('repeat expands to 9 actions', rep.timeline.length === 9, String(rep.timeline.length));
+                const s14 = svc.computeCueSchedule(rep.timeline, 10, null, BASE);
+                assert('repeat schedule: 9 trigger beeps [1,2,3, 4,5,6, 7,8,9]',
+                    JSON.stringify(offsets(s14)) === JSON.stringify([1, 2, 3, 4, 5, 6, 7, 8, 9]), JSON.stringify(offsets(s14)));
+                const on14 = await decodeBake(s14);
+                assert('decoded repeat bake: 9 onsets, each within 50 ms', within50ms(on14, s14), fmt(on14, s14));
             }
         } catch (err) {
             assert('Unexpected exception during tests', false, (err && err.stack) || String(err));

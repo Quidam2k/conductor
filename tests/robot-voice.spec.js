@@ -108,7 +108,7 @@ test('robot voice: prepare registers lines once and the bake schedule uses them'
 
 test('robot voice: a long event (150 lines) synthesises every line', async ({ page, browserName }) => {
     // meSpeak's engine breaks after ~80 calls; robotVoice swaps in a fresh one.
-    test.skip(browserName !== 'chromium', 'checked once');
+    test.skip(browserName !== 'chromium', 'engine recycle checked on chromium only (accepted gap, real-device checklist)');
     test.setTimeout(90000);
     await page.goto('/');
     const r = await page.evaluate(async () => {
@@ -145,7 +145,7 @@ test('robot voice: live trigger plays the robot line, phone speech only as fallb
 });
 
 test('robot voice: a typed event practises with robot lines in the baked track', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.skip(browserName === 'webkit', 'Playwright WebKit has no OfflineAudioContext (real Safari does)');
     test.setTimeout(60000);
     await page.goto('/');
     await waitForScreen(page, 'screen-input');
@@ -163,7 +163,7 @@ test('robot voice: a typed event practises with robot lines in the baked track',
 });
 
 test('robot voice: standalone conductor.html stays AirDrop-sized and loads the voice from file://', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'file:// load checked once');
+    test.skip(browserName !== 'chromium', 'runs once (browser-independent)');
     const file = path.join(REPO, 'docs', 'conductor.html');
     const mb = fs.statSync(file).size / (1024 * 1024);
     expect(mb).toBeLessThan(3);
@@ -194,7 +194,7 @@ test('standalone + bundled copies: every script block parses (service-worker blo
 });
 
 test('robot voice: committed docs/lib/robot-voice.js matches the build script', async ({ browserName }) => {
-    test.skip(browserName !== 'chromium', 'build check runs once');
+    test.skip(browserName !== 'chromium', 'runs once (browser-independent)');
     test.skip(!fs.existsSync(path.join(REPO, 'node_modules', 'mespeak')), 'mespeak devDependency not installed');
     let out;
     try {

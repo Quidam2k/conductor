@@ -32,6 +32,10 @@ test.beforeEach(async ({ page }) => {
 // instead of the wall clock.
 // ═════════════════════════════════════════════════════════════════════
 
+// The bake-state checks run wherever an offline render can: chromium and
+// firefox. Only actual <audio> playback stays chromium-only (one test below).
+const NO_BAKE_ON_WEBKIT = 'Playwright WebKit has no OfflineAudioContext (real Safari does)';
+
 async function waitForScreen(page, screenId) {
     await expect(page.locator(`#${screenId}`)).toHaveClass(/active/, { timeout: 5000 });
 }
@@ -53,7 +57,7 @@ async function waitForBake(page) {
 }
 
 test('practice bake: hands audio to the baked track and suppresses live beeps', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.skip(browserName === 'webkit', NO_BAKE_ON_WEBKIT);
 
     await startPractice(page);
     await waitForBake(page);
@@ -67,13 +71,11 @@ test('practice bake: hands audio to the baked track and suppresses live beeps', 
             src: el ? el.src : '',
             beepsSuppressed: audio.getBeepLog().length === before,
             speed: state.speedMultiplier,
-            paused: el ? el.paused : true,
         };
     });
     expect(r.src).toMatch(/^blob:/);
     expect(r.beepsSuppressed).toBe(true);   // beeps live in the WAV now
     expect(r.speed).toBe(1);
-    expect(r.paused).toBe(false);
 
     // The user is told this rehearsal is the faithful one.
     await expect(page.locator('#practice-rehearsal-note')).toContainText(/Pocket rehearsal/i);
@@ -83,8 +85,16 @@ test('practice bake: hands audio to the baked track and suppresses live beeps', 
     await expect(page.locator('#audio-debug-practice')).toHaveAttribute('data-detail', /bake \d+s OK/);
 });
 
-test('practice bake: schedule is anchored at the practice start, not the wall clock', async ({ page, browserName }) => {
+test('practice bake: the baked <audio> track is playing', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+
+    await startPractice(page);
+    await waitForBake(page);
+    expect(await page.evaluate(() => document.getElementById('baked-track').paused)).toBe(false);
+});
+
+test('practice bake: schedule is anchored at the practice start, not the wall clock', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', NO_BAKE_ON_WEBKIT);
 
     await startPractice(page);
     await waitForBake(page);
@@ -106,16 +116,23 @@ test('practice bake: schedule is anchored at the practice start, not the wall cl
         return {
             count: schedule.length,
             firstOffset: schedule.length ? schedule[0].offsetSec : -1,
+            triggers: schedule.filter(e => e.kind === 'beep' && e.freqHz === 1320).map(e => e.offsetSec),
             durationSec: state.bakedDurationSec,
         };
     });
-    expect(r.count).toBeGreaterThan(0);
-    expect(r.firstOffset).toBeLessThan(20);
-    expect(r.durationSec).toBeGreaterThan(0);
+    // The Stillness demo, checked by hand: practice starts 15 s before "Get in
+    // position", whose 10 s notice is the first sound, at 5 s. Each of the 9
+    // steps has its trigger beep at 15 s + the step's time (0, 30, 35, 90,
+    // 120, 125, 150, 160, 180). 38 = 9 triggers + 9 robot step lines + 5 robot
+    // notices + 5 countdowns of 3 beeps.
+    expect(r.firstOffset).toBe(5);
+    expect(r.triggers).toEqual([15, 45, 50, 105, 135, 140, 165, 175, 195]);
+    expect(r.count).toBe(38);
+    expect(r.durationSec).toBeGreaterThan(195);
 });
 
 test('practice bake: practice and live bake the same schedule for the same join time', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.skip(browserName === 'webkit', NO_BAKE_ON_WEBKIT);
     test.setTimeout(60000);
 
     await page.goto('/');
@@ -165,7 +182,7 @@ test('practice bake: practice and live bake the same schedule for the same join 
 });
 
 test('practice bake: moving the speed slider drops the baked track and says so', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.skip(browserName === 'webkit', NO_BAKE_ON_WEBKIT);
 
     await startPractice(page);
     await waitForBake(page);
@@ -195,7 +212,7 @@ test('practice bake: moving the speed slider drops the baked track and says so',
 });
 
 test('practice bake: re-entering practice resets speed to 1x so rehearsals stay faithful', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'baked <audio> playback asserted on chromium only');
+    test.skip(browserName === 'webkit', NO_BAKE_ON_WEBKIT);
 
     await startPractice(page);
 
