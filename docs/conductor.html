@@ -1007,6 +1007,7 @@
         }
         .info-banner.warning { background: rgba(240,180,41,0.12); color: var(--accent-gold); }
         .info-banner.info { background: rgba(91,163,255,0.12); color: var(--accent-blue); }
+        button.info-banner { border: none; font: inherit; justify-content: center; cursor: pointer; width: calc(100% - 24px); }
         .info-banner .dismiss { background: none; border: none; color: inherit; cursor: pointer; font-size: 22px; padding: 0 4px; }
 
         /* ─── Audio telemetry row (practice/live) — tap to copy JSON ─── */
@@ -1358,6 +1359,7 @@
     </details>
     <div id="live-banner" class="info-banner" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
     <div id="live-pocket-banner" class="info-banner" style="display:none"><span></span><button class="dismiss" aria-label="Dismiss">&times;</button></div>
+    <button id="live-resume-track" class="info-banner warning" style="display:none">Track paused. Tap to resume.</button>
     <div class="canvas-wrap" role="main">
         <canvas id="canvas-live"></canvas>
     </div>
@@ -9512,13 +9514,15 @@ async function enterPractice() {
     // Web Audio path — which is the one that does NOT survive a locked screen —
     // so a script could rehearse perfectly and go silent in a pocket.
     if (canBake()) {
-        await startBakedTrack(evt, evtDefs, {
+        const tookOver = await startBakedTrack(evt, evtDefs, {
             anchorMs: state.practiceStartEventMs,
             startWallMs: state.practiceStartRealMs,
+            gen,
         });
         if (gen !== enterGen) {
-            // Left practice while baking — kill the ghost track the way live does.
-            stopBakedTrack();
+            // Left practice while baking. A stale bake leaves the element alone
+            // (it may hold a newer track); only stop a track this call started.
+            if (tookOver) stopBakedTrack();
             return;
         }
         // Slider moved while the WAV was still rendering: the finished track is
@@ -9681,11 +9685,13 @@ async function enterLive() {
     // is sidestepped the same way. Falls back to live if the bake fails.
     // (Design record: the 2026-06-23 locked-screen bake plan, kept privately.)
     if (canBake()) {
-        await startBakedTrack(evt, evtDefs);
+        const tookOver = await startBakedTrack(evt, evtDefs, { gen });
         if (gen !== enterGen) {
             // User left live while baking — the transition's stopBakedTrack ran
-            // before the bake finished, so stop the ghost track it just started.
-            stopBakedTrack();
+            // before the bake finished. Stop the ghost track only if this call
+            // started one: a stale bake never touches the element, which may
+            // already hold the NEXT entry's track.
+            if (tookOver) stopBakedTrack();
             return;
         }
     } else {
@@ -10004,11 +10010,15 @@ function unlockBakedTrack() {
  * from the hidden <audio>. Returns true if the baked track took over.
  * @param {Event} evt
  * @param {{defaultCountdownSeconds:number, defaultCountdown:boolean}} evtDefs
+ * opts.gen: the enterGen of the screen entry this bake belongs to. A bake that
+ * finishes after its screen was left (a newer entry may be baking or playing)
+ * returns false without touching the element.
  * @returns {Promise<boolean>}
  */
 async function startBakedTrack(evt, evtDefs, opts = {}) {
     const el = document.getElementById('baked-track');
     if (!el) { setBakeStatus({ ok: false, reason: 'no-element' }); return false; }
+    const stale = () => opts.gen != null && opts.gen !== enterGen;
     try {
         // Two separate clocks. anchorMs is the event-time the track's t=0 maps
         // to — wall-clock now when going live, but practice's virtual start when
@@ -10030,6 +10040,7 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
             setBakeStatus({ ok: false, reason: 'unsupported' });
             return false;
         }
+        if (stale()) return false; // left during the render: the element isn't ours
 
         if (state.bakedTrackUrl) URL.revokeObjectURL(state.bakedTrackUrl);
         state.bakedTrackUrl = URL.createObjectURL(baked.blob);
@@ -10056,6 +10067,9 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
             timer = setTimeout(() => done(new Error('baked track metadata timeout')), 10000);
             el.load();
         });
+        // Left while loading: the transition already stopped and cleared the
+        // element, which may now be loading the next entry's track. Hands off.
+        if (stale()) return false;
         const elapsed = (Date.now() - startWallMs) / 1000;
         try { el.currentTime = Math.max(0, Math.min(elapsed, baked.durationSec || 0)); } catch (e) {}
 
@@ -10063,6 +10077,7 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
         state.bakedStartWallMs = startWallMs;
         state.bakedDurationSec = baked.durationSec || 0;
         await el.play();
+        if (stale()) return false; // left during play(): already stopped, hands off
         state.bakedActive = true;
         audio.setBakedActive(true);
         setBakeStatus({
@@ -10074,6 +10089,9 @@ async function startBakedTrack(evt, evtDefs, opts = {}) {
         });
         return true;
     } catch (e) {
+        // Left mid-load (the transition's stop aborted it): nothing to fall back
+        // from, and stopping now could kill a newer entry's track.
+        if (stale()) return false;
         console.warn('Baked track failed; falling back to live audio:', e);
         setBakeStatus({ ok: false, reason: 'error', error: String((e && e.message) || e) });
         stopBakedTrack();
@@ -10092,12 +10110,17 @@ function stopBakedTrack() {
     // (resyncBakedTrack) uses it to tell interruptions from intentional stops.
     state.bakedActive = false;
     audio.setBakedActive(false);
+    cancelBakedRetry();
     const el = document.getElementById('baked-track');
     if (el) { try { el.pause(); } catch (e) {} }
     if (state.bakedTrackUrl) {
         URL.revokeObjectURL(state.bakedTrackUrl);
         state.bakedTrackUrl = null;
     }
+    // Drop the dead blob URL from the element too, so nothing (a resume, a
+    // media key) can try to play it. A bake still waiting on loadedmetadata
+    // gets 'abort' and falls back.
+    if (el) { el.removeAttribute('src'); try { el.load(); } catch (e) {} }
 }
 
 /**
@@ -10109,21 +10132,77 @@ function stopBakedTrack() {
  */
 function resyncBakedTrack() {
     const el = document.getElementById('baked-track');
-    if (!el) return;
+    if (!el) return Promise.resolve(false);
     if (!state.bakedActive || (state.mode !== 'live' && state.mode !== 'practice') ||
-        !el.paused || el.ended) return;
+        el.ended) return Promise.resolve(false);
+    if (!el.paused) return Promise.resolve(true);
     const elapsed = (Date.now() - state.bakedStartWallMs) / 1000;
-    if (elapsed >= state.bakedDurationSec) return; // event's audio is over anyway
+    if (elapsed >= state.bakedDurationSec) return Promise.resolve(false); // audio's over anyway
     try { el.currentTime = elapsed; } catch (e) {}
-    // Rejection is fine — iOS may refuse play() mid-call; retried on visibilitychange.
-    const p = el.play();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
+    // iOS may refuse play() mid-call or just after. A locked phone may never
+    // see a visibilitychange, so retry on a timer, then offer a tap.
+    const url = state.bakedTrackUrl;
+    let p;
+    bakedResumeInFlight = true;
+    try { p = el.play(); } catch (e) { p = Promise.reject(e); }
+    return Promise.resolve(p).then(() => { bakedResumeInFlight = false; return true; }, () => {
+        bakedResumeInFlight = false;
+        // Stopped or replaced meanwhile: this refusal is not the current track's
+        if (state.bakedActive && state.bakedTrackUrl === url) scheduleBakedRetry();
+        return false;
+    });
+}
+
+// Retry a refused resume every 2 s, at most 3 times (one timer at a time); each
+// try re-checks everything resyncBakedTrack checks. After that, Live shows a
+// tap-to-resume control (a tap is a user gesture, which play() may need).
+// Practice gets the retries but no control: a rehearsal can just be restarted.
+const BAKED_RETRY_MS = 2000;
+const BAKED_RETRY_MAX = 3;
+let bakedRetryTimer = null;
+let bakedRetryCount = 0;
+let bakedResumeInFlight = false; // a resume's play() hasn't settled yet
+function scheduleBakedRetry() {
+    if (bakedRetryTimer) return;
+    if (bakedRetryCount >= BAKED_RETRY_MAX) {
+        if (state.mode === 'live' && state.bakedActive) $('live-resume-track').style.display = 'flex';
+        return;
+    }
+    bakedRetryTimer = setTimeout(() => {
+        bakedRetryTimer = null;
+        bakedRetryCount++;
+        resyncBakedTrack();
+    }, BAKED_RETRY_MS);
+}
+function cancelBakedRetry() {
+    clearTimeout(bakedRetryTimer);
+    bakedRetryTimer = null;
+    bakedRetryCount = 0;
+    const btn = document.getElementById('live-resume-track');
+    if (btn) btn.style.display = 'none';
 }
 
 // Any pause while the baked track should be driving cues is an interruption.
 (function wireBakedTrackRecovery() {
     const el = document.getElementById('baked-track');
-    if (el) el.addEventListener('pause', resyncBakedTrack);
+    if (!el) return;
+    // A pause while a resume is pending, a retry waits, or the retries ran out
+    // is the same interruption still going: leave it to the timer / the tap. A
+    // browser that aborts a pending play() fires 'pause' before rejecting it,
+    // which would otherwise call play() again at once and skip the 2 s spacing
+    // and the 3-try limit.
+    el.addEventListener('pause', () => {
+        if (bakedResumeInFlight || bakedRetryTimer || bakedRetryCount >= BAKED_RETRY_MAX) return;
+        resyncBakedTrack();
+    });
+    el.addEventListener('playing', cancelBakedRetry); // back on: no retry, no control
+    // Called straight from the click so play() runs inside the user gesture.
+    // Hide at once: a refusal shows it again (retries are used up), and a
+    // track that already ran out has nothing left to resume.
+    $('live-resume-track').addEventListener('click', () => {
+        $('live-resume-track').style.display = 'none';
+        resyncBakedTrack();
+    });
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
