@@ -1,0 +1,46 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: "1"
+      # The Playwright config serves docs/ with python's http.server; python3 is preinstalled.
+      PYTHON_BIN: python3
+      # The hygiene spec's optional private word list is never committed, so CI runs without it.
+      HYGIENE_ALLOW_MISSING_PRIVATE_LIST: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # No browsers are installed: these specs are plain Node and file checks.
+      # The browser suites run locally before each release.
+      # touchstone-ratings.spec.js has a few tests titled "real browser ..." that
+      # drive a page, so --grep-invert keeps them out of this run.
+      - name: Non-browser checks
+        run: >-
+          npx playwright test --project=chromium
+          tests/public-hygiene.spec.js
+          tests/release-consistency.spec.js
+          tests/sw-precache.spec.js
+          tests/gen-homework.spec.js
+          tests/touchstone-ratings.spec.js
+          --grep-invert "real browser"
+
+      - name: Ship checklist
+        run: npm run ship:check
