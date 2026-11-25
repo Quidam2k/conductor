@@ -74,14 +74,29 @@
 <body>
 <div class="wrap">
     <header>
-        <p class="eyebrow">Conductor &middot; build v77</p>
+        <p class="eyebrow">Conductor &middot; build v78</p>
         <h1>What's new</h1>
         <p class="standfirst">What changed in each build, newest first. Your build number is at the bottom of the app's home screen.</p>
         <p><a href="./">&larr; Open Conductor</a> &middot; <a href="GUIDE.html">Getting Started Guide</a></p>
     </header>
 
+    <section class="release" id="v78">
+        <h2>v78 <span class="date">2026-11-25</span> <span class="tag">latest</span></h2>
+        <ul>
+            <li><strong>Joining late works with repeats.</strong> Go Live now counts every round of a repeating event, so you can join one that is still running. If every cue has already passed but the event has not ended, the preview says &ldquo;This event already ran&rdquo; instead of offering a rerun. An old event that has ended can still be restarted on your phone only, and the question says so.</li>
+            <li><strong>Reloading keeps your event.</strong> An event you opened by pasting, scanning, beaming, from a file or from the demo now comes back on the preview after a reload or an app update. It never goes straight back into Live. A password-locked event asks for its password again (the password is never stored).</li>
+            <li><strong>After a phone call.</strong> If the phone will not restart the pocket audio after an interruption, the app tries again a few times. If that still fails, Live shows &ldquo;Track paused. Tap to resume.&rdquo;</li>
+            <li><strong>A new link asks before it stops you.</strong> Opening another event link during Live or Practice now asks first. &ldquo;Keep going&rdquo; carries on with the event you are in.</li>
+            <li><strong>Long events run with the screen on.</strong> When the time from Go Live to the last cue is over 60 minutes, the phone no longer prepares pocket audio, because that much audio can crash an older phone. The check before Live says so, and the screen must stay on. The 60-minute figure is provisional until we have measured it on an older phone.</li>
+            <li><strong>Repeats have a limit.</strong> One event can hold up to 5,000 cues. The editor now refuses a repeat that would go past that, and an event that reaches it says on the preview when its repeats stop. Before, the cues stopped without warning.</li>
+            <li><strong>&ldquo;Keep your screen on&rdquo; shows every time</strong> it applies, not only the first time on a phone.</li>
+            <li><strong>Mute silences recordings too.</strong> Before, recorded and robot-voice cues could still play while muted when the phone was not using pocket audio.</li>
+            <li>A &ldquo;Get ready to&rdquo; lead-in that would be cut off when Live opens just before a cue now plays whole, or is replaced by a short &ldquo;Get ready&rdquo;.</li>
+        </ul>
+    </section>
+
     <section class="release" id="v77">
-        <h2>v77 <span class="date">2026-11-24</span> <span class="tag">latest</span></h2>
+        <h2>v77 <span class="date">2026-11-24</span></h2>
         <ul>
             <li><strong>A typed event can no longer start at a time you did not mean.</strong> This build checks events written in the text format much more carefully. When something is wrong, the paste box or the editor says what, instead of quietly guessing.</li>
             <li><strong>Time zones.</strong> <code>EST</code>, <code>EDT</code>, <code>ET</code>, <code>Eastern</code>, and the Central, Mountain and Pacific labels now mean the city zone with daylight saving time (New York, Chicago, Denver, Los Angeles). Before, <code>EST</code> and <code>MST</code> were an hour off in summer, and <code>EDT</code> or <code>PT</code> quietly used the phone&rsquo;s own zone. A label the app does not know, such as <code>UTC+5</code>, is refused with an example of one it does. In Arizona, write <code>America/Phoenix</code>.</li>
