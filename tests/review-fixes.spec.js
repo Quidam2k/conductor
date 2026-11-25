@@ -455,6 +455,52 @@ test.describe('v66 review fixes', () => {
     expect(parsed.timeline.map(a => (Date.parse(a.time) - start) / 1000)).toEqual([30, 3605, 90]);
   });
 
+  // Audit 04 P1: a Timezone: label the browser cannot read must stop the
+  // paste, never quietly fall back to this phone's own zone.
+  const zoneText = (zone) => [
+    'Title: Zone Paste',
+    'Start: 2026-11-15 7:00 PM',
+    'Timezone: ' + zone,
+    '',
+    '0:00 Stand',
+    '1:30 Wave',
+  ].join('\n');
+
+  test('text format: unknown time zone shows an error and stays on input', async ({ page }) => {
+    await page.fill('#input-paste', zoneText('UTC+5'));
+    await page.click('#btn-load');
+    await expect(page.locator('#input-error')).toContainText('unknown time zone');
+    await expect(page.locator('#screen-input')).toHaveClass(/active/);
+  });
+
+  test('text format: an IANA time zone reaches the preview', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.fill('#input-paste', zoneText('America/New_York'));
+    await page.click('#btn-load');
+    await expect(page.locator('#screen-preview')).toHaveClass(/active/);
+    await expect(page.locator('#preview-duration')).toHaveText('1m 30s');
+    await expect(page.locator('#preview-count')).toHaveText('2 actions');
+    expect(errors).toEqual([]);
+  });
+
+  test('shared link with an unreadable zone still draws the preview', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await loadEmbeddedEvent(page, {
+      title: 'Bad Zone Link',
+      startTime: '2026-11-16T00:00:00.000Z',
+      timezone: 'Not/A_Zone',
+      timeline: [
+        { time: '2026-11-16T00:00:00.000Z', action: 'Stand' },
+        { time: '2026-11-16T00:01:30.000Z', action: 'Wave' },
+      ],
+    });
+    await expect(page.locator('#preview-start')).toContainText('Not/A_Zone');
+    await expect(page.locator('#preview-duration')).toHaveText('1m 30s');
+    expect(errors).toEqual([]);
+  });
+
   test('demo offers its voice pack in one tap', async ({ page, browserName }) => {
     test.skip(browserName === 'webkit', 'pack import (IndexedDB blobs) is not exercised on headless webkit');
     await page.click('#btn-demo');

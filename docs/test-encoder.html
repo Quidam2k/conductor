@@ -884,6 +884,82 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TEST SUITE 12: Time-zone labels fail loudly
+        // ═══════════════════════════════════════════════════════════════
+        log('<h2>12. Time-zone labels</h2>');
+
+        const tzText = (zone, start) => [
+            'Title: Zone Test',
+            'Start: ' + (start || '2026-07-15 2:00 PM'),
+            'Timezone: ' + zone,
+            '',
+            '0:00  Go',
+        ].join('\n');
+        const tzThrows = (label, zone) => {
+            try {
+                parseTextFormat(tzText(zone));
+                assert(label, false, 'Should have thrown');
+            } catch (e) {
+                assert(label, /unknown time zone/i.test(e.message), e.message);
+            }
+        };
+        const tzStart = (label, zone, start, expected) => {
+            try {
+                const got = parseTextFormat(tzText(zone, start)).startTime;
+                assert(label, got === expected, 'got ' + got);
+            } catch (e) {
+                assert(label, false, e.message);
+            }
+        };
+
+        // (EDT is an alias per D1, so the "unknown" case uses a made-up label.)
+        tzThrows('12.1 Timezone: Not/A_Zone throws unknown time zone', 'Not/A_Zone');
+        tzThrows('12.2 Timezone: UTC+5 throws unknown time zone', 'UTC+5');
+        tzThrows('12.3 Timezone: UK throws unknown time zone', 'UK');
+        tzStart('12.4 EST in July = New York summer time', 'EST', null, '2026-07-15T18:00:00.000Z');
+        tzStart('12.5 America/New_York gives the same instant', 'America/New_York', null, '2026-07-15T18:00:00.000Z');
+        tzStart('12.6 MST in July = Denver summer time', 'MST', null, '2026-07-15T20:00:00.000Z');
+        tzStart('12.7 EDT alias = New York', 'EDT', null, '2026-07-15T18:00:00.000Z');
+        tzStart('12.8 "Eastern Time" alias, any case', 'eastern time', null, '2026-07-15T18:00:00.000Z');
+        tzStart('12.9 PT in January = Los Angeles winter time', 'PT', '2026-01-15 2:00 PM', '2026-01-15T22:00:00.000Z');
+        try {
+            const p = parseTextFormat(tzText('cdt'));
+            assert('12.10 Stored zone is the resolved IANA name', p.timezone === 'America/Chicago', p.timezone);
+        } catch (e) {
+            assert('12.10 Stored zone is the resolved IANA name', false, e.message);
+        }
+        try {
+            const p = parseTextFormat(tzText('EST').replace('Timezone: EST',
+                'Timezone: EST\nRepeatUntil: 2026-07-15 3:00 PM'));
+            assert('12.11 RepeatUntil read in the resolved zone',
+                p.repeatUntil === '2026-07-15T19:00:00.000Z', 'got ' + p.repeatUntil);
+        } catch (e) {
+            assert('12.11 RepeatUntil read in the resolved zone', false, e.message);
+        }
+        // Fixed-offset zone warns (Arizona wording); DST zone and UTC do not.
+        {
+            const seen = [];
+            const orig = console.warn;
+            console.warn = (...args) => { seen.push(JSON.stringify(args)); };
+            try {
+                parseTextFormat(tzText('Etc/GMT+7'));
+                const phoenixWarned = seen.some(s => /no daylight saving time/.test(s));
+                seen.length = 0;
+                parseTextFormat(tzText('UTC'));
+                parseTextFormat(tzText('America/Denver'));
+                parseTextFormat(tzText('America/Phoenix'));
+                parseTextFormat(tzText('Asia/Tokyo'));
+                const othersQuiet = !seen.some(s => /no daylight saving time/.test(s));
+                assert('12.12 Fixed-offset zone warns about daylight saving', phoenixWarned);
+                assert('12.13 UTC, DST and city zones do not warn', othersQuiet, seen.join(' | '));
+            } catch (e) {
+                assert('12.12 Fixed-offset warning', false, e.message);
+            } finally {
+                console.warn = orig;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // TEST SUITE 11: Encryption (AES-GCM)
         // ═══════════════════════════════════════════════════════════════
         log('<h2>11. Encryption (AES-GCM)</h2>');

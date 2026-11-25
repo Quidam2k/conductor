@@ -348,6 +348,54 @@ function validateAndComplete(eventData) {
 
 // ─── Multi-format input parsing ──────────────────────────────────────────────
 
+// US labels organizers actually type, read as the zone where people live
+// (daylight-saving aware). The browser knows "EST" and "MST" only as fixed
+// offsets, which are an hour off in summer; "EDT", "PT" etc. it rejects.
+const TIMEZONE_ALIASES = {
+    'EST': 'America/New_York', 'EDT': 'America/New_York', 'ET': 'America/New_York',
+    'EASTERN': 'America/New_York', 'EASTERN TIME': 'America/New_York',
+    'CST': 'America/Chicago', 'CDT': 'America/Chicago', 'CT': 'America/Chicago',
+    'MST': 'America/Denver', 'MDT': 'America/Denver',
+    'PST': 'America/Los_Angeles', 'PDT': 'America/Los_Angeles', 'PT': 'America/Los_Angeles',
+};
+
+/**
+ * Turn a Timezone: header into a zone name the browser accepts.
+ * @param {string} raw
+ * @returns {string} IANA zone name
+ * @throws {Error} when the label is neither an alias nor a known zone
+ */
+function resolveTimezoneHeader(raw) {
+    const label = String(raw).trim();
+    const alias = TIMEZONE_ALIASES[label.toUpperCase().replace(/\s+/g, ' ')];
+    if (alias) return alias;
+    try {
+        new Intl.DateTimeFormat('en-US', { timeZone: label });
+        return label;
+    } catch (e) {
+        throw new Error('Text format: unknown time zone "' + label +
+            '". Use an IANA name such as America/New_York.');
+    }
+}
+
+/**
+ * True for a legacy fixed-offset label ("HST", "Etc/GMT+5"): one UTC offset all
+ * year. City zones ("Asia/Tokyo", "America/Phoenix") are a deliberate choice
+ * and UTC is meant literally, so neither counts.
+ */
+function isFixedOffsetZone(zone) {
+    if (zone.includes('/') && !/^Etc\//i.test(zone)) return false;
+    const offsetAt = (iso) => new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, timeZoneName: 'shortOffset',
+    }).formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName').value;
+    try {
+        const winter = offsetAt('2026-01-15T12:00:00Z');
+        return winter === offsetAt('2026-07-15T12:00:00Z') && winter !== 'GMT'; // GMT = UTC itself
+    } catch (e) {
+        return false; // no shortOffset support: say nothing rather than guess
+    }
+}
+
 /**
  * Parse a human-readable text format into an EmbeddedEvent-shaped object.
  *
@@ -505,10 +553,19 @@ function parseTextFormat(text) {
     if (!headers.title) throw new Error('Text format: missing required "Title:" header');
     if (!headers.start) throw new Error('Text format: missing required "Start:" header');
 
+    // An unreadable Timezone: stops the paste; EST-style labels become the
+    // daylight-saving-aware city zone (TIMEZONE_ALIASES).
+    const zone = headers.timezone ? resolveTimezoneHeader(headers.timezone) : undefined;
+    if (zone && isFixedOffsetZone(zone)) {
+        warnings.push('Timezone "' + headers.timezone + '" has no daylight saving time. ' +
+            'Summer events will be an hour off for regions that use it. Arizona is the one ' +
+            'common case; use America/Phoenix there if that is what you mean.');
+    }
+
     // Parse start time flexibly. Without an explicit offset the browser reads
     // the string as ITS local time; when a Timezone: header is given, re-read
     // the same wall clock in that zone instead.
-    const startDate = parseWallClock(headers.start, headers.timezone);
+    const startDate = parseWallClock(headers.start, zone);
     if (isNaN(startDate.getTime())) {
         throw new Error('Text format: could not parse start date "' + headers.start + '"');
     }
@@ -520,7 +577,7 @@ function parseTextFormat(text) {
     //   "Coda:" = the rest between cycles. First bound to fire stops the loop.
     let repeatUntil = null;
     if (headers.repeatuntil) {
-        const ru = parseWallClock(headers.repeatuntil, headers.timezone);
+        const ru = parseWallClock(headers.repeatuntil, zone);
         if (isNaN(ru.getTime())) {
             throw new Error('Text format: could not parse RepeatUntil "' + headers.repeatuntil + '"');
         }
@@ -544,7 +601,7 @@ function parseTextFormat(text) {
     }
 
     // Default timezone to browser's local timezone
-    const timezone = headers.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const timezone = zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     // Convert action offsets to absolute ISO times
     const timeline = actions.map(a => {
@@ -718,12 +775,10 @@ function parseWallClock(str, timezone) {
     }
     const browserLocal = () => new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.sec);
     if (!timezone) return browserLocal();
-    try {
-        const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
-        return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
-    } catch (e) {
-        return browserLocal(); // unknown zone name → keep the browser-local reading
-    }
+    // The zone was checked by resolveTimezoneHeader; a bad one throws here
+    // rather than quietly reading the time in this phone's zone.
+    const local = p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
+    return new Date(new Date(localDateTimeToUTC(local, timezone)).getTime() + p.sec * 1000);
 }
 
 /**

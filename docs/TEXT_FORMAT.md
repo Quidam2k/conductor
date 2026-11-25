@@ -33,6 +33,17 @@ Put these at the top of the file, one per line:
 
 If you leave out `Timezone`, it defaults to your browser's local timezone. When you give one, `Start` (and `RepeatUntil`) are read as clock times in that zone — `Start: 2026-11-15T19:00` with `Timezone: America/New_York` means 7 PM in New York wherever the phone is. A time ending in `Z` or an offset like `-05:00` is taken exactly as written.
 
+`Timezone` takes a zone name such as `America/New_York`, `Europe/London` or `Asia/Tokyo` (the full list is the [IANA time zone database](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)). These US labels also work and are read as the city zone, so daylight saving time is handled for you:
+
+| You type | Read as |
+|---|---|
+| `EST`, `EDT`, `ET`, `Eastern`, `Eastern Time` | `America/New_York` |
+| `CST`, `CDT`, `CT` | `America/Chicago` |
+| `MST`, `MDT` | `America/Denver` |
+| `PST`, `PDT`, `PT` | `America/Los_Angeles` |
+
+Arizona has no daylight saving time, so use `America/Phoenix` there. Any other label (`UK`, `UTC+5`, `GMT+1`) is rejected with a message, so the event never starts at a time you did not mean.
+
 **Start time is flexible** — all of these work:
 - `2026-03-15 2:00 PM`
 - `March 15, 2026 14:00`
@@ -44,7 +55,7 @@ These optional headers set event-level defaults:
 
 | Header | What it does | Example |
 |--------|-------------|---------|
-| `NotifyWindow` | Default seconds before action to give notice (default: 10) | `NotifyWindow: 15` |
+| `NotifyWindow` | Default seconds before action to give notice (default: 10). A whole number; `0` means no heads-up | `NotifyWindow: 15` |
 | `CountdownWindow` | Default countdown duration in seconds | `CountdownWindow: 5` |
 | `Countdown` | Whether countdown is on by default (`true`/`false`) | `Countdown: true` |
 | `Haptic` | Default haptic mode (`action`, `countdown`, or `off`) | `Haptic: countdown` |

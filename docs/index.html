@@ -2096,7 +2096,7 @@ function friendlyError(msg) {
         return 'Could not read this event code. It may be corrupted or incomplete.';
     if (/Invalid JSON/i.test(msg))
         return 'This doesn\'t look like a valid event. Check the format and try again.';
-    if (/Text format: missing required/i.test(msg))
+    if (/Text format: (missing required|unknown time zone)/i.test(msg))
         return msg; // Already clear
     if (/Invalid event data: missing/i.test(msg))
         return msg; // Already clear
@@ -2861,11 +2861,21 @@ function hideBanner(id) { $(id).style.display = 'none'; }
 
 // Start time with its zone label ("7:00 PM EDT"); when the event's zone is not
 // this phone's, also show the phone-local moment so "7:00 PM" is never ambiguous.
+// A zone this browser cannot read (an old shared link) degrades to a UTC time
+// with the label shown, so the rest of the preview still draws.
 function startDisplay(evt) {
-    const shown = utcToLocalDisplay(evt.startTime, evt.timezone);
-    const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!evt.timezone || evt.timezone === here) return shown;
-    return shown + ' — your time: ' + utcToLocalDisplay(evt.startTime, here);
+    try {
+        const shown = utcToLocalDisplay(evt.startTime, evt.timezone);
+        const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!evt.timezone || evt.timezone === here) return shown;
+        return shown + ' — your time: ' + utcToLocalDisplay(evt.startTime, here);
+    } catch (e) {
+        try {
+            return new Date(evt.startTime).toISOString() + ' (' + evt.timezone + ')';
+        } catch (e2) {
+            return String(evt.startTime) + ' (' + evt.timezone + ')';
+        }
+    }
 }
 
 // One-shot pocket-readiness note on the live screen. Which message depends on
