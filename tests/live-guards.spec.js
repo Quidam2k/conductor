@@ -124,6 +124,40 @@ test('Stop it on a broken link stops Live and shows the error', async ({ page })
     await expect(page.locator('#input-error')).not.toBeEmpty();
 });
 
+test('a second link while the question is up: Keep going restores the original hash', async ({ page }) => {
+    await openDemo(page);
+    await goLive(page);
+    const before = await page.evaluate(() => location.hash);
+    const a = await newCode(page, 'Event A');
+    const b = await newCode(page, 'Event B');
+    await page.evaluate((c) => { location.hash = c; }, a);
+    await expect(confirmBox(page)).toBeVisible();
+    await page.evaluate((c) => { location.hash = c; }, b); // supersedes A's question
+    await page.waitForTimeout(200);
+    await expect(confirmBox(page)).toBeVisible();
+    await page.click('#app-confirm-no');
+    await page.waitForTimeout(200);
+    await waitForScreen(page, 'screen-live');
+    expect(await page.evaluate(() => location.hash)).toBe(before);
+});
+
+test('an #anchor or unprefixed code in Live does not ask, stop or swap the run', async ({ page }) => {
+    await openDemo(page);
+    await goLive(page);
+    await page.evaluate(() => { location.hash = 'top'; });
+    await page.waitForTimeout(300);
+    await expect(confirmBox(page)).toBeHidden();
+    await waitForScreen(page, 'screen-live');
+
+    // An old unprefixed code is not swapped in mid-run either.
+    const title = await page.evaluate(() => state.event.title);
+    const bare = (await newCode(page, 'Unprefixed')).replace(/^v1_/, '');
+    await page.evaluate((c) => { location.hash = c; }, bare);
+    await page.waitForTimeout(300);
+    await waitForScreen(page, 'screen-live');
+    expect(await page.evaluate(() => state.event.title)).toBe(title);
+});
+
 test('a screen change answers a pending confirm with no and hides it', async ({ page }) => {
     await openDemo(page);
     await goLive(page);

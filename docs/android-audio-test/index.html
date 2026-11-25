@@ -509,7 +509,7 @@ async function bakeSyntheticTimeline(label, leadSec, gapSec, count) {
   const schedule = svc.computeCueSchedule(timeline, 10, null, startMs, {});
   log(label + ': real pipeline produced ' + schedule.length +
       ' bakeable events (beeps) over ~' + spanSec + 's');
-  const baked = await bakeScheduleToWavBlob(schedule, null); // null getBuffer → beep-only bake
+  const baked = await bakeScheduleToWavBlob(schedule, null, { keepWav: true }); // null getBuffer → beep-only bake
   if (!baked) throw new Error('bake returned null (no OfflineAudioContext)');
   log(label + ': baked ' + baked.durationSec.toFixed(1) + 's WAV, ' +
       (baked.wavBytes.byteLength / 1024).toFixed(0) + ' KB, ' +

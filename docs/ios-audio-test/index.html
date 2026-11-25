@@ -1420,7 +1420,7 @@ async function test16() {
 
   let baked;
   try {
-    baked = await bakeScheduleToWavBlob(schedule, null); // null getBuffer → beep-only bake
+    baked = await bakeScheduleToWavBlob(schedule, null, { keepWav: true }); // null getBuffer → beep-only bake
   } catch (e) {
     setResult('r16', 'API FAIL: bake threw: ' + e.message, 'fail');
     log('T16: bakeScheduleToWavBlob threw: ' + e.message, 'err');

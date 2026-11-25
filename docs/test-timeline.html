@@ -305,6 +305,35 @@
         assert('both bounds: tight count wins over far clock (9 cues)',
             bothTightCount.timeline.length === 9, `Got ${bothTightCount.timeline.length}`);
 
+        // The event's own bounds are not truncation: no flag.
+        assert('count / until / both stops set no repeatTruncated flag',
+            !countEvt.repeatTruncated && !untilEvt.repeatTruncated
+                && !bothTightClock.repeatTruncated && !bothTightCount.repeatTruncated);
+
+        // The MAX_ACTIONS cap stops the tiling: flag it and end after the last cue.
+        // 3 cues × 2000 cycles = 6000 > 5000. The 5000th cue is cycle k=1666's
+        // 'B' (1666 × 3 = 4998, then A, B) at 1666 × 24s + 10s; endTime adds 5 min.
+        const capped = expandRepeats(cycleEvent({ repeatCount: 2000 }));
+        assert('cap: timeline stops at MAX_ACTIONS (5000)', capped.timeline.length === MAX_ACTIONS,
+            `Got ${capped.timeline.length}`);
+        assert('cap: repeatTruncated is set', capped.repeatTruncated === true);
+        (() => {
+            const lastSec = (Math.max(...capped.timeline.map(a => a.timeMs)) - BASE) / 1000;
+            const endSec = (new Date(capped.endTime).getTime() - BASE) / 1000;
+            assert('cap: last generated cue at 1666×24+10 s', lastSec === 1666 * 24 + 10, `Got ${lastSec}s`);
+            assert('cap: endTime = last cue + 5 min', endSec === lastSec + 300, `Got ${endSec}s`);
+        })();
+
+        // A count that lands exactly on the cap is the event's own stop: no flag.
+        const exact = expandRepeats(embeddedEventToEvent({
+            title: 'Exact Cap', startTime: new Date(BASE).toISOString(), timezone: 'UTC',
+            codaGapSeconds: 4, repeatCount: 2500, // 2 cues × 2500 = exactly 5000
+            timeline: [ actionAt(0, 'A'), actionAt(10, 'B') ],
+        }));
+        assert('count landing exactly on 5000 cues: no flag',
+            exact.timeline.length === 5000 && !exact.repeatTruncated,
+            `Got ${exact.timeline.length}, flag ${exact.repeatTruncated}`);
+
         // ═════════════════════════════════════════════════════════════
         // SUMMARY
         // ═════════════════════════════════════════════════════════════

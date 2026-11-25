@@ -383,7 +383,7 @@
 
                 // ── full bake → Blob ──
                 log('<h2>9. bakeScheduleToWavBlob</h2>');
-                const baked = await bakeScheduleToWavBlob(sched, null, { sampleRate: sr });
+                const baked = await bakeScheduleToWavBlob(sched, null, { sampleRate: sr, keepWav: true });
                 assert('bake returns an object', baked && typeof baked === 'object');
                 assert('blob is audio/wav', baked.blob instanceof Blob && baked.blob.type === 'audio/wav');
                 assert('eventCount matches schedule', baked.eventCount === 2, String(baked.eventCount));
@@ -392,10 +392,13 @@
                 assert('wavBytes starts with RIFF',
                     String.fromCharCode(hdr.getUint8(0), hdr.getUint8(1), hdr.getUint8(2), hdr.getUint8(3)) === 'RIFF');
                 assert('blob byte size = wavBytes byte size', baked.blob.size === baked.wavBytes.byteLength);
+                // Without keepWav the result holds only the Blob (no second copy pinned).
+                const lean = await bakeScheduleToWavBlob(sched, null, { sampleRate: sr });
+                assert('no wavBytes unless keepWav', !('wavBytes' in lean) && lean.blob.size === baked.blob.size);
 
                 // ── default sample rate is 24 kHz (render guard) ──
                 log('<h2>10. Default render params — 24 kHz mono</h2>');
-                const dflt = await bakeScheduleToWavBlob(sched, null); // no opts → BAKE_DEFAULTS
+                const dflt = await bakeScheduleToWavBlob(sched, null, { keepWav: true }); // else BAKE_DEFAULTS
                 assert('default bake sampleRate = 24000', dflt.sampleRate === 24000, String(dflt.sampleRate));
                 assert('default WAV header sampleRate = 24000',
                     new DataView(dflt.wavBytes).getUint32(24, true) === 24000,
@@ -432,7 +435,7 @@
                     Math.abs(rSt.duration - 1.0) < 0.05, String(rSt.duration));
                 assert('silence before stereo cue (0–0.28s)', rms(chSt, 0.0, 0.28, sr) < 0.005, String(rms(chSt, 0.0, 0.28, sr)));
                 assert('energy during stereo cue (0.31–0.49s)', rms(chSt, 0.31, 0.49, sr) > 0.2, String(rms(chSt, 0.31, 0.49, sr)));
-                const bakedSt = await bakeScheduleToWavBlob(stSched, (k) => (k === 'st' ? stereo : null), { sampleRate: sr });
+                const bakedSt = await bakeScheduleToWavBlob(stSched, (k) => (k === 'st' ? stereo : null), { sampleRate: sr, keepWav: true });
                 assert('stereo bake WAV is mono', new DataView(bakedSt.wavBytes).getUint16(22, true) === 1);
             }
         } catch (err) {

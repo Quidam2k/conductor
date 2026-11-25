@@ -155,18 +155,21 @@ function encodeAudioBufferToWav(audioBuffer) {
  *
  * @param {Array} schedule - from audioService.computeCueSchedule
  * @param {function(string): (AudioBuffer|null|undefined)} [getBuffer=null]
- * @param {Object} [opts] - { sampleRate, tailSec, gain }
- * @returns {Promise<{blob:Blob, wavBytes:ArrayBuffer, durationSec:number, sampleRate:number, eventCount:number}|null>}
+ * @param {Object} [opts] - { sampleRate, tailSec, gain, keepWav }. keepWav
+ *     also returns the raw bytes (test pages). Off by default: the Blob holds
+ *     its own copy, so keeping wavBytes would pin a second one in memory.
+ * @returns {Promise<{blob:Blob, wavBytes?:ArrayBuffer, durationSec:number, sampleRate:number, eventCount:number}|null>}
  */
 async function bakeScheduleToWavBlob(schedule, getBuffer = null, opts = {}) {
     if (!canBake()) return null;
     const rendered = await renderScheduleToAudioBuffer(schedule, getBuffer, opts);
     const wavBytes = encodeAudioBufferToWav(rendered);
-    return {
+    const out = {
         blob: new Blob([wavBytes], { type: 'audio/wav' }),
-        wavBytes,
         durationSec: rendered.duration,
         sampleRate: rendered.sampleRate,
         eventCount: schedule.length,
     };
+    if (opts.keepWav) out.wavBytes = wavBytes;
+    return out;
 }

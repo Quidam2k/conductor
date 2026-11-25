@@ -115,7 +115,7 @@ test('preflight: a missing pack cue warns but Enter Live stays enabled', async (
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// A long event (last cue > 30 min away) WARNS about the big audio file
+// A long event (last cue 30–60 min away) WARNS about the big audio file
 // but stays enterable — blocking it would mean it could never go live.
 // (Too-early starts are refused before the card: Live opens 20 min ahead.)
 // ─────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ test('preflight: a long event warns about file size but can still go Live', asyn
             title: 'Long Haul', startTime: new Date(now + 5 * 60000).toISOString(), timezone: 'UTC',
             timeline: [
                 { time: new Date(now + 5 * 60000).toISOString(), action: 'Begin' },
-                { time: new Date(now + 70 * 60000).toISOString(), action: 'End' },
+                { time: new Date(now + 50 * 60000).toISOString(), action: 'End' }, // under the 60-min pocket threshold
             ],
         };
         return encodeEvent(validateAndComplete(embedded));

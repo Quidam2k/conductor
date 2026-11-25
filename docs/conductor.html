@@ -2115,6 +2115,17 @@ function eventToEmbeddedEvent(event) {
 /** Default rest between repeated cycles, in seconds (a musical breath). */
 const DEFAULT_CODA_GAP_SEC = 4;
 
+// Hard cap on the cues one event can generate (bake/perf backstop). The editor
+// refuses a repeat that would pass it; at runtime expandRepeats stops tiling and
+// flags repeatTruncated so the preview can say when the repeats stop.
+const MAX_ACTIONS = 5000;
+
+// Pocket threshold: past this bake span (track start to the last cue), Live and
+// Practice skip the bake and run screen-on only, so there is no memory spike.
+// The render's transient peak is ~11.5 MB per minute of span (resident WAV
+// ~2.9 MB/min). PROVISIONAL at 60 min until a device test sets it.
+const POCKET_MAX_SPAN_MS = 60 * 60 * 1000;
+
 /** Rest between cycles in ms; anything not a finite number ≥ 0 gets the default. */
 function codaGapMs(codaGapSeconds) {
     const sec = (Number.isFinite(codaGapSeconds) && codaGapSeconds >= 0)
@@ -2157,16 +2168,23 @@ function expandRepeats(event) {
     // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
     if (periodMs < 1000) return event;
 
-    const MAX_ACTIONS = 5000; // bake/perf backstop; the size note warns long windows
     const expanded = [...timeline];
-    for (let k = 1; expanded.length < MAX_ACTIONS; k++) {
-        if (k >= maxCycles) break; // reached the requested cycle count (incl. first)
+    let lastGenMs = lastMs;
+    for (let k = 1; k < maxCycles; k++) { // maxCycles counts the first cycle
         const shift = k * periodMs;
         if (firstMs + shift > untilMs) break; // whole cycle now past the window
         for (const a of sorted) {
             const t = a.timeMs ?? new Date(a.time).getTime();
             const newMs = t + shift;
             if (newMs > untilMs) continue;
+            if (expanded.length >= MAX_ACTIONS) {
+                // The cap, not the event's own bound, stopped the repeats: end
+                // the run after the last cue (+ 5 min, as for a play-once event,
+                // so a long last clip finishes) instead of running on in silence.
+                const endMs = Math.min(lastGenMs + 5 * 60 * 1000, untilMs);
+                return { ...event, timeline: expanded, repeatTruncated: true,
+                    endTime: new Date(endMs).toISOString() };
+            }
             expanded.push(createTimelineAction({
                 ...a,
                 id: generateId(),
@@ -2174,7 +2192,7 @@ function expandRepeats(event) {
                 timeMs: newMs,
                 relativeTime: null,
             }));
-            if (expanded.length >= MAX_ACTIONS) break;
+            lastGenMs = newMs;
         }
     }
     return { ...event, timeline: expanded };
@@ -6348,20 +6366,23 @@ function encodeAudioBufferToWav(audioBuffer) {
  *
  * @param {Array} schedule - from audioService.computeCueSchedule
  * @param {function(string): (AudioBuffer|null|undefined)} [getBuffer=null]
- * @param {Object} [opts] - { sampleRate, tailSec, gain }
- * @returns {Promise<{blob:Blob, wavBytes:ArrayBuffer, durationSec:number, sampleRate:number, eventCount:number}|null>}
+ * @param {Object} [opts] - { sampleRate, tailSec, gain, keepWav }. keepWav
+ *     also returns the raw bytes (test pages). Off by default: the Blob holds
+ *     its own copy, so keeping wavBytes would pin a second one in memory.
+ * @returns {Promise<{blob:Blob, wavBytes?:ArrayBuffer, durationSec:number, sampleRate:number, eventCount:number}|null>}
  */
 async function bakeScheduleToWavBlob(schedule, getBuffer = null, opts = {}) {
     if (!canBake()) return null;
     const rendered = await renderScheduleToAudioBuffer(schedule, getBuffer, opts);
     const wavBytes = encodeAudioBufferToWav(rendered);
-    return {
+    const out = {
         blob: new Blob([wavBytes], { type: 'audio/wav' }),
-        wavBytes,
         durationSec: rendered.duration,
         sampleRate: rendered.sampleRate,
         eventCount: schedule.length,
     };
+    if (opts.keepWav) out.wavBytes = wavBytes;
+    return out;
 }
 
 </script>
@@ -8975,7 +8996,12 @@ function renderPreview() {
     // Briefing panel
     renderBriefing(evt.briefing, 'preview-briefing', false);
 
-    renderParseWarnings(evt.parseWarnings);
+    // Repeats cut off at the cue cap: say when, instead of stopping silently.
+    const run = expandRepeats(evt);
+    renderParseWarnings(evt.parseWarnings, run.repeatTruncated
+        ? 'Repeats stop at ' + new Date(run.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            + ', the limit for this event.'
+        : null);
 
     // Pack hint: check for missing packs
     renderPackHint(evt);
@@ -9111,9 +9137,9 @@ async function installHostedPack(btn, packId) {
  * not understand, then its other warnings (a fixed-offset zone, Repeat: 1,
  * a bracket kept as text). Nothing to say hides it.
  */
-function renderParseWarnings(pw) {
+function renderParseWarnings(pw, extraNote) {
     const skipped = (pw && pw.skipped) || [];
-    const notes = (pw && pw.notes) || [];
+    const notes = [...((pw && pw.notes) || []), ...(extraNote ? [extraNote] : [])];
     if (skipped.length === 0 && notes.length === 0) {
         hideBanner('preview-parse-banner');
         return;
@@ -9173,8 +9199,8 @@ function showPocketBanner() {
                 : 'Pocket-ready: beeps, recordings and the robot voice keep playing with the screen off.',
             'info');
     } else {
-        showBanner('live-pocket-banner',
-            'Keep your screen on — this browser can’t pre-render audio for locked playback.',
+        showBanner('live-pocket-banner', bakeSkippedTooLong() ? POCKET_OFF_TEXT
+            : 'Keep your screen on — this browser can’t pre-render audio for locked playback.',
             'warning');
     }
 }
@@ -9192,24 +9218,31 @@ function showPocketBanner() {
 // bake a big file — that's a warning, not a block, or it could never go live.)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const BAKE_SOFT_WARN_SEC = 30 * 60;     // > this → warn on transient size (matches audioBake)
-const BAKE_BYTES_PER_SEC = 24000 * 2;   // 24 kHz mono 16-bit → 48 KB/s
+const BAKE_SOFT_WARN_SEC = 30 * 60;     // > this → warn on bake size (matches audioBake)
+const BAKE_BYTES_PER_SEC = 24000 * 2;   // 24 kHz mono 16-bit → 48 KB/s resident (render peak ~4×)
 
 const PF_ICON = { ok: '✓', warn: '⚠', blocker: '✗' };
 
-// Estimate bake length + transient WAV size without preloading buffers. The
-// bake runs from now to the last future cue, so time-to-last-cue dominates the
-// size exactly as the real guard sees it; pack-voice tails add only seconds.
-function estimateBake(evt) {
-    const now = Date.now();
+// Estimate bake length + resident WAV size without preloading buffers. The
+// bake runs from its anchor (now when live, the virtual start in practice) to
+// the last cue, so that span dominates the size; pack-voice tails add seconds.
+function estimateBake(evt, fromMs = Date.now()) {
     let lastMs = 0;
     for (const a of evt.timeline) {
         const t = a.timeMs ?? new Date(a.time).getTime();
         if (t > lastMs) lastMs = t;
     }
-    const sec = Math.max(0, (lastMs - now) / 1000);
+    const sec = Math.max(0, (lastMs - fromMs) / 1000);
     return { sec, mb: (sec * BAKE_BYTES_PER_SEC) / (1024 * 1024) };
 }
+
+// Past the pocket threshold (POCKET_MAX_SPAN_MS) the bake is skipped: no
+// memory spike and no half-working lock screen. The run is screen-on only.
+const POCKET_OFF_TEXT = 'Pocket audio is off for this event: it is longer than '
+    + Math.round(POCKET_MAX_SPAN_MS / 60000) + ' minutes. Your phone will need its screen on.';
+const bakeTooLong = (evt, fromMs) => estimateBake(evt, fromMs).sec * 1000 > POCKET_MAX_SPAN_MS;
+const bakeSkippedTooLong = () => !!(state.audioDebug && state.audioDebug.bake
+    && state.audioDebug.bake.reason === 'too-long');
 
 function humanizeMinutes(mins) {
     const m = Math.max(0, Math.round(mins));
@@ -9249,9 +9282,8 @@ async function collectCueCoverage(evt) {
 }
 
 /**
- * Run the six checks and return { rows, hasBlocker }. Each row is
- * { status:'ok'|'warn'|'blocker', label, detail }. Nothing blocks today;
- * hasBlocker stays for a future hard check.
+ * Run the six checks and return their rows. Each row is
+ * { status:'ok'|'warn', label, detail }. Advisory only: nothing blocks.
  */
 async function runPreflight(evt) {
     const rows = [];
@@ -9306,12 +9338,14 @@ async function runPreflight(evt) {
                 + (navigator.standalone ? ' This Home Screen app keeps its own voices, separate from Safari — install them here too.' : '') });
     }
 
-    // 4. Bake-size estimate.
-    const est = estimateBake(evt);
-    const hasBlocker = false;
+    // 4. Bake-size estimate, over the expanded run Live will bake.
+    const est = estimateBake(expandRepeats(evt));
+    const tooLong = est.sec * 1000 > POCKET_MAX_SPAN_MS;
     if (!canBake()) {
         rows.push({ status: 'warn', label: 'Screen-on audio only',
             detail: "This browser can't pre-render audio for a locked screen." });
+    } else if (tooLong) {
+        rows.push({ status: 'warn', label: 'Pocket audio off', detail: POCKET_OFF_TEXT });
     } else if (est.sec > BAKE_SOFT_WARN_SEC) {
         rows.push({ status: 'warn', label: 'Large audio file (~' + est.mb.toFixed(0) + ' MB)',
             detail: 'This event runs ' + humanizeMinutes(est.sec / 60) + ', so the phone prepares a big audio file. Older phones may take a moment; plug in if you can.' });
@@ -9332,16 +9366,17 @@ async function runPreflight(evt) {
     // 6. Pocket readiness.
     // Missing recordings no longer cost pocket audio: the robot voice reads
     // those steps and is baked into the same track.
-    if (canBake() && !hasBlocker && (robotReady || cov.missing === 0)) {
+    // The bake itself runs when Live opens, so this row is a forecast.
+    if (canBake() && !tooLong && (robotReady || cov.missing === 0)) {
         rows.push({ status: 'ok', label: 'Pocket-ready',
-            detail: 'You can lock the screen — audio keeps playing.'
+            detail: 'You should be able to lock the screen. This will be checked when Live opens.'
                 + (cov.missing ? ' Steps without a recording use the robot voice.' : '') });
     } else {
         rows.push({ status: 'warn', label: 'Keep screen on',
             detail: 'Locked-screen audio is not available for this run.' });
     }
 
-    return { rows, hasBlocker };
+    return rows;
 }
 
 /**
@@ -9383,7 +9418,7 @@ function showPreflight(evt, onConfirm) {
     $('btn-preflight-cancel').addEventListener('click', cancel);
     $('btn-preflight-close').addEventListener('click', cancel);
 
-    runPreflight(evt).then(({ rows, hasBlocker }) => {
+    runPreflight(evt).then(rows => {
         if (overlay.style.display === 'none') return; // user backed out mid-check
         checkingEl.style.display = 'none';
         rowsEl.style.display = '';
@@ -9394,8 +9429,7 @@ function showPreflight(evt, onConfirm) {
             '<span class="pf-detail">' + escapeHtml(r.detail) + '</span></span></div>'
         ).join('');
         footer.textContent = 'build ' + version() + ' · No telemetry · No tracking';
-        if (hasBlocker) { goBtn.disabled = true; goBtn.textContent = 'Too early'; }
-        else { goBtn.disabled = false; }
+        goBtn.disabled = false;
         trapFocus(overlay); // re-trap so the now-enabled button joins the order
     });
 
@@ -9525,7 +9559,9 @@ async function enterPractice() {
     // the same ones live sees. Without this, practice exercises the live TTS /
     // Web Audio path — which is the one that does NOT survive a locked screen —
     // so a script could rehearse perfectly and go silent in a pocket.
-    if (canBake()) {
+    if (canBake() && bakeTooLong(evt, state.practiceStartEventMs)) {
+        setBakeStatus({ ok: false, reason: 'too-long' }); // screen-on only, no render
+    } else if (canBake()) {
         const tookOver = await startBakedTrack(evt, evtDefs, {
             anchorMs: state.practiceStartEventMs,
             startWallMs: state.practiceStartRealMs,
@@ -9566,6 +9602,9 @@ function updatePracticeRehearsalNote() {
     if (state.bakedActive) {
         el.textContent = 'Pocket rehearsal — same audio the live event uses. Lock the screen and it keeps playing.';
         el.className = 'practice-rehearsal-note baked';
+    } else if (bakeSkippedTooLong()) {
+        el.textContent = POCKET_OFF_TEXT;
+        el.className = 'practice-rehearsal-note plain';
     } else if (state.speedMultiplier !== 1) {
         el.textContent = 'Speed is off 1× — practising through spoken audio, which stops when the screen locks.';
         el.className = 'practice-rehearsal-note plain';
@@ -9696,7 +9735,9 @@ async function enterLive() {
     // on every platform that can — Android/desktop background-timer throttling
     // is sidestepped the same way. Falls back to live if the bake fails.
     // (Design record: the 2026-06-23 locked-screen bake plan, kept privately.)
-    if (canBake()) {
+    if (canBake() && bakeTooLong(evt)) {
+        setBakeStatus({ ok: false, reason: 'too-long' }); // screen-on only, no render
+    } else if (canBake()) {
         const tookOver = await startBakedTrack(evt, evtDefs, { gen });
         if (gen !== enterGen) {
             // User left live while baking — the transition's stopBakedTrack ran
@@ -10493,9 +10534,40 @@ function initEditorInfo() {
 }
 
 /**
- * Show a rough size heads-up for long repeat windows — going live pre-bakes the
- * whole span into one WAV (the wart from the >30-min single-play warning), so a
- * multi-hour chant is a big transient file. Advisory only, never blocks.
+ * The cue cap in the editor: expandRepeats over the steps so far with this
+ * repeat bound ({ repeatCount } or { repeatUntil }). Returns the time the
+ * repeats would stop at if MAX_ACTIONS cuts them off, else null.
+ */
+function editorRepeatCapEnd(startMs, bound) {
+    const acts = state.editor.actions || [];
+    if (acts.length === 0) return null;
+    const coda = parseInt($('ed-coda').value, 10);
+    const run = expandRepeats(Object.assign({
+        codaGapSeconds: coda >= 0 ? coda : undefined,
+        timeline: acts.map(a => ({ timeMs: startMs + (a.offsetSeconds ?? 0) * 1000 })),
+    }, bound));
+    return run.repeatTruncated ? run.endTime : null;
+}
+
+function repeatCapMessage(endTime) {
+    return 'This repeat makes more than ' + MAX_ACTIONS.toLocaleString('en-US')
+        + ' cues, the limit for one event, so it would stop at '
+        + new Date(endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        + '. Use fewer rounds or an earlier end time.';
+}
+
+// Advisory size note for a repeat span. Over the pocket threshold the bake is
+// skipped at Go Live, so say that instead of a size.
+function repeatSpanNote(mins) {
+    if (mins * 60000 > POCKET_MAX_SPAN_MS) return POCKET_OFF_TEXT;
+    // ~2.9 MB per minute resident (24 kHz mono 16-bit); the render peaks ~4× that.
+    return 'Going live pre-renders the whole run (~' + Math.max(1, Math.round(mins * 2.88)) + ' MB held in memory)'
+        + (mins > 30 ? ' — that’s a lot; keep it tight on older phones.' : '.');
+}
+
+/**
+ * Heads-up for a repeat: a cue count past MAX_ACTIONS is an error (the save
+ * refuses it too); a long span gets an advisory size or pocket-off note.
  */
 function updateRepeatNote() {
     const note = $('ed-repeat-note');
@@ -10521,15 +10593,18 @@ function updateRepeatNote() {
             const acts = state.editor.actions || [];
             const codaIn = parseInt($('ed-coda').value, 10);
             const coda = codaIn >= 0 ? codaIn : 4;
-            if (acts.length > 0) {
+            const capEnd = editorRepeatCapEnd(startMs, { repeatCount: n });
+            if (capEnd) {
+                note.textContent = repeatCapMessage(capEnd);
+                note.style.color = 'var(--accent-gold)';
+            } else if (acts.length > 0) {
                 const offs = acts.map(a => a.offsetSeconds ?? 0);
                 const spanSec = Math.max(...offs) - Math.min(...offs);
                 const periodSec = spanSec + coda;
                 const totalSec = periodSec * (n - 1) + spanSec;
                 mins = Math.max(1, Math.round(totalSec / 60));
                 note.style.color = mins > 30 ? 'var(--accent-gold)' : 'var(--text-dim)';
-                note.textContent = `${n} cycles (~${mins} min). Going live pre-renders the whole run`
-                    + (mins > 30 ? ' — that’s a lot; keep it tight on older phones.' : '.');
+                note.textContent = `${n} cycles (~${mins} min). ` + repeatSpanNote(mins);
             } else {
                 note.style.color = 'var(--text-dim)';
                 note.textContent = `${n} cycles. Add actions to see the length estimate.`;
@@ -10545,12 +10620,14 @@ function updateRepeatNote() {
             note.style.color = 'var(--accent-gold)';
             return;
         }
-        // ~2.83 MB per baked minute (from the known 1 h ≈ 170 MB transient wart).
-        const mb = Math.round(mins * 2.83);
-        const long = mins > 30;
-        note.style.color = long ? 'var(--accent-gold)' : 'var(--text-dim)';
-        note.textContent = `Runs ~${mins} min. Going live pre-renders the whole span`
-            + ` (~${mb} MB held in memory)` + (long ? ' — that’s a lot; keep windows tight on older phones.' : '.');
+        const capEnd = editorRepeatCapEnd(startMs, { repeatUntil: new Date(endMs).toISOString() });
+        if (capEnd) {
+            note.textContent = repeatCapMessage(capEnd);
+            note.style.color = 'var(--accent-gold)';
+            return;
+        }
+        note.style.color = mins > 30 ? 'var(--accent-gold)' : 'var(--text-dim)';
+        note.textContent = `Runs ~${mins} min. ` + repeatSpanNote(mins);
     } catch {
         note.textContent = '';
     }
@@ -10608,6 +10685,14 @@ function saveEditorInfo() {
         }
         if (!(untilMs > startMs)) {
             $('ed-info-error').textContent = 'Repeat until must be after the start time.';
+            return false;
+        }
+    }
+    if (repeatOn) {
+        const capEnd = editorRepeatCapEnd(startMs, countMode ? { repeatCount: countVal }
+            : { repeatUntil: new Date(localDateTimeToUTC(untilVal, tz)).toISOString() });
+        if (capEnd) {
+            $('ed-info-error').textContent = repeatCapMessage(capEnd);
             return false;
         }
     }
@@ -12110,7 +12195,10 @@ function finalizeEditorEvent() {
         }
     }
 
-    state.event = embeddedEventToEvent(embedded);
+    const evt = embeddedEventToEvent(embedded);
+    const run = expandRepeats(evt);
+    if (run.repeatTruncated) throw new Error(repeatCapMessage(run.endTime));
+    state.event = evt;
 }
 
 function renderEditorReview() {
@@ -12888,12 +12976,14 @@ $('btn-go-live').addEventListener('click', async () => {
     const evt = state.event;
     if (!evt || evt.timeline.length === 0) return;
     const now = Date.now();
-    const cueTimes = expandRepeats(evt).timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
+    const run = expandRepeats(evt);
+    const cueTimes = run.timeline.map(a => a.timeMs ?? new Date(a.time).getTime());
     const allPast = cueTimes.every(t => t < now);
     if (allPast) {
         // endTime is set by embeddedEventToEvent (last cue + 5 min, or the
-        // repeat's end); fall back to that rule if an event arrives without it.
-        let endMs = new Date(evt.endTime).getTime();
+        // repeat's end; expandRepeats moves it in when the cue cap cuts the
+        // repeats); fall back to that rule if an event arrives without it.
+        let endMs = new Date(run.endTime).getTime();
         if (!Number.isFinite(endMs)) endMs = Math.max(...cueTimes) + 5 * 60 * 1000;
         if (now <= endMs) {
             showBanner('preview-banner', 'This event already ran. Start Practice still plays it through.', 'info');
@@ -12913,7 +13003,7 @@ $('btn-go-live').addEventListener('click', async () => {
         renderPreview();
     } else {
         // Going live bakes the whole wait into the audio track (an hour early
-        // ≈ 170 MB) and drains the battery, so Live opens 20 min before the
+        // ≈ 170 MB resident; the render peaks ~11.5 MB per minute) and drains the battery, so Live opens 20 min before the
         // first upcoming cue. Practice is always available.
         const nextMs = Math.min(...cueTimes.filter(t => t >= now));
         const opensMs = nextMs - LIVE_OPENS_BEFORE_MS;
@@ -13515,8 +13605,10 @@ $('pack-file-input-quick').addEventListener('change', async (e) => {
 
 // The hash the page last settled on: put back when a new link is declined
 // mid-performance. replaceState fires no hashchange, and the reload key
-// (LOADED_KEY) still matches the restored URL.
+// (LOADED_KEY) still matches the restored URL. While a question is up, a
+// second link supersedes the first but restores to the same settled hash.
 let lastHash = location.hash;
+let hashAsk = 0, hashRestore = null;
 window.addEventListener('hashchange', () => {
     const oldHash = lastHash;
     lastHash = location.hash;
@@ -13528,20 +13620,27 @@ window.addEventListener('hashchange', () => {
     };
     const mode = state.mode;
     if (mode !== 'live' && mode !== 'practice') { open(); return; }
+    // Mid-run, only a v1 event link can interrupt (it asks first). Any other
+    // hash, an #anchor or an old unprefixed code, is ignored: never swapped in.
+    if (!/^#v1[a-z]?_/.test(location.hash)) return;
+    if (hashRestore === null) hashRestore = oldHash;
+    const turn = ++hashAsk;
     // A new link mid-performance must not swap the event out from under it.
     askConfirm(mode === 'live' ? 'Stop the live event? This cannot be undone.'
         : 'Stop practice and open the new event?', 'Stop it', 'Keep going')
         .then(yes => {
-            if (yes && state.mode === mode) {
+            if (turn !== hashAsk) return; // a later link's question replaced this one
+            const restore = hashRestore;
+            hashRestore = null;
+            if (yes) {
+                // Stop first, so a broken link shows its error on Input and a
+                // locked one asks for its password with nothing still playing.
+                transitionTo('input');
                 open();
-                // A broken link still stops the run, and the input screen shows
-                // why. A locked link waits on its password prompt instead.
-                if (state.mode === mode && $('password-overlay').style.display !== 'flex') transitionTo('input');
                 return;
             }
-            if (yes) return;
-            try { history.replaceState(history.state, '', oldHash || (location.pathname + location.search)); } catch (e) {}
-            lastHash = oldHash;
+            try { history.replaceState(history.state, '', restore || (location.pathname + location.search)); } catch (e) {}
+            lastHash = restore;
         });
 });
 

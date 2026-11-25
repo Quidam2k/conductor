@@ -257,6 +257,17 @@ function eventToEmbeddedEvent(event) {
 /** Default rest between repeated cycles, in seconds (a musical breath). */
 const DEFAULT_CODA_GAP_SEC = 4;
 
+// Hard cap on the cues one event can generate (bake/perf backstop). The editor
+// refuses a repeat that would pass it; at runtime expandRepeats stops tiling and
+// flags repeatTruncated so the preview can say when the repeats stop.
+const MAX_ACTIONS = 5000;
+
+// Pocket threshold: past this bake span (track start to the last cue), Live and
+// Practice skip the bake and run screen-on only, so there is no memory spike.
+// The render's transient peak is ~11.5 MB per minute of span (resident WAV
+// ~2.9 MB/min). PROVISIONAL at 60 min until a device test sets it.
+const POCKET_MAX_SPAN_MS = 60 * 60 * 1000;
+
 /** Rest between cycles in ms; anything not a finite number ≥ 0 gets the default. */
 function codaGapMs(codaGapSeconds) {
     const sec = (Number.isFinite(codaGapSeconds) && codaGapSeconds >= 0)
@@ -299,16 +310,23 @@ function expandRepeats(event) {
     // Refuse to tile absurdly fast (would mint thousands of cues) or backwards.
     if (periodMs < 1000) return event;
 
-    const MAX_ACTIONS = 5000; // bake/perf backstop; the size note warns long windows
     const expanded = [...timeline];
-    for (let k = 1; expanded.length < MAX_ACTIONS; k++) {
-        if (k >= maxCycles) break; // reached the requested cycle count (incl. first)
+    let lastGenMs = lastMs;
+    for (let k = 1; k < maxCycles; k++) { // maxCycles counts the first cycle
         const shift = k * periodMs;
         if (firstMs + shift > untilMs) break; // whole cycle now past the window
         for (const a of sorted) {
             const t = a.timeMs ?? new Date(a.time).getTime();
             const newMs = t + shift;
             if (newMs > untilMs) continue;
+            if (expanded.length >= MAX_ACTIONS) {
+                // The cap, not the event's own bound, stopped the repeats: end
+                // the run after the last cue (+ 5 min, as for a play-once event,
+                // so a long last clip finishes) instead of running on in silence.
+                const endMs = Math.min(lastGenMs + 5 * 60 * 1000, untilMs);
+                return { ...event, timeline: expanded, repeatTruncated: true,
+                    endTime: new Date(endMs).toISOString() };
+            }
             expanded.push(createTimelineAction({
                 ...a,
                 id: generateId(),
@@ -316,7 +334,7 @@ function expandRepeats(event) {
                 timeMs: newMs,
                 relativeTime: null,
             }));
-            if (expanded.length >= MAX_ACTIONS) break;
+            lastGenMs = newMs;
         }
     }
     return { ...event, timeline: expanded };
