@@ -124,3 +124,33 @@ test('a deployed index.html shows on the second load, inside the HTTP cache wind
     expect(await marker()).toBe('new');
     await context.close();
 });
+
+test('pack zips go to the network and are never stored', async ({ browser }) => {
+    const { context, page } = await installed(browser);
+    const statuses = await page.evaluate(() => Promise.all(
+        ['/packs/no-such.zip', '/packs/demo-the-walk.zip'].map(u => fetch(u).then(r => r.status))));
+    expect(statuses).toEqual([404, 200]);
+    await page.waitForTimeout(1000);
+    expect(await cachedText(page, base + '/packs/no-such.zip')).toBeNull();
+    expect(await cachedText(page, base + '/packs/demo-the-walk.zip')).toBeNull();
+    await context.close();
+});
+
+for (const [label, bytes, message] of [
+    ['a different pack', () => fs.readFileSync(path.join(DOCS, 'packs', 'demo-the-walk.zip')), 'That download is a different pack'],
+    ['not a pack', () => Buffer.from('not a zip'), 'Not a valid pack'],
+]) {
+    test(`Install voices refuses ${label} and stores nothing`, async ({ browser }) => {
+        overrides.set('/packs/demo-the-stillness.zip', bytes()); // the demo's pack, swapped on the server
+        const context = await browser.newContext({ serviceWorkers: 'block' });
+        const page = await context.newPage();
+        await page.goto(base + '/index.html');
+        await page.click('#btn-demo');
+        const install = page.locator('#preview-pack-hint [data-install-pack="demo-the-stillness"]');
+        await install.click();
+        await expect(install).toHaveText(message);
+        await expect(install).toBeEnabled();
+        expect(await page.evaluate(() => packManager.listPacks().then(l => l.map(p => p.id)))).toEqual([]);
+        await context.close();
+    });
+}

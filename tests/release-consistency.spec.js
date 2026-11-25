@@ -27,11 +27,12 @@ test('all build labels and the changelog agree with index.html', () => {
         .toContain(`id="${v}"`);
 });
 
-test('service worker cache name changed with the build', () => {
-    // CACHE_NAME numbering drifted from the build number long ago, so only
-    // check it is well-formed; the label check above catches a missed bump
-    // of everything else, and the standalone check below catches a stale file.
-    expect(read('sw.js')).toMatch(/^const CACHE_NAME = 'conductor-v\d+';/);
+test('service worker cache name is the build number', () => {
+    // A new CACHE_NAME is what makes installed phones fetch the new files,
+    // so it must move with every build: conductor-v<N> for build vN.
+    const m = read('sw.js').match(/^const CACHE_NAME = 'conductor-(v\d+)';/);
+    expect(m, 'sw.js CACHE_NAME').toBeTruthy();
+    expect(m[1], 'sw.js CACHE_NAME must equal the build label').toBe(appVersion());
 });
 
 test('standalone conductor.html is regenerated from the current sources', () => {

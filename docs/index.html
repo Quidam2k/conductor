@@ -2901,7 +2901,15 @@ async function installHostedPack(btn, packId) {
     try {
         const resp = await fetch('packs/' + encodeURIComponent(packId) + '.zip');
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const { manifest } = await packManager.importPackWithValidation(await resp.arrayBuffer());
+        const buf = await resp.arrayBuffer();
+        // Check the zip is the pack this button names before storing anything.
+        const peek = await packManager.peekManifest(buf);
+        if (!peek || peek.id !== packId) {
+            btn.disabled = false;
+            btn.textContent = peek ? 'That download is a different pack' : 'Not a valid pack';
+            return;
+        }
+        const { manifest } = await packManager.importPackWithValidation(buf);
         await packManager.ensurePackLoaded(manifest.id);
         hideBanner('preview-banner');
         renderPreview(); // re-runs the pack hint + missing-cue check

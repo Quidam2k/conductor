@@ -34,6 +34,7 @@ const ASSETS = [
     './icon-192.png',
     './icon-512.png',
 ];
+const PRECACHED = new Set(ASSETS.map(a => new URL(a, self.location).href));
 
 // Install: precache all app assets
 self.addEventListener('install', (e) => {
@@ -63,11 +64,16 @@ self.addEventListener('activate', (e) => {
 //   cache for the next load. Combined with the page's controllerchange reload,
 //   users get the new UI on their second visit after a deploy — never stuck on
 //   stale HTML waiting for a CACHE_NAME bump.
-// - Other assets: cache-first. They're versioned via CACHE_NAME and the new SW's
-//   install step re-fetches them all, so a fresh CACHE_NAME = fresh assets.
+// - Other assets: cache-first, but only the files in ASSETS. CACHE_NAME follows
+//   the build, and the new SW's install re-fetches them all.
+// - Everything else (pack zips above all) goes to the network and is never
+//   stored: the app keeps installed packs in IndexedDB, and an SW copy is only
+//   ever a stale or failed download pinned until the next build.
 self.addEventListener('fetch', (e) => {
     if (e.request.method !== 'GET') return;
-    if (new URL(e.request.url).origin !== location.origin) return;
+    const url = new URL(e.request.url);
+    if (url.origin !== location.origin) return;
+    if (url.pathname.endsWith('.zip')) return; // a download link is a navigation too
 
     const isHTML = e.request.mode === 'navigate' ||
         (e.request.destination === 'document') ||
@@ -93,6 +99,7 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
+    if (!PRECACHED.has(url.href)) return;
     e.respondWith(
         caches.match(e.request)
             .then(cached => cached || fetch(e.request).then(resp => {
